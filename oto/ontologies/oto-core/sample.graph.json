@@ -1,0 +1,54 @@
+{
+  "_about": "Two documents and one citation: enough for a project to build and answer on day one.",
+  "nodes": [
+    {
+      "id": "doc.handbook",
+      "type": "Document",
+      "label": "Operations handbook",
+      "aliases": [
+        "the handbook"
+      ],
+      "summary": "The handbook every other sample document refers back to.",
+      "attributes": {
+        "date": "2025-12-01"
+      },
+      "tags": [
+        "sample"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "doc.bulletin",
+      "type": "Document",
+      "label": "Bulletin 2026-01",
+      "aliases": [],
+      "summary": "A monthly bulletin that cites the handbook.",
+      "attributes": {
+        "date": "2026-01-01"
+      },
+      "tags": [
+        "sample"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "doc.bulletin",
+      "rel": "cites",
+      "to": "doc.handbook"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "json-pages",
+  "summary": "One page reading several JSON files.",
+  "entry": "index.html",
+  "data": [
+    {"file": "data/systems.json", "format": "json",
+     "root": {"$nodes": "System", "$map": {"id": "$id", "label": "$label",
+              "parts": {"$in": "part_of", "$select": {"id": "$id", "type": "$type"}, "$sort": "id"}}}},
+    {"file": "data/findings.json", "format": "json", "globals": {"findings": {"$findings": true}, "ledger": {"$ledger": true, "$limit": 3}}},
+    {"file": "data/module.js", "format": "js-module", "globals": {"documents": {"$documents": true, "$map": "$label"}}}
+  ],
+  "requires": {"classes": ["System"], "relations": ["part_of"]}
+}

@@ -1,0 +1,7 @@
+{
+  "name": "oto",
+  "owner": { "name": "Cynergis AI" },
+  "plugins": [
+    { "name": "oto", "source": "./", "description": "OTO knowledge graph: documents to a served, cited, temporal graph." }
+  ]
+}

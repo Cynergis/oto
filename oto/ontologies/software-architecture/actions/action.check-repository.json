@@ -1,0 +1,63 @@
+{
+  "id": "action.check-repository",
+  "label": "Check that a repository exists",
+  "description": "Reads the repository's metadata from GitHub and records that it exists, its URL and its default branch. Realises an intended repository; re-attests a current one.",
+  "subject": "Repository",
+  "executed_by": "team.payments",
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": true
+  },
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "owner": {
+        "type": "string",
+        "description": "the owning organisation or account"
+      },
+      "repo": {
+        "type": "string",
+        "description": "the repository name"
+      }
+    },
+    "required": [
+      "owner",
+      "repo"
+    ]
+  },
+  "bind": {
+    "owner": "$attr.owner",
+    "repo": "$attr.name"
+  },
+  "when": [
+    {
+      "node": "r",
+      "type": "Repository"
+    }
+  ],
+  "invoke": {
+    "transport": "mcp",
+    "server": "github",
+    "tool": "get_repository"
+  },
+  "needs": [
+    "GITHUB_TOKEN"
+  ],
+  "result": {
+    "kind": "proposal",
+    "then": {
+      "node": "$subject",
+      "status": "current",
+      "attributes": {
+        "url": "$response.html_url",
+        "default_branch": "$response.default_branch"
+      }
+    },
+    "require": [
+      "$response.html_url"
+    ]
+  },
+  "schedule": "daily"
+}

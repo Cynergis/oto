@@ -1,0 +1,26 @@
+{
+  "_about": "Rules every ontology inherits. `kind: derive` adds facts marked as derived, with the rule and the premises; `kind: policy` flags what a policy forbids. Never fill validated_by yourself.",
+  "rules": [
+    {
+      "id": "intended-fact-overdue",
+      "kind": "policy",
+      "severity": "warn",
+      "when": [
+        {
+          "node": "x",
+          "where": {
+            "status": "intended",
+            "as_of": {
+              "<": "$today-90d"
+            }
+          }
+        }
+      ],
+      "then": {
+        "flag": "asserted as a plan more than 90 days ago and still not observed: record the action's run that realised it, or retire the intent"
+      },
+      "why": "An intended fact is a promise the graph makes about the world. A promise nobody has checked in three months is either kept and unrecorded, or broken; either way a reader must not take it as a plan still in motion.",
+      "validated_by": ""
+    }
+  ]
+}

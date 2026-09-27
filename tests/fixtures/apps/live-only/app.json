@@ -1,0 +1,2 @@
+{"name": "live-only", "summary": "No data file; the app calls the engine's routes.", "entry": "index.html",
+ "requires": {"classes": ["System"]}}

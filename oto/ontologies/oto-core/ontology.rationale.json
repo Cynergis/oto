@@ -1,0 +1,37 @@
+{
+  "_about": "Why each class and relation exists. `validated_by` is empty: confirmation belongs to the domain that extends this.",
+  "classes": {
+    "Document": {
+      "question": "Where is this written down?",
+      "why": "Every fact needs a checkable source with its own date, and the source is a file in the corpus.",
+      "alternatives": "A `source` string on every node. It cannot be queried, dated or superseded, so it became a class.",
+      "validated_by": ""
+    },
+    "Action": {
+      "question": "What can be done about this, and how?",
+      "why": "The binding between an entity, the tool that acts on it, its inputs, its credentials by name and its preconditions is otherwise tribal knowledge in an agent's prompt; as a fact it is versioned, reviewed and shared. OTO never invokes it.",
+      "alternatives": "A list of scripts beside the project. It cannot say what each acts on, when it is ready, or what its run proved.",
+      "validated_by": ""
+    }
+  },
+  "properties": {
+    "cites": {
+      "question": "Which document does this one rest on?",
+      "why": "A reviewer following a fact to its document often needs the document that one cites; the chain should be walkable in the graph.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "acts_on": {
+      "question": "Which entity did this run touch?",
+      "why": "A recorded run is evidence for the facts it asserted about one entity; the edge is how a reader gets from the entity to the run.",
+      "alternatives": "A note in the run record only. Then the entity cannot be asked what was done to it.",
+      "validated_by": ""
+    },
+    "executed_by": {
+      "question": "Who is accountable for invoking this?",
+      "why": "An action that changes the world needs an accountable team, and a reader asking who may run it should find a team, not a person who has since moved.",
+      "alternatives": "",
+      "validated_by": ""
+    }
+  }
+}

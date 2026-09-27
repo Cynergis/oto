@@ -1,0 +1,109 @@
+{
+  "_about": "Why each class and relation exists, and who confirmed it. Written by the ontology interview and edited by hand. `validated_by` is empty until a person who knows the domain has actually confirmed the entry; leave it empty rather than guessing.",
+  "classes": {
+    "Capability": {
+      "alternatives": "",
+      "question": "What does the business lose if this is down?",
+      "validated_by": "",
+      "why": "This is the only class a non-engineer will use, so it must exist in their words rather than being inferred from component names."
+    },
+    "Component": {
+      "alternatives": "Considered only having System; rejected because it cannot answer what breaks if this is redeployed.",
+      "question": "What actually gets deployed, and what does it touch?",
+      "validated_by": "",
+      "why": "Change and failure happen at the deployable unit, not at the system, so impact questions need this level."
+    },
+    "DataStore": {
+      "alternatives": "",
+      "question": "Where does this data live, and who writes it?",
+      "validated_by": "",
+      "why": "Two writers to one store is the commonest quiet cause of inconsistency, and it is only visible if the store is a node."
+    },
+    "DecisionRecord": {
+      "alternatives": "Considered a comment in the design document; rejected because it cannot be linked from the thing it shaped.",
+      "question": "Why is it like this?",
+      "validated_by": "",
+      "why": "Architecture without recorded reasons is re-litigated every year, and the reason has its own date and author."
+    },
+    "Document": {
+      "alternatives": "",
+      "question": "Where is this written down?",
+      "validated_by": "",
+      "why": "Every fact needs a checkable source, and the source is a file with its own date."
+    },
+    "Environment": {
+      "alternatives": "",
+      "question": "Where does this run, and is the answer the same in production?",
+      "validated_by": "",
+      "why": "Topology differs between environments, and an answer that ignores that is misleading in an incident."
+    },
+    "Interface": {
+      "alternatives": "Considered a direct component-to-component dependency; rejected because it hides what the dependency is on.",
+      "question": "If we change this, who breaks?",
+      "validated_by": "",
+      "why": "Coupling lives in the contracts others depend on, so the contract must be a node that both sides can point at."
+    },
+    "Requirement": {
+      "alternatives": "",
+      "question": "What must this satisfy, and does it?",
+      "validated_by": "",
+      "why": "A stated need outlives the component that meets it, and a replacement must satisfy the same thing."
+    },
+    "Risk": {
+      "alternatives": "",
+      "question": "What is fragile, and what are we doing about it?",
+      "validated_by": "",
+      "why": "A risk nobody can trace to a component is not actionable, so it must point at what it threatens."
+    },
+    "Runbook": {
+      "alternatives": "",
+      "question": "How do I operate or recover this at three in the morning?",
+      "validated_by": "",
+      "why": "The operating procedure is a distinct artifact with its own currency, and it is the thing an incident needs."
+    },
+    "System": {
+      "alternatives": "",
+      "question": "What is this thing, and who owns it?",
+      "validated_by": "",
+      "why": "A system is the unit people name in conversation and the unit ownership attaches to, so it has to exist even though it is coarse."
+    },
+    "Team": {
+      "alternatives": "Considered a Person class; rejected because it goes stale immediately and adds personal data for no gain.",
+      "question": "Who do I call?",
+      "validated_by": "",
+      "why": "Accountability must point at a group rather than a person, because people move and the question does not."
+    },
+    "Repository": {
+      "question": "Where is the code?",
+      "why": "A component without a repository cannot be changed, and an architecture graph that cannot say where the code lives cannot be acted on. Recorded as intended before the repository exists, it is the fact an action realises.",
+      "alternatives": "A url attribute on Component. It could not be intended, checked, or acted on as a thing of its own.",
+      "validated_by": ""
+    }
+  },
+  "properties": {
+    "consumes": {
+      "alternatives": "",
+      "question": "If we change this interface, who breaks?",
+      "validated_by": "",
+      "why": "This is the edge the impact question runs on, which is why interfaces are modelled at all."
+    },
+    "writes_to": {
+      "alternatives": "Considered a single accesses relation; rejected because it cannot answer the question that matters.",
+      "question": "Who writes this store?",
+      "validated_by": "",
+      "why": "Kept separate from reading so more than one writer is visible as a query rather than as folklore."
+    },
+    "depends_on": {
+      "question": "If this component changes, what else must change?",
+      "why": "Mostly derived by a rule from consumes and exposes; declared so a document that states a dependency outright can be recorded.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "implemented_by": {
+      "question": "Which repository holds this component's code?",
+      "why": "Change impact ends in code; the edge is how a reader gets from the box to the checkout.",
+      "alternatives": "",
+      "validated_by": ""
+    }
+  }
+}

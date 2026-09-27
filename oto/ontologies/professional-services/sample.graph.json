@@ -1,0 +1,35 @@
+{
+  "_about": "A tiny, fictional example so `oto build` works immediately. Replace it.",
+  "nodes": [
+    {"id": "org.client", "type": "Organization", "label": "Acme Group", "aliases": ["Acme"], "summary": "The client organization.", "attributes": {"side": "client"}, "tags": ["organization"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "org.supplier", "type": "Organization", "label": "Northwind Advisory", "aliases": [], "summary": "The supplier organization.", "attributes": {"side": "supplier"}, "tags": ["organization"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "engagement.wave-0", "type": "Engagement", "label": "Operating Model Wave 0", "aliases": ["Wave 0"], "summary": "A first wave establishing the target operating model.", "attributes": {}, "tags": ["engagement"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "workstream.delivery-model", "type": "Workstream", "label": "Delivery model", "aliases": [], "summary": "Designs how work is delivered in the target model.", "attributes": {}, "tags": ["workstream"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "deliverable.methodology", "type": "Deliverable", "label": "Delivery methodology, version 1", "aliases": [], "summary": "The documented target delivery methodology.", "attributes": {}, "tags": ["deliverable"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "role.workstream-lead", "type": "Role", "label": "Workstream lead", "aliases": [], "summary": "Accountable for a workstream's plan and outcome.", "attributes": {}, "tags": ["role"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "forum.steering", "type": "GovernanceForum", "label": "Steering committee", "aliases": ["steerco"], "summary": "Decides on scope, sequence and escalations.", "attributes": {"cadence": "monthly"}, "tags": ["forum"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "session.steering.2026-02-10", "type": "Session", "label": "Steering committee, 2026-02-10", "aliases": [], "summary": "Reviewed the delivery model options and chose one.", "attributes": {"session_type": "governance"}, "tags": ["session"], "as_of": "2026-02-10", "valid_from": "2026-02-10", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "doc.steering-minutes", "type": "Document", "label": "Steering minutes, 2026-02-10", "aliases": [], "summary": "The minutes recording that session.", "attributes": {}, "tags": ["document"], "as_of": "2026-02-10", "valid_from": "2026-02-10", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "decision.pod-based-delivery", "type": "Decision", "label": "Adopt pod-based delivery", "aliases": [], "summary": "Chosen over a project-based model, for faster feedback and clearer ownership.", "attributes": {"reason": "faster feedback, clearer ownership"}, "tags": ["decision"], "as_of": "2026-02-10", "valid_from": "2026-02-10", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "concept.pod", "type": "Concept", "label": "Pod", "aliases": [], "summary": "A durable team that owns an outcome end to end.", "attributes": {}, "tags": ["concept"], "as_of": "2026-02-10", "valid_from": "2026-02-10", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "action.draft-methodology", "type": "ActionItem", "label": "Draft the methodology to reflect pods", "aliases": [], "summary": "Rewrite the delivery methodology around pod ownership.", "attributes": {"state": "open"}, "tags": ["action"], "as_of": "2026-02-10", "valid_from": "2026-02-10", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "question.pod-sizing", "type": "Question", "label": "How large should a pod be?", "aliases": [], "summary": "Unresolved: no sizing guidance agreed yet.", "attributes": {"state": "open"}, "tags": ["question"], "as_of": "2026-02-10", "valid_from": "2026-02-10", "source_doc": "sample", "status": "current", "sources": ["sample"]}
+  ],
+  "edges": [
+    {"from": "org.supplier", "rel": "delivers", "to": "engagement.wave-0"},
+    {"from": "org.client", "rel": "client_of", "to": "engagement.wave-0"},
+    {"from": "engagement.wave-0", "rel": "scoped_as", "to": "workstream.delivery-model"},
+    {"from": "workstream.delivery-model", "rel": "produces", "to": "deliverable.methodology"},
+    {"from": "role.workstream-lead", "rel": "owns", "to": "workstream.delivery-model"},
+    {"from": "session.steering.2026-02-10", "rel": "instance_of", "to": "forum.steering"},
+    {"from": "session.steering.2026-02-10", "rel": "recorded_in", "to": "doc.steering-minutes"},
+    {"from": "session.steering.2026-02-10", "rel": "raised", "to": "decision.pod-based-delivery"},
+    {"from": "session.steering.2026-02-10", "rel": "raised", "to": "question.pod-sizing"},
+    {"from": "session.steering.2026-02-10", "rel": "discusses", "to": "concept.pod"},
+    {"from": "decision.pod-based-delivery", "rel": "decides", "to": "concept.pod"},
+    {"from": "action.draft-methodology", "rel": "implements", "to": "decision.pod-based-delivery"},
+    {"from": "action.draft-methodology", "rel": "depends_on", "to": "deliverable.methodology"},
+    {"from": "role.workstream-lead", "rel": "member_of", "to": "forum.steering"},
+    {"from": "doc.steering-minutes", "rel": "specifies", "to": "deliverable.methodology"}
+  ]
+}

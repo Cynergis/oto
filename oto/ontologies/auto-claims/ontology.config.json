@@ -1,0 +1,213 @@
+{
+  "_about": "Starter vocabulary for motor vehicle claims handling. A FIRST DRAFT to edit, not a finished model. Property value is [Domain, Range, inverse_or_null, description]. Use A|B for a union.",
+  "_summary": "Motor vehicle claims: policy, coverage, claim, incident, handling, money in and out.",
+  "name": "Auto Claims Knowledge Base",
+  "ontology_version": 1,
+  "strict_domains": false,
+  "classes": {
+    "Policy": "A contract of insurance, identified by a policy number and effective period.",
+    "Coverage": "One protection within a policy, with its own limit and deductible.",
+    "Endorsement": "A change to a policy: an addition, removal or amendment of terms.",
+    "Claim": "A request for payment made under a policy after an incident.",
+    "Incident": "The loss event itself: what happened, when and where. Distinct from the Claim reporting it.",
+    "Vehicle": "A motor vehicle, identified by its vehicle identification number.",
+    "Party": "A person or organization involved: policyholder, claimant, third party, witness, repairer, medical provider.",
+    "Role": "A defined function in claims handling, such as adjuster, appraiser or examiner. A role is filled by a party.",
+    "Task": "A unit of handling work on a claim, with an owner and a state.",
+    "Assessment": "A damage appraisal, estimate or expert opinion supporting a decision.",
+    "Decision": "A determination on a claim: coverage, liability, quantum, or a denial, with the reason recorded.",
+    "Payment": "Money paid out, whether indemnity to a claimant or expense to a vendor.",
+    "Recovery": "Money recovered, whether by subrogation from a responsible party or by salvage disposal.",
+    "Procedure": "A documented internal way of handling something: a guideline, a checklist, a service standard.",
+    "Regulation": "An external rule that constrains handling: a statute, a regulator's guidance, an industry standard.",
+    "Document": "A source document in the corpus: a policy wording, a bulletin, a procedure, a transcript."
+  },
+  "properties": {
+    "covers": [
+      "Policy",
+      "Coverage",
+      "covered_by",
+      "A policy provides this coverage."
+    ],
+    "amended_by": [
+      "Policy",
+      "Endorsement",
+      "amends",
+      "An endorsement changes this policy."
+    ],
+    "insures": [
+      "Policy",
+      "Vehicle|Party",
+      "insured_by",
+      "A policy insures this vehicle or party."
+    ],
+    "held_by": [
+      "Policy",
+      "Party",
+      "holds",
+      "The party that holds the policy."
+    ],
+    "claims_under": [
+      "Claim",
+      "Policy",
+      "claimed_against",
+      "The policy a claim is made under."
+    ],
+    "arises_from": [
+      "Claim",
+      "Incident",
+      "gave_rise_to",
+      "The incident a claim arises from."
+    ],
+    "filed_by": [
+      "Claim",
+      "Party",
+      "filed",
+      "The party who made the claim."
+    ],
+    "claims_against": [
+      "Claim",
+      "Coverage",
+      "claimed_on",
+      "The coverage a claim is made against."
+    ],
+    "involves": [
+      "Incident",
+      "Vehicle|Party",
+      "involved_in",
+      "A vehicle or party involved in the incident."
+    ],
+    "part_of_claim": [
+      "Task|Assessment|Decision|Payment|Recovery",
+      "Claim",
+      "has_item",
+      "This item belongs to that claim."
+    ],
+    "assigned_to": [
+      "Task",
+      "Role",
+      "assigned",
+      "The role responsible for a task."
+    ],
+    "filled_by": [
+      "Role",
+      "Party",
+      "fills",
+      "The party performing a role."
+    ],
+    "follows": [
+      "Task",
+      "Procedure",
+      "followed_by",
+      "The procedure a task follows."
+    ],
+    "assesses": [
+      "Assessment",
+      "Vehicle",
+      "assessed_by",
+      "The vehicle an assessment examines."
+    ],
+    "supports": [
+      "Assessment|Document",
+      "Decision",
+      "supported_by",
+      "Evidence relied on for a decision."
+    ],
+    "decides": [
+      "Decision",
+      "Claim",
+      "decided_by",
+      "The claim a decision is about."
+    ],
+    "authorizes": [
+      "Decision",
+      "Payment",
+      "authorized_by",
+      "A decision that authorizes a payment."
+    ],
+    "paid_to": [
+      "Payment",
+      "Party",
+      "received",
+      "Who a payment was made to."
+    ],
+    "charged_to": [
+      "Payment",
+      "Coverage",
+      "bears",
+      "The coverage a payment is charged against."
+    ],
+    "recovered_from": [
+      "Recovery",
+      "Party",
+      "paid_recovery",
+      "The party a recovery came from."
+    ],
+    "governs": [
+      "Regulation",
+      "Procedure",
+      "governed_by",
+      "A rule that constrains a procedure."
+    ],
+    "documented_in": [
+      "Procedure|Regulation|Policy",
+      "Document",
+      "documents",
+      "Where this is written down."
+    ],
+    "supersedes": [
+      "Procedure|Regulation|Policy|Coverage",
+      "Procedure|Regulation|Policy|Coverage",
+      "superseded_by",
+      "This replaced that. Use with the temporal fields, never by overwriting."
+    ],
+    "performs": [
+      "Role",
+      "Procedure",
+      "performed_by",
+      "The role that carries out this procedure."
+    ]
+  },
+  "attributes": {
+    "Policy": {
+      "policy_number": [
+        "string",
+        "The insurer's identifier for the policy."
+      ]
+    },
+    "Party": {
+      "party_role": [
+        "enum:policyholder|claimant|third_party|witness|repairer|medical_provider",
+        "The part the party plays in this claim."
+      ]
+    },
+    "Incident": {
+      "occurred_on": [
+        "date",
+        "The date of the loss event."
+      ]
+    },
+    "Claim": {
+      "claim_number": [
+        "string",
+        "The insurer's identifier for the claim."
+      ],
+      "state": [
+        "enum:open|closed|denied|reopened",
+        "Where the claim is in its handling."
+      ]
+    },
+    "Task": {
+      "state": [
+        "enum:open|in_progress|done|cancelled",
+        "Where the task is in its life."
+      ]
+    },
+    "Decision": {
+      "reason": [
+        "string",
+        "The recorded reason for the determination."
+      ]
+    }
+  }
+}

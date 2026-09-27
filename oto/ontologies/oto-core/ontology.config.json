@@ -1,0 +1,61 @@
+{
+  "_about": "The base every OTO ontology extends: the temporal fields that make supersession work, and Document, the class every fact cites. Extend it; do not start a domain from it alone.",
+  "_summary": "The temporal vocabulary every OTO ontology rests on, and the one class every fact cites: Document.",
+  "name": "OTO core",
+  "ontology_version": 1,
+  "strict_domains": false,
+  "classes": {
+    "Document": "A source document in the corpus: the file a fact cites, with its own date.",
+    "Action": "Something that can be done about an entity, described the way an MCP server describes a tool and bound to the graph. OTO lists it; the caller invokes it; the recorded run is evidence."
+  },
+  "properties": {
+    "cites": [
+      "Document",
+      "Document",
+      null,
+      "This document refers to that one, so a fact traced to it can be traced one step further."
+    ],
+    "acts_on": [
+      "Action",
+      null,
+      null,
+      "The entity a recorded run of this action read or changed."
+    ],
+    "executed_by": [
+      "Action",
+      null,
+      null,
+      "Who is accountable for invoking this action: a team, never a person."
+    ]
+  },
+  "temporal": {
+    "asOf": [
+      "date",
+      "When this fact was recorded or observed (transaction time)."
+    ],
+    "validFrom": [
+      "date",
+      "When the fact became true in the world (valid time)."
+    ],
+    "validTo": [
+      "date",
+      "When the fact stopped being true. Absent means it still holds."
+    ],
+    "status": [
+      "string",
+      "current | superseded | proposed | intended."
+    ],
+    "supersedes": [
+      "ref",
+      "The fact this one replaces."
+    ],
+    "supersededBy": [
+      "ref",
+      "The newer fact that retired this one."
+    ],
+    "sourceDoc": [
+      "string",
+      "Slug of the document that introduced or changed this fact."
+    ]
+  }
+}

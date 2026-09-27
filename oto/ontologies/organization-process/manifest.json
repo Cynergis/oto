@@ -1,0 +1,25 @@
+{
+  "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
+  "name": "organization-process",
+  "release": 1,
+  "domain": "organization",
+  "summary": "How an organization works: units, roles, processes, policies, systems and measures.",
+  "extends": [
+    "oto-core"
+  ],
+  "engine": ">=0.1",
+  "carries": [
+    "vocabulary",
+    "rationale",
+    "sample",
+    "readme"
+  ],
+  "maintainer": "OTO",
+  "changelog": [
+    {
+      "release": 1,
+      "at": "2026-09-19",
+      "note": "Manifest added; the temporal vocabulary is now inherited from oto-core."
+    }
+  ]
+}

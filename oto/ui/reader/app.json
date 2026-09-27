@@ -1,0 +1,10 @@
+{
+  "name": "reader",
+  "summary": "The generic reader: the graph as pages, the default app when none is named.",
+  "entry": "index.html",
+  "engine": ">=0.1",
+  "data": [
+    {"file": "data.json", "format": "json", "root": {"$graph": true}}
+  ],
+  "requires": {}
+}

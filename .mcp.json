@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "oto": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "oto-kg @ git+https://github.com/Cynergis/oto",
+        "oto",
+        "serve",
+        "--project",
+        "${CLAUDE_PROJECT_DIR}"
+      ]
+    }
+  }
+}

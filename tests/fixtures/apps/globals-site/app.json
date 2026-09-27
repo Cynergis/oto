@@ -1,0 +1,13 @@
+{
+  "name": "globals-site",
+  "summary": "Three fixed files and one data.js of globals, the example's shape.",
+  "entry": "index.html",
+  "engine": ">=0.1",
+  "data": [
+    {"file": "data.js", "format": "js-globals",
+     "globals": {"__ARCH__": {"$include": "projections/arch.json"},
+                 "__META__": {"project": {"$const": "from the graph"}, "decisions": {"$count": {"$nodes": "DecisionRecord"}}}}}
+  ],
+  "adapter": "adapter.js",
+  "requires": {"classes": ["System", "DecisionRecord", "Risk"], "relations": ["decided_by", "threatens"]}
+}

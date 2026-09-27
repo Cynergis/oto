@@ -1,0 +1,10 @@
+Oto
+Copyright 2026 Cynergis AI
+
+This product includes software developed at Cynergis AI.
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+Third-party components are listed in THIRD-PARTY-LICENSES.md. The engine's compile
+and serve paths have no third-party dependencies; document extraction has optional
+ones.

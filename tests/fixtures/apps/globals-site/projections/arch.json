@@ -1,0 +1,13 @@
+{
+  "context": {"problem": {"$first": {"$nodes": "System", "$field": "$summary"}},
+              "systems": {"$nodes": "System", "$map": {"id": "$id", "name": "$label", "tier": "$attr.tier"}}},
+  "decisions": {"$nodes": "DecisionRecord", "$sort": "label",
+                "$map": {"id": "$id", "title": "$label", "reason": "$attr.reason",
+                         "affects": {"$in": "decided_by", "$select": "$id"},
+                         "documents": {"$out": "documented_in", "$select": "$label"},
+                         "evidence": "$evidence",
+                         "label": {"$format": "{label} [{status}]"}}},
+  "risks": {"$nodes": "Risk", "$map": {"id": "$id", "reaches": {"$out": "threatens", "$select": {"id": "$id", "via": "$rel"}, "$derived": "mark"}}},
+  "glossary": {"$lexicon": true, "$map": {"term": "$term", "phrases": "$phrases", "targets": "$targets"}},
+  "by_status": {"$nodes": "*", "$group": "status", "$map": "$id"}
+}

@@ -1,0 +1,86 @@
+{
+  "_about": "Deliberately small starter vocabulary for how an organization works. Use this when no other ontology fits. A FIRST DRAFT to edit.",
+  "_summary": "How an organization works: units, roles, processes, policies, systems and measures.",
+  "name": "Operations Knowledge Base",
+  "ontology_version": 1,
+  "strict_domains": false,
+  "classes": {
+    "Unit": "An organizational unit: a division, a department, a team.",
+    "Role": "A defined function someone performs. Attach work to a role, not a person.",
+    "Process": "A repeatable way of getting something done, made of steps.",
+    "Step": "One action within a process, with an owner and an input and output.",
+    "Policy": "A rule that constrains how work is done, internal or imposed.",
+    "System": "A tool or application the work runs on.",
+    "Measure": "Something the organization tracks to know whether the work is working.",
+    "Decision": "A choice made, with its reason and date. Superseded by a later one, never overwritten.",
+    "Document": "A source document in the corpus."
+  },
+  "properties": {
+    "part_of": [
+      "Unit|Step",
+      "Unit|Process",
+      "contains",
+      "A containment relationship: a unit within a unit, a step within a process."
+    ],
+    "owns": [
+      "Unit|Role",
+      "Process|Measure|Policy|System",
+      "owned_by",
+      "Accountability for something."
+    ],
+    "performs": [
+      "Role",
+      "Step",
+      "performed_by",
+      "The role that carries out a step."
+    ],
+    "belongs_to": [
+      "Role",
+      "Unit",
+      "has_role",
+      "The unit a role sits in."
+    ],
+    "precedes": [
+      "Step",
+      "Step",
+      "follows",
+      "Sequencing between steps."
+    ],
+    "uses": [
+      "Step|Process",
+      "System",
+      "used_by",
+      "A system the work depends on."
+    ],
+    "constrains": [
+      "Policy",
+      "Process|Step|System",
+      "constrained_by",
+      "What a policy applies to."
+    ],
+    "measures": [
+      "Measure",
+      "Process|Unit",
+      "measured_by",
+      "What a measure is about."
+    ],
+    "changes": [
+      "Decision",
+      "Process|Policy|Unit|Role|System",
+      "changed_by",
+      "What a decision alters."
+    ],
+    "supersedes": [
+      "Decision|Policy|Process",
+      "Decision|Policy|Process",
+      "superseded_by",
+      "This replaced that. Use with the temporal fields, never by overwriting."
+    ],
+    "documented_in": [
+      "Process|Policy|Measure|Decision|Role",
+      "Document",
+      "documents",
+      "Where this is written down."
+    ]
+  }
+}

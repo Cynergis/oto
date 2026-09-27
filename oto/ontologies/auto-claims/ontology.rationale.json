@@ -1,0 +1,121 @@
+{
+  "_about": "Why each class and relation exists, and who confirmed it. Written by the ontology interview and edited by hand. `validated_by` is empty until a person who knows the domain has actually confirmed the entry; leave it empty rather than guessing.",
+  "classes": {
+    "Assessment": {
+      "alternatives": "",
+      "question": "What evidence supports the decision on quantum or damage?",
+      "validated_by": "",
+      "why": "An estimate or expert opinion has its own author and date, and a decision must be able to cite it."
+    },
+    "Claim": {
+      "alternatives": "",
+      "question": "What is being asked for, under which policy, and what state is it in?",
+      "validated_by": "",
+      "why": "The claim is the unit of work and the unit of reporting, and it exists from first notice until closure."
+    },
+    "Coverage": {
+      "alternatives": "Considered an attribute of Policy; rejected because a payment must point at exactly one coverage.",
+      "question": "Which coverage is this claim being paid under, and what limit applies?",
+      "validated_by": "",
+      "why": "Limits, deductibles and exclusions attach to a coverage rather than a policy, and payments are charged against one."
+    },
+    "Decision": {
+      "alternatives": "Considered a status field on Claim; rejected because a status keeps no reason and no history.",
+      "question": "What was determined, when, and on what basis?",
+      "validated_by": "",
+      "why": "A determination has a date, a reason, evidence it relied on, and it can be superseded by a later one."
+    },
+    "Document": {
+      "alternatives": "",
+      "question": "Where is this written down?",
+      "validated_by": "",
+      "why": "Every fact needs a source that can be checked, and the source is a file with its own date."
+    },
+    "Endorsement": {
+      "alternatives": "Considered editing the Policy in place; rejected because it destroys the answer to what was in force on the loss date.",
+      "question": "What changed on this policy, and from when?",
+      "validated_by": "",
+      "why": "A mid-term change alters cover for part of the period only, so it needs its own dates and its own source."
+    },
+    "Incident": {
+      "alternatives": "Considered attributes on Claim; rejected because it makes catastrophe and aggregation questions unanswerable.",
+      "question": "What actually happened, and how many claims came out of it?",
+      "validated_by": "",
+      "why": "One event can produce several claims, and it happens before any of them is reported, so it needs its own date."
+    },
+    "Party": {
+      "alternatives": "Deliberately broad for a first draft. Split it as soon as you can name the sub-kinds you actually query.",
+      "question": "Who is involved, and in what capacity?",
+      "validated_by": "",
+      "why": "Policyholder, claimant, third party, witness, repairer and provider all need to be referenced, and the same person can be more than one."
+    },
+    "Payment": {
+      "alternatives": "",
+      "question": "What has been paid out, to whom, and against which coverage?",
+      "validated_by": "",
+      "why": "Each payment is charged to a coverage and made to a party, and the total is a question about many of them."
+    },
+    "Policy": {
+      "alternatives": "Considered folding into Claim; rejected because one policy carries many claims and its terms change independently.",
+      "question": "Which policy was in force when this loss happened?",
+      "validated_by": "",
+      "why": "Cover is decided against a policy at a moment in time, so the policy must be a thing with a period, not a field on a claim."
+    },
+    "Procedure": {
+      "alternatives": "",
+      "question": "How are we supposed to handle this?",
+      "validated_by": "",
+      "why": "The documented way of working is what handling is measured against, and it changes over time."
+    },
+    "Recovery": {
+      "alternatives": "Considered a negative Payment; rejected because subrogation and salvage have different parties and different reasons.",
+      "question": "What came back in, and from whom?",
+      "validated_by": "",
+      "why": "Net cost is a question about money in and money out, and a model with only payments cannot answer it."
+    },
+    "Regulation": {
+      "alternatives": "",
+      "question": "What external rule constrains how we handle this?",
+      "validated_by": "",
+      "why": "An external rule has a source outside the organization and cannot be changed by it, which makes it a different kind of thing from a procedure."
+    },
+    "Role": {
+      "alternatives": "Considered pointing tasks straight at a Party; rejected because it breaks when someone leaves.",
+      "question": "Who is accountable for handling this, without naming a person?",
+      "validated_by": "",
+      "why": "Handling authority and workload attach to a function, and the person filling it changes while the history must stay correct."
+    },
+    "Task": {
+      "alternatives": "",
+      "question": "What still has to happen on this claim, and who owns it?",
+      "validated_by": "",
+      "why": "Handling is a sequence of committed pieces of work with owners and states, which an attribute cannot carry."
+    },
+    "Vehicle": {
+      "alternatives": "",
+      "question": "Which vehicle was involved, and what has been claimed on it before?",
+      "validated_by": "",
+      "why": "A vehicle outlives any single policy or claim, so history attaches to it rather than to either."
+    }
+  },
+  "properties": {
+    "part_of_claim": {
+      "alternatives": "Considered a separate relation per item type; rejected because every consumer would then need to know all five.",
+      "question": "Show me everything on this claim.",
+      "validated_by": "",
+      "why": "One relation gathers tasks, assessments, decisions, payments and recoveries onto a claim, so the claim view is a single traversal."
+    },
+    "supersedes": {
+      "alternatives": "Considered overwriting; rejected because it destroys the answer to what we believed at the time.",
+      "question": "What did this replace, and what was true before?",
+      "validated_by": "",
+      "why": "Correction by supersession keeps the old fact queryable and dated, which is what makes an audit possible."
+    },
+    "performs": {
+      "question": "Who carries out this procedure?",
+      "why": "Procedure documents say which role does the work; without the relation the answer lives only in prose and cannot be traversed. Found on the first real run: both a hand-written proposal and an agent's proposal needed it.",
+      "alternatives": "Considered going through Task (a task follows a procedure and is assigned to a role); rejected because a procedure's owner is a standing fact, not a property of each task.",
+      "validated_by": ""
+    }
+  }
+}

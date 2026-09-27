@@ -1,0 +1,29 @@
+{
+  "_about": "A tiny, fictional example so `oto build` works immediately. Replace it.",
+  "nodes": [
+    {"id": "unit.operations", "type": "Unit", "label": "Operations", "aliases": [], "summary": "Runs the day to day service.", "attributes": {}, "tags": ["unit"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "unit.onboarding", "type": "Unit", "label": "Onboarding team", "aliases": [], "summary": "A team inside operations.", "attributes": {}, "tags": ["unit"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "role.onboarding-specialist", "type": "Role", "label": "Onboarding specialist", "aliases": [], "summary": "Takes a new customer from signature to first use.", "attributes": {}, "tags": ["role"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "process.onboarding", "type": "Process", "label": "Customer onboarding", "aliases": [], "summary": "From signed agreement to first successful use.", "attributes": {}, "tags": ["process"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "step.verify-identity", "type": "Step", "label": "Verify identity", "aliases": [], "summary": "Confirm the customer is who they say they are.", "attributes": {}, "tags": ["step"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "step.provision-access", "type": "Step", "label": "Provision access", "aliases": [], "summary": "Create the account and grant the right permissions.", "attributes": {}, "tags": ["step"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "policy.identity-verification", "type": "Policy", "label": "Identity verification standard", "aliases": [], "summary": "What evidence is acceptable, and what to do when it is not available.", "attributes": {}, "tags": ["policy"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "system.crm", "type": "System", "label": "Customer records system", "aliases": ["CRM"], "summary": "Where customer records live.", "attributes": {}, "tags": ["system"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "measure.time-to-first-use", "type": "Measure", "label": "Time to first use", "aliases": [], "summary": "Days from signature to the customer's first successful use.", "attributes": {}, "tags": ["measure"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
+    {"id": "decision.verify-before-provision", "type": "Decision", "label": "Verify identity before provisioning access", "aliases": [], "summary": "Reordered so access is never granted before verification. Previously the two ran in parallel.", "attributes": {"reason": "access must never precede verification"}, "tags": ["decision"], "as_of": "2026-02-01", "valid_from": "2026-02-01", "source_doc": "sample", "status": "current", "sources": ["sample"]}
+  ],
+  "edges": [
+    {"from": "unit.onboarding", "rel": "part_of", "to": "unit.operations"},
+    {"from": "role.onboarding-specialist", "rel": "belongs_to", "to": "unit.onboarding"},
+    {"from": "unit.onboarding", "rel": "owns", "to": "process.onboarding"},
+    {"from": "step.verify-identity", "rel": "part_of", "to": "process.onboarding"},
+    {"from": "step.provision-access", "rel": "part_of", "to": "process.onboarding"},
+    {"from": "step.verify-identity", "rel": "precedes", "to": "step.provision-access"},
+    {"from": "role.onboarding-specialist", "rel": "performs", "to": "step.verify-identity"},
+    {"from": "role.onboarding-specialist", "rel": "performs", "to": "step.provision-access"},
+    {"from": "step.provision-access", "rel": "uses", "to": "system.crm"},
+    {"from": "policy.identity-verification", "rel": "constrains", "to": "step.verify-identity"},
+    {"from": "measure.time-to-first-use", "rel": "measures", "to": "process.onboarding"},
+    {"from": "decision.verify-before-provision", "rel": "changes", "to": "process.onboarding"}
+  ]
+}

@@ -1,0 +1,340 @@
+{
+  "_about": "A tiny, fictional example so `oto build` works immediately. Replace it.",
+  "nodes": [
+    {
+      "id": "system.payments",
+      "type": "System",
+      "label": "Payments platform",
+      "aliases": [
+        "payments"
+      ],
+      "summary": "Takes and settles customer payments.",
+      "attributes": {},
+      "tags": [
+        "system"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "component.payment-api",
+      "type": "Component",
+      "label": "Payment API",
+      "aliases": [],
+      "summary": "The service that accepts payment requests.",
+      "attributes": {},
+      "tags": [
+        "component"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "component.settlement-job",
+      "type": "Component",
+      "label": "Settlement job",
+      "aliases": [],
+      "summary": "A nightly job that settles captured payments.",
+      "attributes": {},
+      "tags": [
+        "component"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "interface.payments-v2",
+      "type": "Interface",
+      "label": "Payments API v2",
+      "aliases": [
+        "v2"
+      ],
+      "summary": "The public contract for taking a payment.",
+      "attributes": {
+        "url": "https://api.acme.example/payments/v2"
+      },
+      "tags": [
+        "interface"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "datastore.ledger",
+      "type": "DataStore",
+      "label": "Ledger database",
+      "aliases": [],
+      "summary": "The record of captured and settled payments.",
+      "attributes": {},
+      "tags": [
+        "datastore"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "environment.production",
+      "type": "Environment",
+      "label": "Production",
+      "aliases": [
+        "prod"
+      ],
+      "summary": "The live environment serving customers.",
+      "attributes": {},
+      "tags": [
+        "environment"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "team.payments",
+      "type": "Team",
+      "label": "Payments team",
+      "aliases": [],
+      "summary": "Owns the payments platform end to end.",
+      "attributes": {},
+      "tags": [
+        "team"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "capability.take-payment",
+      "type": "Capability",
+      "label": "Take a customer payment",
+      "aliases": [],
+      "summary": "The business capability the platform exists for.",
+      "attributes": {},
+      "tags": [
+        "capability"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "decision.single-ledger",
+      "type": "DecisionRecord",
+      "label": "One ledger, written only by the settlement job",
+      "aliases": [],
+      "summary": "Chosen so the ledger has a single writer. The alternative, letting the API write directly, was rejected as a source of inconsistency.",
+      "attributes": {
+        "reason": "single writer keeps the ledger consistent"
+      },
+      "tags": [
+        "decision"
+      ],
+      "as_of": "2026-01-15",
+      "valid_from": "2026-01-15",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "risk.ledger-single-point",
+      "type": "Risk",
+      "label": "The ledger is a single point of failure",
+      "aliases": [],
+      "summary": "Every settlement depends on one database with no read replica.",
+      "attributes": {
+        "severity": "high"
+      },
+      "tags": [
+        "risk"
+      ],
+      "as_of": "2026-01-15",
+      "valid_from": "2026-01-15",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "runbook.settlement-recovery",
+      "type": "Runbook",
+      "label": "Recovering a failed settlement run",
+      "aliases": [],
+      "summary": "How to detect, halt and replay a failed settlement.",
+      "attributes": {},
+      "tags": [
+        "runbook"
+      ],
+      "as_of": "2026-01-15",
+      "valid_from": "2026-01-15",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "requirement.settle-same-day",
+      "type": "Requirement",
+      "label": "Settle within one business day",
+      "aliases": [],
+      "summary": "A captured payment must settle by the end of the next business day.",
+      "attributes": {},
+      "tags": [
+        "requirement"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "repo.payment-api",
+      "type": "Repository",
+      "label": "acme/payment-api",
+      "aliases": [
+        "payment-api repo"
+      ],
+      "summary": "The repository that holds the payment API.",
+      "attributes": {
+        "owner": "acme",
+        "name": "payment-api",
+        "url": "https://github.com/acme/payment-api",
+        "default_branch": "main"
+      },
+      "tags": [
+        "repository"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "component.payment-api",
+      "rel": "part_of",
+      "to": "system.payments"
+    },
+    {
+      "from": "component.settlement-job",
+      "rel": "part_of",
+      "to": "system.payments"
+    },
+    {
+      "from": "system.payments",
+      "rel": "owned_by",
+      "to": "team.payments"
+    },
+    {
+      "from": "component.payment-api",
+      "rel": "exposes",
+      "to": "interface.payments-v2"
+    },
+    {
+      "from": "component.payment-api",
+      "rel": "writes_to",
+      "to": "datastore.ledger"
+    },
+    {
+      "from": "component.settlement-job",
+      "rel": "reads_from",
+      "to": "datastore.ledger"
+    },
+    {
+      "from": "component.settlement-job",
+      "rel": "writes_to",
+      "to": "datastore.ledger"
+    },
+    {
+      "from": "component.payment-api",
+      "rel": "runs_in",
+      "to": "environment.production"
+    },
+    {
+      "from": "component.settlement-job",
+      "rel": "runs_in",
+      "to": "environment.production"
+    },
+    {
+      "from": "system.payments",
+      "rel": "supports",
+      "to": "capability.take-payment"
+    },
+    {
+      "from": "component.settlement-job",
+      "rel": "satisfies",
+      "to": "requirement.settle-same-day"
+    },
+    {
+      "from": "datastore.ledger",
+      "rel": "decided_by",
+      "to": "decision.single-ledger"
+    },
+    {
+      "from": "risk.ledger-single-point",
+      "rel": "threatens",
+      "to": "datastore.ledger"
+    },
+    {
+      "from": "risk.ledger-single-point",
+      "rel": "mitigated_by",
+      "to": "runbook.settlement-recovery"
+    },
+    {
+      "from": "component.settlement-job",
+      "rel": "operated_by",
+      "to": "runbook.settlement-recovery"
+    },
+    {
+      "from": "component.payment-api",
+      "rel": "implemented_by",
+      "to": "repo.payment-api"
+    }
+  ]
+}

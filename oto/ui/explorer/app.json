@@ -1,0 +1,11 @@
+{
+  "name": "explorer",
+  "summary": "The generic graph explorer: every ontology's graph as a columnar canvas with a legend, a neighbourhood on hover, and a detail panel with provenance, evidence, derived edges and history. The default app.",
+  "entry": "index.html",
+  "engine": ">=0.1",
+  "data": [
+    {"file": "data.json", "format": "json", "root": {"$graph": true}}
+  ],
+  "overrides": ["explorer.json"],
+  "requires": {}
+}

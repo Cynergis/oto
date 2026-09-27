@@ -1,0 +1,16 @@
+{
+  "name": "oto-ui-src",
+  "private": true,
+  "description": "Source of the engine's built-in apps that need a bundle. `npm run build` writes the committed static files under oto/ui/; a user never runs this.",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  },
+  "dependencies": {
+    "@xyflow/react": "^12.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}

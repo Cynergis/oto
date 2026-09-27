@@ -1,0 +1,67 @@
+{
+  "_about": "Why each class and relation exists, and who confirmed it. Written by the ontology interview and edited by hand. `validated_by` is empty until a person who knows the domain has actually confirmed the entry; leave it empty rather than guessing.",
+  "classes": {
+    "Decision": {
+      "alternatives": "",
+      "question": "Why did this change, and when?",
+      "validated_by": "",
+      "why": "Process changes lose their reason within months unless the reason is a dated thing in its own right."
+    },
+    "Document": {
+      "alternatives": "",
+      "question": "Where is this written down?",
+      "validated_by": "",
+      "why": "Every fact needs a checkable source with its own date."
+    },
+    "Measure": {
+      "alternatives": "",
+      "question": "How do we know this is working?",
+      "validated_by": "",
+      "why": "A measure names what the organization actually watches, which is often not what it says it cares about."
+    },
+    "Policy": {
+      "alternatives": "",
+      "question": "What rule constrains this, and where does it come from?",
+      "validated_by": "",
+      "why": "A rule that constrains work is separate from the work, and it changes on its own schedule."
+    },
+    "Process": {
+      "alternatives": "",
+      "question": "How does this actually get done here?",
+      "validated_by": "",
+      "why": "A process is the unit people improve and measure, and it persists while its steps change."
+    },
+    "Role": {
+      "alternatives": "Considered a Person class; rejected because it needs constant maintenance and adds personal data for little gain.",
+      "question": "Who is accountable, without naming a person?",
+      "validated_by": "",
+      "why": "Roles are stable while people move, so work attached to a role keeps its history correct."
+    },
+    "Step": {
+      "alternatives": "Considered a list of strings on Process; rejected because a string cannot own, precede or be measured.",
+      "question": "What is the sequence, and where does it stall?",
+      "validated_by": "",
+      "why": "Bottlenecks are found at the step, not the process, and sequencing needs steps to be things."
+    },
+    "System": {
+      "alternatives": "",
+      "question": "What tool does this depend on?",
+      "validated_by": "",
+      "why": "Dependence on a tool is what makes a process fragile, and it must be visible without reading the steps."
+    },
+    "Unit": {
+      "alternatives": "",
+      "question": "Which part of the organization does this belong to?",
+      "validated_by": "",
+      "why": "Units nest, and ownership and measurement are usually reported along that nesting."
+    }
+  },
+  "properties": {
+    "precedes": {
+      "alternatives": "",
+      "question": "What is the order, and what is blocked?",
+      "validated_by": "",
+      "why": "Sequencing between steps is what turns a list into a process that can be reasoned about."
+    }
+  }
+}

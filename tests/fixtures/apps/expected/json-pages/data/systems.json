@@ -1,0 +1,1 @@
+[{"id":"system.payments","label":"Payments platform","parts":[{"id":"component.payment-api","type":"Component"},{"id":"component.settlement-job","type":"Component"},{"id":"datastore.ledger","type":"DataStore"}]}]

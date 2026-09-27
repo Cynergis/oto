@@ -1,0 +1,52 @@
+{
+  "id": "action.probe-interface",
+  "label": "Read what an interface answers",
+  "description": "Calls an interface's base URL with a GET and keeps the response as a source document, so what the interface actually answers can be read and curated.",
+  "subject": "Interface",
+  "executed_by": "team.payments",
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": true
+  },
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "url": {
+        "type": "string",
+        "description": "the interface's base URL"
+      }
+    },
+    "required": [
+      "url"
+    ]
+  },
+  "bind": {
+    "url": "$attr.url"
+  },
+  "when": [
+    {
+      "node": "i",
+      "type": "Interface",
+      "where": {
+        "url": {
+          "!=": ""
+        }
+      }
+    }
+  ],
+  "invoke": {
+    "transport": "http",
+    "method": "GET",
+    "url": "{url}",
+    "headers": {
+      "Accept": "application/json"
+    }
+  },
+  "needs": [],
+  "result": {
+    "kind": "document"
+  },
+  "schedule": "weekly"
+}

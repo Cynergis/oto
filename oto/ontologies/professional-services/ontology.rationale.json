@@ -1,0 +1,103 @@
+{
+  "_about": "Why each class and relation exists, and who confirmed it. Written by the ontology interview and edited by hand. `validated_by` is empty until a person who knows the domain has actually confirmed the entry; leave it empty rather than guessing.",
+  "classes": {
+    "ActionItem": {
+      "alternatives": "",
+      "question": "What did we commit to, and is it done?",
+      "validated_by": "",
+      "why": "A commitment has an owner and a lifecycle state, and it is what turns a decision into work."
+    },
+    "Concept": {
+      "alternatives": "Deliberately broad for a first draft. Split it as soon as the sub-kinds are nameable.",
+      "question": "What are we designing or adopting, and what does it mean here?",
+      "validated_by": "",
+      "why": "New vocabulary is the main output of a transformation, and every stakeholder needs one definition of it."
+    },
+    "Decision": {
+      "alternatives": "Considered a status field; rejected because a status keeps neither reason nor history.",
+      "question": "What did we settle, when, and why?",
+      "validated_by": "",
+      "why": "A decision carries a reason and a date, and a later one supersedes it rather than erasing it."
+    },
+    "Deliverable": {
+      "alternatives": "",
+      "question": "What did we contract to produce, and is it accepted?",
+      "validated_by": "",
+      "why": "A deliverable has a due date and an acceptance condition, which are commitments rather than descriptions."
+    },
+    "Document": {
+      "alternatives": "",
+      "question": "Where is this written down?",
+      "validated_by": "",
+      "why": "Every fact needs a checkable source with its own date."
+    },
+    "Engagement": {
+      "alternatives": "",
+      "question": "What is in scope, for whom, over what period?",
+      "validated_by": "",
+      "why": "The engagement bounds everything else, and its period is what makes a fact current or historical."
+    },
+    "Framework": {
+      "alternatives": "",
+      "question": "What method are we applying, and where did it come from?",
+      "validated_by": "",
+      "why": "A method brought in from outside is not the engagement's own design, and the distinction matters for provenance."
+    },
+    "GovernanceForum": {
+      "alternatives": "Considered treating each meeting as the forum; rejected because it cannot answer what this board has decided.",
+      "question": "Which body decides this, and what has it decided?",
+      "validated_by": "",
+      "why": "A forum recurs and accumulates decisions, so it must persist independently of any single meeting."
+    },
+    "Organization": {
+      "alternatives": "Considered separate Client and Supplier classes; rejected because units nest inside both.",
+      "question": "Who is the client, who is the supplier, and which unit is affected?",
+      "validated_by": "",
+      "why": "Both sides and their internal units have to be referenceable, and the same class serves all three."
+    },
+    "Person": {
+      "alternatives": "Strongly considered omitting entirely. The engagement this came from added a roster of several hundred named employees and had to purge it from repository history.",
+      "question": "Whose individual decision was this?",
+      "validated_by": "",
+      "why": "Kept only for the few people whose decisions must be traced. Most ownership questions are answered better by a role."
+    },
+    "Question": {
+      "alternatives": "",
+      "question": "What is still open, and who owns getting the answer?",
+      "validated_by": "",
+      "why": "Open questions are the most perishable knowledge in an engagement and the first thing lost when people rotate."
+    },
+    "Role": {
+      "alternatives": "",
+      "question": "Who is accountable, without naming a person?",
+      "validated_by": "",
+      "why": "Roles are stable while people move, so attaching ownership to a role keeps history correct."
+    },
+    "Session": {
+      "alternatives": "Considered merging with Document; rejected because one session can be recorded in several files and vice versa.",
+      "question": "What happened on that date, and what came out of it?",
+      "validated_by": "",
+      "why": "A session is a dated event with outcomes, and it is separate from any document recording it."
+    },
+    "Workstream": {
+      "alternatives": "",
+      "question": "Which part of the engagement is this, and who runs it?",
+      "validated_by": "",
+      "why": "Work is planned and reported per workstream, and each has its own owner and its own deliverables."
+    }
+  },
+  "properties": {
+    "instance_of": {
+      "alternatives": "",
+      "question": "What has this board actually decided?",
+      "validated_by": "",
+      "why": "Linking a session to its recurring forum is what makes the whole history of a governance body queryable."
+    },
+    "part_of": {
+      "alternatives": "This is the relation whose declared domain and range drifted most on the source engagement. Keep it honest or split it.",
+      "question": "What sits inside what?",
+      "validated_by": "",
+      "why": "One containment relation across units, workstreams and concepts keeps traversal simple, at the cost of a wide domain."
+    }
+  }
+}

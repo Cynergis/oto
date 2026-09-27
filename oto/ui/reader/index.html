@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OTO reader</title>
+<link rel="stylesheet" href="reader.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#/"><span class="mark" aria-hidden="true"></span><span id="brand-name">OTO</span></a>
+  <form class="search" id="search-form" role="search">
+    <input id="search-box" type="search" placeholder="Search entities and passages" aria-label="Search" autocomplete="off">
+  </form>
+  <span class="freshness" id="freshness" title="build sequence and store"></span>
+</header>
+<div class="frame">
+  <nav class="side" id="side" aria-label="Sections"></nav>
+  <main class="main" id="main" tabindex="-1"><p class="muted">Loading the graph…</p></main>
+</div>
+<footer class="foot" id="foot"></footer>
+<script src="reader.js"></script>
+<script>window.OtoReader.boot();</script>
+</body>
+</html>

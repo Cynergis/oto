@@ -1,0 +1,75 @@
+{
+  "id": "action.create-repository",
+  "label": "Create the repository",
+  "description": "Creates the repository an intended Repository fact describes, under its owner, and records the result. Changes the world: a person confirms it by name.",
+  "subject": "Repository",
+  "executed_by": "team.payments",
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+  },
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "owner": {
+        "type": "string",
+        "description": "the owning organisation or account"
+      },
+      "name": {
+        "type": "string",
+        "description": "the repository name"
+      },
+      "private": {
+        "type": "boolean",
+        "description": "whether the repository is private"
+      },
+      "description": {
+        "type": "string",
+        "description": "one line about the repository"
+      }
+    },
+    "required": [
+      "owner",
+      "name",
+      "private"
+    ]
+  },
+  "bind": {
+    "owner": "$attr.owner",
+    "name": "$attr.name",
+    "description": "$label"
+  },
+  "when": [
+    {
+      "node": "r",
+      "type": "Repository",
+      "where": {
+        "status": "intended"
+      }
+    }
+  ],
+  "invoke": {
+    "transport": "mcp",
+    "server": "github",
+    "tool": "create_repository"
+  },
+  "needs": [
+    "GITHUB_TOKEN"
+  ],
+  "result": {
+    "kind": "proposal",
+    "then": {
+      "node": "$subject",
+      "status": "current",
+      "attributes": {
+        "url": "$response.html_url",
+        "default_branch": "$response.default_branch"
+      }
+    },
+    "require": [
+      "$response.html_url"
+    ]
+  }
+}

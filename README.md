@@ -2,6 +2,8 @@
 
 **OTO, Ontology-To-Operations:** from enterprise meaning to running agents. Published by [Cynergis](https://cynergis.ai).
 
+See it running: the [guided demo](https://demo.cynergis.org) walks through the Studio over a knowledge graph OTO built for a sample insurer. The story and the documentation are at [oto.cynergis.org](https://oto.cynergis.org).
+
 > **Names.** The command, the import name and the repository are **`oto`**. The distribution is
 > **`oto-kg`**, because `oto` was taken on the package index. Two namespaces, one tool: what you
 > type is `oto`.

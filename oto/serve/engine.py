@@ -814,6 +814,17 @@ def _derived_attributes_from_store():
     return out
 
 
+def _declared_names():
+    """{class: the attribute names it declares}, from the vocabulary the store carries."""
+    from ..model.vocabulary import declared_attributes
+    words = vocabulary()
+    attributes = {}
+    for (kind, name), spec in words.attributes.items():
+        attributes.setdefault(kind, {})[name] = spec
+    config = {"classes": words.classes, "attributes": attributes}
+    return {kind: set(declared_attributes(config, kind)) for kind in words.classes}
+
+
 def ask_data(qid, params=None):
     """One competency question, run: {id, question, who, status, gate, params, rows, gaps}, or an
     error. `params` maps NAME -> an entity (id, label or alias), resolved the way kg_resolve does."""
@@ -844,7 +855,7 @@ def ask_data(qid, params=None):
         return {"error": "Question %s needs %s. Pass it as params." % (qid, ", ".join(unresolved)), "rows": []}
     nodes, edges = _graph_from_store()
     result = _questions_model.run(qid, question, bound, nodes, edges, _covers(vocabulary().classes),
-                                  _derived_attributes_from_store())
+                                  _derived_attributes_from_store(), _declared_names())
     result["labels"] = {v: (label(v) or v) for row in result["rows"] for v in row.values()
                         if isinstance(v, str) and node(v)}
     return result
@@ -868,7 +879,7 @@ def questions_data():
         return {"rows": []}
     nodes, edges = _graph_from_store()
     return {"rows": _questions_model.survey(declared, nodes, edges, _covers(vocabulary().classes),
-                                            _derived_attributes_from_store())}
+                                            _derived_attributes_from_store(), _declared_names())}
 
 
 def questions_text():

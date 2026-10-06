@@ -143,3 +143,48 @@ def test_the_rendering_covers_the_pattern_language_and_notes_what_it_cannot():
                                           "gaps": {"when": [{"node": "c", "type": "Claim"}], "say": "none"}}}, config, terms, "T")
     assert text.startswith("# Competency questions of the T vocabulary") and "  Q1:\n    who: \"me\"" in text
     assert "    answer: |\n      PREFIX" in text and "    gaps: |" in text and '    gaps_say: "none"' in text
+
+
+def test_optional_exists_and_references_render_and_answer_alike():
+    from rdflib import Graph
+    with tempfile.TemporaryDirectory() as root:
+        init(root, slug="eq", name="Equivalence", ontology="software-architecture")
+        project = Project.standard(root)
+        graph = json.load(open(project.graph_path, encoding="utf-8"))
+        graph["nodes"].append(dict(id="repo.bare", type="Repository", label="bare", aliases=[], summary="s", attributes={"name": "bare"},
+                                   tags=[], as_of="2026-01-01", valid_from="2026-01-01", source_doc="d", status="current", sources=["d"]))
+        graph["edges"] = [e for e in graph["edges"] if not (e["rel"] == "runs_in" and e["from"] == "component.settlement-job")]
+        json.dump(graph, open(project.graph_path, "w", encoding="utf-8"))
+        questions = {
+            "O1": {"who": "x", "question": "Which components exist, and where does each run?", "why": "w",
+                   "ask": {"when": [{"node": "c", "type": "Component"},
+                                    {"optional": [{"edge": ["c", "runs_in", "e"]}, {"node": "e", "type": "Environment"}]}],
+                           "select": ["c", "e.label"]}, "gate": "non_empty"},
+            "O2": {"who": "x", "question": "Which repositories have no URL?", "why": "w",
+                   "ask": {"when": [{"node": "r", "type": "Repository", "where": {"url": {"exists": False}}}], "select": ["r", "r.name"]}, "gate": "any"},
+            "O3": {"who": "x", "question": "Which components are not part of $SYSTEM?", "why": "w", "params": {"SYSTEM": {"type": "System"}},
+                   "ask": {"when": [{"node": "c", "type": "Component"}, {"edge": ["c", "part_of", "s"]},
+                                    {"node": "s", "type": "System", "where": {"id": {"!=": "$SYSTEM"}}}], "select": ["c"]}, "gate": "any"},
+        }
+        Q.save(project, dict(Q.load(project), **questions))
+        build(project)
+        config = json.load(open(project.ontology_config_path, encoding="utf-8"))
+        built = json.load(open(os.path.join(project.layout.graph, "knowledge-graph.json"), encoding="utf-8"))
+        terms = Terms(config, project.identity())
+        data = Graph().parse(os.path.join(project.layout.graph, "graph.ttl"), format="turtle")
+        cover = covers(config["classes"])
+        for qid, q in questions.items():
+            query = _sparql.Renderer(config, terms).render(q)
+            if qid == "O1":
+                assert "OPTIONAL { ?c software-architecture:runs_in ?e . ?e a software-architecture:Environment . FILTER NOT EXISTS { ?e" in query
+            if qid == "O2":
+                assert "FILTER NOT EXISTS { ?r software-architecture:url ?r_url }" in query
+            if qid == "O3":
+                assert "FILTER(?s != $SYSTEM)" in query
+            params = {"SYSTEM": "system.payments"} if q.get("params") else {}
+            engine = Q.run(qid, q, params, built["nodes"], built["edges"], cover)["rows"]
+            bound = query.replace("$SYSTEM", "<%s>" % terms.instance("system.payments"))
+            sparql_rows = _rows(data, bound, q["ask"]["select"], terms, [])
+            assert _same(engine, sparql_rows), "%s\nengine: %s\nsparql: %s\n%s" % (qid, engine, sparql_rows, bound)
+        assert {r["c"] for r in Q.run("O1", questions["O1"], {}, built["nodes"], built["edges"], cover)["rows"]} == \
+            {"component.payment-api", "component.settlement-job"}

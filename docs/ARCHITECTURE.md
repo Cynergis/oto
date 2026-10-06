@@ -491,9 +491,12 @@ check` (blocking or gap by severity), `oto ontology check`, `kg_policy` and the 
 A competency question is what the ontology exists to answer, and in OTO it runs. `questions.json`
 ([reason/questions.py](../oto/reason/questions.py)) declares each one with the sentence a person
 would ask, who asks it, why it exists and who confirmed it, and an `ask`: a `when` in the rules'
-pattern language (node, edge, `not_edge`, `not_node`, `where`) and a `select` of bound variables
-or `var.label`, `var.type`, `var.<attribute>`. A `$NAME` is a parameter bound to an entity before
-the patterns run, resolved the way `kg_resolve` resolves a label. The `gate` says what an empty
+pattern language (node, edge, `not_edge`, `not_node`, `where`, and `optional`: patterns that
+extend a binding when they match and leave their variables unbound when they do not) and a
+`select` of bound variables or `var.label`, `var.type`, `var.<attribute>`. A `$NAME` is a
+parameter bound to an entity before the patterns run, resolved the way `kg_resolve` resolves a
+label; a `where` value may refer to a bound variable (`"$REPORT"`, `"$FIELD.fieldId"`, or spliced
+into text) and may test presence (`{"exists": false}`). The `gate` says what an empty
 answer means: `non_empty` (the graph must answer; empty is a finding), `empty` (nothing must match;
 a row is a finding, the shape of a policy), `any` (informational); a `gaps` pattern runs when the
 answer is empty and says why, in words, so an empty answer is never silent. A class pattern covers

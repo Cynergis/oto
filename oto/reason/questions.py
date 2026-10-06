@@ -16,7 +16,11 @@ hoped. Declared in `questions.json` beside the graph:
              "gaps": {"when": [{"not_edge": ["$CLAIM", "paid_under", "*"]}], "say": "the claim names no coverage"},
              "terms": ["Coverage.deductible"]}}
 
-`ask.when` is a rule's `when` (node, edge, not_edge, not_node, where); `select` names bound
+`ask.when` is a rule's `when` (node, edge, not_edge, not_node, where), plus `optional`: a list of
+patterns that extend a binding when they match and leave their variables unbound when they do
+not, for what a question reports when it is there and does not require. A `where` may say
+`{"exists": false}`, and its value may name a bound variable: `"$REPORT"` is that entity's id,
+`"$FIELD.fieldId"` one of its attributes. `gaps` is one `{when, say}` or a list of them. `select` names bound
 variables (a parameter as `$NAME`), or `var.<field>` for a node's own field (`label`, `type`, `id`,
 `status`, `as_of`, `valid_from`, `valid_to`, `source_doc`) or `var.<attribute>` for a declared one.
 A `$NAME` is a parameter, bound to an entity before the patterns run; its `type` may be a union
@@ -106,23 +110,35 @@ def diff(old, new):
 
 # ============================ checking ============================
 
-def _params_in(when):
-    """Every $NAME a list of patterns mentions."""
+def _params_in(when, references=False):
+    """Every $NAME a list of patterns uses as a variable; with `references`, every one a `where`
+    value names instead (`$REPORT`, `$FIELD.fieldId`), which may also be a pattern variable."""
     out = set()
     for pattern in when or []:
-        for key in ("edge", "not_edge"):
-            spec = pattern.get(key) if isinstance(pattern, dict) else None
-            if isinstance(spec, list):
-                for item in spec:
-                    if isinstance(item, str) and item.startswith("$"):
-                        out.add(item[1:])
-        if isinstance(pattern, dict) and isinstance(pattern.get("node"), str) and pattern["node"].startswith("$"):
-            out.add(pattern["node"][1:])
+        if not isinstance(pattern, dict):
+            continue
+        if not references:
+            for key in ("edge", "not_edge"):
+                spec = pattern.get(key)
+                if isinstance(spec, list):
+                    for item in spec:
+                        if isinstance(item, str) and item.startswith("$"):
+                            out.add(item[1:])
+            if isinstance(pattern.get("node"), str) and pattern["node"].startswith("$"):
+                out.add(pattern["node"][1:])
+        else:
+            for condition in (pattern.get("where") or {}).values():
+                for expected in (condition.values() if isinstance(condition, dict) else [condition]):
+                    if isinstance(expected, str):
+                        from .match import REFERENCE, TODAY_REF
+                        out |= {m.group(1) for m in REFERENCE.finditer(expected) if not TODAY_REF.match(expected)}
+        if isinstance(pattern.get("optional"), list):
+            out |= _params_in(pattern["optional"], references)
     return out
 
 
 def _bound_in(when):
-    """Variables the patterns bind (positive patterns only), without the parameters."""
+    """Variables the patterns bind (positive patterns, optional blocks included), without the parameters."""
     out = set()
     for pattern in when or []:
         if not isinstance(pattern, dict):
@@ -132,11 +148,14 @@ def _bound_in(when):
         spec = pattern.get("edge")
         if isinstance(spec, list) and len(spec) == 3:
             out.update(v for v in (spec[0], spec[2]) if isinstance(v, str) and v != "*")
+        if isinstance(pattern.get("optional"), list):
+            out |= _bound_in(pattern["optional"])
     return {v[1:] if v.startswith("$") else v for v in out}
 
 
 def _substituted(when, params):
-    """The patterns with `$NAME` replaced by the variable NAME, so the matcher sees plain variables."""
+    """The patterns with `$NAME` replaced by the variable NAME, so the matcher sees plain variables.
+    A `$NAME` inside a `where` value stays: the matcher reads it as a reference to the binding."""
     out = []
     for pattern in when:
         new = dict(pattern)
@@ -145,8 +164,18 @@ def _substituted(when, params):
         for key in ("edge", "not_edge"):
             if isinstance(new.get(key), list):
                 new[key] = [v[1:] if isinstance(v, str) and v.startswith("$") else v for v in new[key]]
+        if isinstance(new.get("optional"), list):
+            new["optional"] = _substituted(new["optional"], params)
         out.append(new)
     return out
+
+
+def _gap_bodies(question):
+    """`gaps` is one {when, say} or a list of them."""
+    gaps = question.get("gaps")
+    if gaps is None:
+        return []
+    return list(gaps) if isinstance(gaps, list) else [gaps]
 
 
 def _kinds(spec):
@@ -191,9 +220,11 @@ def problems(questions, vocabulary):
             out.append("%s: `ask.when` must be a non-empty list of patterns" % label)
             continue
         bound_params = {name: _kinds((spec or {}).get("type")) for name, spec in params.items() if isinstance(spec, dict)}
-        for key, body in (("ask", ask), ("gaps", q.get("gaps"))):
-            if body is None:
-                continue
+        bodies = [("ask", ask)] + [("gaps", body) for body in _gap_bodies(q)]
+        if q.get("gaps") is not None and not isinstance(q["gaps"], (dict, list)):
+            out.append("%s: `gaps` must be {when, say} or a list of them" % label)
+            bodies = [("ask", ask)]
+        for key, body in bodies:
             if not isinstance(body, dict) or not isinstance(body.get("when"), list) or not body["when"]:
                 out.append("%s: `%s.when` must be a non-empty list of patterns" % (label, key))
                 continue
@@ -203,6 +234,9 @@ def problems(questions, vocabulary):
             for name in _params_in(body["when"]):
                 if name not in params:
                     out.append("%s: $%s is used in `%s` but not declared in `params`" % (label, name, key))
+            for name in _params_in(body["when"], references=True):
+                if name not in params and name not in _bound_in(body["when"]):
+                    out.append("%s: `where` refers to $%s, which `%s` neither declares nor binds" % (label, name, key))
             if key == "gaps" and not (body.get("say") or "").strip():
                 out.append("%s: `gaps.say` must say, in words, why the answer is empty" % label)
             if key == "ask":
@@ -254,10 +288,15 @@ def terms_cited(questions, vocabulary):
                 for one in _kinds(spec["type"]):
                     cite(one, qid)
                 var_types[name] = _kinds(spec["type"])
-        for body in (q.get("ask"), q.get("gaps")):
-            for pattern in ((body or {}).get("when") or []):
-                if not isinstance(pattern, dict):
-                    continue
+        def walk(patterns):
+            for pattern in patterns:
+                if isinstance(pattern, dict):
+                    yield pattern
+                    if isinstance(pattern.get("optional"), list):
+                        yield from walk(pattern["optional"])
+
+        for body in [q.get("ask")] + _gap_bodies(q):
+            for pattern in walk((body or {}).get("when") or []):
                 for kind_name in str(pattern.get("type") or "").split("|"):
                     if kind_name.strip():
                         cite(kind_name.strip(), qid)
@@ -330,11 +369,12 @@ def _wording(text, graph, bindings):
     return PARAM.sub(label, text or "")
 
 
-def run(qid, question, params, nodes, edges, covers=None, derived_attributes=None):
+def run(qid, question, params, nodes, edges, covers=None, derived_attributes=None, declared=None):
     """Run one question with its parameters bound: {id, question, who, status, gate, params, rows,
     gaps}. `params` maps NAME -> node id (every declared parameter must be bound; `survey` handles
-    the free ones). `status` is answered | unanswered | violated | clean | empty."""
-    graph = Graph(nodes, edges, derived_attributes, statuses=BELIEVED, covers=covers)
+    the free ones). `status` is answered | unanswered | violated | clean | empty. `declared` maps a
+    class to the attribute names it declares (`declared_names`), so a declared `label` is the term."""
+    graph = Graph(nodes, edges, derived_attributes, statuses=BELIEVED, covers=covers, declared=declared)
     bindings = dict(params or {})
     declared = question.get("params") or {}
     gate = question.get("gate", "non_empty")
@@ -343,28 +383,35 @@ def run(qid, question, params, nodes, edges, covers=None, derived_attributes=Non
     rows = _rows(graph, found, ask.get("select") or [])
     status = STATUSES[(gate, bool(rows))]
     gaps = []
-    if not rows and question.get("gaps"):
-        body = question["gaps"]
-        hits = matches(graph, _substituted(body.get("when") or [], declared), bindings)
-        if hits:
+    if not rows:
+        for body in _gap_bodies(question):
+            hits = matches(graph, _substituted(body.get("when") or [], declared), bindings)
+            if not hits:
+                continue
             # one line per distinct binding, so a gap on a specific thing names it
             subjects = sorted({b.get(next(iter(b), None)) for b, _u in hits if b} - {None})
             say = _wording(body.get("say") or "", graph, bindings)
-            gaps = [say + (" (%s)" % ", ".join(graph.nodes[s].get("label") or s for s in subjects[:5] if s in graph.nodes)
-                           if subjects and not declared else "")]
+            gaps.append(say + (" (%s)" % ", ".join(graph.nodes[s].get("label") or s for s in subjects[:5] if s in graph.nodes)
+                               if subjects and not declared else ""))
     return {"id": qid, "question": _wording(question.get("question"), graph, bindings),
             "who": question.get("who") or "", "status": status, "gate": gate,
             "params": {k: v for k, v in bindings.items() if k in declared}, "rows": rows, "gaps": gaps}
 
 
-def survey(questions, nodes, edges, covers=None, derived_attributes=None):
+def declared_names(vocabulary):
+    """{class: the attribute names it declares, inherited ones included}, for the matcher."""
+    from ..model.vocabulary import declared_attributes
+    return {kind: set(declared_attributes(vocabulary, kind)) for kind in (vocabulary.get("classes") or {})}
+
+
+def survey(questions, nodes, edges, covers=None, derived_attributes=None, declared=None):
     """Every question over the whole graph: a parameterless question runs once; one with parameters
     runs for every entity of its first parameter's class (the others stay free) and reports how
     many of those it answers. Returns [{id, question, who, gate, status, answered, asked, gaps,
     unanswered}] in file order, where `status` summarises: answered when every run answered,
     unanswered when any required run did not, violated when an `empty` gate found rows, clean,
     empty, or `unasked` when a parameter has nothing to bind to."""
-    graph = Graph(nodes, edges, derived_attributes, statuses=BELIEVED, covers=covers)
+    graph = Graph(nodes, edges, derived_attributes, statuses=BELIEVED, covers=covers, declared=declared)
     out = []
     for qid, q in (questions or {}).items():
         if not isinstance(q, dict):
@@ -374,7 +421,7 @@ def survey(questions, nodes, edges, covers=None, derived_attributes=None):
         entry = {"id": qid, "question": q.get("question") or "", "who": q.get("who") or "", "gate": gate,
                  "asked": 0, "answered": 0, "unanswered": [], "gaps": []}
         if not declared:
-            result = run(qid, q, {}, nodes, edges, covers, derived_attributes)
+            result = run(qid, q, {}, nodes, edges, covers, derived_attributes, declared)
             entry["asked"] = 1
             entry["answered"] = 1 if result["rows"] else 0
             entry["status"] = result["status"]
@@ -393,7 +440,7 @@ def survey(questions, nodes, edges, covers=None, derived_attributes=None):
             continue
         statuses = []
         for nid in subjects:
-            result = run(qid, q, {first: nid}, nodes, edges, covers, derived_attributes)
+            result = run(qid, q, {first: nid}, nodes, edges, covers, derived_attributes, declared)
             entry["asked"] += 1
             statuses.append(result["status"])
             if result["rows"]:
@@ -409,10 +456,10 @@ def survey(questions, nodes, edges, covers=None, derived_attributes=None):
     return out
 
 
-def findings(questions, nodes, edges, covers=None, derived_attributes=None):
+def findings(questions, nodes, edges, covers=None, derived_attributes=None, declared=None):
     """The survey entries that are findings: required questions the graph cannot answer, and
     `empty` gates with rows. What `oto curate check` and `oto ontology check` report."""
-    return [e for e in survey(questions, nodes, edges, covers, derived_attributes) if e["status"] in FINDING_STATUSES]
+    return [e for e in survey(questions, nodes, edges, covers, derived_attributes, declared) if e["status"] in FINDING_STATUSES]
 
 
 # ============================ reading ============================

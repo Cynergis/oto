@@ -392,3 +392,72 @@ def test_export_ships_the_questions_unconfirmed_and_a_merge_keeps_them(monkeypat
             init(root, slug="m", name="M", ontology="my-arch,organization-process")
             merged = Q.load(Project.standard(root))
             assert "CQ1" in merged and "OP1" in merged and "CORE1" in merged
+
+
+# ---------------- optional, exists, references ----------------
+
+def test_an_optional_block_reports_what_is_there_and_keeps_the_row_when_it_is_not():
+    vocabulary, graph = _vocabulary(), _sample()
+    cov = covers(vocabulary["classes"])
+    question = {"who": "anyone", "question": "Which components exist, and where does each run?", "why": "w",
+                "ask": {"when": [{"node": "c", "type": "Component"},
+                                 {"optional": [{"edge": ["c", "runs_in", "e"]}, {"node": "e", "type": "Environment"}]},
+                                 {"optional": [{"edge": ["c", "implemented_by", "repo"]}, {"node": "repo", "type": "Repository"}]}],
+                        "select": ["c", "e.label", "repo.name"]},
+                "gate": "non_empty"}
+    assert Q.problems({"CQ": question}, vocabulary) == []
+    edges = [e for e in graph["edges"] if not (e["rel"] == "runs_in" and e["from"] == "component.settlement-job")]
+    result = Q.run("CQ", question, {}, graph["nodes"], edges, cov)
+    assert result["rows"] == [{"c": "component.payment-api", "e.label": "Production", "repo.name": "payment-api"},
+                              {"c": "component.settlement-job", "e.label": None, "repo.name": None}]
+    cited = Q.terms_cited({"CQ": question}, vocabulary)
+    assert "Environment" in cited and "implemented_by" in cited and "Repository.name" in cited
+    # a derivation may not use it; a policy may
+    from oto.reason import rules as _rules
+    rule = {"id": "r", "kind": "derive", "why": "because the documents keep raising it",
+            "when": [{"node": "c", "type": "Component"}, {"optional": [{"edge": ["c", "runs_in", "e"]}]}],
+            "then": {"edge": ["c", "part_of", "e"]}}
+    assert any("optional is allowed in policy rules and questions only" in p for p in _rules.problems([rule], vocabulary))
+
+
+def test_exists_and_references_in_where():
+    vocabulary, graph = _vocabulary(), _sample()
+    cov = covers(vocabulary["classes"])
+    nodes = graph["nodes"] + [dict(id="repo.bare", type="Repository", label="bare", status="current", attributes={"name": "bare"})]
+    missing = {"who": "anyone", "question": "Which repositories have no URL?", "why": "w",
+               "ask": {"when": [{"node": "r", "type": "Repository", "where": {"url": {"exists": False}}}], "select": ["r"]}, "gate": "any"}
+    assert Q.problems({"Q": missing}, vocabulary) == []
+    assert Q.run("Q", missing, {}, nodes, graph["edges"], cov)["rows"] == [{"r": "repo.bare"}]
+    assert Q.problems({"Q": dict(missing, ask={"when": [{"node": "r", "type": "Repository", "where": {"url": {"exists": "no"}}}], "select": ["r"]})},
+                      vocabulary) == ["question 'Q' ask: `exists` on url takes true or false"]
+    # a where value may name a bound variable: the other systems than $SYSTEM, the components whose label contains the system's
+    others = {"who": "anyone", "question": "Which other systems exist beside $SYSTEM?", "why": "w", "params": {"SYSTEM": {"type": "System"}},
+              "ask": {"when": [{"node": "s", "type": "System", "where": {"id": {"!=": "$SYSTEM"}}}], "select": ["s"]}, "gate": "any"}
+    assert Q.problems({"Q": others}, vocabulary) == []
+    more = nodes + [dict(id="system.other", type="System", label="Other", status="current", attributes={})]
+    assert Q.run("Q", others, {"SYSTEM": "system.payments"}, more, graph["edges"], cov)["rows"] == [{"s": "system.other"}]
+    named = {"who": "anyone", "question": "Which repositories are named after $COMPONENT?", "why": "w", "params": {"COMPONENT": {"type": "Component"}},
+             "ask": {"when": [{"node": "r", "type": "Repository", "where": {"name": {"contains": "$COMPONENT.label"}}}], "select": ["r"]}, "gate": "any"}
+    found = Q.run("Q", named, {"COMPONENT": "component.payment-api"}, nodes, graph["edges"], cov)
+    assert found["rows"] == [] or found["rows"] == [{"r": "repo.payment-api"}]
+    # a reference spliced into text: the repositories named after the component, precisely
+    spliced = {"who": "anyone", "question": "Which repositories are named acme/<$COMPONENT's name>?", "why": "w", "params": {"COMPONENT": {"type": "Component"}},
+               "ask": {"when": [{"node": "r", "type": "Repository", "where": {"url": {"contains": "acme/$COMPONENT.label"}}}], "select": ["r"]}, "gate": "any"}
+    assert Q.problems({"Q": spliced}, vocabulary) == []
+    assert Q.run("Q", spliced, {"COMPONENT": "component.payment-api"}, nodes, graph["edges"], cov)["rows"] == []
+    api = [dict(n, label="payment-api") if n["id"] == "component.payment-api" else n for n in nodes]
+    assert Q.run("Q", spliced, {"COMPONENT": "component.payment-api"}, api, graph["edges"], cov)["rows"] == [{"r": "repo.payment-api"}]
+    # a reference to something neither declared nor bound is a problem; `$today-30d` is a date, not a reference
+    loose = dict(spliced, ask={"when": [{"node": "r", "type": "Repository", "where": {"url": {"contains": "$NOBODY.label"}}}], "select": ["r"]})
+    assert Q.problems({"Q": loose}, vocabulary) == ["question 'Q': `where` refers to $NOBODY, which `ask` neither declares nor binds"]
+    dated = {"who": "anyone", "question": "Which repositories were recorded in the last month?", "why": "w",
+             "ask": {"when": [{"node": "r", "type": "Repository", "where": {"as_of": {">=": "$today-30d"}}}], "select": ["r"]}, "gate": "any"}
+    assert Q.problems({"Q": dated}, vocabulary) == []
+    # a gaps list: every cause that holds is reported
+    listed = {"who": "anyone", "question": "Where does $COMPONENT run?", "why": "w", "params": {"COMPONENT": {"type": "Component"}},
+              "ask": {"when": [{"edge": ["$COMPONENT", "runs_in", "e"]}], "select": ["e"]}, "gate": "any",
+              "gaps": [{"when": [{"not_edge": ["$COMPONENT", "runs_in", "*"]}], "say": "no environment"},
+                       {"when": [{"not_edge": ["$COMPONENT", "part_of", "*"]}], "say": "no system either"}]}
+    assert Q.problems({"Q": listed}, vocabulary) == []
+    lonely = nodes + [dict(id="component.lonely", type="Component", label="Lonely", status="current", attributes={})]
+    assert Q.run("Q", listed, {"COMPONENT": "component.lonely"}, lonely, graph["edges"], cov)["gaps"] == ["no environment", "no system either"]

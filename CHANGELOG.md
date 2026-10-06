@@ -4,7 +4,24 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
-## 0.8.0 — 2026-10-06
+## 0.8.1 — 2026-10-06
+
+What porting the report ontology (github.com/Cynergis/report-ontology, `oto/report`) as an OTO
+unit needed of the pattern language, so its 21 SPARQL questions could be written once in the
+form the engine runs:
+
+- `optional`: a list of patterns that extend a binding when they match and leave their variables
+  unbound when they do not (a left join), in questions and policies; rendered as `OPTIONAL { }`,
+  with the filters and the selection's reads of its variables placed inside the block.
+- `{"exists": false}` on an attribute, and a `where` value that refers to a bound variable:
+  `"$REPORT"` is its id, `"$FIELD.fieldId"` one of its attributes, `"fields.$FIELD.fieldId."`
+  splices it into text; rendered as the bound variable, a triple, or `CONCAT`.
+- `gaps` as a list of `{when, say}`: every cause that holds is reported.
+- A declared attribute named like a node's own field (`label`) is the term even when a node
+  carries no value for it: the engine no longer answers the node's label for a missing
+  `rpt:label`, which the SPARQL rendering had exposed.
+
+
 
 Questions that run, and shapes that gate. An ontology without competency questions, or whose
 sample cannot answer them, is not usable from this release on; the shipped ontologies and the

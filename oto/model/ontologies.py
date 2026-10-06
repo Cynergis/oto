@@ -364,7 +364,7 @@ def self_check(name, roots=None):
         for item in _shapes.findings(config, sample.get("nodes") or [], sample.get("edges") or []):
             problems.append("the sample breaks a declared shape: %s" % item["message"])
         for finding in _questions.findings(result["questions"], sample.get("nodes") or [], sample.get("edges") or [],
-                                           _vocab.covers(classes)):
+                                           _vocab.covers(classes), declared=_questions.declared_names(config)):
             for item in finding["unanswered"] or [{"label": "(graph)", "status": finding["status"], "gaps": finding["gaps"]}]:
                 problems.append("the sample cannot answer %s as required: %s, %s%s"
                                 % (finding["id"], item["label"], item["status"],

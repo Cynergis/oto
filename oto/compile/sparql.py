@@ -7,6 +7,7 @@ the build writes (`graph.ttl`), so a reader with rdflib or a triple store asks w
 rendering is mechanical and the engine never runs it; a test keeps the two in step.
 
     node {var, type, where}   ->  ?var a <C> .           (a union, or a class with kinds: VALUES)
+    optional [patterns]       ->  OPTIONAL { ... }
     edge [a, rel, b]          ->  ?a <rel> ?b .          (a union of relations: VALUES on the predicate)
     not_edge, not_node        ->  FILTER NOT EXISTS { ... }
     where {attr: {op: v}}     ->  ?var <attr> ?var_attr . FILTER(?var_attr op v)
@@ -23,7 +24,7 @@ import json
 import re
 
 from ..model import vocabulary as _vocab
-from ..reason.match import BUILTIN_FIELDS, resolve as _resolve_date, ISO_DATE
+from ..reason.match import BUILTIN_FIELDS, REFERENCE, resolve as _resolve_date, ISO_DATE
 from . import rdf
 
 #: A node's own fields, as the export writes them.
@@ -51,6 +52,8 @@ class Renderer:
         self.rel_covers = _vocab.relation_covers(self.properties)
         self.notes = []
         self._fresh = 0
+        self.params = set()
+        self._outer = set()
 
     # ---- names ----
     def prefixes(self):
@@ -153,6 +156,38 @@ class Renderer:
             else:
                 lines.append("%s %s %s ." % (var, predicate, value_var))
             for op, expected in conditions.items():
+                if op == "exists":
+                    # the triple above would already require the value: rewrite it as a test
+                    lines.pop()
+                    lines.append("FILTER %sEXISTS { %s %s %s }" % ("" if expected else "NOT ", var, predicate, value_var))
+                    continue
+                if isinstance(expected, str) and REFERENCE.search(expected) \
+                        and all(m.group(1) in self._outer or m.group(1) in self.params for m in REFERENCE.finditer(expected)):
+                    parts = []                                  # the string as CONCAT of text and references
+                    last = 0
+                    for m in REFERENCE.finditer(expected):
+                        if m.start() > last:
+                            parts.append('"%s"' % rdf.escape(expected[last:m.start()]))
+                        other, field = m.group(1), m.group(2)
+                        subject = self.var("$" + other) if other in self.params else "?" + other
+                        if field:
+                            ref = "?%s_%s" % (other, field)
+                            lines.append("%s %s %s ." % (subject, self.attribute_iri(field), ref))
+                            parts.append("STR(%s)" % ref)
+                        else:
+                            parts.append(subject)
+                        last = m.end()
+                    if last < len(expected):
+                        parts.append('"%s"' % rdf.escape(expected[last:]))
+                    ref = parts[0] if len(parts) == 1 else "CONCAT(%s)" % ", ".join(parts)
+                    if predicate is None:                       # the id itself: compare the nodes
+                        lines.pop()
+                        value_var = var
+                    if op in OPERATORS:
+                        lines.append("FILTER(%s %s %s)" % (value_var, OPERATORS[op], ref))
+                    elif op == "contains":
+                        lines.append("FILTER(CONTAINS(STR(%s), %s))" % (value_var, ref if len(parts) > 1 else "STR(%s)" % ref))
+                    continue
                 if op in OPERATORS:
                     if predicate == "a":
                         lines.append("FILTER(%s %s %s)" % (value_var, OPERATORS[op], self.cls(str(expected))))
@@ -197,6 +232,16 @@ class Renderer:
                 inner = []
                 self.node_pattern({"node": "_absent", "type": pattern.get("type"), "where": pattern.get("where")}, dict(var_types), inner)
                 lines.append("FILTER NOT EXISTS { %s }" % " ".join(inner))
+            elif "optional" in pattern:
+                inner = []
+                self.patterns(pattern["optional"], var_types, inner)
+                # a variable bound only here is filtered to current facts here, where it is bound,
+                # and what the selection reads from it is read here too
+                own = [v for v in self.bound(pattern["optional"], {}) if v not in self._outer]
+                self.current_only(own, inner)
+                for v in own:
+                    inner += self._selected.pop(v, [])
+                lines.append("OPTIONAL { %s }" % " ".join(inner))
 
     def current_only(self, variables, lines):
         allowed = ", ".join('"%s"' % x for x in self.statuses)
@@ -204,6 +249,13 @@ class Renderer:
             v = self.var(name)
             s = "%s_status" % v.replace("$", "?")
             lines.append("FILTER NOT EXISTS { %s %s %s . FILTER(%s NOT IN (%s)) }" % (v, self.field("status"), s, s, allowed))
+
+    def _collect_types(self, when, var_types):
+        for pattern in when:
+            if isinstance(pattern.get("node"), str) and pattern.get("type"):
+                var_types[pattern["node"].lstrip("$")] = _split(pattern["type"])
+            if isinstance(pattern.get("optional"), list):
+                self._collect_types(pattern["optional"], var_types)
 
     def bound(self, when, params):
         out = []
@@ -224,14 +276,17 @@ class Renderer:
         """The SPARQL of a question's `ask` (or of a body passed as `question`), with `$NAME` left
         for the caller. Returns the query text; what could not be rendered is in `self.notes`."""
         declared = params if params is not None else (question.get("params") or {})
+        self.params = set(declared)
         ask = question.get("ask") or question
         when = ask.get("when") or []
         var_types = {name: _split(spec.get("type")) for name, spec in declared.items() if isinstance(spec, dict)}
         lines = []
-        self.patterns(when, var_types, lines)
         bound = self.bound(when, declared)
-        self.current_only(bound, lines)
-        projection = []
+        self._outer = set(bound) | {"$" + name for name in declared} | set(declared)
+        # what the selection reads from each variable, to be placed where the variable is bound
+        all_types = dict(var_types)
+        self._collect_types(when, all_types)
+        projection, self._selected = [], {}
         for item in ask.get("select") or []:
             var, _dot, field = item.partition(".")
             v = self.var(var)
@@ -242,20 +297,25 @@ class Renderer:
             projection.append(out)
             key = var.lstrip("$")
             spec = {}
-            for kind in var_types.get(key, []):
+            for kind in all_types.get(key, []):
                 spec.update(_vocab.declared_attributes(self.vocabulary, kind))
             if field in spec:
-                lines.append("OPTIONAL { %s %s %s }" % (v, self.attribute_iri(field), out))
+                line = "OPTIONAL { %s %s %s }" % (v, self.attribute_iri(field), out)
             elif field == "label":
-                lines.append("OPTIONAL { %s %s %s }" % (v, self.rdfs_label, out))
+                line = "OPTIONAL { %s %s %s }" % (v, self.rdfs_label, out)
             elif field == "type":
-                lines.append("%s a %s ." % (v, out))
+                line = "%s a %s ." % (v, out)
             elif field == "id":
-                lines.append("BIND(STRAFTER(STR(%s), \"id/\") AS %s)" % (v, out))
+                line = "BIND(STRAFTER(STR(%s), \"id/\") AS %s)" % (v, out)
             elif field in FIELD_PREDICATE:
-                lines.append("OPTIONAL { %s %s %s }" % (v, self.field(field), out))
+                line = "OPTIONAL { %s %s %s }" % (v, self.field(field), out)
             else:
-                lines.append("OPTIONAL { %s %s %s }" % (v, self.attribute_iri(field), out))
+                line = "OPTIONAL { %s %s %s }" % (v, self.attribute_iri(field), out)
+            self._selected.setdefault(var, []).append(line)
+        self.patterns(when, var_types, lines)
+        self.current_only(bound, lines)
+        for var in list(self._selected):
+            lines += self._selected.pop(var)
         head = "\n".join("PREFIX %s: <%s>" % (p, iri) for p, iri in sorted(self.prefixes().items()))
         head += "\nPREFIX rdfs: <%s>\nPREFIX xsd: <%s>" % (rdf.RDFS, rdf.XSD)
         select = "SELECT DISTINCT %s" % " ".join(projection) if projection else "SELECT *"
@@ -314,11 +374,14 @@ def questions_yaml(questions, vocabulary, terms, name, language=None):
         lines.append("    gate: %s" % json.dumps(q.get("gate", "non_empty")))
         lines.append("    answer: |")
         lines += ["      " + line for line in query.splitlines()]
-        if q.get("gaps"):
-            gaps = renderer.render({"ask": {"when": q["gaps"].get("when") or [], "select": []}}, params=q.get("params") or {})
-            lines.append("    gaps: |")
+        from ..reason.questions import _gap_bodies
+        for index, body in enumerate(_gap_bodies(q)):
+            renderer._fresh = 0
+            gaps = renderer.render({"ask": {"when": body.get("when") or [], "select": []}}, params=q.get("params") or {})
+            suffix = "" if index == 0 else "_%d" % (index + 1)
+            lines.append("    gaps%s: |" % suffix)
             lines += ["      " + line for line in gaps.splitlines()]
-            lines.append("    gaps_say: %s" % json.dumps(q["gaps"].get("say") or ""))
+            lines.append("    gaps%s_say: %s" % (suffix, json.dumps(body.get("say") or "")))
         if renderer.notes:
             lines.append("    notes: %s" % json.dumps(sorted(set(renderer.notes))))
         lines.append("")

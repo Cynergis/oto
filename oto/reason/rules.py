@@ -31,7 +31,7 @@ import os
 NAME = "rules.json"
 KINDS = ("derive", "policy")
 SEVERITIES = ("warn", "blocking")
-OPERATORS = ("=", "!=", "<", "<=", ">", ">=", "in", "contains")
+OPERATORS = ("=", "!=", "<", "<=", ">", ">=", "in", "contains", "exists")
 ORDERED_TYPES = ("number", "integer", "date")
 _MISSING = object()
 
@@ -183,6 +183,15 @@ def pattern_problems(label, when, vocabulary, negation_ok=True, bound=None):
             for kind_name in _split(pattern.get("type")):
                 if kind_name not in classes:
                     out.append("%s: class %r is not declared" % (label, kind_name))
+        elif "optional" in pattern:
+            if not negation_ok:
+                out.append("%s: optional is allowed in policy rules and questions only; a derivation must stay positive" % label)
+            elif not isinstance(pattern["optional"], list) or not pattern["optional"]:
+                out.append("%s: `optional` must be a non-empty list of patterns" % label)
+            else:
+                found, inner_types = pattern_problems(label, pattern["optional"], vocabulary, negation_ok, bound)
+                out += found
+                var_types.update(inner_types)
         else:
             out.append("%s: unknown pattern %s" % (label, sorted(pattern)))
     return out, var_types
@@ -206,10 +215,13 @@ def _condition_problems(label, pattern, attributes, classes=None):
         else:
             declared_type = (declared.get(name) or {}).get("type")
         if isinstance(condition, dict):
-            for op in condition:
+            for op, expected in condition.items():
                 if op not in OPERATORS:
                     out.append("%s: operator %r on %s is not one of %s" % (label, op, name, ", ".join(OPERATORS)))
-                elif declared_type and op in ("<", "<=", ">", ">=") and declared_type not in ORDERED_TYPES:
+                elif op == "exists" and not isinstance(expected, bool):
+                    out.append("%s: `exists` on %s takes true or false" % (label, name))
+                elif declared_type and op in ("<", "<=", ">", ">=") and declared_type not in ORDERED_TYPES \
+                        and not (isinstance(expected, str) and expected.startswith("$")):
                     out.append("%s: %r on %s, which is declared %s, not a number or date" % (label, op, name, declared_type))
         elif pattern.get("type") and declared and declared_type is None and name not in BUILTIN_FIELDS:
             out.append("%s: attribute %r is not declared for %s" % (label, name, pattern.get("type")))

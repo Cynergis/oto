@@ -37,7 +37,9 @@ def run(project):
         graph = json.load(f)
     try:
         from ..model.vocabulary import covers as _covers
-        result = _engine.run(rules, graph["nodes"], graph["edges"], covers=_covers(vocabulary.get("classes") or {}))
+        from ..reason.questions import declared_names
+        result = _engine.run(rules, graph["nodes"], graph["edges"], covers=_covers(vocabulary.get("classes") or {}),
+                             declared=declared_names(vocabulary))
     except _engine.DoesNotConverge as exc:
         raise ProjectError(str(exc))
 

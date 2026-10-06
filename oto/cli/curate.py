@@ -205,8 +205,9 @@ def cmd_curate(args):
     if declared_rules and not _rules.problems(declared_rules, vocabulary):
         try:
             from ..model.vocabulary import covers as _covers
+            from ..reason.questions import declared_names
             outcome = _engine.run(declared_rules, proposed.get("nodes") or [], proposed.get("edges") or [],
-                                  covers=_covers(vocabulary.get("classes") or {}))
+                                  covers=_covers(vocabulary.get("classes") or {}), declared=declared_names(vocabulary))
         except _engine.DoesNotConverge as exc:
             findings.append(_diff.Finding(_diff.Finding.BLOCKING, "rules", str(exc)))
         else:
@@ -225,7 +226,7 @@ def cmd_curate(args):
     declared_questions = _questions.load(project)
     if declared_questions and not _questions.problems(declared_questions, vocabulary):
         for entry in _questions.findings(declared_questions, proposed.get("nodes") or [], proposed.get("edges") or [],
-                                         _covers(vocabulary.get("classes") or {})):
+                                         _covers(vocabulary.get("classes") or {}), declared=_questions.declared_names(vocabulary)):
             for item in entry["unanswered"] or [{"node": "(graph)", "label": "(graph)", "status": entry["status"], "gaps": entry["gaps"]}]:
                 findings.append(_diff.Finding(_diff.Finding.BLOCKING, item["node"],
                                               "question %s %s: %s%s" % (entry["id"], item["status"], entry["question"],

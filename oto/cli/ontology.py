@@ -267,7 +267,9 @@ def cmd_ontology(args):
             for problem in rule_problems[:args.show]:
                 print("  %s" % problem)
             return 1
-        outcome = _engine.run(declared_rules, nodes, edges, covers=vocab.covers(current.classes))
+        from ..reason.questions import declared_names
+        outcome = _engine.run(declared_rules, nodes, edges, covers=vocab.covers(current.classes),
+                              declared=declared_names(_json.load(open(project.ontology_config_path, encoding="utf-8"))))
         blocking = [f for f in outcome["findings"] if f["severity"] == "blocking"]
         print("\nrules: %d declared; %d edge(s) and %d attribute(s) would be derived; %d policy finding(s)%s"
               % (len(declared_rules), len(outcome["edges"]), len(outcome["attributes"]), len(outcome["findings"]),
@@ -312,7 +314,8 @@ def cmd_ontology(args):
         return 1
     uncovered = _questions.uncovered(declared_questions, declared_config)
     if declared_questions:
-        entries = _questions.survey(declared_questions, nodes, edges, vocab.covers(current.classes))
+        entries = _questions.survey(declared_questions, nodes, edges, vocab.covers(current.classes),
+                                    declared=_questions.declared_names(declared_config))
         question_findings = [e for e in entries if e["status"] in _questions.FINDING_STATUSES]
         print("\nquestions: %d declared; the live graph answers %d as required%s"
               % (len(entries), len(entries) - len(question_findings),

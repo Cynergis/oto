@@ -62,7 +62,8 @@ class SqliteStore(Store):
             if any(r[1] == "derived_by" for r in self.con.execute("PRAGMA table_info(edges)")):
                 out.add("derived")
             for table, feature in (("changelog", "changelog"), ("policy_findings", "policy"), ("lexicon", "lexicon"),
-                                   ("derived_attributes", "derived_attributes")):
+                                   ("derived_attributes", "derived_attributes"), ("terms", "terms"),
+                                   ("questions", "questions")):
                 if self._has_table(table):
                     out.add(feature)
             self._features = out
@@ -104,20 +105,23 @@ class SqliteStore(Store):
             return []
 
     def aliases(self, nid):
-        return [r["alias"] for r in self._rows("SELECT alias FROM aliases WHERE node_id=?", (nid,))]
+        """What the node is also called, to show: not its labels in other languages, nor hidden labels."""
+        return [r["alias"] for r in self._rows("SELECT alias FROM aliases WHERE node_id=? AND kind='alias'", (nid,))]
 
     def edges_out(self, nid, rel=None):
         cols = "rel,dst,status" + (",derived_by" if "derived" in self.features() else "")
-        rows = self._rows(f"SELECT {cols} FROM edges WHERE src=?" + (" AND rel=?" if rel else "") + " ORDER BY rel, dst",
-                          (nid, rel) if rel else (nid,))
+        rels = _rels(rel)
+        rows = self._rows(f"SELECT {cols} FROM edges WHERE src=?" + (" AND rel IN (%s)" % ",".join("?" * len(rels)) if rels else "")
+                          + " ORDER BY rel, dst", (nid, *rels))
         for r in rows:
             r.setdefault("derived_by", None)
         return rows
 
     def edges_in(self, nid, rel=None):
         cols = "rel,src,status" + (",derived_by" if "derived" in self.features() else "")
-        rows = self._rows(f"SELECT {cols} FROM edges WHERE dst=?" + (" AND rel=?" if rel else "") + " ORDER BY rel, src",
-                          (nid, rel) if rel else (nid,))
+        rels = _rels(rel)
+        rows = self._rows(f"SELECT {cols} FROM edges WHERE dst=?" + (" AND rel IN (%s)" % ",".join("?" * len(rels)) if rels else "")
+                          + " ORDER BY rel, src", (nid, *rels))
         for r in rows:
             r.setdefault("derived_by", None)
         return rows
@@ -154,7 +158,8 @@ class SqliteStore(Store):
             return []
 
     def by_type(self, type_, state=None, limit=50):
-        q, a = "SELECT id,label,status FROM nodes WHERE type=?", [type_]
+        kinds = _kinds(type_)
+        q, a = "SELECT id,label,status,type FROM nodes WHERE type IN (%s)" % ",".join("?" * len(kinds)), list(kinds)
         if state:
             q += " AND json_extract(attributes,'$.state')=?"; a.append(state)
         return self._rows(q + " ORDER BY label LIMIT ?", a + [int(limit)])
@@ -173,8 +178,9 @@ class SqliteStore(Store):
 
     def count(self, type_=None, tag=None, attr=None, value=None):
         q, a = "SELECT count(*) c FROM nodes WHERE 1=1", []
-        if type_:
-            q += " AND type=?"; a.append(type_)
+        kinds = _kinds(type_)
+        if kinds:
+            q += " AND type IN (%s)" % ",".join("?" * len(kinds)); a += kinds
         if tag:
             q += " AND tags LIKE ?"; a.append(f"%{tag}%")
         if attr and value is not None:
@@ -184,8 +190,9 @@ class SqliteStore(Store):
     def group_by(self, key, type_=None, tag=None, limit=200):
         col = key if key in ("type", "status") else f"json_extract(attributes,'$.{key}')"
         q, a = f"SELECT {col} g, count(*) c FROM nodes WHERE 1=1", []
-        if type_:
-            q += " AND type=?"; a.append(type_)
+        kinds = _kinds(type_)
+        if kinds:
+            q += " AND type IN (%s)" % ",".join("?" * len(kinds)); a += kinds
         if tag:
             q += " AND tags LIKE ?"; a.append(f"%{tag}%")
         q += " GROUP BY g ORDER BY c DESC, g LIMIT ?"; a.append(int(limit))
@@ -201,6 +208,17 @@ class SqliteStore(Store):
             return []
         return self._rows("SELECT DISTINCT canonical,target,status,note FROM lexicon "
                           "WHERE ? LIKE '%'||phrase||'%' OR phrase LIKE ? LIMIT 80", (phrase, f"%{phrase}%"))
+
+    def terms(self):
+        """The vocabulary: [{name, kind, owner, spec, rationale, iri}], spec and rationale parsed."""
+        return [dict(r, spec=json.loads(r["spec"] or "{}"), rationale=json.loads(r["rationale"] or "{}"))
+                for r in self._rows("SELECT name,kind,owner,spec,rationale,iri FROM terms ORDER BY kind,owner,name")]
+
+    def questions(self):
+        """The competency questions: {id: question}, in declaration order."""
+        if "questions" not in self.features():
+            return {}
+        return {r["id"]: json.loads(r["spec"] or "{}") for r in self._rows("SELECT id, spec FROM questions ORDER BY rowid")}
 
     def documents(self, query=None, limit=200):
         q, a = "SELECT id,label,as_of,valid_from,attributes FROM nodes WHERE type='Document'", []
@@ -246,7 +264,7 @@ class SqliteStore(Store):
 
     def all_aliases(self):
         out = {}
-        for r in self._rows("SELECT node_id, alias FROM aliases ORDER BY rowid"):
+        for r in self._rows("SELECT node_id, alias FROM aliases WHERE kind='alias' ORDER BY rowid"):
             out.setdefault(r["node_id"], []).append(r["alias"])
         return out
 
@@ -273,6 +291,19 @@ class SqliteStore(Store):
 
 
 # ============================ Neo4j ============================
+
+def _kinds(type_):
+    """A class filter as a list: one class, or the classes a question about one covers."""
+    if not type_:
+        return []
+    return list(type_) if isinstance(type_, (list, tuple, set)) else [type_]
+
+
+def _rels(rel):
+    if not rel:
+        return []
+    return list(rel) if isinstance(rel, (list, tuple, set)) else [rel]
+
 
 def _plain(value):
     """A Neo4j value as JSON-able Python: temporal types to ISO strings."""
@@ -340,7 +371,7 @@ class Neo4jStore(Store):
 
     def features(self):
         if self._features is None:
-            self._features = {"derived", "derived_attributes", "policy", "lexicon", "changelog"}
+            self._features = {"derived", "derived_attributes", "policy", "lexicon", "changelog", "terms", "questions"}
         return self._features
 
     def meta(self, key):
@@ -380,7 +411,7 @@ class Neo4jStore(Store):
 
     def by_name(self, term):
         rows = self._run("MATCH (n:Entity {project: $project}) WHERE toLower(n.label) = toLower($term) "
-                         "OR any(a IN n.aliases WHERE toLower(a) = toLower($term)) RETURN n.id AS id ORDER BY id", term=term)
+                         "OR any(a IN n.names WHERE toLower(a) = toLower($term)) RETURN n.id AS id ORDER BY id", term=term)
         return [r["id"] for r in rows]
 
     def by_text(self, term, limit=6):
@@ -399,16 +430,16 @@ class Neo4jStore(Store):
 
     def edges_out(self, nid, rel=None):
         rows = self._run("MATCH (a:Entity {key: $key})-[r]->(b:Entity) WHERE r.kind IN ['asserted', 'derived'] "
-                         + ("AND type(r) = $rel " if rel else "")
+                         + ("AND type(r) IN $rels " if rel else "")
                          + "RETURN type(r) AS rel, b.id AS dst, r.status AS status, r.derived_by AS derived_by ORDER BY rel, dst",
-                         key="%s:%s" % (self.project, nid), rel=rel)
+                         key="%s:%s" % (self.project, nid), rels=_rels(rel))
         return rows
 
     def edges_in(self, nid, rel=None):
         rows = self._run("MATCH (a:Entity)-[r]->(b:Entity {key: $key}) WHERE r.kind IN ['asserted', 'derived'] "
-                         + ("AND type(r) = $rel " if rel else "")
+                         + ("AND type(r) IN $rels " if rel else "")
                          + "RETURN type(r) AS rel, a.id AS src, r.status AS status, r.derived_by AS derived_by ORDER BY rel, src",
-                         key="%s:%s" % (self.project, nid), rel=rel)
+                         key="%s:%s" % (self.project, nid), rels=_rels(rel))
         return rows
 
     def edge(self, src, rel, dst):
@@ -452,10 +483,11 @@ class Neo4jStore(Store):
         return rows
 
     def by_type(self, type_, state=None, limit=50):
-        rows = self._run("MATCH (n:Entity {project: $project}) WHERE $type IN labels(n) "
+        rows = self._run("MATCH (n:Entity {project: $project}) WHERE any(t IN $types WHERE t IN labels(n)) "
                          + ("AND n.state = $state " if state else "")
-                         + "RETURN n.id AS id, n.label AS label, n.status AS status ORDER BY label LIMIT $limit",
-                         type=type_, state=state, limit=int(limit))
+                         + "RETURN n.id AS id, n.label AS label, n.status AS status, "
+                         "[l IN labels(n) WHERE l <> 'Entity'][0] AS type ORDER BY label LIMIT $limit",
+                         types=_kinds(type_), state=state, limit=int(limit))
         return rows
 
     def status_counts(self):
@@ -474,19 +506,19 @@ class Neo4jStore(Store):
     def count(self, type_=None, tag=None, attr=None, value=None):
         where = ["n.project = $project"]
         if type_:
-            where.append("$type IN labels(n)")
+            where.append("any(t IN $types WHERE t IN labels(n))")
         if tag:
             where.append("any(t IN n.tags WHERE t CONTAINS $tag)")
         if attr and value is not None:
             where.append("n[$attr] = $value")
         rows = self._run("MATCH (n:Entity) WHERE " + " AND ".join(where) + " RETURN count(n) AS c",
-                         type=type_, tag=tag, attr=attr, value=value)
+                         types=_kinds(type_), tag=tag, attr=attr, value=value)
         return rows[0]["c"]
 
     def group_by(self, key, type_=None, tag=None, limit=200):
         where = ["n.project = $project"]
         if type_:
-            where.append("$type IN labels(n)")
+            where.append("any(t IN $types WHERE t IN labels(n))")
         if tag:
             where.append("any(t IN n.tags WHERE t CONTAINS $tag)")
         if key == "type":
@@ -496,7 +528,7 @@ class Neo4jStore(Store):
         else:
             g = "n[$key]"
         rows = self._run("MATCH (n:Entity) WHERE " + " AND ".join(where) + f" RETURN {g} AS g, count(n) AS c "
-                         "ORDER BY c DESC, (g IS NOT NULL), g LIMIT $limit", key=key, type=type_, tag=tag, limit=int(limit))
+                         "ORDER BY c DESC, (g IS NOT NULL), g LIMIT $limit", key=key, types=_kinds(type_), tag=tag, limit=int(limit))
         for r in rows:
             r["g"] = _plain(r["g"])
         return rows
@@ -510,6 +542,15 @@ class Neo4jStore(Store):
         return self._run("MATCH (l:Lexicon {project: $project}) WHERE $phrase CONTAINS l.phrase OR l.phrase CONTAINS $phrase "
                          "RETURN DISTINCT l.canonical AS canonical, l.target AS target, l.status AS status, l.note AS note LIMIT 80",
                          phrase=phrase)
+
+    def terms(self):
+        rows = self._run("MATCH (t:Term {project: $project}) RETURN t.name AS name, t.kind AS kind, t.owner AS owner, "
+                         "t.spec AS spec, t.rationale AS rationale, t.iri AS iri ORDER BY kind, owner, name")
+        return [dict(r, spec=json.loads(r["spec"] or "{}"), rationale=json.loads(r["rationale"] or "{}")) for r in rows]
+
+    def questions(self):
+        rows = self._run("MATCH (q:Question {project: $project}) RETURN q.id AS id, q.spec AS spec")
+        return {r["id"]: json.loads(r["spec"] or "{}") for r in rows}
 
     def documents(self, query=None, limit=200):
         rows = self._run("MATCH (n:Entity:Document {project: $project}) "

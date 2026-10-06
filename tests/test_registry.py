@@ -34,10 +34,10 @@ def _git(args, cwd):
 
 
 def _claims(work, version, extra_class=None):
-    classes = {"Claim": "a claim"}
+    classes = {"Claim": {"definition": "a claim"}}
     if extra_class:
-        classes[extra_class] = "added in v%d" % version
-    write_ontology(work, "claims", classes, {"about": ["Claim", "Document", None, "about"]},
+        classes[extra_class] = {"definition": "added in v%d" % version}
+    write_ontology(work, "claims", classes, {"about": {"domain": "Claim", "range": "Document", "definition": "about"}},
                    {"nodes": [_node("claim.1", "Claim", "One")], "edges": []},
                    manifest_body={"release": version, "summary": "claims v%d" % version, "extends": ["oto-core"],
                                   "carries": ["vocabulary", "rationale", "sample", "readme"]}, temporal=False)
@@ -58,7 +58,7 @@ def make_registry(root, name="acme"):
                                      {"name": "tiny", "release": 1, "summary": "tiny", "path": "tiny"}]}, f)
 
     _claims(work, 1)
-    write_ontology(work, "tiny", {"Thing": "a thing"}, {"near": ["Thing", "Thing", None, "n"]},
+    write_ontology(work, "tiny", {"Thing": {"definition": "a thing"}}, {"near": {"domain": "Thing", "range": "Thing", "definition": "n"}},
                    {"nodes": [_node("t.1", "Thing", "One")], "edges": []}, manifest_body={"release": 1, "summary": "tiny"})
     index(1)
     _git(["add", "-A"], work); _git(["commit", "-q", "-m", "claims v1"], work)
@@ -208,7 +208,7 @@ def test_add_by_url_with_a_path_and_a_registry_is_told_apart(home, capsys):
 def test_a_ontology_of_your_own_is_not_overwritten_without_force(home):
     bare, _work = make_registry(home)
     registry.add_registry(bare)
-    write_ontology(os.path.join(home, "ontologies"), "claims", {"Mine": "mine"}, {"r": ["Mine", "Mine", None, "r"]},
+    write_ontology(os.path.join(home, "ontologies"), "claims", {"Mine": {"definition": "mine"}}, {"r": {"domain": "Mine", "range": "Mine", "definition": "r"}},
                    {"nodes": [_node("m.1", "Mine", "M")], "edges": []})
     with pytest.raises(ProjectError, match="an ontology of your own named 'claims'"):
         registry.fetch("claims")
@@ -303,7 +303,7 @@ def test_publish_a_ontology_from_this_machine_and_refuse_an_unpublishable_one(ho
     with tempfile.TemporaryDirectory() as root:
         init(root, slug="leak", name="Leak", ontology="organization-process")
         cfg = json.load(open(os.path.join(root, "ontology.config.json"), encoding="utf-8"))
-        cfg["classes"]["Unit"] = "A unit at AcmeCorp."
+        cfg["classes"]["Unit"] = {"definition": "A unit at AcmeCorp."}
         json.dump(cfg, open(os.path.join(root, "ontology.config.json"), "w", encoding="utf-8"))
         monkeypatch.setenv("OTO_DENY_TERMS", "acmecorp")
         assert main(["ontology", "publish", "--project", root, "--to", bare, "--name", "leaky"]) == 1
@@ -324,9 +324,9 @@ def test_diff_reports_what_the_upstream_ontology_changed_since(home, capsys):
         assert main(["ontology", "diff", "--project", root]) == 0
         out = capsys.readouterr().out
         assert "started from release 1" in out and "holds release 2" in out and "against the release this project started from (tag claims/v1)" in out
-        assert "[additive] class added Adjuster" in out and "1 additive" in out
+        assert "[additive] class added Adjuster" in out and "[additive] question added: Q-Adjuster" in out and "2 additive" in out
         # the registry moves on with a breaking change: Claim is gone, and the project holds one
-        write_ontology(work, "claims", {"Case": "a case"}, {"about": ["Case", "Document", None, "about"]},
+        write_ontology(work, "claims", {"Case": {"definition": "a case"}}, {"about": {"domain": "Case", "range": "Document", "definition": "about"}},
                        {"nodes": [_node("case.1", "Case", "One")], "edges": []},
                        manifest_body={"release": 3, "summary": "claims v3", "extends": ["oto-core"],
                                       "carries": ["vocabulary", "rationale", "sample", "readme"],

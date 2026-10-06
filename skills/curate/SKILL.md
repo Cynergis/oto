@@ -114,7 +114,11 @@ oto curate check --project <project>
 Read all four sections:
 
 - **blocking** — undeclared types or relations, edges pointing nowhere, bad dates, duplicate ids,
-  and a supersession chain that does not point both ways or retires nothing. Fix every one.
+  a supersession chain that does not point both ways or retires nothing, a node that breaks a
+  declared shape (`shape min: Claim claim.c-9 has 0 claims_under; at least 1 declared`), and a
+  required competency question the candidate would leave unanswered (`question AC1 unanswered`,
+  with the gap). Fix every one: the shapes and the questions are the vocabulary's contract, and
+  what cannot answer them does not enter the graph.
 - **contradiction** — a value changed with no supersession record. Fix it, or explain why it is a
   correction rather than a change.
 - **gap** — a node with no date, no source, no citation or no evidence locator; a date handoff

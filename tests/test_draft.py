@@ -68,7 +68,7 @@ def test_the_request_carries_the_rules_the_vocabulary_the_brief_and_the_whole_do
     assert "Only what the document states" in request["system"] and "evidence" in request["system"]
     user = request["messages"][0]["content"]
     assert "Classes:" in user and "Claim:" in user and "Relations (domain -> range):" in user
-    assert "Attributes (per class, with type):" in user and "Claim.state: enum:" in user
+    assert "Attributes (per class, with type):" in user and "Claim.state: scheme:ClaimState (one of: open, reopened, closed, denied)" in user
     assert "The brief for this document" in user and "Claims Manager" in user
     assert DOC.strip() in user, "the whole document, never truncated"
     assert request["output_config"]["format"]["type"] == "json_schema"

@@ -57,17 +57,21 @@ def cmd_ontology(args):
                               for r, a, b in report["relation_clashes"]]
                     notes.append("merged %d ontologies; prune before accepting" % len(names))
                 attributes = config.get("attributes") or {}
+                namespaces, schemes = config.get("namespaces"), config.get("schemes")
             else:
                 classes, properties, notes = _importer.read(args.file)
-                attributes = _importer.read.attributes
-            problems = _importer.check(classes, properties, attributes)
+                attributes, schemes = _importer.read.attributes, _importer.read.schemes
+                namespaces = _importer.read.namespaces
+                if _importer.read.rationale and any(_importer.read.rationale.values()):
+                    rationale = _importer.read.rationale
+            problems = _importer.check(classes, properties, attributes, schemes)
             if problems:
                 print("the vocabulary is not usable as read:")
                 for problem in problems[:args.show * 2]:
                     print("  %s" % problem)
                 return 1
             path = _importer.apply(project, classes, properties, rationale=rationale, replace=args.replace,
-                                   attributes=attributes)
+                                   attributes=attributes, namespaces=namespaces, schemes=schemes)
         except (OSError, ValueError) as exc:
             print("oto: %s" % exc, file=sys.stderr)
             return 1
@@ -163,10 +167,25 @@ def cmd_ontology(args):
         return 0
 
     if args.ontology_command == "accept":
-        from ..reason import rules as _rules
-        path = vocab.write_lock(project, current, rules=_rules.load(project))
-        print("accepted vocabulary version %d (%d classes, %d relations, %d rules)"
-              % (current.version, len(current.classes), len(current.properties), len(_rules.load(project))))
+        from ..reason import rules as _rules, questions as _questions
+        with open(project.ontology_config_path, encoding="utf-8") as f:
+            declared_config = _json.load(f)
+        declared_questions = _questions.load(project)
+        refusals = _questions.problems(declared_questions, declared_config)
+        if not refusals:
+            refusals = ["no question cites %s" % term for term in _questions.uncovered(declared_questions, declared_config)]
+        if refusals:
+            print("oto: refusing to accept a vocabulary whose questions do not cover it; every class, relation and "
+                  "attribute exists to answer a question that runs (questions.json):")
+            for problem in refusals[:args.show * 2]:
+                print("  %s" % problem)
+            if len(refusals) > args.show * 2:
+                print("  ... and %d more" % (len(refusals) - args.show * 2))
+            return 1
+        path = vocab.write_lock(project, current, rules=_rules.load(project), questions=declared_questions)
+        print("accepted vocabulary version %d (%d classes, %d relations, %d rules, %d questions)"
+              % (current.version, len(current.classes), len(current.properties), len(_rules.load(project)),
+                 len(declared_questions)))
         print("wrote %s" % os.path.relpath(path, os.path.dirname(project.src)))
         return 0
 
@@ -179,7 +198,7 @@ def cmd_ontology(args):
         print("\nno accepted vocabulary on record. Run `oto ontology accept` to record this one as "
               "the baseline, then future changes can be diffed against it.")
     else:
-        changes = vocab.impact(vocab.diff(locked, current), nodes, edges)
+        changes = vocab.impact(vocab.diff(locked, current), nodes, edges, current)
         if not changes:
             print("\nno change since version %d was accepted" % locked.version)
         else:
@@ -188,6 +207,10 @@ def cmd_ontology(args):
                 touches = (" — touches %d" % change.affected) if change.affected else ""
                 print("  [%-9s] %-28s %-24s %s%s"
                       % (change.severity, change.kind, change.subject, change.detail, touches))
+            from ..model import rationale as _rationale
+            for kind, name, by in vocab.reconfirm(locked, current, _rationale.load(project)):
+                print("  RECONFIRM %s %s: its definition changed since %s confirmed it; ask them again, "
+                      "or clear validated_by" % (kind, name, by))
             breaking = sum(1 for c in changes if c.severity == vocab.Change.BREAKING)
             if breaking and current.version <= locked.version:
                 unacknowledged = breaking
@@ -197,6 +220,15 @@ def cmd_ontology(args):
                 unacknowledged = 0
                 print("\n%d breaking change(s), acknowledged by the bump to version %d. Run "
                       "`oto ontology accept` to record it." % (breaking, current.version))
+
+    with open(project.ontology_config_path, encoding="utf-8") as f:
+        _declared_languages = _json.load(f).get("languages")
+    if _declared_languages:
+        for kind, declared in current.attributes.items():
+            for name, spec in declared.items():
+                if str(spec.get("type", "")).startswith("enum:"):
+                    print("  note: attribute %s.%s is an enum, so its values carry no label in %s; declare a scheme "
+                          "if people ask what they mean" % (kind, name, ", ".join(_declared_languages)))
 
     report = vocab.conformance(current, nodes, edges)
     print("\ndomain and range conformance over %d declared edge(s):" % report["checked"])
@@ -235,7 +267,9 @@ def cmd_ontology(args):
             for problem in rule_problems[:args.show]:
                 print("  %s" % problem)
             return 1
-        outcome = _engine.run(declared_rules, nodes, edges)
+        from ..reason.questions import declared_names
+        outcome = _engine.run(declared_rules, nodes, edges, covers=vocab.covers(current.classes),
+                              declared=declared_names(_json.load(open(project.ontology_config_path, encoding="utf-8"))))
         blocking = [f for f in outcome["findings"] if f["severity"] == "blocking"]
         print("\nrules: %d declared; %d edge(s) and %d attribute(s) would be derived; %d policy finding(s)%s"
               % (len(declared_rules), len(outcome["edges"]), len(outcome["attributes"]), len(outcome["findings"]),
@@ -245,6 +279,69 @@ def cmd_ontology(args):
         if blocking and args.strict:
             print("\nblocking policy findings on the live graph: errors under --strict.")
             return 1
+
+    from ..reason import shapes as _shapes
+    with open(project.ontology_config_path, encoding="utf-8") as f:
+        shape_config = _json.load(f)
+    shape_problems = _shapes.problems(shape_config)
+    if shape_problems:
+        print("\nshapes are not usable:")
+        for problem in shape_problems[:args.show]:
+            print("  %s" % problem)
+        return 1
+    shape_findings = _shapes.findings(shape_config, nodes, edges)
+    declared_shapes = _shapes.declared(shape_config)
+    if declared_shapes:
+        print("\nshapes: %d declared (%s); %s" % (
+            len(declared_shapes), ", ".join("%d %s" % (sum(1 for s in declared_shapes if s["kind"] == k), k)
+                                            for k in ("min", "max", "required", "requires") if any(s["kind"] == k for s in declared_shapes)),
+            "every node satisfies them" if not shape_findings else "%d violation(s) on the live graph:" % len(shape_findings)))
+        for item in shape_findings[:args.show]:
+            print("  [%-8s] %s" % (item["kind"], item["message"]))
+    else:
+        print("\nshapes: none declared (no min, max, required or requires in the vocabulary)")
+
+    from ..reason import questions as _questions
+    declared_questions = _questions.load(project)
+    question_findings, uncovered = [], []
+    with open(project.ontology_config_path, encoding="utf-8") as f:
+        declared_config = _json.load(f)
+    question_problems = _questions.problems(declared_questions, declared_config)
+    if question_problems:
+        print("\nquestions.json is not usable:")
+        for problem in question_problems[:args.show]:
+            print("  %s" % problem)
+        return 1
+    uncovered = _questions.uncovered(declared_questions, declared_config)
+    if declared_questions:
+        entries = _questions.survey(declared_questions, nodes, edges, vocab.covers(current.classes),
+                                    declared=_questions.declared_names(declared_config))
+        question_findings = [e for e in entries if e["status"] in _questions.FINDING_STATUSES]
+        print("\nquestions: %d declared; the live graph answers %d as required%s"
+              % (len(entries), len(entries) - len(question_findings),
+                 (", %d it cannot:" % len(question_findings)) if question_findings else ""))
+        for e in question_findings[:args.show]:
+            first = (e["unanswered"] or [{"label": "(graph)", "gaps": e["gaps"]}])[0]
+            print("  %-6s %-11s %s%s%s" % (e["id"], e["status"], e["question"],
+                                            (": " + first["label"]) if e["unanswered"] else "",
+                                            ("; " + "; ".join(first["gaps"])) if first["gaps"] else ""))
+        locked_questions = _questions.read_lock(project)
+        if locked_questions is not None:
+            added, removed, changed, reworded = _questions.diff(locked_questions, declared_questions)
+            for qid in removed:
+                print("  [breaking ] question removed   %s: what the graph answered is no longer asked" % qid)
+            for qid in changed:
+                print("  [breaking ] question changed   %s: its ask, params or gate differ; it is a different question" % qid)
+            for qid in added:
+                print("  [additive ] question added     %s" % qid)
+            for qid in reworded:
+                print("  [cosmetic ] question reworded  %s" % qid)
+    else:
+        print("\nquestions: none declared (questions.json absent or empty)")
+    if uncovered:
+        print("  %d term(s) no question cites: %s%s" % (len(uncovered), ", ".join(uncovered[:args.show]),
+                                                         " ..." if len(uncovered) > args.show else ""))
+        print("  A term no question needs is a term nobody can tell the purpose of. `oto ontology accept` refuses it.")
 
     strict = False
     strict_attributes = False
@@ -260,6 +357,9 @@ def cmd_ontology(args):
         return 1
     if strict and (report["domain_violations"] or report["range_violations"]):
         print("\nstrict_domains is on: the violations above are errors.")
+        return 1
+    if args.strict and (question_findings or uncovered or shape_findings):
+        print("\nshape violations, questions the graph cannot answer, or terms no question cites: errors under --strict.")
         return 1
     # A breaking change is fine when the version was bumped: that IS the acknowledgement. Strict
     # mode objects only to a breaking change nobody declared.
@@ -281,7 +381,7 @@ def register(sub):
     project_arguments(ontology)
     ontology.add_argument("--show", type=int, default=8, help="how many mismatch patterns to list")
     ontology.add_argument("--file", default=None,
-                          help="for import: a vocabulary as .ttl (as OTO emits it), .csv or .json")
+                          help="for import: an ontology (.ttl, .rdf, .owl, .jsonld, .nt; any OWL/RDFS/SKOS, with the rdf extra), or a .csv or .json vocabulary")
     ontology.add_argument("--from", dest="from_name", default=None,
                           help="for import: an ontology name, or several comma-separated to merge; for publish: "
                                "publish this ontology from this machine instead of exporting the project")

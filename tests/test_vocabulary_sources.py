@@ -58,8 +58,7 @@ def test_turtle_round_trips_through_the_build():
         original = _config(root)
         assert classes == original["classes"]
         for relation, spec in original["properties"].items():
-            got = properties[relation]
-            assert [got[0], got[1], got[2], got[3]] == [spec[0], spec[1], spec[2], spec[3]], relation
+            assert properties[relation] == spec, relation
         assert importer.check(classes, properties) == []
 
 
@@ -78,7 +77,7 @@ def test_csv_import_writes_the_config_and_flags_missing_rationale(capsys):
         out = capsys.readouterr().out
         assert "wrote 2 class(es), 2 relation(s) and 0 attribute declaration(s)" in out and "recorded reason" in out
         config = _config(root)
-        assert config["properties"]["installed_at"] == ["Machine", "Site", "hosts", "Where a machine runs."]
+        assert config["properties"]["installed_at"] == {"domain": "Machine", "range": "Site", "inverse": "hosts", "definition": "Where a machine runs."}
         assert config["temporal"], "the shared temporal vocabulary must survive an import"
         assert main(["ontology", "import", "--project", root, "--file", path]) == 1
         assert "already declares" in capsys.readouterr().err
@@ -86,8 +85,8 @@ def test_csv_import_writes_the_config_and_flags_missing_rationale(capsys):
 
 
 def test_import_refuses_a_relation_naming_an_undeclared_class():
-    classes = {"Machine": "A machine."}
-    properties = {"at": ["Machine", "Site", None, "Where it is."]}
+    classes = {"Machine": {"definition": "A machine."}}
+    properties = {"at": {"domain": "Machine", "range": "Site", "definition": "Where it is."}}
     problems = importer.check(classes, properties)
     assert any("undeclared class 'Site'" in p for p in problems)
 
@@ -170,3 +169,32 @@ def test_cli_bench_add(capsys):
         assert main(["bench", "add", "--project", root, "--from", source]) == 0
         assert "added 1 question(s)" in capsys.readouterr().out
         assert main(["bench", "validate", "--project", root]) == 0
+
+
+def test_a_real_ontology_is_imported_with_its_iris_and_reasoning(capsys):
+    """`--file` reads any RDF through rdflib; the terms keep their namespaces and their rationale."""
+    fixture = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "report-ontology", "report.ttl")
+    with tempfile.TemporaryDirectory() as root:
+        init(root, name="Reports")
+        assert main(["ontology", "import", "--project", root, "--file", fixture, "--replace"]) == 0
+        out = capsys.readouterr().out
+        assert "note: " in out and "rationale carried over" in out
+        config = _config(root)
+        assert config["namespaces"]["rpt"]["iri"] == "https://cynergis.ai/ont/report#" and "ReportType" in config["namespaces"]["rpt"]["terms"]
+        assert config["classes"]["Revision"]["definition"].startswith("One accepted revision")
+        with open(os.path.join(root, "ontology.rationale.json"), encoding="utf-8") as f:
+            assert json.load(f)["classes"]["Revision"]["why"].startswith("Without it a corrected meaning")
+
+
+def test_without_rdflib_a_turtle_file_is_read_the_way_oto_writes_it(monkeypatch):
+    from oto.model import rdf_import
+    monkeypatch.setattr(rdf_import, "available", lambda: False)
+    with tempfile.TemporaryDirectory() as root:
+        init(root, name="Src", ontology="auto-claims")
+        project = Project.standard(root)
+        build(project)
+        classes, _properties, notes = importer.read(os.path.join(project.layout.ontology, "src.ttl"))
+        assert notes == [] and set(classes) == set(_config(root)["classes"]) and importer.read.namespaces is None
+        with pytest.raises(ValueError, match='needs rdflib: pip install "oto-kg\\[rdf\\]"'):
+            importer.read(os.path.join(root, "anything.rdf"))
+

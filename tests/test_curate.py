@@ -11,8 +11,8 @@ from oto.scaffold import init
 
 STAMP = {"as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "d",
          "status": "current", "sources": ["d"]}
-VOCAB = {"classes": {"Claim": "a claim", "Party": "a party"},
-         "properties": {"filed_by": ["Claim", "Party", "filed", "who filed it"]}}
+VOCAB = {"classes": {"Claim": {"definition": "a claim"}, "Party": {"definition": "a party"}},
+         "properties": {"filed_by": {"domain": "Claim", "range": "Party", "inverse": "filed", "definition": "who filed it"}}}
 
 
 def _node(nid, kind="Claim", **over):

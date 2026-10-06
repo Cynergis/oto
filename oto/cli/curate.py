@@ -204,14 +204,33 @@ def cmd_curate(args):
     declared_rules = _rules.load(project)
     if declared_rules and not _rules.problems(declared_rules, vocabulary):
         try:
-            outcome = _engine.run(declared_rules, proposed.get("nodes") or [], proposed.get("edges") or [])
+            from ..model.vocabulary import covers as _covers
+            from ..reason.questions import declared_names
+            outcome = _engine.run(declared_rules, proposed.get("nodes") or [], proposed.get("edges") or [],
+                                  covers=_covers(vocabulary.get("classes") or {}), declared=declared_names(vocabulary))
         except _engine.DoesNotConverge as exc:
             findings.append(_diff.Finding(_diff.Finding.BLOCKING, "rules", str(exc)))
         else:
+            answers = {r["id"]: r.get("answers") for r in declared_rules if isinstance(r, dict) and r.get("id")}
             for item in outcome["findings"]:
                 severity = _diff.Finding.BLOCKING if item["severity"] == "blocking" else _diff.Finding.GAP
                 findings.append(_diff.Finding(severity, item.get("node") or "(graph)",
-                                              "policy %s: %s" % (item["rule"], item["message"])))
+                                              "policy %s: %s%s" % (item["rule"], item["message"],
+                                                                    (" (answers %s)" % answers[item["rule"]]) if answers.get(item["rule"]) else "")))
+    # Shapes and questions: the vocabulary's contract with the graph. A node that breaks a declared
+    # constraint, or a required question the candidate cannot answer, is blocking.
+    from ..model.vocabulary import covers as _covers
+    from ..reason import shapes as _shapes, questions as _questions
+    for item in _shapes.findings(vocabulary, proposed.get("nodes") or [], proposed.get("edges") or []):
+        findings.append(_diff.Finding(_diff.Finding.BLOCKING, item["node"], "shape %s: %s" % (item["kind"], item["message"])))
+    declared_questions = _questions.load(project)
+    if declared_questions and not _questions.problems(declared_questions, vocabulary):
+        for entry in _questions.findings(declared_questions, proposed.get("nodes") or [], proposed.get("edges") or [],
+                                         _covers(vocabulary.get("classes") or {}), declared=_questions.declared_names(vocabulary)):
+            for item in entry["unanswered"] or [{"node": "(graph)", "label": "(graph)", "status": entry["status"], "gaps": entry["gaps"]}]:
+                findings.append(_diff.Finding(_diff.Finding.BLOCKING, item["node"],
+                                              "question %s %s: %s%s" % (entry["id"], item["status"], entry["question"],
+                                                                        ("; " + "; ".join(item["gaps"])) if item["gaps"] else "")))
     from ..curate import reattest as _reattest
     for item in _reattest.pending(project, proposed):
         findings.append(_diff.Finding(

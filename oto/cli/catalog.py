@@ -109,19 +109,26 @@ def _print_diff(report):
             print("  @%s  %s  %s" % (entry.get("release"), entry.get("at", ""), entry.get("note", "")))
     print("\nwhat changed, against %s:" % ("the release this project started from (tag %s)" % report["tag"]
                                            if report["basis"] == "tag" else "this project's accepted vocabulary (the lock)"))
-    if not report["changes"] and not any(report["rules"].values()):
-        print("  nothing that touches the vocabulary or the rules")
+    questions = report.get("questions") or {}
+    if not report["changes"] and not any(report["rules"].values()) and not any(questions.values()):
+        print("  nothing that touches the vocabulary, the rules or the questions")
     for change in report["changes"]:
         touches = (" — touches %d in this project" % change.affected) if change.affected else ""
         print("  [%-8s] %s %s: %s%s" % (change.severity, change.kind, change.subject, change.detail, touches))
     for kind in ("added", "removed", "changed"):
         for rid in report["rules"][kind]:
             print("  [%-8s] rule %s: %s" % ("breaking" if kind == "removed" else "additive", kind, rid))
-    breaking = sum(1 for c in report["changes"] if c.severity == vocab.Change.BREAKING) + len(report["rules"]["removed"])
-    additive = sum(1 for c in report["changes"] if c.severity == vocab.Change.ADDITIVE) + len(report["rules"]["added"]) + len(report["rules"]["changed"])
+    for kind in ("added", "removed", "changed", "reworded"):
+        for qid in questions.get(kind) or []:
+            severity = "breaking" if kind in ("removed", "changed") else ("cosmetic" if kind == "reworded" else "additive")
+            print("  [%-8s] question %s: %s" % (severity, kind, qid))
+    breaking = (sum(1 for c in report["changes"] if c.severity == vocab.Change.BREAKING) + len(report["rules"]["removed"])
+                + len(questions.get("removed") or []) + len(questions.get("changed") or []))
+    additive = (sum(1 for c in report["changes"] if c.severity == vocab.Change.ADDITIVE) + len(report["rules"]["added"])
+                + len(report["rules"]["changed"]) + len(questions.get("added") or []))
     print("\n%d breaking, %d additive. Nothing was changed in this project." % (breaking, additive))
     if additive:
-        print("Additive changes can be copied into ontology.config.json and rules.json, then `oto ontology check`.")
+        print("Additive changes can be copied into ontology.config.json, rules.json and questions.json, then `oto ontology check`.")
     if breaking:
         print("A breaking change is a supersession in this project's terms: take it through a candidate, or keep your release.")
 

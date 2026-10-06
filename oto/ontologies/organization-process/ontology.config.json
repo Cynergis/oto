@@ -4,83 +4,111 @@
   "name": "Operations Knowledge Base",
   "ontology_version": 1,
   "strict_domains": false,
+  "languages": [
+    "en"
+  ],
   "classes": {
-    "Unit": "An organizational unit: a division, a department, a team.",
-    "Role": "A defined function someone performs. Attach work to a role, not a person.",
-    "Process": "A repeatable way of getting something done, made of steps.",
-    "Step": "One action within a process, with an owner and an input and output.",
-    "Policy": "A rule that constrains how work is done, internal or imposed.",
-    "System": "A tool or application the work runs on.",
-    "Measure": "Something the organization tracks to know whether the work is working.",
-    "Decision": "A choice made, with its reason and date. Superseded by a later one, never overwritten.",
-    "Document": "A source document in the corpus."
+    "Unit": {
+      "definition": "An organizational unit: a division, a department, a team."
+    },
+    "Role": {
+      "definition": "A defined function someone performs. Attach work to a role, not a person."
+    },
+    "Process": {
+      "definition": "A repeatable way of getting something done, made of steps."
+    },
+    "Step": {
+      "definition": "One action within a process, with an owner and an input and output.",
+      "requires": [
+        "part_of"
+      ]
+    },
+    "Policy": {
+      "definition": "A rule that constrains how work is done, internal or imposed."
+    },
+    "System": {
+      "definition": "A tool or application the work runs on."
+    },
+    "Measure": {
+      "definition": "Something the organization tracks to know whether the work is working."
+    },
+    "Decision": {
+      "definition": "A choice made, with its reason and date. Superseded by a later one, never overwritten."
+    },
+    "Document": {
+      "definition": "A source document in the corpus."
+    }
   },
   "properties": {
-    "part_of": [
-      "Unit|Step",
-      "Unit|Process",
-      "contains",
-      "A containment relationship: a unit within a unit, a step within a process."
-    ],
-    "owns": [
-      "Unit|Role",
-      "Process|Measure|Policy|System",
-      "owned_by",
-      "Accountability for something."
-    ],
-    "performs": [
-      "Role",
-      "Step",
-      "performed_by",
-      "The role that carries out a step."
-    ],
-    "belongs_to": [
-      "Role",
-      "Unit",
-      "has_role",
-      "The unit a role sits in."
-    ],
-    "precedes": [
-      "Step",
-      "Step",
-      "follows",
-      "Sequencing between steps."
-    ],
-    "uses": [
-      "Step|Process",
-      "System",
-      "used_by",
-      "A system the work depends on."
-    ],
-    "constrains": [
-      "Policy",
-      "Process|Step|System",
-      "constrained_by",
-      "What a policy applies to."
-    ],
-    "measures": [
-      "Measure",
-      "Process|Unit",
-      "measured_by",
-      "What a measure is about."
-    ],
-    "changes": [
-      "Decision",
-      "Process|Policy|Unit|Role|System",
-      "changed_by",
-      "What a decision alters."
-    ],
-    "supersedes": [
-      "Decision|Policy|Process",
-      "Decision|Policy|Process",
-      "superseded_by",
-      "This replaced that. Use with the temporal fields, never by overwriting."
-    ],
-    "documented_in": [
-      "Process|Policy|Measure|Decision|Role",
-      "Document",
-      "documents",
-      "Where this is written down."
-    ]
+    "part_of": {
+      "domain": "Unit|Step",
+      "range": "Unit|Process",
+      "inverse": "contains",
+      "definition": "A containment relationship: a unit within a unit, a step within a process."
+    },
+    "owns": {
+      "domain": "Unit|Role",
+      "range": "Process|Measure|Policy|System",
+      "inverse": "owned_by",
+      "definition": "Accountability for something."
+    },
+    "performs": {
+      "domain": "Role",
+      "range": "Step",
+      "inverse": "performed_by",
+      "definition": "The role that carries out a step.",
+      "min": 1
+    },
+    "belongs_to": {
+      "domain": "Role",
+      "range": "Unit",
+      "inverse": "has_role",
+      "definition": "The unit a role sits in.",
+      "min": 1,
+      "max": 1
+    },
+    "precedes": {
+      "domain": "Step",
+      "range": "Step",
+      "inverse": "follows",
+      "definition": "Sequencing between steps."
+    },
+    "uses": {
+      "domain": "Step|Process",
+      "range": "System",
+      "inverse": "used_by",
+      "definition": "A system the work depends on."
+    },
+    "constrains": {
+      "domain": "Policy",
+      "range": "Process|Step|System",
+      "inverse": "constrained_by",
+      "definition": "What a policy applies to."
+    },
+    "measures": {
+      "domain": "Measure",
+      "range": "Process|Unit",
+      "inverse": "measured_by",
+      "definition": "What a measure is about.",
+      "min": 1
+    },
+    "changes": {
+      "domain": "Decision",
+      "range": "Process|Policy|Unit|Role|System",
+      "inverse": "changed_by",
+      "definition": "What a decision alters."
+    },
+    "supersedes": {
+      "domain": "Decision|Policy|Process",
+      "range": "Decision|Policy|Process",
+      "inverse": "superseded_by",
+      "definition": "This replaced that. Use with the temporal fields, never by overwriting."
+    },
+    "documented_in": {
+      "domain": "Process|Policy|Measure|Decision|Role",
+      "range": "Document",
+      "inverse": "documents",
+      "definition": "Where this is written down."
+    }
   }
 }

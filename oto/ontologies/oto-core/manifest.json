@@ -1,19 +1,31 @@
 {
   "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
   "name": "oto-core",
-  "release": 2,
+  "release": 4,
   "summary": "The temporal vocabulary every OTO ontology rests on, and the one class every fact cites: Document.",
   "extends": [],
+  "namespace": "https://cynergis.ai/ont/oto-core#",
   "engine": ">=0.1",
   "carries": [
     "vocabulary",
     "rationale",
     "rules",
+    "questions",
     "sample",
     "readme"
   ],
   "maintainer": "OTO",
   "changelog": [
+    {
+      "release": 4,
+      "at": "2026-10-06",
+      "note": "Ships its competency questions (questions.json): every class, relation and attribute is cited by a question that runs, and the sample answers each one it must."
+    },
+    {
+      "release": 3,
+      "at": "2026-10-05",
+      "note": "Declares its namespace: its terms keep one IRI in the RDF export of every project that uses it."
+    },
     {
       "release": 2,
       "at": "2026-09-21",

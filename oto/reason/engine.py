@@ -19,9 +19,11 @@ def _edge_key(edge):
     return "%s -%s-> %s" % (edge["from"], edge["rel"], edge["to"])
 
 
-def run(rules, nodes, edges):
-    """Return {"edges": [...], "attributes": [...], "findings": [...], "per_rule": {...}, "notes": [...]}."""
-    graph = Graph(nodes, edges)
+def run(rules, nodes, edges, covers=None, declared=None):
+    """Return {"edges": [...], "attributes": [...], "findings": [...], "per_rule": {...}, "notes": [...]}.
+    `covers` is what each class covers (model/vocabulary.covers), so a pattern on a class matches its kinds;
+    `declared` is what each class declares (questions.declared_names), so a declared name is the term."""
+    graph = Graph(nodes, edges, covers=covers, declared=declared)
     asserted_keys = set(graph.keys)
     derived_edges, derived_attributes, notes = [], [], []
     depth_of = {}
@@ -67,8 +69,8 @@ def run(rules, nodes, edges):
 
     findings = []
     # A policy also sees intended facts (a plan gone stale is a finding); it never feeds back.
-    seen = Graph(nodes, [dict(e) for e in edges] + [dict(e) for e in derived_edges], graph.derived_attributes,
-                 statuses=BELIEVED_OR_INTENDED)
+    seen = Graph(nodes, [dict(e) for e in edges] + [dict(e) for e in derived_edges], graph.derived_attributes, covers=covers,
+                 statuses=BELIEVED_OR_INTENDED, declared=declared)
     for rule in policy_rules:
         for bindings, used in matches(seen, rule["when"]):
             subject = bindings[next(iter(bindings))] if bindings else None

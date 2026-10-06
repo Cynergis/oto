@@ -13,20 +13,40 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  function inverses(vocabulary) {
+  /* A text of the vocabulary: one string, or a map of language to string (the first is the default). */
+  function text(value) {
+    if (typeof value === "string") return value;
+    if (value && typeof value === "object") { var langs = Object.keys(value); if (langs.length) return value[langs[0]]; }
+    return null;
+  }
+
+  /* A name read as words: part_of as "part of", DecisionRecord as "decision record". */
+  function words(name) {
+    return String(name).replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").toLowerCase();
+  }
+
+  /* Each relation as the vocabulary labels it, read forward and, when it declares an inverse, backward. */
+  function labels(vocabulary) {
     var out = {};
     var props = (vocabulary && vocabulary.properties) || {};
     Object.keys(props).forEach(function (rel) {
-      var spec = props[rel];
-      if (Array.isArray(spec) && spec[2]) out[rel] = spec[2];
+      var spec = props[rel] || {};
+      out[rel] = {fwd: text(spec.label) || words(rel),
+                  rev: spec.inverse ? (text(spec.inverse_label) || words(spec.inverse)) : null};
     });
+    return out;
+  }
+
+  function inverses(vocabulary) {
+    var out = {}, all = labels(vocabulary);
+    Object.keys(all).forEach(function (rel) { if (all[rel].rev) out[rel] = all[rel].rev; });
     return out;
   }
 
   function toGraph(payload, options) {
     options = options || {};
     var history = !!options.history;
-    var inv = inverses(payload.vocabulary);
+    var named = labels(payload.vocabulary);
     var nodes = [], byId = {}, out = {}, inn = {};
     (payload.nodes || []).forEach(function (n) {
       if (!history && n.status === "superseded") return;
@@ -37,7 +57,8 @@
     function addEdge(e, pending) {
       if (!byId[e.from] || !byId[e.to] || e.from === e.to) return;
       if (!history && e.status === "superseded") return;
-      var edge = {from: e.from, to: e.to, rel: e.rel, fwd: e.rel, rev: inv[e.rel] || ("← " + e.rel),
+      var read = named[e.rel] || {fwd: words(e.rel), rev: null};
+      var edge = {from: e.from, to: e.to, rel: e.rel, fwd: read.fwd, rev: read.rev || ("← " + read.fwd),
                   dash: e.status === "derived", derived_by: e.derived_by || null, premises: e.premises || [],
                   status: e.status || "current", pending: pending || null};
       edges.push(edge);

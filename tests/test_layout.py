@@ -10,8 +10,8 @@ from oto.layout import Layout
 from oto.project import Project
 from oto.scaffold import init
 
-ONTOLOGY = {"classes": {"M": "machine", "S": "site"},
-            "properties": {"at": ["M", "S", None, "where"]}, "temporal": {}}
+ONTOLOGY = {"classes": {"M": {"definition": "machine"}, "S": {"definition": "site"}},
+            "properties": {"at": {"domain": "M", "range": "S", "definition": "where"}}, "temporal": {}}
 STAMP = {"as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "h",
          "status": "current", "sources": ["h"]}
 GRAPH = {"nodes": [dict(id="m.1", type="M", label="Press", aliases=[], summary="s",

@@ -13,6 +13,7 @@ Each ontology is a directory holding a vocabulary and what goes with it:
     README.md                 why these classes exist, what to change, what to have validated
     sample.graph.json         a tiny valid graph, so `oto build` works immediately
     rules.json                derive and policy rules (optional)
+    questions.json            competency questions that run (reason/questions.py)
     lexicon.json              seed jargon and synonyms for the domain (optional)
     interview.md              the questions the interview asks in this domain (optional)
     guide.md                  what this domain's graph is for and how to read it: what the
@@ -39,7 +40,9 @@ version of `auto-claims` under the same name.
 """
 import json
 import os
+import types
 
+from . import namespaces as _namespaces
 from . import ontology_compose as _compose
 from . import ontology_manifest as _manifest
 from .ontology_compose import OntologyError  # noqa: F401  (re-exported: callers catch it here)
@@ -52,6 +55,7 @@ SAMPLE_NAME = "sample.graph.json"
 README_NAME = "README.md"
 RATIONALE_NAME = "ontology.rationale.json"
 RULES_NAME = "rules.json"
+QUESTIONS_NAME = "questions.json"
 LEXICON_NAME = "lexicon.json"
 INTERVIEW_NAME = "interview.md"
 GUIDE_NAME = "guide.md"
@@ -174,8 +178,8 @@ def manifest_for(name, roots=None):
 
 
 def load_raw(name, roots=None):
-    """An ontology's own files, uncomposed: config, sample, readme, rationale, rules, lexicon,
-    interview, gold, manifest. Raises KeyError for an unknown ontology."""
+    """An ontology's own files, uncomposed: config, sample, readme, rationale, rules, questions,
+    lexicon, interview, gold, manifest. Raises KeyError for an unknown ontology."""
     base = dir_for(name, roots)
     if base is None:
         raise KeyError(name)
@@ -184,12 +188,15 @@ def load_raw(name, roots=None):
 
 def load_raw_dir(base):
     rules = _read_json(os.path.join(base, RULES_NAME), {"rules": []})
+    questions = _read_json(os.path.join(base, QUESTIONS_NAME), {"questions": {}})
     rationale = _read_json(os.path.join(base, RATIONALE_NAME), {})
     return {"config": _read_json(os.path.join(base, CONFIG_NAME), {}),
             "sample": _read_json(os.path.join(base, SAMPLE_NAME), {"nodes": [], "edges": []}),
             "readme": _read_text(os.path.join(base, README_NAME)),
             "rationale": {"classes": rationale.get("classes") or {}, "properties": rationale.get("properties") or {}},
             "rules": list(rules.get("rules") or []) if isinstance(rules, dict) else list(rules),
+            "questions": dict((questions.get("questions") if "questions" in questions else questions) or {})
+            if isinstance(questions, dict) else {},
             "lexicon": _read_json(os.path.join(base, LEXICON_NAME), None),
             "interview": _read_text(os.path.join(base, INTERVIEW_NAME)) or None,
             "guide": _read_text(os.path.join(base, GUIDE_NAME)) or None,
@@ -221,6 +228,11 @@ def composed(name, roots=None):
 def rules_for(name):
     """The rules an ontology ships, its bases included, or an empty list."""
     return composed(name)["rules"]
+
+
+def questions_for(name):
+    """The competency questions an ontology ships, its bases included: {id: question}."""
+    return composed(name)["questions"]
 
 
 def rationale_for(name):
@@ -304,30 +316,33 @@ def self_check(name, roots=None):
     if not readme.strip():
         problems.append("has no README explaining the choices")
 
-    def declared(spec):
-        return [x.strip() for x in (spec or "").split("|") if x.strip()]
+    from . import vocabulary as _vocab
+    malformed = _vocab.shape_problems(config) or _vocab.hierarchy_problems(config) + _vocab.scheme_problems(config)
+    if malformed:
+        return problems + malformed
 
-    for relation, value in sorted(properties.items()):
-        if not isinstance(value, (list, tuple)) or len(value) < 4:
-            problems.append("relation %r must be [domain, range, inverse_or_null, description]"
-                            % relation)
-            continue
-        for position, spec in (("domain", value[0]), ("range", value[1])):
-            for kind in declared(spec):
+    for relation, spec in sorted(properties.items()):
+        for position in ("domain", "range"):
+            for kind in _union(spec.get(position)):
                 if kind not in classes:
                     problems.append("relation %r names an undeclared class in its %s: %s"
                                     % (relation, position, kind))
-        if not (value[3] or "").strip():
-            problems.append("relation %r has no description" % relation)
+        if not (spec.get("definition") or "").strip():
+            problems.append("relation %r has no definition" % relation)
 
-    for kind, description in sorted(classes.items()):
-        if not (description or "").strip():
-            problems.append("class %r has no description" % kind)
+    for kind, spec in sorted(classes.items()):
+        if not (spec.get("definition") or "").strip():
+            problems.append("class %r has no definition" % kind)
 
-    from . import vocabulary as _vocab
-    problems += _vocab.declaration_problems(classes, config.get("attributes") or {})
+    problems += _vocab.declaration_problems(classes, config.get("attributes") or {}, config.get("schemes") or {})
     from ..reason import rules as _rules
     problems += _rules.problems(result["rules"], config)
+    from ..reason import questions as _questions, shapes as _shapes
+    question_problems = _questions.problems(result["questions"], config)
+    problems += question_problems
+    problems += _shapes.problems(config)
+    if not question_problems:
+        problems += _shapes.rule_question_problems(result["rules"], result["questions"])
     from ..actions import model as _actions
     own_actions = _actions.load_dir(os.path.join(base, ACTIONS_NAME))
     for rel, _action, error in own_actions:
@@ -339,7 +354,21 @@ def self_check(name, roots=None):
     for action in result["actions"]:
         if action.get("executed_by") and action["executed_by"] not in sample_ids:
             problems.append("action %r is executed_by %r, which the sample does not hold" % (action["id"], action["executed_by"]))
+    # The questions are the ontology's contract: the sample must answer every one it must, and
+    # every term must be cited by a question that runs, or nobody can tell what the term is for.
+    if not question_problems:
+        for term in _questions.uncovered(result["questions"], config):
+            problems.append("no question cites %s %s: what does it exist to answer? (questions.json)"
+                            % ("attribute" if "." in term else ("class" if term in classes else "relation"), term))
     if not problems:
+        for item in _shapes.findings(config, sample.get("nodes") or [], sample.get("edges") or []):
+            problems.append("the sample breaks a declared shape: %s" % item["message"])
+        for finding in _questions.findings(result["questions"], sample.get("nodes") or [], sample.get("edges") or [],
+                                           _vocab.covers(classes), declared=_questions.declared_names(config)):
+            for item in finding["unanswered"] or [{"label": "(graph)", "status": finding["status"], "gaps": finding["gaps"]}]:
+                problems.append("the sample cannot answer %s as required: %s, %s%s"
+                                % (finding["id"], item["label"], item["status"],
+                                   ("; " + "; ".join(item["gaps"])) if item["gaps"] else ""))
         attrs = _vocab.attribute_conformance(_vocab.Vocabulary.from_config(config), sample.get("nodes") or [])
         for nid, key, why, value in attrs["mistyped"]:
             problems.append("sample node %r attribute %s = %r: %s" % (nid, key, value, why))
@@ -451,37 +480,74 @@ def synthetic_sample(config):
     properties = config.get("properties") or {}
     nodes, edges, ids = [], [], {}
 
+    from .vocabulary import concepts_of, parse_attribute_type, declared_attributes
+
+    def example_value(spec):
+        kind, options = parse_attribute_type(spec)
+        if kind in ("enum", "scheme"):
+            return next(iter(concepts_of(spec, config.get("schemes") or {})), "example")
+        return {"string": "example", "number": 1.5, "integer": 1, "boolean": True, "date": "2026-01-01", "list": ["example"]}[kind]
+
+    ids_kind = {}
+
     def node_for(kind, suffix=""):
         nid = "%s.example%s" % (kind.lower(), suffix)
         if nid not in ids:
             ids[nid] = True
+            ids_kind[nid] = kind
+            # every declared attribute, inherited ones included, so a required one is never missing
+            attributes = {a: example_value(spec["type"]) for a, spec in declared_attributes(config, kind).items()}
             nodes.append(dict(id=nid, type=kind, label="%s example%s" % (kind, suffix.replace("-", " ")),
-                              aliases=[], summary=(classes.get(kind) or "").strip() or "An example.",
-                              attributes={}, tags=[kind.lower()], **SAMPLE_STAMP))
+                              aliases=[], summary=(classes[kind].get("definition") or "").strip() or "An example.",
+                              attributes=attributes, tags=[kind.lower()], **SAMPLE_STAMP))
         return nid
 
-    from .vocabulary import parse_attribute_type
-
-    def example_value(spec):
-        kind, options = parse_attribute_type(spec)
-        return {"enum": (options or ["example"])[0], "string": "example", "number": 1.5, "integer": 1,
-                "boolean": True, "date": "2026-01-01", "list": ["example"]}[kind]
-
     for kind in classes:
-        nid = node_for(kind)
-        declared = (config.get("attributes") or {}).get(kind) or {}
-        if declared:
-            node = next(n for n in nodes if n["id"] == nid)
-            node["attributes"] = {a: example_value(spec[0]) for a, spec in declared.items()}
+        node_for(kind)
+    seen = set()
+    out_count = {}
+
+    def link(src, relation, dst):
+        """One edge, unless the relation's declared `max` is already met on the subject."""
+        high = properties[relation].get("max")
+        if (src, relation, dst) in seen or (high is not None and out_count.get((src, relation), 0) >= high):
+            return
+        seen.add((src, relation, dst))
+        out_count[(src, relation)] = out_count.get((src, relation), 0) + 1
+        edges.append({"from": src, "rel": relation, "to": dst})
+
+    # Every declared pair of domain and range, so a question about any of them finds an edge; a
+    # relation from a class to itself points at a twin of the example.
     for relation, spec in properties.items():
-        domain, rng = _union(spec[0]), _union(spec[1]) if len(spec) > 1 else ()
+        domain, rng = _union(spec.get("domain")), _union(spec.get("range"))
         if not domain:
             continue
         if not rng:                                            # any class: point the example at its own kind
             rng = domain
-        src = node_for(domain[0])
-        dst = node_for(rng[0], "-2") if rng[0] == domain[0] else node_for(rng[0])
-        edges.append({"from": src, "rel": relation, "to": dst})
+        for kind in domain:
+            for other in rng:
+                link(node_for(kind), relation, node_for(other, "-2") if other == kind else node_for(other))
+    # A twin is an example of its class too: it takes part in everything the example does, so a
+    # question that every instance must answer (and a policy that none may violate) sees it whole.
+    # When the example's `max` on a relation is spent (a component is part of one system), the twin
+    # gets a twin of the subject instead, so it is reached the way the example is.
+    done = set()
+    while True:
+        twins = [n["id"] for n in nodes if n["id"].endswith(".example-2") and n["id"] not in done]
+        if not twins:
+            break
+        for twin in twins:
+            done.add(twin)
+            example = twin[:-2]
+            for edge in list(edges):
+                if edge["from"] == example and edge["to"] != twin:
+                    link(twin, edge["rel"], edge["to"])
+                if edge["to"] == example and edge["from"] != twin:
+                    src, rel = edge["from"], edge["rel"]
+                    high = properties[rel].get("max")
+                    if high is not None and out_count.get((src, rel), 0) >= high and not src.endswith(".example-2"):
+                        src = node_for(ids_kind[src], "-2")
+                    link(src, rel, twin)
     return {"_about": "An invented sample so `oto build` works the moment the ontology is installed. "
                       "Replace it.", "nodes": nodes, "edges": edges}
 
@@ -521,15 +587,15 @@ def _readme(name, config, rationale, source_name, confirmed):
     lines += ["## Classes, and the question each answers", ""]
     for kind in classes:
         entry = entries.get(kind) or {}
-        lines.append("- **%s**: %s" % (kind, (classes[kind] or "").strip()))
+        lines.append("- **%s**: %s" % (kind, (classes[kind].get("definition") or "").strip()))
         if entry.get("question"):
             lines.append("  - *Question:* %s" % entry["question"].strip())
         if entry.get("why"):
             lines.append("  - *Why a class:* %s" % entry["why"].strip())
     lines += ["", "## Relations", "", "| Relation | Domain | Range | Meaning |", "| --- | --- | --- | --- |"]
     for relation, spec in properties.items():
-        lines.append("| `%s` | %s | %s | %s |" % (relation, spec[0], spec[1] if len(spec) > 1 else "",
-                                                  (spec[3] if len(spec) > 3 else "") or ""))
+        lines.append("| `%s` | %s | %s | %s |" % (relation, spec.get("domain") or "", spec.get("range") or "",
+                                                  spec.get("definition") or ""))
     lines += ["", "## Growing it", "", "```bash",
               "oto ontology check --project <root>      # what a change breaks, and conformance",
               "oto ontology rationale --project <root>  # which classes still lack a confirmed reason",
@@ -564,8 +630,8 @@ def export(project, name, to=None, from_graph=0, summary=None, force=False):
     identity = project.identity()
     exported = dict(config)
     exported["_about"] = ("Starter vocabulary exported from the project %r. A FIRST DRAFT to edit, "
-                          "not a finished model. Property value is [Domain, Range, inverse_or_null, "
-                          "description]. Use A|B for a union." % identity["name"])
+                          "not a finished model. A relation is {domain, range, inverse, definition}. "
+                          "Use A|B for a union." % identity["name"])
     exported["_exported_from_version"] = config.get("ontology_version", 1)
     exported["_summary"] = (summary or config.get("_summary") or "").strip()
     exported["ontology_version"] = 1
@@ -595,8 +661,9 @@ def export(project, name, to=None, from_graph=0, summary=None, force=False):
     else:
         sample = synthetic_sample(config)
 
-    from ..reason import rules as _rules
+    from ..reason import rules as _rules, questions as _questions
     shipped_rules = [dict(r, validated_by="") for r in _rules.load(project)]
+    shipped_questions = {qid: dict(q, validated_by="") for qid, q in _questions.load(project).items()}
     os.makedirs(target, exist_ok=True)
     from ..actions import model as _actions
     sample_by_type = {}
@@ -625,6 +692,8 @@ def export(project, name, to=None, from_graph=0, summary=None, force=False):
         with open(os.path.join(target, RULES_NAME), "w", encoding="utf-8", newline="\n") as f:
             json.dump({"rules": shipped_rules}, f, indent=2, ensure_ascii=False)
             f.write("\n")
+    if shipped_questions:
+        _questions.save(types.SimpleNamespace(data=target), shipped_questions)
     for filename, payload in ((CONFIG_NAME, exported), (RATIONALE_NAME, rationale), (SAMPLE_NAME, sample)):
         with open(os.path.join(target, filename), "w", encoding="utf-8", newline="\n") as f:
             json.dump(payload, f, indent=2, ensure_ascii=False)
@@ -633,7 +702,10 @@ def export(project, name, to=None, from_graph=0, summary=None, force=False):
         f.write(_readme(name, exported, rationale, identity["name"], confirmed))
     from .. import __version__
     engine = ">=%s" % ".".join(str(x) for x in _manifest._version_tuple(__version__)[:2])
+    # The terms the project declared itself keep the IRIs its own export gave them; what it took
+    # from other ontologies is in the vocabulary's `namespaces` section and keeps theirs.
     _manifest.write(target, {"name": name, "release": 1, "summary": exported["_summary"], "extends": [],
+                             "namespace": _namespaces.Terms(config, identity).project,
                              "engine": engine, "carries": _manifest.detect_carries(target),
                              "maintainer": "", "changelog": [{"release": 1, "at": _today(),
                                                               "note": "Exported from the project %s." % identity["name"]}]})
@@ -654,9 +726,9 @@ def merge(names):
     every clash so a person can see what was silently kept, and the totals, because two glued
     ontologies are the fastest way to the forty-class model nobody owns. Prune before accepting.
     """
-    classes, properties, temporal, attributes = {}, {}, {}, {}
+    classes, properties, temporal, attributes, namespaces, schemes = {}, {}, {}, {}, {}, {}
     rationale = {"classes": {}, "properties": {}}
-    merged_rules = {}
+    merged_rules, merged_questions = {}, {}
     owner = {}
     report = {"ontologies": list(names), "class_clashes": [], "relation_clashes": []}
     summaries, readmes, titles = [], [], []
@@ -682,17 +754,23 @@ def merge(names):
             classes.setdefault(kind, description)
             owner.setdefault(kind, name)
         for relation, spec in (config.get("properties") or {}).items():
-            if relation in properties and list(properties[relation])[:2] != list(spec)[:2]:
+            if relation in properties and [properties[relation].get(k) for k in ("domain", "range")] \
+                    != [spec.get(k) for k in ("domain", "range")]:
                 report["relation_clashes"].append((relation, owner[relation], name))
-            properties.setdefault(relation, list(spec))
+            properties.setdefault(relation, dict(spec))
             owner.setdefault(relation, name)
         for field, spec in (config.get("temporal") or {}).items():
             temporal.setdefault(field, spec)
         for kind, declared in (config.get("attributes") or {}).items():
             for attr, spec in (declared or {}).items():
-                attributes.setdefault(kind, {}).setdefault(attr, list(spec))
+                attributes.setdefault(kind, {}).setdefault(attr, dict(spec))
+        _namespaces.inherit(namespaces, config.get(_namespaces.SECTION))
+        for scheme_name, scheme in (config.get("schemes") or {}).items():
+            schemes.setdefault(scheme_name, scheme)
         for rule in result["rules"]:
             merged_rules.setdefault(rule["id"], dict(rule))
+        for qid, question in result["questions"].items():
+            merged_questions.setdefault(qid, dict(question))
         for action in result.get("actions") or []:
             merged_actions.setdefault(action["id"], dict(action))
         for section in ("classes", "properties"):
@@ -706,7 +784,12 @@ def merge(names):
               "classes": classes, "properties": properties, "temporal": temporal}
     if attributes:
         config["attributes"] = attributes
+    if schemes:
+        config["schemes"] = schemes
+    if _namespaces.settled(namespaces):
+        config[_namespaces.SECTION] = _namespaces.settled(namespaces)
     config["_rules"] = list(merged_rules.values())
+    config["_questions"] = merged_questions
     config["_lexicon"] = {"entries": lexicon_entries} if lexicon_entries else None
     config["_interview"] = "\n\n".join(interviews) if interviews else None
     config["_guide"] = "\n\n".join(guides) if guides else None

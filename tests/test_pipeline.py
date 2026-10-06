@@ -10,7 +10,7 @@ from oto.intake import pipeline
 from oto.project import Project
 from oto.scaffold import init
 
-VOCAB = {"classes": {"Thing": "a thing"}, "properties": {"near": ["Thing", "Thing", None, "close"]},
+VOCAB = {"classes": {"Thing": {"definition": "a thing"}}, "properties": {"near": {"domain": "Thing", "range": "Thing", "definition": "close"}},
          "temporal": {}}
 NODE = {"id": "t.1", "type": "Thing", "label": "One", "aliases": [], "summary": "s", "attributes": {},
         "tags": [], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "a",

@@ -655,7 +655,7 @@ def diff_project(project):
             new = _ontologies.composed(name, roots=roots_new)
         current = int(new["manifest"]["release"])
 
-        basis, tag, old_vocab, old_rules = "lock", None, None, None
+        basis, tag, old_vocab, old_rules, old_questions = "lock", None, None, None, None
         if kind != "built-in" and recorded and recorded != current:
             tag = tag_for(name, recorded)
             if gitx.has_ref(url, tag, token=_token()):
@@ -664,6 +664,7 @@ def diff_project(project):
                 old = _ontologies.composed(name, roots=[old_work])
                 old_vocab = vocab.Vocabulary.from_config(old["config"])
                 old_rules = old["rules"]
+                old_questions = old["questions"]
                 basis = "tag"
         if old_vocab is None:
             old_vocab = vocab.read_lock(project)
@@ -674,21 +675,28 @@ def diff_project(project):
             lock = vocab.lock_path(project)
             if os.path.exists(lock):
                 with open(lock, encoding="utf-8") as f:
-                    old_rules = json.load(f).get("rules") or []
+                    locked = json.load(f)
+                old_rules = locked.get("rules") or []
+                old_questions = locked.get("questions") or {}
             else:
-                from ..reason import rules as _rules
+                from ..reason import rules as _rules, questions as _questions
                 old_rules = _rules.load(project)
+                old_questions = _questions.load(project)
 
-        changes = vocab.impact(vocab.diff(old_vocab, vocab.Vocabulary.from_config(new["config"])), nodes, edges)
+        new_vocab = vocab.Vocabulary.from_config(new["config"])
+        changes = vocab.impact(vocab.diff(old_vocab, new_vocab), nodes, edges, new_vocab)
         old_by = {r.get("id"): r for r in old_rules or []}
         new_by = {r.get("id"): r for r in new["rules"] or []}
         rules = {"added": sorted(set(new_by) - set(old_by)), "removed": sorted(set(old_by) - set(new_by)),
                  "changed": sorted(k for k in set(old_by) & set(new_by)
                                    if json.dumps(old_by[k], sort_keys=True) != json.dumps(new_by[k], sort_keys=True))}
+        from ..reason import questions as _questions
+        q_added, q_removed, q_changed, q_reworded = _questions.diff(old_questions, new["questions"])
+        questions = {"added": q_added, "removed": q_removed, "changed": q_changed, "reworded": q_reworded}
         changelog = [e for e in new["manifest"].get("changelog") or [] if int(e.get("release", 0)) > recorded]
         changelog.sort(key=lambda e: -int(e.get("release", 0)))
         return {"name": name, "recorded": recorded, "current": current, "where": where, "basis": basis, "tag": tag,
-                "changes": changes, "rules": rules, "changelog": changelog}
+                "changes": changes, "rules": rules, "questions": questions, "changelog": changelog}
     finally:
         for directory in (work, old_work):
             if directory:

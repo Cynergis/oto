@@ -4,7 +4,9 @@
 Into `layout.graph`:
   knowledge-graph.json   full node+edge graph, with counts by type, relation and status
   entity-index.json      compact id -> {type, label, aliases, sources, degree, status}
-  triples.nt             N-Triples (subject predicate object), temporal fields included
+  triples.nt             N-Triples: typed instances, their labels in every language, attributes
+                         and temporal fields, under the IRIs the vocabulary declares
+  graph.ttl              the same triples as prefixed Turtle, for people
   entities.csv           node table
   relationships.csv      edge table
 Into `layout.entities`:
@@ -94,28 +96,96 @@ def run(project):
     json.dump(index, open(os.path.join(SEM, "entity-index.json"), "w", encoding="utf-8"),
               indent=2, ensure_ascii=False)
 
-    # ---- triples (N-Triples-ish) ----
-    def uri(x): return f"<{BASE}{x}>"
-    # temporal field -> RDF predicate (camelCase under the opt: namespace)
+    # ---- triples (N-Triples) ----
+    # Instances live under the project's `id/` namespace and are typed with rdf:type; every class
+    # and predicate is the IRI its ontology declares (model/namespaces.py), the same one the
+    # ontology stage writes into `<slug>.ttl`, so the two files describe one graph.
+    from ..model import vocabulary as _vocab
+    from ..model.namespaces import Terms
+    from . import rdf
+    vocabulary = {}
+    if os.path.exists(project.ontology_config_path):
+        vocabulary = json.load(open(project.ontology_config_path, encoding="utf-8"))
+    terms = Terms(vocabulary, identity)
+    declared = vocabulary.get("attributes") or {}
+    LANG = _vocab.languages(vocabulary)[0]
+    # What else a node is called: the lexicon's phrases become alternative labels of their targets.
+    spoken = {}
+    lexicon_path = os.path.join(project.data, "lexicon.json")
+    if os.path.exists(lexicon_path):
+        for entry in json.load(open(lexicon_path, encoding="utf-8")).get("entries") or []:
+            if entry.get("status", "current") != "current":
+                continue
+            for target in entry.get("targets") or []:
+                spoken.setdefault(target, [])
+                spoken[target] += [x for x in [entry.get("term")] + list(entry.get("aka") or []) if x]
+    # temporal field -> term of the temporal vocabulary (camelCase, in the namespace it came from)
     TPRED = {"as_of": "asOf", "valid_from": "validFrom", "valid_to": "validTo",
              "status": "status", "supersedes": "supersedes",
              "superseded_by": "supersededBy", "source_doc": "sourceDoc"}
-    def esc(s): return str(s).replace("\\", "\\\\").replace('"', '\\"')
+    DATES = ("as_of", "valid_from", "valid_to")
+    lines, cells = [], [0]
+
+    def triple(s, p, o):
+        lines.append((s, p, o))
+
+    def collection(items):
+        """An ordered list as an RDF collection; its head, to use as an object."""
+        head = "_:l%d" % (cells[0] + 1)
+        for i, item in enumerate(items):
+            cells[0] += 1
+            triple("_:l%d" % cells[0], rdf.ref(rdf.RDF + "first"),
+                   rdf.scalar(item) if rdf.is_scalar(item) else rdf.as_json(item))
+            triple("_:l%d" % cells[0], rdf.ref(rdf.RDF + "rest"),
+                   "_:l%d" % (cells[0] + 1) if i + 1 < len(items) else rdf.ref(rdf.RDF + "nil"))
+        return head
+
+    for nid, n in nodes.items():
+        me = rdf.ref(terms.instance(nid))
+        triple(me, rdf.ref(rdf.RDF + "type"), rdf.ref(terms.iri(n["type"])))
+        triple(me, rdf.ref(rdf.RDFS + "label"), rdf.literal(n["label"]))
+        # What the node is called: its label in the default language, its labels in the others,
+        # its aliases and the lexicon's phrases as alternative labels, hidden labels for resolution only.
+        triple(me, rdf.ref(rdf.SKOS + "prefLabel"), rdf.literal(n["label"], language=LANG))
+        for lang, text in sorted(_vocab.texts(n.get("labels"), LANG).items()):
+            if lang != LANG:
+                triple(me, rdf.ref(rdf.SKOS + "prefLabel"), rdf.literal(text, language=lang))
+        for alias in list(dict.fromkeys(list(n.get("aliases") or []) + spoken.get(nid, []))):
+            if alias != n["label"]:
+                triple(me, rdf.ref(rdf.SKOS + "altLabel"), rdf.literal(alias, language=LANG))
+        for hidden in n.get("hidden_labels") or []:
+            triple(me, rdf.ref(rdf.SKOS + "hiddenLabel"), rdf.literal(hidden))
+        if n.get("summary"):
+            triple(me, rdf.ref(rdf.RDFS + "comment"), rdf.literal(n["summary"], language=LANG))
+        for k, pred in TPRED.items():
+            if n.get(k) in (None, ""):
+                continue
+            if k in ("supersedes", "superseded_by"):  # object is an entity id (or list)
+                for tgt in (n[k] if isinstance(n[k], list) else [n[k]]):
+                    triple(me, rdf.ref(terms.temporal(pred)), rdf.ref(terms.instance(tgt)))
+            else:
+                triple(me, rdf.ref(terms.temporal(pred)), rdf.date(n[k]) if k in DATES else rdf.literal(n[k]))
+        for key, value in (n.get("attributes") or {}).items():
+            if value in (None, "", [], {}):
+                continue
+            spec = _vocab.declared_attributes(vocabulary, n["type"]).get(key)
+            scheme = spec["type"][7:] if spec and str(spec["type"]).startswith("scheme:") else None
+            if scheme and isinstance(value, str):             # a controlled value is its concept
+                obj = rdf.ref(terms.iri("%s.%s" % (scheme, value), beside=scheme))
+            elif rdf.is_scalar(value):
+                obj = rdf.scalar(value, spec["type"] if spec else None)
+            elif isinstance(value, list):
+                obj = collection(value)
+            else:
+                obj = rdf.as_json(value)
+            triple(me, rdf.ref(terms.iri(key)), obj)
+    for e in edges:
+        triple(rdf.ref(terms.instance(e["from"])), rdf.ref(terms.iri(e["rel"])), rdf.ref(terms.instance(e["to"])))
     with open(os.path.join(SEM, "triples.nt"), "w", encoding="utf-8") as f:
-        for nid, n in nodes.items():
-            f.write(f'{uri(nid)} <{BASE}rel/type> "{n["type"]}" .\n')
-            lbl = n["label"].replace('"', '\\"')
-            f.write(f'{uri(nid)} <http://www.w3.org/2000/01/rdf-schema#label> "{lbl}" .\n')
-            for k, pred in TPRED.items():
-                if n.get(k) in (None, ""):
-                    continue
-                if k in ("supersedes", "superseded_by"):  # object is an entity id (or list)
-                    for tgt in (n[k] if isinstance(n[k], list) else [n[k]]):
-                        f.write(f'{uri(nid)} <{BASE}rel/{pred}> {uri(tgt)} .\n')
-                else:
-                    f.write(f'{uri(nid)} <{BASE}rel/{pred}> "{esc(n[k])}" .\n')
-        for e in edges:
-            f.write(f'{uri(e["from"])} <{BASE}rel/{e["rel"]}> {uri(e["to"])} .\n')
+        f.writelines("%s %s %s .\n" % line for line in lines)
+    with open(os.path.join(SEM, "graph.ttl"), "w", encoding="utf-8") as f:
+        f.write(rdf.turtle(lines, dict(terms.prefixes, **{"id" if "id" not in terms.prefixes else "kg-id": terms.instances},
+                                       rdf=rdf.RDF, rdfs=rdf.RDFS, skos=rdf.SKOS, xsd=rdf.XSD)))
 
     # ---- CSV node / edge tables ----
     with open(os.path.join(SEM, "entities.csv"), "w", newline="", encoding="utf-8") as f:

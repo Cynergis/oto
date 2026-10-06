@@ -1,21 +1,38 @@
 {
   "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
   "name": "organization-process",
-  "release": 1,
+  "release": 4,
   "domain": "organization",
   "summary": "How an organization works: units, roles, processes, policies, systems and measures.",
   "extends": [
     "oto-core"
   ],
+  "namespace": "https://cynergis.ai/ont/organization-process#",
   "engine": ">=0.1",
   "carries": [
     "vocabulary",
     "rationale",
+    "questions",
     "sample",
     "readme"
   ],
   "maintainer": "OTO",
   "changelog": [
+    {
+      "release": 4,
+      "at": "2026-10-06",
+      "note": "Declares its shapes: a role belongs to one unit and performs a step, a measure measures something, a step is part of a process."
+    },
+    {
+      "release": 3,
+      "at": "2026-10-06",
+      "note": "Ships its competency questions (questions.json): every class, relation and attribute is cited by a question that runs, and the sample answers each one it must."
+    },
+    {
+      "release": 2,
+      "at": "2026-10-05",
+      "note": "Declares its namespace: its terms keep one IRI in the RDF export of every project that uses it."
+    },
     {
       "release": 1,
       "at": "2026-09-19",

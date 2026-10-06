@@ -13,8 +13,8 @@ from oto.project import Project
 from oto.scaffold import init
 
 TODAY = "2026-09-12"
-VOCAB = {"classes": {"Role": "a role", "Procedure": "a procedure"},
-         "properties": {"performs": ["Role", "Procedure", None, "does it"]}, "temporal": {}}
+VOCAB = {"classes": {"Role": {"definition": "a role"}, "Procedure": {"definition": "a procedure"}},
+         "properties": {"performs": {"domain": "Role", "range": "Procedure", "definition": "does it"}}, "temporal": {}}
 STAMP = {"as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "handbook",
          "status": "current", "sources": ["handbook"]}
 

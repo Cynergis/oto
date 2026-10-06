@@ -162,3 +162,15 @@ def test_explain_walks_from_the_rule_down_to_the_evidence():
     assert lines[0].startswith("risk.1 -threatens-> system.pay  (derived by rule risk-reaches-system, depth 1)")
     assert any("risk.1  [Risk] risk.1  source: handbook p.1" in l for l in lines)
     assert any("risk.1 -threatens-> component.api  (asserted)" in l for l in lines)
+
+
+def test_a_pattern_on_a_class_matches_the_kinds_of_it():
+    """`node: Asset` covers Components and Systems when they are kinds of Asset."""
+    rule = {"id": "asset-has-owner", "kind": "policy", "severity": "warn",
+            "when": [{"node": "a", "type": "Asset"}, {"not_edge": ["a", "owned_by", "*"]}],
+            "then": {"flag": "an asset must be owned"}, "why": "x"}
+    covers = {"Asset": {"Asset", "Component", "System", "Interface"}}
+    flagged = engine.run([rule], NODES, EDGES, covers=covers)["findings"]
+    assert sorted(f["node"] for f in flagged) == ["component.api", "component.job", "interface.v2", "system.pay"]
+    assert engine.run([rule], NODES, EDGES)["findings"] == [], "without a hierarchy, Asset names nothing"
+

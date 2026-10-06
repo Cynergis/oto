@@ -4,149 +4,202 @@
   "name": "Architecture Knowledge Base",
   "ontology_version": 1,
   "strict_domains": false,
+  "languages": [
+    "en"
+  ],
   "classes": {
-    "System": "A named application or platform that a team owns and a user or another system consumes.",
-    "Component": "A part of a system deployed or released as a unit: a service, a job, a library, a front end.",
-    "Interface": "A contract others depend on: an API, an event topic, a file feed, a database view.",
-    "DataStore": "A place data lives: a database, a bucket, a queue, a cache, a warehouse table.",
-    "Environment": "A place components run: production, staging, a region, a tenant.",
-    "Team": "The group accountable for something. Attach ownership to a team, not to a person.",
-    "Capability": "A business capability the estate supports. This is what the business asks about.",
-    "Requirement": "A stated need, functional or otherwise, that something must satisfy.",
-    "DecisionRecord": "A recorded architecture decision: the choice, the alternatives, the reason, the consequences.",
-    "Risk": "A known way this can hurt: a single point of failure, an end of support, a concentration.",
-    "Runbook": "The documented way to operate or recover something.",
-    "Document": "A source document in the corpus: a design, a review, a standard, a transcript.",
-    "Repository": "Where a component's code lives: a source repository, recorded before it exists (intended) and observed once it does."
-  },
-  "properties": {
-    "part_of": [
-      "Component|Interface|DataStore",
-      "System",
-      "contains",
-      "This belongs to that system."
-    ],
-    "owned_by": [
-      "System|Component|Interface|DataStore|Capability",
-      "Team",
-      "owns",
-      "The team accountable."
-    ],
-    "exposes": [
-      "System|Component",
-      "Interface",
-      "exposed_by",
-      "The contract something publishes."
-    ],
-    "consumes": [
-      "System|Component",
-      "Interface",
-      "consumed_by",
-      "A contract something depends on. This is where coupling lives."
-    ],
-    "depends_on": [
-      "System|Component",
-      "System|Component",
-      null,
-      "The consumer needs the provider to work. Usually derived from consumes and exposes, and stated only when a document says so."
-    ],
-    "reads_from": [
-      "Component",
-      "DataStore",
-      "read_by",
-      "A component reading this store."
-    ],
-    "writes_to": [
-      "Component",
-      "DataStore",
-      "written_by",
-      "A component writing this store. Two writers to one store is worth knowing about."
-    ],
-    "runs_in": [
-      "Component|DataStore",
-      "Environment",
-      "hosts",
-      "Where something runs."
-    ],
-    "supports": [
-      "System|Component|Capability",
-      "Capability",
-      "supported_by",
-      "What business capability this serves."
-    ],
-    "satisfies": [
-      "System|Component|Interface",
-      "Requirement",
-      "satisfied_by",
-      "The requirement something meets."
-    ],
-    "decided_by": [
-      "System|Component|Interface|DataStore",
-      "DecisionRecord",
-      "decides",
-      "The recorded decision that shaped this."
-    ],
-    "supersedes": [
-      "DecisionRecord|Interface|Component|System",
-      "DecisionRecord|Interface|Component|System",
-      "superseded_by",
-      "This replaced that. Use with the temporal fields, never by overwriting."
-    ],
-    "threatens": [
-      "Risk",
-      "System|Component|Interface|DataStore|Capability",
-      "at_risk_from",
-      "What a risk applies to."
-    ],
-    "mitigated_by": [
-      "Risk",
-      "DecisionRecord|Runbook|Component",
-      "mitigates",
-      "What reduces a risk."
-    ],
-    "operated_by": [
-      "System|Component",
-      "Runbook",
-      "operates",
-      "The runbook for something."
-    ],
-    "documented_in": [
-      "System|Component|Interface|DataStore|DecisionRecord|Requirement",
-      "Document",
-      "documents",
-      "Where this is written down."
-    ],
-    "implemented_by": [
-      "Component",
-      "Repository",
-      "implements",
-      "The repository that holds this component's code."
-    ]
-  },
-  "attributes": {
-    "Repository": {
-      "owner": [
-        "string",
-        "The organisation or account that owns the repository."
+    "Asset": {
+      "definition": "Anything the estate runs or stores and a team can be accountable for: a system, a component, an interface, a data store. A question about assets covers all four."
+    },
+    "System": {
+      "definition": "A named application or platform that a team owns and a user or another system consumes.",
+      "subclass_of": [
+        "Asset"
+      ]
+    },
+    "Component": {
+      "definition": "A part of a system deployed or released as a unit: a service, a job, a library, a front end.",
+      "subclass_of": [
+        "Asset"
       ],
-      "name": [
-        "string",
-        "The repository's name within its owner."
-      ],
-      "url": [
-        "string",
-        "Where a person opens it."
-      ],
-      "default_branch": [
-        "string",
-        "The branch a checkout lands on."
+      "requires": [
+        "part_of"
       ]
     },
     "Interface": {
-      "url": [
-        "string",
-        "The base URL a caller reaches the interface at, when it has one."
+      "definition": "A contract others depend on: an API, an event topic, a file feed, a database view.",
+      "subclass_of": [
+        "Asset"
       ]
+    },
+    "DataStore": {
+      "definition": "A place data lives: a database, a bucket, a queue, a cache, a warehouse table.",
+      "subclass_of": [
+        "Asset"
+      ]
+    },
+    "Environment": {
+      "definition": "A place components run: production, staging, a region, a tenant."
+    },
+    "Team": {
+      "definition": "The group accountable for something. Attach ownership to a team, not to a person."
+    },
+    "Capability": {
+      "definition": "A business capability the estate supports. This is what the business asks about."
+    },
+    "Requirement": {
+      "definition": "A stated need, functional or otherwise, that something must satisfy."
+    },
+    "DecisionRecord": {
+      "definition": "A recorded architecture decision: the choice, the alternatives, the reason, the consequences."
+    },
+    "Risk": {
+      "definition": "A known way this can hurt: a single point of failure, an end of support, a concentration."
+    },
+    "Runbook": {
+      "definition": "The documented way to operate or recover something."
+    },
+    "Document": {
+      "definition": "A source document in the corpus: a design, a review, a standard, a transcript."
+    },
+    "Repository": {
+      "definition": "Where a component's code lives: a source repository, recorded before it exists (intended) and observed once it does."
+    }
+  },
+  "properties": {
+    "part_of": {
+      "domain": "Component|Interface|DataStore",
+      "range": "System",
+      "inverse": "contains",
+      "definition": "This belongs to that system.",
+      "max": 1
+    },
+    "owned_by": {
+      "domain": "System|Component|Interface|DataStore|Capability",
+      "range": "Team",
+      "inverse": "owns",
+      "definition": "The team accountable.",
+      "max": 1
+    },
+    "exposes": {
+      "domain": "System|Component",
+      "range": "Interface",
+      "inverse": "exposed_by",
+      "definition": "The contract something publishes."
+    },
+    "consumes": {
+      "domain": "System|Component",
+      "range": "Interface",
+      "inverse": "consumed_by",
+      "definition": "A contract something depends on. This is where coupling lives."
+    },
+    "depends_on": {
+      "domain": "System|Component",
+      "range": "System|Component",
+      "definition": "The consumer needs the provider to work. Usually derived from consumes and exposes, and stated only when a document says so."
+    },
+    "reads_from": {
+      "domain": "Component",
+      "range": "DataStore",
+      "inverse": "read_by",
+      "definition": "A component reading this store."
+    },
+    "writes_to": {
+      "domain": "Component",
+      "range": "DataStore",
+      "inverse": "written_by",
+      "definition": "A component writing this store. Two writers to one store is worth knowing about."
+    },
+    "runs_in": {
+      "domain": "Component|DataStore",
+      "range": "Environment",
+      "inverse": "hosts",
+      "definition": "Where something runs.",
+      "min": 1
+    },
+    "supports": {
+      "domain": "System|Component|Capability",
+      "range": "Capability",
+      "inverse": "supported_by",
+      "definition": "What business capability this serves."
+    },
+    "satisfies": {
+      "domain": "System|Component|Interface",
+      "range": "Requirement",
+      "inverse": "satisfied_by",
+      "definition": "The requirement something meets."
+    },
+    "decided_by": {
+      "domain": "System|Component|Interface|DataStore",
+      "range": "DecisionRecord",
+      "inverse": "decides",
+      "definition": "The recorded decision that shaped this."
+    },
+    "supersedes": {
+      "domain": "DecisionRecord|Interface|Component|System",
+      "range": "DecisionRecord|Interface|Component|System",
+      "inverse": "superseded_by",
+      "definition": "This replaced that. Use with the temporal fields, never by overwriting."
+    },
+    "threatens": {
+      "domain": "Risk",
+      "range": "System|Component|Interface|DataStore|Capability",
+      "inverse": "at_risk_from",
+      "definition": "What a risk applies to."
+    },
+    "mitigated_by": {
+      "domain": "Risk",
+      "range": "DecisionRecord|Runbook|Component",
+      "inverse": "mitigates",
+      "definition": "What reduces a risk."
+    },
+    "operated_by": {
+      "domain": "System|Component",
+      "range": "Runbook",
+      "inverse": "operates",
+      "definition": "The runbook for something."
+    },
+    "documented_in": {
+      "domain": "System|Component|Interface|DataStore|DecisionRecord|Requirement",
+      "range": "Document",
+      "inverse": "documents",
+      "definition": "Where this is written down."
+    },
+    "implemented_by": {
+      "domain": "Component",
+      "range": "Repository",
+      "inverse": "implements",
+      "definition": "The repository that holds this component's code."
+    }
+  },
+  "attributes": {
+    "Repository": {
+      "owner": {
+        "type": "string",
+        "definition": "The organisation or account that owns the repository.",
+        "required": true
+      },
+      "name": {
+        "type": "string",
+        "definition": "The repository's name within its owner.",
+        "required": true
+      },
+      "url": {
+        "type": "string",
+        "definition": "Where a person opens it.",
+        "label": "URL"
+      },
+      "default_branch": {
+        "type": "string",
+        "definition": "The branch a checkout lands on."
+      }
+    },
+    "Interface": {
+      "url": {
+        "type": "string",
+        "definition": "The base URL a caller reaches the interface at, when it has one.",
+        "label": "URL"
+      }
     }
   }
 }

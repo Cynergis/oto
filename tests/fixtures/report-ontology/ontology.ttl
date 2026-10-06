@@ -1,0 +1,283 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix dct:  <http://purl.org/dc/terms/> .
+@prefix flow: <https://cynergis.ai/ont/flow#> .
+@prefix dt:   <https://cynergis.ai/ont/doctemplate#> .
+
+# ════════════════════════════════════════════════════════════════════════════
+# Two ontologies, kept separate on purpose:
+#   flow: — HOW work is executed (steps, checks, transitions, artifacts, tests).
+#           Generic factory IP, reused for any process.
+#   dt:   — WHAT is true about PDF template extraction & generation
+#           (pages, spans, regions, slots, components, tokens, renders).
+#           Domain knowledge, specific to this problem.
+# They meet in one place: flow:carries links an Artifact to the dt: concept it holds.
+# 0.1.1 (2026-10-05): every property carries a label, a definition, a domain and a range. No structural change;
+# the flow vocabulary stays frozen until the software factory contract is written.
+# ════════════════════════════════════════════════════════════════════════════
+
+<https://cynergis.ai/ont/flow> a owl:Ontology ;
+    rdfs:label "Flow ontology" ; owl:versionInfo "0.1.1" ;
+    dct:description "Executable process graphs: steps with typed executors, gated by checks, connected by guarded transitions, exchanging artifacts. Tests are derived from checks, transitions and invariants." .
+
+<https://cynergis.ai/ont/doctemplate> a owl:Ontology ;
+    rdfs:label "Document template ontology" ; owl:versionInfo "0.1.1" ;
+    dct:description "Concepts for reverse-engineering a report PDF into a data-driven template and rendering new data through it." .
+
+# ─────────────────────────────── flow: classes ───────────────────────────────
+flow:Flow        a owl:Class ; rdfs:label "Flow" ; skos:definition "A versioned process graph with entrypoints, phases, steps and transitions." .
+flow:Phase       a owl:Class ; rdfs:label "Phase" ; skos:definition "A named group of steps run together (e.g. template build, production run)." .
+flow:Step        a owl:Class ; rdfs:label "Step" ; skos:definition "A unit of work with declared inputs, outputs, checks and outcomes." .
+flow:DeterministicStep a owl:Class ; rdfs:subClassOf flow:Step ; rdfs:label "Deterministic step" ; skos:definition "A script: same inputs, same outputs." .
+flow:OcrStep     a owl:Class ; rdfs:subClassOf flow:Step ; rdfs:label "OCR step" ; skos:definition "An OCR engine run; output carries per-word confidence." .
+flow:ClaudeStep  a owl:Class ; rdfs:subClassOf flow:Step ; rdfs:label "Claude step" ; skos:definition "Claude with a versioned prompt and a required output schema; cached by input hash; never routes." .
+flow:HumanStep   a owl:Class ; rdfs:subClassOf flow:Step ; rdfs:label "Human step" ; skos:definition "A person records a decision; the flow pauses until it exists." .
+flow:TerminalStep a owl:Class ; rdfs:subClassOf flow:Step ; rdfs:label "Terminal step" ; skos:definition "An end state." .
+flow:Outcome     a owl:Class ; rdfs:label "Outcome" ; skos:definition "A named result of a step (pass, fail, approve, …); the only thing transitions branch on." .
+flow:Transition  a owl:Class ; rdfs:label "Transition" ; skos:definition "A directed edge from a step, taken on an outcome when its guard holds; may apply effects to run state." .
+flow:Effect      a owl:Class ; rdfs:label "Effect" ; skos:definition "A state mutation applied when a transition is taken (set, increment, reset, append…)." .
+flow:Check       a owl:Class ; rdfs:label "Check" ; skos:definition "A deterministic validation run after a step; a blocking failure sets the step's outcome." .
+flow:Metric      a owl:Class ; rdfs:label "Metric" ; skos:definition "A named measurement a step records in run state and checks compare against parameters." .
+flow:Parameter   a owl:Class ; rdfs:label "Parameter" ; skos:definition "A configuration value (threshold, limit, seed) owned by config, never by steps." .
+flow:Artifact    a owl:Class ; rdfs:label "Artifact" ; skos:definition "A file or folder exchanged between steps, with a path, format and field structure." .
+flow:Field       a owl:Class ; rdfs:label "Field" ; skos:definition "A named path inside a structured artifact (e.g. pages[].regions[].bbox)." .
+flow:Implementation a owl:Class ; rdfs:label "Implementation" ; skos:definition "The script that executes a step." .
+flow:Invariant   a owl:Class ; rdfs:label "Invariant" ; skos:definition "A statement that must always hold; enforced by one or more checks." .
+flow:TestObligation a owl:Class ; rdfs:label "Test obligation" ; skos:definition "A test that must exist before a step's implementation is accepted; derived mechanically from the graph." .
+
+# ─────────────────────────────── flow: properties ───────────────────────────
+flow:hasStep a owl:ObjectProperty ; rdfs:label "has step" ; rdfs:domain flow:Flow ; rdfs:range flow:Step ;
+    skos:definition "The flow contains this step." .
+flow:inPhase a owl:ObjectProperty ; rdfs:label "in phase" ; rdfs:domain flow:Step ; rdfs:range flow:Phase ;
+    skos:definition "The phase the step belongs to (template build, production run)." .
+flow:entrypoint a owl:ObjectProperty ; rdfs:label "entrypoint" ; rdfs:domain flow:Phase ; rdfs:range flow:Step ;
+    skos:definition "The step a run of the phase starts at." .
+flow:stepId a owl:DatatypeProperty ; rdfs:label "step id" ; rdfs:domain flow:Step ; rdfs:range xsd:string ;
+    skos:definition "Identifier of the step, unique in its flow (B10_verify). Transitions, run state, briefs and code citations refer to a step by it." .
+flow:usesOcr a owl:DatatypeProperty ; rdfs:label "uses OCR" ; rdfs:domain flow:Step ; rdfs:range xsd:boolean ;
+    skos:definition "True when the step runs an OCR engine as part of its work." .
+flow:foreach a owl:DatatypeProperty ; rdfs:label "for each" ; rdfs:domain flow:Step ; rdfs:range xsd:string ;
+    skos:definition "The collection in run state the step runs once per item of (the documents of a batch, the stress cases)." .
+flow:retryMax a owl:DatatypeProperty ; rdfs:label "retry maximum" ; rdfs:domain flow:Step ; rdfs:range xsd:integer ;
+    skos:definition "How many times the step is re-run on a retryable outcome before that outcome stands." .
+flow:reads a owl:ObjectProperty ; rdfs:label "reads" ; rdfs:domain flow:Step ; rdfs:range flow:Artifact ;
+    skos:definition "An artifact the step needs as input; the step is blocked when it is missing." .
+flow:readsOptional a owl:ObjectProperty ; rdfs:label "reads optional" ; rdfs:domain flow:Step ; rdfs:range flow:Artifact ;
+    skos:definition "An artifact the step uses when it is present and runs without when it is absent." .
+flow:writes a owl:ObjectProperty ; rdfs:label "writes" ; rdfs:domain flow:Step ; rdfs:range flow:Artifact ;
+    skos:definition "An artifact the step produces as output." .
+flow:producedBy a owl:ObjectProperty ; rdfs:label "produced by" ; rdfs:domain flow:Artifact ; rdfs:range flow:Step ;
+    skos:definition "The step that creates the artifact." .
+flow:path a owl:DatatypeProperty ; rdfs:label "path" ; rdfs:domain [ a owl:Class ; owl:unionOf ( flow:Artifact flow:Implementation ) ] ; rdfs:range xsd:string ;
+    skos:definition "Where the artifact, or the step's script, is found; may contain placeholders such as {run_dir} or {skill_dir}." .
+flow:format a owl:DatatypeProperty ; rdfs:label "format" ; rdfs:domain flow:Artifact ; rdfs:range xsd:string ;
+    skos:definition "The file format of the artifact (json, png, pdf, folder…)." .
+flow:optional a owl:DatatypeProperty ; rdfs:label "optional" ; rdfs:domain flow:Artifact ; rdfs:range xsd:boolean ;
+    skos:definition "True when the artifact need not exist for the flow to proceed." .
+flow:outputSchema a owl:DatatypeProperty ; rdfs:label "output schema" ; rdfs:domain [ a owl:Class ; owl:unionOf ( flow:ClaudeStep flow:Artifact ) ] ; rdfs:range xsd:string ;
+    skos:definition "The JSON Schema the output must satisfy: on a Claude step, the schema its answer is validated against; on an artifact, the schema of its content." .
+flow:hasField a owl:ObjectProperty ; rdfs:label "has field" ; rdfs:domain flow:Artifact ; rdfs:range flow:Field ;
+    skos:definition "A named path the artifact's content must contain. A JSON artifact with no fields is under-specified: an agent must not guess its structure." .
+flow:fieldPath a owl:DatatypeProperty ; rdfs:label "field path" ; rdfs:domain flow:Field ; rdfs:range xsd:string ;
+    skos:definition "The path of the field inside the artifact (pages[].regions[].bbox)." .
+flow:carries a owl:ObjectProperty ; rdfs:label "carries" ; rdfs:domain flow:Artifact ; rdfs:range owl:Class ;
+    skos:definition "The domain concept whose instances the artifact holds. This is the one bridge from the flow to the dt: and rpt: vocabularies." .
+flow:hasCheck a owl:ObjectProperty ; rdfs:label "has check" ; rdfs:domain flow:Step ; rdfs:range flow:Check ;
+    skos:definition "A validation run after the step's action. The first failed blocking check sets the step's outcome." .
+flow:checkId a owl:DatatypeProperty ; rdfs:label "check id" ; rdfs:domain flow:Check ; rdfs:range xsd:string ;
+    skos:definition "Identifier of the check, unique in its step (fidelity, overflow)." .
+flow:checkKind a owl:DatatypeProperty ; rdfs:label "check kind" ; rdfs:domain flow:Check ; rdfs:range xsd:string ;
+    skos:definition "How the check is evaluated: metric (a comparison over recorded metrics) | script | json_schema | file_exists." .
+flow:expression a owl:DatatypeProperty ; rdfs:label "expression" ; rdfs:domain flow:Check ; rdfs:range xsd:string ;
+    skos:definition "What the check evaluates: a comparison over metrics and config, a script to run, a schema, or a path that must exist." .
+flow:blocking a owl:DatatypeProperty ; rdfs:label "blocking" ; rdfs:domain flow:Check ; rdfs:range xsd:string ;
+    skos:definition "Whether a failure of the check stops the step: 'true', 'false', or an expression over run state that decides." .
+flow:onFail a owl:ObjectProperty ; rdfs:label "on fail" ; rdfs:domain flow:Check ; rdfs:range flow:Outcome ;
+    skos:definition "The outcome the step takes when this check fails and is blocking." .
+flow:measures a owl:ObjectProperty ; rdfs:label "measures" ; rdfs:domain flow:Check ; rdfs:range flow:Metric ;
+    skos:definition "A metric the check's expression reads. The step must record it (flow:records)." .
+flow:comparedTo a owl:ObjectProperty ; rdfs:label "compared to" ; rdfs:domain flow:Check ; rdfs:range flow:Parameter ;
+    skos:definition "The configuration value the check compares its metrics against; changing it changes what passes." .
+flow:records a owl:ObjectProperty ; rdfs:label "records" ; rdfs:domain flow:Step ; rdfs:range flow:Metric ;
+    skos:definition "A measurement the step writes to run state, for its checks and for transition guards." .
+flow:metricName a owl:DatatypeProperty ; rdfs:label "metric name" ; rdfs:domain flow:Metric ; rdfs:range xsd:string ;
+    skos:definition "Name of the metric as it appears in run state under the step." .
+flow:paramName a owl:DatatypeProperty ; rdfs:label "parameter name" ; rdfs:domain flow:Parameter ; rdfs:range xsd:string ;
+    skos:definition "Name of the configuration value, as its path in the flow's config (claude.model, ssim_region_min_vector)." .
+flow:value a owl:DatatypeProperty ; rdfs:label "value" ; rdfs:domain [ a owl:Class ; owl:unionOf ( flow:Parameter flow:Flow ) ] ; rdfs:range xsd:string ;
+    skos:definition "On a parameter: its current value in config (JSON for lists and objects). On a flow: its version." .
+flow:usesParameter a owl:ObjectProperty ; rdfs:label "uses parameter" ; rdfs:domain [ a owl:Class ; owl:unionOf ( flow:Step flow:Transition ) ] ; rdfs:range flow:Parameter ;
+    skos:definition "A configuration value the step's action, or the transition's guard, depends on." .
+flow:hasOutcome a owl:ObjectProperty ; rdfs:label "has outcome" ; rdfs:domain flow:Step ; rdfs:range flow:Outcome ;
+    skos:definition "A result the step can end with. Every outcome needs at least one transition." .
+flow:outcomeName a owl:DatatypeProperty ; rdfs:label "outcome name" ; rdfs:domain flow:Outcome ; rdfs:range xsd:string ;
+    skos:definition "Name of the outcome (pass, fail, approve, reject…); the only thing transitions branch on." .
+flow:from a owl:ObjectProperty ; rdfs:label "from" ; rdfs:domain flow:Transition ; rdfs:range flow:Step ;
+    skos:definition "The step the transition leaves." .
+flow:to a owl:ObjectProperty ; rdfs:label "to" ; rdfs:domain flow:Transition ; rdfs:range flow:Step ;
+    skos:definition "The step the transition goes to." .
+flow:toDynamic a owl:DatatypeProperty ; rdfs:label "to (dynamic)" ; rdfs:domain flow:Transition ; rdfs:range xsd:string ;
+    skos:definition "A target read from run state when the transition is taken, e.g. $state.context.resume_node; used in place of flow:to." .
+flow:onOutcome a owl:ObjectProperty ; rdfs:label "on outcome" ; rdfs:domain flow:Transition ; rdfs:range flow:Outcome ;
+    skos:definition "The outcome of the source step on which the transition is considered." .
+flow:guard a owl:DatatypeProperty ; rdfs:label "guard" ; rdfs:domain flow:Transition ; rdfs:range xsd:string ;
+    skos:definition "A condition over run state and config that must hold for the transition to be taken; absent means always." .
+flow:priority a owl:DatatypeProperty ; rdfs:label "priority" ; rdfs:domain flow:Transition ; rdfs:range xsd:integer ;
+    skos:definition "Order in which the transitions for one step and outcome are tried: ascending, and the first whose guard holds is taken." .
+flow:readsStatePath a owl:DatatypeProperty ; rdfs:label "reads state path" ; rdfs:domain [ a owl:Class ; owl:unionOf ( flow:Transition flow:Check ) ] ; rdfs:range xsd:string ;
+    skos:definition "A path in run state that the guard, or the check, depends on." .
+flow:hasEffect a owl:ObjectProperty ; rdfs:label "has effect" ; rdfs:domain flow:Transition ; rdfs:range flow:Effect ;
+    skos:definition "A change to run state applied when the transition is taken; effects apply in order." .
+flow:op a owl:DatatypeProperty ; rdfs:label "operation" ; rdfs:domain flow:Effect ; rdfs:range xsd:string ;
+    skos:definition "The kind of change: set | set_from | increment | reset | append | reactivate_items | exclude_failed_items." .
+flow:statePath a owl:DatatypeProperty ; rdfs:label "state path" ; rdfs:domain flow:Effect ; rdfs:range xsd:string ;
+    skos:definition "The path in run state the effect changes." .
+flow:command a owl:DatatypeProperty ; rdfs:label "command" ; rdfs:domain flow:Step ; rdfs:range xsd:string ;
+    skos:definition "The command line that runs the step, for steps executed by a script." .
+flow:promptRef a owl:DatatypeProperty ; rdfs:label "prompt reference" ; rdfs:domain flow:ClaudeStep ; rdfs:range xsd:string ;
+    skos:definition "The prompt file the Claude step is invoked with." .
+flow:promptVersion a owl:DatatypeProperty ; rdfs:label "prompt version" ; rdfs:domain flow:ClaudeStep ; rdfs:range xsd:string ;
+    skos:definition "Version of the prompt; part of the cache key, so a new version invalidates cached outputs." .
+flow:writesOnly a owl:DatatypeProperty ; rdfs:label "writes only" ; rdfs:domain flow:ClaudeStep ; rdfs:range xsd:string ;
+    skos:definition "A path the Claude step may write to; anything written outside the listed paths fails the scope check." .
+flow:reviewPage a owl:DatatypeProperty ; rdfs:label "review page" ; rdfs:domain flow:HumanStep ; rdfs:range xsd:string ;
+    skos:definition "The page shown to the person who must decide." .
+flow:decisionOption a owl:DatatypeProperty ; rdfs:label "decision option" ; rdfs:domain flow:HumanStep ; rdfs:range xsd:string ;
+    skos:definition "A decision the person may record; each becomes an outcome of the step." .
+flow:requiredField a owl:DatatypeProperty ; rdfs:label "required field" ; rdfs:domain flow:HumanStep ; rdfs:range xsd:string ;
+    skos:definition "A field the recorded decision must carry (reviewer, comment…) before the flow continues." .
+flow:isImplemented a owl:DatatypeProperty ; rdfs:label "is implemented" ; rdfs:domain flow:Step ; rdfs:range xsd:boolean ;
+    skos:definition "Whether the flow definition marks the step's action as implemented." .
+flow:implementedBy a owl:ObjectProperty ; rdfs:label "implemented by" ; rdfs:domain flow:Step ; rdfs:range flow:Implementation ;
+    skos:definition "The script that executes the step." .
+flow:exists a owl:DatatypeProperty ; rdfs:label "exists" ; rdfs:domain flow:Implementation ; rdfs:range xsd:boolean ;
+    skos:definition "Whether the script was found on disk when the graph was built." .
+flow:statement a owl:DatatypeProperty ; rdfs:label "statement" ; rdfs:domain flow:Invariant ; rdfs:range xsd:string ;
+    skos:definition "The invariant, stated in one sentence." .
+flow:enforcedBy a owl:ObjectProperty ; rdfs:label "enforced by" ; rdfs:domain flow:Invariant ; rdfs:range flow:Check ;
+    skos:definition "A check that fails when the invariant is broken." .
+flow:concerns a owl:ObjectProperty ; rdfs:label "concerns" ; rdfs:domain flow:Invariant ; rdfs:range owl:Class ;
+    skos:definition "A domain concept the invariant constrains." .
+flow:tests a owl:ObjectProperty ; rdfs:label "tests" ; rdfs:domain flow:TestObligation ; rdfs:range [ a owl:Class ; owl:unionOf ( flow:Check flow:Transition flow:Invariant ) ] ;
+    skos:definition "What the required test exercises: a check (pass and fail case), a transition (route), or an invariant (property)." .
+flow:forStep a owl:ObjectProperty ; rdfs:label "for step" ; rdfs:domain flow:TestObligation ; rdfs:range flow:Step ;
+    skos:definition "The step whose implementation must pass the test." .
+flow:obligationKind a owl:DatatypeProperty ; rdfs:label "obligation kind" ; rdfs:domain flow:TestObligation ; rdfs:range xsd:string ;
+    skos:definition "The kind of test required: pass_case | fail_case | route | property." .
+flow:sourceRef a owl:DatatypeProperty ; rdfs:label "source reference" ; rdfs:domain [ a owl:Class ; owl:unionOf ( flow:Step flow:Artifact flow:Transition flow:Parameter ) ] ; rdfs:range xsd:string ;
+    skos:definition "Where in the flow definition the fact came from (file#pointer), for traceability." .
+
+# ─────────────────────────────── dt: classes ─────────────────────────────────
+# Source side — what extraction finds in a PDF
+dt:SourceDocument a owl:Class ; rdfs:label "Source document" ;
+    skos:definition "The sample PDF a template must reproduce. Identified by its sha256." .
+dt:Page a owl:Class ; rdfs:label "Page" ;
+    skos:definition "One page of a source document, classified by how its content is encoded." .
+dt:PageKind a owl:Class ; rdfs:label "Page kind" ;
+    skos:definition "Vector (real text and drawings), Raster (a picture of a page), or Mixed." .
+dt:Vector a dt:PageKind ; rdfs:label "Vector" ; skos:definition "Text spans and drawings are present; fonts, sizes, colors and positions can be measured exactly." .
+dt:Raster a dt:PageKind ; rdfs:label "Raster" ; skos:definition "The page is an image with no text over it; content must be read with OCR and measured from pixels." .
+dt:Mixed  a dt:PageKind ; rdfs:label "Mixed" ; skos:definition "Vector text plus large embedded images." .
+dt:TextSpan a owl:Class ; rdfs:label "Text span" ;
+    skos:definition "A run of text with bbox (points, top-left origin), font, size (pt), color (hex), bold, italic, and a stable span_id." .
+dt:OcrWord a owl:Class ; rdfs:subClassOf dt:TextSpan ; rdfs:label "OCR word" ;
+    skos:definition "A text span read by OCR from a raster image; adds conf (0–1) and est_size_pt from glyph height." .
+dt:Drawing a owl:Class ; rdfs:label "Drawing" ;
+    skos:definition "A vector path: rule, box or fill, with stroke color, fill color and width." .
+dt:PageImage a owl:Class ; rdfs:label "Page image" ;
+    skos:definition "A raster of a page at a known dpi; the visual reference every comparison uses." .
+dt:Region a owl:Class ; rdfs:label "Region" ;
+    skos:definition "A rectangular area of a page that groups text and drawings into one visual box (detected from rules/boxes), with a region_id and bbox." .
+dt:DesignToken a owl:Class ; rdfs:label "Design token" ;
+    skos:definition "A named, measured style value (color, font family, size, spacing, rule width) reused across the template." .
+dt:ColorToken a owl:Class ; rdfs:subClassOf dt:DesignToken ; rdfs:label "Color token" ; skos:definition "A hex color with a role (brand, ink, rule, band, chart mark)." .
+dt:TypeToken  a owl:Class ; rdfs:subClassOf dt:DesignToken ; rdfs:label "Type token" ; skos:definition "A font family, weight and size in pt with a role (title, heading, body, footnote)." .
+dt:SpacingToken a owl:Class ; rdfs:subClassOf dt:DesignToken ; rdfs:label "Spacing token" ; skos:definition "Margins, gaps, column x-positions, rule widths." .
+
+# Semantic model — what the page MEANS
+dt:Blueprint a owl:Class ; rdfs:label "Blueprint" ;
+    skos:definition "The semantic model of a page: each region labeled with a component, each text span classified as static or as the source of a named slot, and the repeat structure." .
+dt:Component a owl:Class ; rdfs:label "Component" ;
+    skos:definition "A reusable visual box type (returns table, allocation list, bar chart, key-value list…). One component = one template macro." .
+dt:Slot a owl:Class ; rdfs:label "Slot" ;
+    skos:definition "A named place where data goes, with a type and a repeat flag. Every slot becomes one data-schema field." .
+dt:SlotType a owl:Class ; rdfs:label "Slot type" ; skos:definition "How a slot's value is parsed and formatted." .
+dt:TextSlot a dt:SlotType ; rdfs:label "text" ; skos:definition "Free text." .
+dt:NumberSlot a dt:SlotType ; rdfs:label "number" ; skos:definition "A decimal number, locale-formatted." .
+dt:PercentSlot a dt:SlotType ; rdfs:label "percent" ; skos:definition "A percentage; EN 4.1%, FR 4,1 %." .
+dt:CurrencySlot a dt:SlotType ; rdfs:label "currency" ; skos:definition "An amount with currency; EN $3.1 billion, FR 3,1 milliards $." .
+dt:DateSlot a dt:SlotType ; rdfs:label "date" ; skos:definition "A date; format per locale." .
+dt:ListSlot a dt:SlotType ; rdfs:label "list" ; skos:definition "A repeated group of rows (holdings, allocations)." .
+dt:ChartSlot a dt:SlotType ; rdfs:label "chart" ; skos:definition "A data series rendered as a chart by a filter (SVG), never traced from the source." .
+dt:StaticText a owl:Class ; rdfs:label "Static text" ;
+    skos:definition "Text that is part of the design (labels, headings, disclaimers); it becomes an i18n label, never data." .
+
+# Data side
+dt:DataSchema a owl:Class ; rdfs:label "Data schema" ;
+    skos:definition "JSON Schema for one document's data, derived from blueprint slots (types, required, arrays, max lengths)." .
+dt:DataDocument a owl:Class ; rdfs:label "Data document" ;
+    skos:definition "One document's data as JSON, conforming to the data schema." .
+dt:SampleData a owl:Class ; rdfs:subClassOf dt:DataDocument ; rdfs:label "Sample data" ;
+    skos:definition "The source PDF's own data, filled by code from its text; rendering it must reproduce the source." .
+dt:StressCase a owl:Class ; rdfs:subClassOf dt:DataDocument ; rdfs:label "Stress case" ;
+    skos:definition "Seeded edge-case data (longest strings, most rows, French, extremes) that the template must survive." .
+dt:DataGap a owl:Class ; rdfs:label "Data gap" ; skos:definition "A slot whose value could not be filled or parsed; needs a human." .
+dt:TextCorrection a owl:Class ; rdfs:label "Text correction" ; skos:definition "A human-confirmed value replacing uncertain OCR text or filling a data gap." .
+
+# Template side
+dt:TemplateProject a owl:Class ; rdfs:label "Template project" ;
+    skos:definition "The template folder of one report type: tokens.css, components.j2 (one macro per component), base.html.j2 (page shell), charts.json, layouts.json, i18n.json. It is data only; charts and formatters are the plugin's filters, configured by charts.json." .
+dt:Layout a owl:Class ; rdfs:label "Layout" ;
+    skos:definition "An arrangement of components into columns; templates share components and differ by layout." .
+dt:Locale a owl:Class ; rdfs:label "Locale" ; skos:definition "Language + number/date formatting conventions (en, fr)." .
+
+# Output & verification side
+dt:RenderedDocument a owl:Class ; rdfs:label "Rendered document" ;
+    skos:definition "HTML, PDF and PNG produced by rendering a data document through a template project with headless Chromium." .
+dt:VerificationResult a owl:Class ; rdfs:label "Verification result" ;
+    skos:definition "Per-region results of comparing a render to its reference and its data: overflow, fidelity, visibility, similarity, style." .
+dt:RegionCrop a owl:Class ; rdfs:label "Region crop" ; skos:definition "Side-by-side source|render image of one failing region, given to repair." .
+dt:RepairRecord a owl:Class ; rdfs:label "Repair record" ; skos:definition "What one repair round changed, which failures it targeted, files touched." .
+dt:StressResult a owl:Class ; rdfs:label "Stress result" ; skos:definition "Per stress case: overflow, fidelity, visibility." .
+dt:ReviewPage a owl:Class ; rdfs:label "Review page" ; skos:definition "A self-contained HTML page shown to a human at a gate." .
+dt:TemplateRelease a owl:Class ; rdfs:label "Template release" ;
+    skos:definition "A frozen, versioned copy of a template project with a manifest of file hashes and the sign-off approval id." .
+dt:GoldenImage a owl:Class ; rdfs:label "Golden image" ;
+    skos:definition "The approved render plus a mask of static regions (regions with no slots), used to detect unintended change in production." .
+dt:InspectionReport a owl:Class ; rdfs:label "Inspection report" ; skos:definition "Per-page kind, fonts, sizes, colors, large images." .
+dt:IntakeRecord a owl:Class ; rdfs:label "Intake record" ; skos:definition "Source hash, page count, page sizes, encryption." .
+dt:FontFile a owl:Class ; rdfs:label "Font file" ; skos:definition "A font embedded in a vector source; usable via @font-face if licensed." .
+dt:AuthoringRule a owl:Class ; rdfs:label "Authoring rule" ; skos:definition "Guidance for writing templates that survive real data." .
+dt:Batch a owl:Class ; rdfs:label "Batch" ; skos:definition "A production run: template version, as-of date, list of documents." .
+dt:PublishReceipt a owl:Class ; rdfs:label "Publish receipt" ; skos:definition "Destination and hash of every published document." .
+
+# ─────────────────────────────── dt: properties ─────────────────────────────
+dt:pageOf a owl:ObjectProperty ; rdfs:label "page of" ; rdfs:domain dt:Page ; rdfs:range dt:SourceDocument ;
+    skos:definition "The source document the page belongs to." .
+dt:pageKind a owl:ObjectProperty ; rdfs:label "page kind" ; rdfs:domain dt:Page ; rdfs:range dt:PageKind ;
+    skos:definition "How the page's content is encoded: vector, raster or mixed. It decides whether text is measured or read by OCR." .
+dt:onPage a owl:ObjectProperty ; rdfs:label "on page" ; rdfs:domain [ a owl:Class ; owl:unionOf ( dt:TextSpan dt:Drawing dt:Region dt:PageImage ) ] ; rdfs:range dt:Page ;
+    skos:definition "The page a text span, drawing, region or page image is found on." .
+dt:inRegion a owl:ObjectProperty ; rdfs:label "in region" ; rdfs:domain dt:TextSpan ; rdfs:range dt:Region ;
+    skos:definition "The region (visual box) the text span was assigned to." .
+dt:labeledAs a owl:ObjectProperty ; rdfs:label "labeled as" ; rdfs:domain dt:Region ; rdfs:range dt:Component ;
+    skos:definition "The component the blueprint says the region is; every region has exactly one." .
+dt:hasSlot a owl:ObjectProperty ; rdfs:label "has slot" ; rdfs:domain dt:Region ; rdfs:range dt:Slot ;
+    skos:definition "A named place for data inside the region." .
+dt:slotType a owl:ObjectProperty ; rdfs:label "slot type" ; rdfs:domain dt:Slot ; rdfs:range dt:SlotType ;
+    skos:definition "How the slot's value is parsed and formatted." .
+dt:sourcedFrom a owl:ObjectProperty ; rdfs:label "sourced from" ; rdfs:domain dt:Slot ; rdfs:range dt:TextSpan ;
+    skos:definition "The text span of the source PDF that holds the slot's sample value. Not the data mapping: that is rpt:sourcedFrom (field → column)." .
+dt:derivedFrom a owl:ObjectProperty ; rdfs:label "derived from" ; rdfs:domain [ a owl:Class ; owl:unionOf ( dt:DataSchema dt:SampleData ) ] ; rdfs:range [ a owl:Class ; owl:unionOf ( dt:Blueprint dt:TextSpan ) ] ;
+    skos:definition "What the item was computed from: a data schema from the blueprint's slots, sample data from the source's text spans." .
+dt:conformsTo a owl:ObjectProperty ; rdfs:label "conforms to" ; rdfs:domain dt:DataDocument ; rdfs:range dt:DataSchema ;
+    skos:definition "The data schema the document's data must satisfy." .
+dt:implementsComponent a owl:ObjectProperty ; rdfs:label "implements component" ; rdfs:domain dt:TemplateProject ; rdfs:range dt:Component ;
+    skos:definition "The template project has a macro that draws this component." .
+dt:renderedFrom a owl:ObjectProperty ; rdfs:label "rendered from" ; rdfs:domain dt:RenderedDocument ; rdfs:range [ a owl:Class ; owl:unionOf ( dt:DataDocument dt:TemplateProject ) ] ;
+    skos:definition "The data document and the template project the rendered document was produced from." .
+dt:verifies a owl:ObjectProperty ; rdfs:label "verifies" ; rdfs:domain dt:VerificationResult ; rdfs:range dt:RenderedDocument ;
+    skos:definition "The rendered document the verification result is about." .

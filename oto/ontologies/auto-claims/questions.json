@@ -1,0 +1,798 @@
+{
+  "_about": "What this ontology exists to answer. Each question runs over the graph in the pattern language of rules.json; `gate` says what an empty answer means; `gaps` says why it is empty; `terms` names the vocabulary the question covers. Reasoned about in `why`, confirmed in `validated_by`.",
+  "questions": {
+    "AC1": {
+      "who": "a claims handler",
+      "question": "What is claim $CLAIM: its number and state, the policy it claims under, the coverage it claims against, and who filed it?",
+      "why": "The claim is the unit of work; a handler opens it and must see at once what is asked for and under what.",
+      "validated_by": "",
+      "params": {
+        "CLAIM": {
+          "type": "Claim"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$CLAIM",
+              "claims_under",
+              "p"
+            ]
+          },
+          {
+            "node": "p",
+            "type": "Policy"
+          },
+          {
+            "edge": [
+              "$CLAIM",
+              "claims_against",
+              "cov"
+            ]
+          },
+          {
+            "node": "cov",
+            "type": "Coverage"
+          },
+          {
+            "edge": [
+              "$CLAIM",
+              "filed_by",
+              "who"
+            ]
+          },
+          {
+            "node": "who",
+            "type": "Party"
+          }
+        ],
+        "select": [
+          "$CLAIM.claim_number",
+          "$CLAIM.state",
+          "p.policy_number",
+          "cov.label",
+          "who.label",
+          "who.party_role"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$CLAIM",
+              "claims_under",
+              "*"
+            ]
+          }
+        ],
+        "say": "the claim names no policy"
+      }
+    },
+    "AC2": {
+      "who": "a claims handler",
+      "question": "What does policy $POLICY cover, what or whom does it insure, and who holds it?",
+      "why": "Cover is decided from the policy as it stood; the handler must see its coverages, its insured and its holder.",
+      "validated_by": "",
+      "params": {
+        "POLICY": {
+          "type": "Policy"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$POLICY",
+              "covers",
+              "c"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "Coverage"
+          },
+          {
+            "edge": [
+              "$POLICY",
+              "insures",
+              "v"
+            ]
+          },
+          {
+            "node": "v",
+            "type": "Vehicle|Party"
+          },
+          {
+            "edge": [
+              "$POLICY",
+              "held_by",
+              "h"
+            ]
+          },
+          {
+            "node": "h",
+            "type": "Party"
+          }
+        ],
+        "select": [
+          "c.label",
+          "v.label",
+          "v.type",
+          "h.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$POLICY",
+              "covers",
+              "*"
+            ]
+          }
+        ],
+        "say": "the policy lists no coverage"
+      }
+    },
+    "AC3": {
+      "who": "a claims handler",
+      "question": "What changed on policy $POLICY, and from when: which endorsements amended it?",
+      "why": "A mid-term change alters cover for part of the period; the loss date must be read against the right version.",
+      "validated_by": "",
+      "params": {
+        "POLICY": {
+          "type": "Policy"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$POLICY",
+              "amended_by",
+              "e"
+            ]
+          },
+          {
+            "node": "e",
+            "type": "Endorsement"
+          }
+        ],
+        "select": [
+          "e.label",
+          "e.valid_from"
+        ]
+      },
+      "gate": "any"
+    },
+    "AC4": {
+      "who": "a claims handler",
+      "question": "What actually happened: which incident did $CLAIM arise from, when, and what and who were involved?",
+      "why": "Several claims can come out of one incident; the incident is what ties them together.",
+      "validated_by": "",
+      "params": {
+        "CLAIM": {
+          "type": "Claim"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$CLAIM",
+              "arises_from",
+              "i"
+            ]
+          },
+          {
+            "node": "i",
+            "type": "Incident"
+          },
+          {
+            "edge": [
+              "i",
+              "involves",
+              "x"
+            ]
+          },
+          {
+            "node": "x",
+            "type": "Vehicle|Party"
+          }
+        ],
+        "select": [
+          "i.label",
+          "i.occurred_on",
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$CLAIM",
+              "arises_from",
+              "*"
+            ]
+          }
+        ],
+        "say": "the claim is not tied to an incident"
+      }
+    },
+    "AC5": {
+      "who": "a claims handler",
+      "question": "Which claims came out of incident $INCIDENT?",
+      "why": "Aggregation and catastrophe questions are answered from the incident, not from each claim.",
+      "validated_by": "",
+      "params": {
+        "INCIDENT": {
+          "type": "Incident"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "c",
+              "arises_from",
+              "$INCIDENT"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "Claim"
+          }
+        ],
+        "select": [
+          "c.label",
+          "c.claim_number",
+          "c.state"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "arises_from",
+              "$INCIDENT"
+            ]
+          }
+        ],
+        "say": "no claim arises from it"
+      }
+    },
+    "AC6": {
+      "who": "a claims handler",
+      "question": "What has been claimed on vehicle $VEHICLE before?",
+      "why": "Prior claims on the same vehicle are the first fraud and valuation check.",
+      "validated_by": "",
+      "params": {
+        "VEHICLE": {
+          "type": "Vehicle"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "i",
+              "involves",
+              "$VEHICLE"
+            ]
+          },
+          {
+            "edge": [
+              "c",
+              "arises_from",
+              "i"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "Claim"
+          }
+        ],
+        "select": [
+          "c.label",
+          "c.claim_number",
+          "c.state"
+        ]
+      },
+      "gate": "any"
+    },
+    "AC7": {
+      "who": "a supervisor",
+      "question": "What still has to happen on $CLAIM: which tasks, in what state, assigned to which role, following which procedure?",
+      "why": "Work on a claim is tasks with owners; a claim without visible tasks stalls unseen.",
+      "validated_by": "",
+      "params": {
+        "CLAIM": {
+          "type": "Claim"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "t",
+              "part_of_claim",
+              "$CLAIM"
+            ]
+          },
+          {
+            "node": "t",
+            "type": "Task"
+          },
+          {
+            "edge": [
+              "t",
+              "assigned_to",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Role"
+          },
+          {
+            "edge": [
+              "t",
+              "follows",
+              "proc"
+            ]
+          },
+          {
+            "node": "proc",
+            "type": "Procedure"
+          }
+        ],
+        "select": [
+          "t.label",
+          "t.state",
+          "r.label",
+          "proc.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "node": "$CLAIM",
+            "type": "Claim",
+            "where": {
+              "state": "open"
+            }
+          }
+        ],
+        "say": "the claim is open with no task on record"
+      }
+    },
+    "AC8": {
+      "who": "a claims handler",
+      "question": "Which procedures does role $ROLE perform?",
+      "why": "Accountability is attached to a role, never a person; the role must say what it does and who holds it now.",
+      "validated_by": "",
+      "params": {
+        "ROLE": {
+          "type": "Role"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ROLE",
+              "performs",
+              "p"
+            ]
+          },
+          {
+            "node": "p",
+            "type": "Procedure"
+          }
+        ],
+        "select": [
+          "p.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$ROLE",
+              "performs",
+              "*"
+            ]
+          }
+        ],
+        "say": "the role performs no recorded procedure"
+      }
+    },
+    "AC9": {
+      "who": "a claims handler",
+      "question": "Which party fills role $ROLE?",
+      "why": "Who to call is read from the role, so a person can change without the graph changing shape.",
+      "validated_by": "",
+      "params": {
+        "ROLE": {
+          "type": "Role"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ROLE",
+              "filled_by",
+              "who"
+            ]
+          },
+          {
+            "node": "who",
+            "type": "Party"
+          }
+        ],
+        "select": [
+          "who.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$ROLE",
+              "filled_by",
+              "*"
+            ]
+          }
+        ],
+        "say": "nobody is recorded as filling the role"
+      }
+    },
+    "AC10": {
+      "who": "a claims handler",
+      "question": "What was decided on $CLAIM, for what reason, and what evidence supports it?",
+      "why": "A determination must cite the assessment or document it rests on, or it cannot be defended.",
+      "validated_by": "",
+      "params": {
+        "CLAIM": {
+          "type": "Claim"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "d",
+              "decides",
+              "$CLAIM"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Decision"
+          },
+          {
+            "edge": [
+              "ev",
+              "supports",
+              "d"
+            ]
+          },
+          {
+            "node": "ev",
+            "type": "Assessment|Document"
+          }
+        ],
+        "select": [
+          "d.label",
+          "d.reason",
+          "ev.label",
+          "ev.type"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "decides",
+              "$CLAIM"
+            ]
+          }
+        ],
+        "say": "no decision has been recorded on the claim"
+      }
+    },
+    "AC11": {
+      "who": "a claims handler",
+      "question": "What evidence was assessed on $CLAIM, and of which vehicle?",
+      "why": "An estimate or expert opinion has its own author and date; the decision must be able to cite it.",
+      "validated_by": "",
+      "params": {
+        "CLAIM": {
+          "type": "Claim"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "a",
+              "part_of_claim",
+              "$CLAIM"
+            ]
+          },
+          {
+            "node": "a",
+            "type": "Assessment"
+          },
+          {
+            "edge": [
+              "a",
+              "assesses",
+              "v"
+            ]
+          },
+          {
+            "node": "v",
+            "type": "Vehicle"
+          }
+        ],
+        "select": [
+          "a.label",
+          "v.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "AC12": {
+      "who": "finance",
+      "question": "What has been paid on $CLAIM, to whom, against which coverage, and which decision authorized it?",
+      "why": "Every payment is charged to one coverage and authorized by one decision; the chain is the audit.",
+      "validated_by": "",
+      "params": {
+        "CLAIM": {
+          "type": "Claim"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "p",
+              "part_of_claim",
+              "$CLAIM"
+            ]
+          },
+          {
+            "node": "p",
+            "type": "Payment"
+          },
+          {
+            "edge": [
+              "p",
+              "paid_to",
+              "who"
+            ]
+          },
+          {
+            "edge": [
+              "p",
+              "charged_to",
+              "cov"
+            ]
+          },
+          {
+            "edge": [
+              "d",
+              "authorizes",
+              "p"
+            ]
+          }
+        ],
+        "select": [
+          "p.label",
+          "who.label",
+          "cov.label",
+          "d.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "node": "$CLAIM",
+            "type": "Claim",
+            "where": {
+              "state": "closed"
+            }
+          }
+        ],
+        "say": "the claim is closed with no payment on record"
+      }
+    },
+    "AC13": {
+      "who": "finance",
+      "question": "What came back in on $CLAIM, and from whom?",
+      "why": "Recoveries offset what was paid; a claim's net cost needs them.",
+      "validated_by": "",
+      "params": {
+        "CLAIM": {
+          "type": "Claim"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "r",
+              "part_of_claim",
+              "$CLAIM"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Recovery"
+          },
+          {
+            "edge": [
+              "r",
+              "recovered_from",
+              "who"
+            ]
+          },
+          {
+            "node": "who",
+            "type": "Party"
+          }
+        ],
+        "select": [
+          "r.label",
+          "who.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "AC14": {
+      "who": "compliance",
+      "question": "Which regulations govern procedure $PROCEDURE?",
+      "why": "An external rule constrains how a procedure may run; the constraint must be visible beside the procedure.",
+      "validated_by": "",
+      "params": {
+        "PROCEDURE": {
+          "type": "Procedure"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "reg",
+              "governs",
+              "$PROCEDURE"
+            ]
+          },
+          {
+            "node": "reg",
+            "type": "Regulation"
+          }
+        ],
+        "select": [
+          "reg.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "AC15": {
+      "who": "anyone",
+      "question": "Where is $ITEM written down?",
+      "why": "A procedure, regulation or policy nobody can open is a rumour.",
+      "validated_by": "",
+      "params": {
+        "ITEM": {
+          "type": "Procedure|Regulation|Policy"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ITEM",
+              "documented_in",
+              "d"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Document"
+          }
+        ],
+        "select": [
+          "d.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$ITEM",
+              "documented_in",
+              "*"
+            ]
+          }
+        ],
+        "say": "no document is recorded for it"
+      }
+    },
+    "AC16": {
+      "who": "compliance",
+      "question": "What replaced what: which procedure, regulation, policy or coverage superseded which?",
+      "why": "What was in force on the loss date is answered by the supersession chain, never by editing in place.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "new",
+              "supersedes",
+              "old"
+            ]
+          }
+        ],
+        "select": [
+          "new.label",
+          "new.type",
+          "old.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "AC17": {
+      "who": "a supervisor",
+      "question": "Which closed or denied claims carry no decision?",
+      "why": "A claim cannot be closed without a determination; one that is was closed by accident.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "c",
+            "type": "Claim",
+            "where": {
+              "state": {
+                "in": [
+                  "closed",
+                  "denied"
+                ]
+              }
+            }
+          },
+          {
+            "not_edge": [
+              "*",
+              "decides",
+              "c"
+            ]
+          }
+        ],
+        "select": [
+          "c.label",
+          "c.claim_number",
+          "c.state"
+        ]
+      },
+      "gate": "empty"
+    }
+  }
+}

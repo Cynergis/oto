@@ -116,10 +116,10 @@ def describe_when(when):
     return "  and  ".join(parts)
 
 
-def readiness(action, nodes, edges):
+def readiness(action, nodes, edges, covers=None):
     """(ready ids, reason). The ids of the subject entities the action is ready on, sorted; when
-    none, one sentence saying why."""
-    graph = Graph(nodes, edges, statuses=BELIEVED_OR_INTENDED)
+    none, one sentence saying why. `covers` is what each class covers (model/vocabulary.covers)."""
+    graph = Graph(nodes, edges, statuses=BELIEVED_OR_INTENDED, covers=covers)
     var = _model.subject_variable(action)
     subject = action.get("subject")
     if not var:
@@ -159,10 +159,10 @@ def bind(action, node):
     return inputs, missing
 
 
-def tool_definition(action, nodes, edges, on=None):
+def tool_definition(action, nodes, edges, on=None, covers=None):
     """The action as an MCP tool definition, plus an `oto` block. With `on`, a subject node, the
     inputs come back bound."""
-    ready, reason = readiness(action, nodes, edges)
+    ready, reason = readiness(action, nodes, edges, covers)
     out = {"name": action["id"], "title": action.get("label"), "description": action.get("description"),
            "inputSchema": action.get("inputSchema"), "annotations": dict(action.get("annotations") or {}),
            "oto": {"subject": action.get("subject"), "executed_by": action.get("executed_by"),
@@ -184,12 +184,12 @@ def tool_definition(action, nodes, edges, on=None):
     return out
 
 
-def catalog(actions, nodes, edges, ready_only=False, due_only=False):
+def catalog(actions, nodes, edges, ready_only=False, due_only=False, covers=None):
     """Every action as a tool definition, readiness computed, sorted by id. `due_only` keeps the
     scheduled read-only actions whose run is due and that are ready on at least one entity."""
     out = []
     for action in sorted(actions, key=lambda a: a.get("id") or ""):
-        definition = tool_definition(action, nodes, edges)
+        definition = tool_definition(action, nodes, edges, covers=covers)
         if (ready_only or due_only) and not definition["oto"]["ready_on"]:
             continue
         if due_only and not definition["oto"].get("due"):
@@ -198,13 +198,13 @@ def catalog(actions, nodes, edges, ready_only=False, due_only=False):
     return out
 
 
-def for_entity(actions, nodes, edges, node):
+def for_entity(actions, nodes, edges, node, covers=None):
     """The actions whose subject class is the node's, each bound to it, ready ones first."""
     out = []
     for action in sorted(actions, key=lambda a: a.get("id") or ""):
         if action.get("subject") != node.get("type"):
             continue
-        out.append(tool_definition(action, nodes, edges, on=node))
+        out.append(tool_definition(action, nodes, edges, on=node, covers=covers))
     out.sort(key=lambda d: (not d["oto"]["ready"], d["name"]))
     return out
 

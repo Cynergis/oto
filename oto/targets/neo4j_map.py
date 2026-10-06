@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """How an OTO graph is laid out in Neo4j. Pure functions: no driver, no network, sorted output.
 
-    (:Entity:<Class> {key, id, project, label, summary, status, dates, sources, aliases, tags,
+    (:Entity:<Class> {key, id, project, label, summary, status, dates, sources, aliases, names, tags,
                       supersedes, superseded_by, degree, attributes_json,
                       <declared attributes, typed>, build_seq})
     (:Evidence {key, index, doc, where, quote})     <-[:EVIDENCED_BY]- entity
@@ -45,7 +45,7 @@ def safe_name(name):
 
 def _typed(spec, value):
     """A declared attribute keeps its type. `date` values are marked so the loader can convert."""
-    kind = (spec[0] if spec else "string") or "string"
+    kind = (spec["type"] if spec else "string") or "string"
     if value is None:
         return None
     if kind.startswith("enum:") or kind == "string":
@@ -66,8 +66,11 @@ def _typed(spec, value):
 
 
 def plan(graph, config, project, build_seq, derived=None, passages=None, lexicon=None, changelog=None,
-         schema_version=None):
+         schema_version=None, terms=None, questions=None):
     """Everything the loader writes, as sorted lists of rows."""
+    from . import rows as _rows
+    from ..model import vocabulary as _vocab
+    language = _vocab.languages(config)[0]
     classes = config.get("classes") or {}
     attributes = config.get("attributes") or {}
     derived = derived or {}
@@ -85,7 +88,9 @@ def plan(graph, config, project, build_seq, derived=None, passages=None, lexicon
             continue
         props = {"key": key(project, nid), "id": nid, "project": project, "build_seq": build_seq,
                  "sources": list(node.get("sources") or []), "aliases": list(node.get("aliases") or []),
-                 "aliases_text": " ".join(node.get("aliases") or []), "tags": list(node.get("tags") or []),
+                 "names": [name for name, _kind, _lang in _rows.names_of(node, language)],
+                 "aliases_text": " ".join(name for name, _kind, _lang in _rows.names_of(node, language)),
+                 "tags": list(node.get("tags") or []),
                  "degree": degree.get(nid, 0),
                  "attributes_json": json.dumps(node.get("attributes") or {}, ensure_ascii=False)}
         for name in BASE_PROPS:
@@ -152,12 +157,18 @@ def plan(graph, config, project, build_seq, derived=None, passages=None, lexicon
                     for i, r in enumerate(lexicon or [], 1)]
     changelog_rows = [dict(r, key="%s:changelog:%d" % (project, i), project=project, build_seq=build_seq)
                       for i, r in enumerate(changelog or [], 1)]
+    term_rows = [dict(r, key="%s:term:%s:%s" % (project, r["kind"], (r["owner"] + "." if r["owner"] else "") + r["name"]),
+                      project=project, build_seq=build_seq) for r in terms or []]
+
+    question_rows = [dict(r, key="%s:question:%s" % (project, r["id"]), project=project, build_seq=build_seq)
+                     for r in questions or []]
 
     return {"project": project, "build_seq": build_seq, "schema_version": schema_version,
             "nodes": nodes, "evidence": evidence,
             "documents": [documents[k] for k in sorted(documents)], "rels": rels,
             "derived_attributes": derived_attrs, "findings": findings,
-            "passages": passage_rows, "lexicon": lexicon_rows, "changelog": changelog_rows,
+            "passages": passage_rows, "lexicon": lexicon_rows, "changelog": changelog_rows, "terms": term_rows,
+            "questions": question_rows,
             "labels": sorted({n["label"] for n in nodes}), "rel_types": sorted({r["type"] for r in rels})}
 
 

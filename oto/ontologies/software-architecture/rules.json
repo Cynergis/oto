@@ -80,7 +80,8 @@
         "flag": "an architecture decision must cite the document that records it"
       },
       "why": "A decision nobody can open is a rumour, and the graph would carry it as fact.",
-      "validated_by": ""
+      "validated_by": "",
+      "answers": "SA13"
     }
   ]
 }

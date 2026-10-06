@@ -44,7 +44,7 @@ PAYLOAD = {
     "documents": [{"id": "doc.x", "label": "Doc X", "as_of": "2026-01-01", "valid_from": None, "attributes": {}}],
     "findings": [{"rule": "p1", "severity": "warn", "node": "sys.a", "message": "m"}],
     "ledger": [{"at": "2026-03-01", "by": "me", "note": "n"}, {"at": "2026-02-01", "by": "me", "note": "o"}],
-    "vocabulary": {"classes": {"System": "", "DecisionRecord": "", "Risk": ""},
+    "vocabulary": {"classes": {"System": {"definition": ""}, "DecisionRecord": {"definition": ""}, "Risk": {"definition": ""}},
                    "properties": {"decided_by": [], "threatens": [], "part_of": []}, "attributes": {}},
 }
 
@@ -151,7 +151,7 @@ def test_manifest_problems_are_named(tmp_path):
                  {"file": "c.json", "format": "json"}, {"file": "../d.json", "format": "json", "root": {"$nodes": "Ghost", "$map": {"$out": "haunts"}}},
                  {"file": "e.json", "format": "json", "root": {"$include": "gone.json"}}],
         "requires": {"classes": ["Nope"], "relations": ["never"], "attributes": {"System": ["colour"]}}}), encoding="utf-8")
-    vocabulary = {"classes": {"System": ""}, "properties": {"part_of": []}, "attributes": {"System": {"tier": ["string", ""]}}}
+    vocabulary = {"classes": {"System": {"definition": ""}}, "properties": {"part_of": []}, "attributes": {"System": {"tier": {"type": "string", "definition": ""}}}}
     text = "\n".join(apps.problems(str(app), vocabulary))
     for expected in ("must be lowercase", "entry 'main.html' is not", "not a spec", "adapter 'nope.js'", "entry 1 needs a `file`",
                      "format 'yaml'", "needs `globals`", "needs `root` or `globals`", "relative path inside the app",

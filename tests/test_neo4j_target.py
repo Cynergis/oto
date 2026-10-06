@@ -91,7 +91,7 @@ def test_load_writes_constraints_batches_and_retires_the_previous_load():
         assert any("MERGE (d:Source {key: row.key})" in q for q in queries), "a source document is :Source, never :Document"
         assert not any("MERGE (d:Document" in q for q in queries)
         head = [p for q, p, _d in driver.calls if "MERGE (p:OtoProject" in q][0]
-        assert head["schema"] == 4, "the engine refuses a load from the future by this number"
+        assert head["schema"] == 6, "the engine refuses a load from the future by this number"
         assert all(d == "neo4j" for _q, _p, d in driver.calls)
         node_batches = [(q, p) for q, p, _d in driver.calls if "MERGE (n:Entity {key: row.key})" in q]
         assert node_batches and all(len(p["rows"]) <= 2 for _q, p in node_batches), "batched"

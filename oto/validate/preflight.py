@@ -32,6 +32,11 @@ def preflight(project):
 
     ontology = _load(project.ontology_config_path, "ontology.config.json")
     classes = ontology.get("classes") or {}
+    # Nothing below can be checked against a vocabulary that is not in the form the engine reads.
+    from ..model import vocabulary as _vocab
+    malformed = _vocab.shape_problems(ontology) or _vocab.hierarchy_problems(ontology) + _vocab.scheme_problems(ontology)
+    if malformed:
+        raise ProjectError("ontology.config.json is not in the form the engine reads:\n  - " + "\n  - ".join(malformed))
     properties = ontology.get("properties") or {}
     if not classes:
         problems.append("ontology.config.json declares no classes")
@@ -94,12 +99,24 @@ def preflight(project):
         declared_rules, problems = [], problems + ["rules.json is not valid JSON: %s" % exc]
     problems += _rules.problems(declared_rules, ontology)
 
+    # Questions too: a question that cannot run is not a question.
+    from ..reason import questions as _questions
+    try:
+        declared_questions = _questions.load(project)
+    except ValueError as exc:
+        declared_questions, problems = {}, problems + ["questions.json is not valid JSON: %s" % exc]
+    problems += _questions.problems(declared_questions, ontology)
+    from ..reason import shapes as _shapes
+    problems += _shapes.problems(ontology)
+    problems += _shapes.rule_question_problems(declared_rules, declared_questions)
+
     # Declared attributes: a bad declaration or a value that contradicts one is blocking. An
     # attribute nobody declared on a class that declares others is advisory, unless the project
     # has said `strict_attributes`, because a passing build must not start failing because a
     # declaration was added yesterday.
-    from ..model import vocabulary as _vocab
-    problems += _vocab.declaration_problems(classes, ontology.get("attributes") or {})
+    from ..model import namespaces as _namespaces
+    problems += _namespaces.problems(ontology)
+    problems += _vocab.declaration_problems(classes, ontology.get("attributes") or {}, ontology.get("schemes") or {})
     if not problems:
         report = _vocab.attribute_conformance(_vocab.Vocabulary.from_config(ontology), nodes)
         for nid, key, why, value in report["mistyped"][:8]:

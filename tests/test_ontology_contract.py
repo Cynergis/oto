@@ -13,9 +13,9 @@ from oto.model import ontology_compose as compose, ontology_manifest as manifest
 from oto.project import Project
 from oto.scaffold import init
 
-TEMPORAL = {"asOf": ["date", "recorded"], "validFrom": ["date", "true from"], "validTo": ["date", "true until"],
-            "status": ["string", "current | superseded | proposed."], "supersedes": ["ref", "replaces"],
-            "supersededBy": ["ref", "replaced by"], "sourceDoc": ["string", "the document"]}
+TEMPORAL = {"asOf": {"type": "date", "definition": "recorded"}, "validFrom": {"type": "date", "definition": "true from"}, "validTo": {"type": "date", "definition": "true until"},
+            "status": {"type": "string", "definition": "current | superseded | proposed."}, "supersedes": {"type": "ref", "definition": "replaces"},
+            "supersededBy": {"type": "ref", "definition": "replaced by"}, "sourceDoc": {"type": "string", "definition": "the document"}}
 STAMP = {"as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]}
 
 
@@ -31,23 +31,63 @@ def _rationale(classes, properties=()):
             "properties": {p: {"question": "How is it linked?", "why": WHY, "alternatives": "", "validated_by": ""} for p in properties}}
 
 
+def coverage_questions(classes, properties, attributes=None):
+    """One informational question per class and per relation, so a test ontology satisfies the rule
+    that every term is cited by a question that runs, without pretending to be a real question set."""
+    out = {}
+    for kind in classes:
+        out["Q-%s" % kind] = {"who": "anyone", "question": "Which %s are there?" % kind, "why": "a test asks it",
+                              "validated_by": "", "ask": {"when": [{"node": "x", "type": kind}], "select": ["x.label"]},
+                              "gate": "any"}
+    for relation in properties:
+        out["Q-%s" % relation] = {"who": "anyone", "question": "What is %s what?" % relation, "why": "a test asks it",
+                                  "validated_by": "", "ask": {"when": [{"edge": ["a", relation, "b"]}], "select": ["a.label", "b.label"]},
+                                  "gate": "any"}
+    terms = ["%s.%s" % (kind, attr) for kind, declared in (attributes or {}).items() for attr in declared]
+    if terms:
+        out["Q-attributes"] = {"who": "anyone", "question": "What is recorded on things?", "why": "a test asks it",
+                               "validated_by": "", "ask": {"when": [{"node": "x"}], "select": ["x.label"]},
+                               "gate": "any", "terms": terms}
+    return out
+
+
+def with_questions(carries):
+    """A carries list with 'questions' in its place, for a manifest a test writes by hand."""
+    if "questions" in carries:
+        return carries
+    out = list(carries)
+    out.insert(out.index("sample") if "sample" in out else len(out), "questions")
+    return out
+
+
 def write_ontology(root, name, classes, properties, sample, manifest_body=None, temporal=True, rules=None,
-                   rationale=None, lexicon=None, interview=None, gold=None, readme="# T\n\nA first draft; edit it.\n"):
+                   rationale=None, lexicon=None, interview=None, gold=None, readme="# T\n\nA first draft; edit it.\n",
+                   questions="auto", attributes=None):
     base = os.path.join(root, name)
     os.makedirs(base, exist_ok=True)
     config = {"name": name, "ontology_version": 1, "strict_domains": False, "_summary": "about %s" % name,
               "classes": classes, "properties": properties}
     if temporal:
         config["temporal"] = TEMPORAL
+    if attributes:
+        config["attributes"] = attributes
     for filename, payload in (("ontology.config.json", config), ("sample.graph.json", sample),
                               ("ontology.rationale.json", rationale or _rationale(classes, properties))):
         with open(os.path.join(base, filename), "w", encoding="utf-8") as f:
             json.dump(payload, f)
     with open(os.path.join(base, "README.md"), "w", encoding="utf-8") as f:
         f.write(readme)
-    if manifest_body is not None:
+    if questions == "auto":
+        questions = coverage_questions(classes, properties, attributes)
+    if questions:
+        with open(os.path.join(base, "questions.json"), "w", encoding="utf-8") as f:
+            json.dump({"questions": questions}, f)
+    if manifest_body is not False:          # False: a directory with no manifest at all
+        body = dict(manifest_body or {})
+        if questions and body.get("carries"):
+            body["carries"] = with_questions(body["carries"])
         with open(os.path.join(base, "manifest.json"), "w", encoding="utf-8") as f:
-            json.dump(dict({"name": name}, **manifest_body), f)
+            json.dump(dict({"name": name, "namespace": "https://example.org/ont/%s#" % name}, **body), f)
     if rules is not None:
         with open(os.path.join(base, "rules.json"), "w", encoding="utf-8") as f:
             json.dump({"rules": rules}, f)
@@ -65,8 +105,8 @@ def write_ontology(root, name, classes, properties, sample, manifest_body=None, 
 
 
 def base_ontology(root, **extra):
-    return write_ontology(root, "base", {"Document": "a doc", "Party": "a party"},
-                          {"cites": ["Document", "Document", None, "cites"]},
+    return write_ontology(root, "base", {"Document": {"definition": "a doc"}, "Party": {"definition": "a party"}},
+                          {"cites": {"domain": "Document", "range": "Document", "definition": "cites"}},
                           {"nodes": [_node("doc.a", "Document", "A"), _node("party.x", "Party", "X")], "edges": []},
                           manifest_body={"release": 2, "summary": "the base", "engine": ">=0.1",
                                          "carries": ["vocabulary", "rationale", "sample", "readme"],
@@ -83,14 +123,23 @@ def ontologies_dir(monkeypatch):
 
 # ---- the manifest ----
 
-def test_a_directory_without_a_manifest_gets_defaults(ontologies_dir):
-    write_ontology(ontologies_dir, "plain", {"Thing": "t"}, {"near": ["Thing", "Thing", None, "n"]},
-                   {"nodes": [_node("t.1", "Thing", "One")], "edges": []})
+def test_an_ontology_must_state_its_namespace(ontologies_dir):
+    sample = {"nodes": [_node("t.1", "Thing", "One")], "edges": []}
+    write_ontology(ontologies_dir, "plain", {"Thing": {"definition": "t"}}, {"near": {"domain": "Thing", "range": "Thing", "definition": "n"}}, sample)
     m = ontologies.manifest_for("plain")
-    assert m["name"] == "plain" and m["release"] == 1 and m["extends"] == [] and m["_declared"] is False
+    assert m["name"] == "plain" and m["release"] == 1 and m["extends"] == []
     assert m["summary"] == "about plain", "the vocabulary's _summary is the fallback"
-    assert m["carries"] == ["vocabulary", "rationale", "sample", "readme"]
+    assert m["carries"] == ["vocabulary", "rationale", "questions", "sample", "readme"]
     assert ontologies.self_check("plain") == []
+
+    write_ontology(ontologies_dir, "bare", {"Thing": {"definition": "t"}}, {"near": {"domain": "Thing", "range": "Thing", "definition": "n"}}, sample,
+                   manifest_body=False)
+    assert any("no manifest.json" in p for p in ontologies.self_check("bare"))
+    write_ontology(ontologies_dir, "nameless", {"Thing": {"definition": "t"}}, {"near": {"domain": "Thing", "range": "Thing", "definition": "n"}}, sample,
+                   manifest_body={"namespace": ""})
+    assert any("states no namespace" in p for p in ontologies.self_check("nameless"))
+    with tempfile.TemporaryDirectory() as root, pytest.raises(ValueError, match="not usable"):
+        init(root, name="Bare", ontology="bare")
 
 
 def test_manifest_problems_are_named_precisely(ontologies_dir):
@@ -117,7 +166,7 @@ def test_engine_spec_is_compared_numerically():
 
 
 def test_a_ontology_written_for_a_newer_engine_is_refused_by_init(ontologies_dir):
-    write_ontology(ontologies_dir, "future", {"Thing": "t"}, {"near": ["Thing", "Thing", None, "n"]},
+    write_ontology(ontologies_dir, "future", {"Thing": {"definition": "t"}}, {"near": {"domain": "Thing", "range": "Thing", "definition": "n"}},
                    {"nodes": [_node("t.1", "Thing", "One")], "edges": []}, manifest_body={"engine": ">=99.0"})
     assert any("upgrade the engine" in p for p in ontologies.self_check("future"))
     with tempfile.TemporaryDirectory() as root, pytest.raises(ValueError, match="needs engine >=99.0"):
@@ -128,8 +177,8 @@ def test_a_ontology_written_for_a_newer_engine_is_refused_by_init(ontologies_dir
 
 def test_extends_composes_bases_first_and_the_extender_wins(ontologies_dir):
     base_ontology(ontologies_dir)
-    write_ontology(ontologies_dir, "claims", {"Document": "a claims document", "Claim": "a claim"},
-                   {"filed_by": ["Claim", "Party", None, "filed"], "cites": ["Document", "Document", "cited_by", "cites"]},
+    write_ontology(ontologies_dir, "claims", {"Document": {"definition": "a claims document"}, "Claim": {"definition": "a claim"}},
+                   {"filed_by": {"domain": "Claim", "range": "Party", "definition": "filed"}, "cites": {"domain": "Document", "range": "Document", "inverse": "cited_by", "definition": "cites"}},
                    {"nodes": [_node("claim.1", "Claim", "One"), _node("doc.a", "Document", "A, revised")],
                     "edges": [{"from": "claim.1", "rel": "filed_by", "to": "party.x"}]},
                    manifest_body={"release": 1, "extends": ["base"], "carries": ["vocabulary", "rationale", "sample", "readme"]},
@@ -138,9 +187,9 @@ def test_extends_composes_bases_first_and_the_extender_wins(ontologies_dir):
     result = ontologies.composed("claims")
     config = result["config"]
     assert list(config["classes"]) == ["Document", "Party", "Claim"], "bases first, then the extender"
-    assert config["classes"]["Document"] == "a claims document", "the extender wins a description"
+    assert config["classes"]["Document"] == {"definition": "a claims document"}, "the extender wins a definition"
     assert config["temporal"] == TEMPORAL and result["report"]["temporal_from"] == "base"
-    assert config["properties"]["cites"][2] == "cited_by"
+    assert config["properties"]["cites"]["inverse"] == "cited_by"
     ids = [n["id"] for n in result["sample"]["nodes"]]
     assert ids == ["doc.a", "party.x", "claim.1"] and result["sample"]["nodes"][0]["label"] == "A, revised"
     assert result["sample"]["edges"] == [{"from": "claim.1", "rel": "filed_by", "to": "party.x"}]
@@ -156,31 +205,31 @@ def test_extends_composes_bases_first_and_the_extender_wins(ontologies_dir):
 
 def test_widening_is_reported_and_narrowing_is_refused(ontologies_dir):
     base_ontology(ontologies_dir)
-    write_ontology(ontologies_dir, "wider", {"Organisation": "an org"},
-                   {"cites": ["Document|Organisation", "Document", None, "cites"]},
+    write_ontology(ontologies_dir, "wider", {"Organisation": {"definition": "an org"}},
+                   {"cites": {"domain": "Document|Organisation", "range": "Document", "definition": "cites"}},
                    {"nodes": [_node("org.1", "Organisation", "Org")], "edges": []},
                    manifest_body={"extends": ["base"]}, temporal=False)
     report = ontologies.composed("wider")["report"]
     assert report["widened"] == [("cites", "domain", "wider", ["Organisation"])]
     assert ontologies.self_check("wider") == []
-    write_ontology(ontologies_dir, "narrower", {"Memo": "a memo"},
-                   {"cites": ["Document", "Memo", None, "cites"]},
+    write_ontology(ontologies_dir, "narrower", {"Memo": {"definition": "a memo"}},
+                   {"cites": {"domain": "Document", "range": "Memo", "definition": "cites"}},
                    {"nodes": [_node("memo.1", "Memo", "M")], "edges": []},
                    manifest_body={"extends": ["base"]}, temporal=False)
     with pytest.raises(ontologies.OntologyError, match="changes the range of 'cites'"):
         ontologies.composed("narrower")
-    write_ontology(ontologies_dir, "narrower", {"Memo": "a memo"},
-                   {"cites": ["Document", "Document|Memo", None, "cites"]},
+    write_ontology(ontologies_dir, "narrower", {"Memo": {"definition": "a memo"}},
+                   {"cites": {"domain": "Document", "range": "Document|Memo", "definition": "cites"}},
                    {"nodes": [_node("memo.1", "Memo", "M")], "edges": []},
                    manifest_body={"extends": ["base"]}, temporal=False)
     assert ontologies.self_check("narrower") == []
-    write_ontology(ontologies_dir, "narrowest", {"Memo": "a memo"},
-                   {"cites": ["Document", "Document|Memo", None, "cites"]},
+    write_ontology(ontologies_dir, "narrowest", {"Memo": {"definition": "a memo"}},
+                   {"cites": {"domain": "Document", "range": "Document|Memo", "definition": "cites"}},
                    {"nodes": [_node("memo.1", "Memo", "M")], "edges": []},
                    manifest_body={"extends": ["narrower"]}, temporal=False)
     with open(os.path.join(ontologies_dir, "narrowest", "ontology.config.json"), encoding="utf-8") as f:
         cfg = json.load(f)
-    cfg["properties"]["cites"] = ["Document", "Document", None, "cites"]
+    cfg["properties"]["cites"] = {"domain": "Document", "range": "Document", "definition": "cites"}
     with open(os.path.join(ontologies_dir, "narrowest", "ontology.config.json"), "w", encoding="utf-8") as f:
         json.dump(cfg, f)
     problems = ontologies.self_check("narrowest")
@@ -209,20 +258,20 @@ def test_rules_merge_by_id_and_a_different_body_is_refused(ontologies_dir):
 
 
 def test_a_cycle_and_an_unknown_base_are_refused_with_the_chain(ontologies_dir):
-    write_ontology(ontologies_dir, "a", {"A": "a"}, {"r": ["A", "A", None, "r"]}, {"nodes": [_node("a.1", "A", "a")], "edges": []},
+    write_ontology(ontologies_dir, "a", {"A": {"definition": "a"}}, {"r": {"domain": "A", "range": "A", "definition": "r"}}, {"nodes": [_node("a.1", "A", "a")], "edges": []},
                    manifest_body={"extends": ["b"]})
-    write_ontology(ontologies_dir, "b", {"B": "b"}, {"s": ["B", "B", None, "s"]}, {"nodes": [_node("b.1", "B", "b")], "edges": []},
+    write_ontology(ontologies_dir, "b", {"B": {"definition": "b"}}, {"s": {"domain": "B", "range": "B", "definition": "s"}}, {"nodes": [_node("b.1", "B", "b")], "edges": []},
                    manifest_body={"extends": ["a"]})
     with pytest.raises(ontologies.OntologyError, match="extends itself through a -> b -> a"):
         ontologies.parts("a")
-    write_ontology(ontologies_dir, "c", {"C": "c"}, {"t": ["C", "C", None, "t"]}, {"nodes": [_node("c.1", "C", "c")], "edges": []},
+    write_ontology(ontologies_dir, "c", {"C": {"definition": "c"}}, {"t": {"domain": "C", "range": "C", "definition": "t"}}, {"nodes": [_node("c.1", "C", "c")], "edges": []},
                    manifest_body={"extends": ["nowhere"]})
     assert any("unknown ontology 'nowhere' (extended by 'c')" in p for p in ontologies.self_check("c"))
 
 
 def test_rationale_for_an_inherited_class_is_ignored_and_reported(ontologies_dir):
     base_ontology(ontologies_dir)
-    write_ontology(ontologies_dir, "ext", {"Claim": "a claim"}, {"about": ["Claim", "Party", None, "about"]},
+    write_ontology(ontologies_dir, "ext", {"Claim": {"definition": "a claim"}}, {"about": {"domain": "Claim", "range": "Party", "definition": "about"}},
                    {"nodes": [_node("claim.1", "Claim", "One")], "edges": []},
                    manifest_body={"extends": ["base"]}, temporal=False,
                    rationale={"classes": {"Claim": {"question": "What is a claim?", "why": WHY, "alternatives": "", "validated_by": ""},
@@ -241,7 +290,7 @@ def test_a_guide_is_composed_leaf_first_checked_and_installed(ontologies_dir, ca
     base = os.path.join(ontologies_dir, "base")
     with open(os.path.join(base, "guide.md"), "w", encoding="utf-8") as f:
         f.write("# Base\n\n## What every graph here is for\n\nBase reasons.\n")
-    write_ontology(ontologies_dir, "guided", {"Claim": "a claim"}, {"about": ["Claim", "Party", None, "about"]},
+    write_ontology(ontologies_dir, "guided", {"Claim": {"definition": "a claim"}}, {"about": {"domain": "Claim", "range": "Party", "definition": "about"}},
                    {"nodes": [_node("claim.1", "Claim", "One")], "edges": []},
                    manifest_body={"extends": ["base"], "carries": ["vocabulary", "rationale", "sample", "readme", "guide"]},
                    temporal=False)
@@ -262,7 +311,7 @@ def test_a_guide_is_composed_leaf_first_checked_and_installed(ontologies_dir, ca
 
 def test_lexicon_interview_and_gold_are_checked_and_composed(ontologies_dir):
     base_ontology(ontologies_dir)
-    write_ontology(ontologies_dir, "rich", {"Claim": "a claim"}, {"about": ["Claim", "Party", None, "about"]},
+    write_ontology(ontologies_dir, "rich", {"Claim": {"definition": "a claim"}}, {"about": {"domain": "Claim", "range": "Party", "definition": "about"}},
                    {"nodes": [_node("claim.1", "Claim", "One")], "edges": []},
                    manifest_body={"extends": ["base"], "carries": ["vocabulary", "rationale", "sample", "readme", "lexicon", "interview", "gold"]},
                    temporal=False,
@@ -275,7 +324,7 @@ def test_lexicon_interview_and_gold_are_checked_and_composed(ontologies_dir):
     assert [e["term"] for e in result["lexicon"]["entries"]] == ["the claim", "the mill"]
     assert result["interview"].count("## ") == 2 and len(result["gold"]) == 2
     # and each kind of mistake is named
-    write_ontology(ontologies_dir, "poor", {"Claim": "a claim"}, {"about": ["Claim", "Party", None, "about"]},
+    write_ontology(ontologies_dir, "poor", {"Claim": {"definition": "a claim"}}, {"about": {"domain": "Claim", "range": "Party", "definition": "about"}},
                    {"nodes": [_node("claim.1", "Claim", "One")], "edges": []},
                    manifest_body={"extends": ["base"], "carries": ["vocabulary", "rationale", "sample", "readme", "lexicon", "interview", "gold"]},
                    temporal=False,
@@ -290,7 +339,7 @@ def test_lexicon_interview_and_gold_are_checked_and_composed(ontologies_dir):
 
 def test_a_deny_term_or_personal_data_makes_a_ontology_unpublishable(ontologies_dir, monkeypatch):
     monkeypatch.setenv("OTO_DENY_TERMS", "acmecorp, secretclient")
-    write_ontology(ontologies_dir, "leaky", {"Thing": "a thing for AcmeCorp"}, {"near": ["Thing", "Thing", None, "n"]},
+    write_ontology(ontologies_dir, "leaky", {"Thing": {"definition": "a thing for AcmeCorp"}}, {"near": {"domain": "Thing", "range": "Thing", "definition": "n"}},
                    {"nodes": [_node("t.1", "Thing", "One", card="4111 1111 1111 1111")], "edges": []})
     problems = ontologies.self_check("leaky")
     assert any("ontology.config.json in leaky names a deny term (acmecorp)" in p for p in problems), problems
@@ -304,7 +353,7 @@ def test_a_deny_term_or_personal_data_makes_a_ontology_unpublishable(ontologies_
 
 def test_init_records_the_ontology_and_installs_what_it_carries(ontologies_dir):
     base_ontology(ontologies_dir)
-    write_ontology(ontologies_dir, "rich", {"Claim": "a claim"}, {"about": ["Claim", "Party", None, "about"]},
+    write_ontology(ontologies_dir, "rich", {"Claim": {"definition": "a claim"}}, {"about": {"domain": "Claim", "range": "Party", "definition": "about"}},
                    {"nodes": [_node("claim.1", "Claim", "One")], "edges": []},
                    manifest_body={"release": 4, "extends": ["base"],
                                   "carries": ["vocabulary", "rationale", "sample", "readme", "lexicon", "interview", "gold"]},
@@ -365,11 +414,11 @@ def test_export_writes_a_manifest_and_the_ontology_shows(ontologies_dir, capsys)
         assert problems == [], problems
         m = json.load(open(os.path.join(path, "manifest.json"), encoding="utf-8"))
         assert m["name"] == "my-org" and m["release"] == 1 and m["summary"] == "mine" and m["engine"].startswith(">=")
-        assert m["carries"] == ["vocabulary", "rationale", "rules", "sample", "readme"] and m["changelog"][0]["release"] == 1, \
+        assert m["carries"] == ["vocabulary", "rationale", "rules", "questions", "sample", "readme"] and m["changelog"][0]["release"] == 1, \
             "the core's rule is inherited, so the export carries rules"
         assert main(["ontology", "show", "my-org"]) == 0
         out = capsys.readouterr().out
-        assert "my-org @1  (user)" in out and "self-check: clean" in out and "carries:  vocabulary, rationale, rules, sample, readme" in out
+        assert "my-org @1  (user)" in out and "self-check: clean" in out and "carries:  vocabulary, rationale, rules, questions, sample, readme" in out
         assert main(["ontology", "show", "no-such"]) == 1
         assert main(["ontology", "list"]) == 0
         assert "extends oto-core" in capsys.readouterr().out
@@ -384,9 +433,9 @@ def test_actions_are_carried_composed_checked_installed_and_exported(ontologies_
     config_path = os.path.join(ontologies_dir, "base", "ontology.config.json")
     with open(config_path, encoding="utf-8") as f:
         base_config = json.load(f)
-    base_config["classes"]["Action"] = "something that can be done"
-    base_config["properties"]["acts_on"] = ["Action", None, None, "acts on"]
-    base_config["properties"]["executed_by"] = ["Action", None, None, "executed by"]
+    base_config["classes"]["Action"] = {"definition": "something that can be done"}
+    base_config["properties"]["acts_on"] = {"domain": "Action", "definition": "acts on"}
+    base_config["properties"]["executed_by"] = {"domain": "Action", "definition": "executed by"}
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(base_config, f)
     rationale_path = os.path.join(ontologies_dir, "base", "ontology.rationale.json")
@@ -396,6 +445,12 @@ def test_actions_are_carried_composed_checked_installed_and_exported(ontologies_
                                            "alternatives": "", "validated_by": ""}
     with open(rationale_path, "w", encoding="utf-8") as f:
         json.dump(base_rationale, f)
+    questions_path = os.path.join(ontologies_dir, "base", "questions.json")
+    with open(questions_path, encoding="utf-8") as f:
+        base_questions = json.load(f)
+    base_questions["questions"].update(coverage_questions(["Action"], ["acts_on", "executed_by"]))
+    with open(questions_path, "w", encoding="utf-8") as f:
+        json.dump(base_questions, f)
     action = {"id": "action.ping-party", "label": "Ping a party", "description": "Calls the party's endpoint.",
               "subject": "Party", "executed_by": "party.x",
               "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
@@ -407,7 +462,7 @@ def test_actions_are_carried_composed_checked_installed_and_exported(ontologies_
     os.makedirs(os.path.join(ontologies_dir, "base", "actions"))
     with open(os.path.join(ontologies_dir, "base", "actions", "action.ping-party.json"), "w", encoding="utf-8") as f:
         json.dump(action, f)
-    write_ontology(ontologies_dir, "acting", {"Claim": "a claim"}, {"about": ["Claim", "Party", None, "about"]},
+    write_ontology(ontologies_dir, "acting", {"Claim": {"definition": "a claim"}}, {"about": {"domain": "Claim", "range": "Party", "definition": "about"}},
                    {"nodes": [_node("claim.1", "Claim", "One"), _node("party.x", "Party", "X")], "edges": []},
                    manifest_body={"extends": ["base"], "carries": ["vocabulary", "rationale", "sample", "readme", "actions"]},
                    temporal=False)

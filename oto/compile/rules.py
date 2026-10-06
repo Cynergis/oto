@@ -36,7 +36,10 @@ def run(project):
     with open(os.path.join(layout.graph, "knowledge-graph.json"), encoding="utf-8") as f:
         graph = json.load(f)
     try:
-        result = _engine.run(rules, graph["nodes"], graph["edges"])
+        from ..model.vocabulary import covers as _covers
+        from ..reason.questions import declared_names
+        result = _engine.run(rules, graph["nodes"], graph["edges"], covers=_covers(vocabulary.get("classes") or {}),
+                             declared=declared_names(vocabulary))
     except _engine.DoesNotConverge as exc:
         raise ProjectError(str(exc))
 

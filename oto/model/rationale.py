@@ -59,7 +59,7 @@ def save(project, record):
     return path
 
 
-def _entry_problems(kind, name, entry, description):
+def _entry_problems(kind, name, entry, definition):
     """What is wrong with one rationale entry."""
     problems = []
     if not isinstance(entry, dict):
@@ -70,10 +70,10 @@ def _entry_problems(kind, name, entry, description):
         problems.append("%s %r has no `question`: what does it exist to answer?" % (kind, name))
     if not why:
         problems.append("%s %r has no `why`" % (kind, name))
-    elif description and why == (description or "").strip():
-        # Checked BEFORE the length test on purpose. Most class descriptions are short, so a copied
+    elif definition and why == (definition or "").strip():
+        # Checked BEFORE the length test on purpose. Most class definitions are short, so a copied
         # one would otherwise be reported as "too short", which sends the reader the wrong way.
-        problems.append("%s %r repeats its description instead of giving a reason" % (kind, name))
+        problems.append("%s %r repeats its definition instead of giving a reason" % (kind, name))
     elif len(why) < MIN_WHY_CHARS:
         problems.append("%s %r has a `why` too short to say anything (%d characters)"
                         % (kind, name, len(why)))
@@ -95,7 +95,7 @@ def report(vocabulary_config, record):
         if not entry:
             missing_classes.append(name)
             continue
-        problems += _entry_problems("class", name, entry, classes.get(name))
+        problems += _entry_problems("class", name, entry, (classes.get(name) or {}).get("definition"))
         if (entry.get("validated_by") or "").strip():
             validated_classes.append(name)
 
@@ -110,9 +110,7 @@ def report(vocabulary_config, record):
         if name not in properties:
             continue
         entry = property_rationale[name]
-        spec = properties.get(name) or []
-        description = spec[3] if len(spec) > 3 else ""
-        problems += _entry_problems("relation", name, entry, description)
+        problems += _entry_problems("relation", name, entry, (properties.get(name) or {}).get("definition"))
         if (entry.get("validated_by") or "").strip():
             validated_properties.append(name)
 

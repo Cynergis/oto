@@ -61,7 +61,8 @@ def cmd_rules(args):
             print("  %s" % problem)
         return 1
     try:
-        outcome = _engine.run(declared, graph.get("nodes") or [], graph.get("edges") or [])
+        outcome = _engine.run(declared, graph.get("nodes") or [], graph.get("edges") or [],
+                              covers=_vocab.covers(vocabulary.get("classes") or {}))
     except _engine.DoesNotConverge as exc:
         print("oto: %s" % exc, file=sys.stderr)
         return 1

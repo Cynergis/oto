@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""What both stores index besides the graph: the corpus passages, the lexicon, the recent ledger.
+"""What both stores index besides the graph: the corpus passages, the lexicon, the recent ledger,
+and the vocabulary's terms with their reasoning.
 
 One walk, one row shape, so the SQLite target and the Neo4j target cannot drift apart on what a
 passage or a lexicon row is. The serving stores are compared query for query in a test; that test
@@ -29,6 +30,17 @@ def passages(layout):
     return out
 
 
+def names_of(node, default_language="en"):
+    """Everything a node answers to besides its label: [(name, kind, language)] with kind `alias`
+    (what it is also called), `label` (its label in another language) or `hidden` (a misspelling or
+    a code, for resolution only, never shown)."""
+    out = [(alias, "alias", default_language) for alias in node.get("aliases") or []]
+    labels = node.get("labels") or {}
+    out += [(text, "label", lang) for lang, text in labels.items() if isinstance(text, str) and text and lang != default_language]
+    out += [(hidden, "hidden", default_language) for hidden in node.get("hidden_labels") or []]
+    return out
+
+
 def lexicon_rows(project):
     """One row per (phrase, target): `phrase` lowercased, `canonical`, `target` ('' when none), `status`, `note`."""
     path = os.path.join(project.data, "lexicon.json")
@@ -46,6 +58,57 @@ def lexicon_rows(project):
                 out.append({"phrase": phrase.strip().lower(), "canonical": entry["term"], "target": target,
                             "status": status, "note": note})
     return out
+
+
+def term_rows(project):
+    """One row per term of the vocabulary, so a store answers what a class or a relation means
+    without the project beside it: `name`, `kind` (class | relation | attribute | temporal | scheme),
+    `owner` (the class, for an attribute; '' otherwise), `spec` and `rationale` as JSON text, `iri`."""
+    from ..model import namespaces as _namespaces, rationale as _rationale
+    path = project.ontology_config_path
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as f:
+        config = json.load(f)
+    record = _rationale.load(project)
+    terms = _namespaces.Terms(config, project.identity())
+    languages = config.get("languages") or []
+    out = []
+
+    def row(name, kind, owner, spec, why, iri):
+        spec = dict(spec)
+        if languages:
+            spec["_languages"] = list(languages)
+        out.append({"name": name, "kind": kind, "owner": owner, "spec": json.dumps(spec, ensure_ascii=False),
+                    "rationale": json.dumps(why or {}, ensure_ascii=False), "iri": iri})
+
+    for name, spec in (config.get("classes") or {}).items():
+        row(name, "class", "", spec, (record.get("classes") or {}).get(name), terms.iri(name))
+    for name, spec in (config.get("properties") or {}).items():
+        row(name, "relation", "", spec, (record.get("properties") or {}).get(name), terms.iri(name))
+    for owner, declared in (config.get("attributes") or {}).items():
+        for name, spec in (declared or {}).items():
+            row(name, "attribute", owner, spec, None, terms.iri(name))
+    for name, spec in (config.get("temporal") or {}).items():
+        row(name, "temporal", "", spec, None, terms.temporal(name))
+    for name, spec in (config.get("schemes") or {}).items():
+        row(name, "scheme", "", spec, None, terms.iri(name))
+    return out
+
+
+def question_rows(project):
+    """One row per competency question, so a store can run them without the project beside it:
+    `id`, `spec` as JSON text (the whole question: wording, who, why, params, ask, gate, gaps, terms)."""
+    from ..project import ProjectError
+    from ..reason import questions as _questions
+    declared = _questions.load(project)
+    if declared:
+        with open(project.ontology_config_path, encoding="utf-8") as f:
+            vocabulary = json.load(f)
+        problems = _questions.problems(declared, vocabulary)
+        if problems:
+            raise ProjectError("questions.json is not usable:\n  - " + "\n  - ".join(problems))
+    return [{"id": qid, "spec": json.dumps(q, ensure_ascii=False)} for qid, q in declared.items()]
 
 
 def changelog_rows(project, tail=LEDGER_TAIL):

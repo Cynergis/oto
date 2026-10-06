@@ -22,8 +22,10 @@ def _author(root):
     """Write a minimal, invented domain: two classes, two nodes, one edge. Returns the graph."""
     with open(os.path.join(root, "ontology.config.json"), encoding="utf-8") as f:
         cfg = json.load(f)
-    cfg["classes"] = {"Machine": "A physical machine.", "Site": "A place where machines run."}
-    cfg["properties"] = {"installed_at": ["Machine", "Site", "hosts", "Where a machine runs."]}
+    cfg["classes"] = {"Machine": {"definition": "A physical machine."},
+                      "Site": {"definition": "A place where machines run."}}
+    cfg["properties"] = {"installed_at": {"domain": "Machine", "range": "Site", "inverse": "hosts",
+                                          "definition": "Where a machine runs."}}
     with open(os.path.join(root, "ontology.config.json"), "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2)
 

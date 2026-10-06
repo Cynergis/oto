@@ -9,8 +9,8 @@ from oto.scaffold import init
 
 CONFIG = {
     "ontology_version": 3,
-    "classes": {"A": "a", "B": "b", "C": "c", "D": "d"},
-    "properties": {"links": ["A", "B", None, "a to b"]},
+    "classes": {"A": {"definition": "a"}, "B": {"definition": "b"}, "C": {"definition": "c"}, "D": {"definition": "d"}},
+    "properties": {"links": {"domain": "A", "range": "B", "definition": "a to b"}},
 }
 STAMP = {"as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "d",
          "status": "current", "sources": ["d"]}

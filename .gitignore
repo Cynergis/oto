@@ -18,5 +18,5 @@ build/
 .pytest_cache/
 
 # Reference material beside the engine (prototypes, examples): never part of the package
-references/
+/references/
 .DS_Store

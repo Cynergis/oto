@@ -5,10 +5,13 @@ do indexed lookups and full-text search instead of re-parsing the JSON graph on 
 Tables
   nodes(id PK, type, label, status, as_of, valid_from, valid_to, source_doc, summary,
         attributes, tags, sources, degree)   -- attributes/tags/sources are JSON text
-  aliases(node_id, alias)
+  aliases(node_id, alias, kind, lang)   -- what else a node answers to: an alias, a label in another
+                                        -- language, or a hidden label (resolution only)
   edges(src, rel, dst, status)                        -- indexed on src, dst, rel
   node_fts   FTS5(id, label, aliases, summary, tags)  -- entity search
   docs_fts   FTS5(path, title, body)                  -- passage search over the corpus
+  terms(name, kind, owner, spec, rationale, iri)      -- the vocabulary, so answers can say what a term means
+  questions(id, spec)                                 -- the competency questions, so kg_ask runs them
 
 Dependency-free (sqlite3 + FTS5 ship with CPython). Idempotent: rebuilds the file each run.
 Runs last: it reads knowledge-graph.json from the knowledge stage, and indexes the cards the
@@ -26,7 +29,7 @@ import os, json, sqlite3
 #: whose version is HIGHER than it understands, because that database may mean something it cannot
 #: see. It accepts a lower or absent version, because the data it knows how to read is still there.
 #: A version nothing checks protects nothing, so `oto/serve/engine.py` checks this one at startup.
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 6
 
 SCHEMA_SQL = """
 CREATE TABLE nodes (
@@ -37,7 +40,7 @@ CREATE TABLE nodes (
   degree INTEGER,
   evidence TEXT
 );
-CREATE TABLE aliases (node_id TEXT, alias TEXT);
+CREATE TABLE aliases (node_id TEXT, alias TEXT, kind TEXT, lang TEXT);
 CREATE TABLE edges (src TEXT, rel TEXT, dst TEXT, status TEXT, derived_by TEXT, premises TEXT);
 CREATE TABLE derived_attributes (node_id TEXT, name TEXT, value TEXT, derived_by TEXT, premises TEXT);
 CREATE TABLE policy_findings (rule TEXT, severity TEXT, node_id TEXT, message TEXT);
@@ -54,6 +57,8 @@ CREATE TABLE meta (key TEXT, value TEXT);               -- build_seq, schema_ver
 CREATE TABLE changelog (at TEXT, by TEXT, note TEXT, nodes_added INTEGER, nodes_changed INTEGER, edges_added INTEGER, retired TEXT, sources TEXT);   -- recent ledger, for kg_overview
 CREATE TABLE lexicon (phrase TEXT, canonical TEXT, target TEXT, status TEXT, note TEXT);
 CREATE INDEX idx_lexicon_phrase ON lexicon(phrase);     -- jargon/synonym -> canonical entity (kg_resolve)
+CREATE TABLE terms (name TEXT, kind TEXT, owner TEXT, spec TEXT, rationale TEXT, iri TEXT);   -- the vocabulary (kg_define)
+CREATE TABLE questions (id TEXT, spec TEXT);           -- the competency questions, spec as JSON (kg_ask)
 """
 
 
@@ -67,6 +72,11 @@ def run(project):
     graph = json.load(open(os.path.join(SEM, "knowledge-graph.json"), encoding="utf-8"))
     nodes = graph["nodes"]
     edges = graph["edges"]
+    from . import rows as _rows
+    from ..model import vocabulary as _vocab
+    language = _vocab.DEFAULT_LANGUAGE
+    if os.path.exists(project.ontology_config_path):
+        language = _vocab.languages(json.load(open(project.ontology_config_path, encoding="utf-8")))[0]
 
     # degree
     degree = {}
@@ -97,11 +107,11 @@ def run(project):
              json.dumps(n.get("sources") or [], ensure_ascii=False),
              degree.get(n["id"], 0),
              json.dumps(n.get("evidence") or [], ensure_ascii=False)))
-        al = n.get("aliases") or []
-        for a in al:
-            cur.execute("INSERT INTO aliases VALUES (?,?)", (n["id"], a))
+        names = _rows.names_of(n, language)
+        for name, kind, lang in names:
+            cur.execute("INSERT INTO aliases VALUES (?,?,?,?)", (n["id"], name, kind, lang))
         cur.execute("INSERT INTO node_fts VALUES (?,?,?,?,?)",
-                    (n["id"], n.get("label", ""), " ".join(al),
+                    (n["id"], n.get("label", ""), " ".join(name for name, _kind, _lang in names),
                      n.get("summary", "") or "", " ".join(n.get("tags") or [])))
 
     for e in edges:
@@ -128,7 +138,6 @@ def run(project):
                         (x["rule"], x["severity"], x.get("node"), x["message"]))
 
     # ---- passage index, lexicon and the recent ledger: the same rows the Neo4j target loads ----
-    from . import rows as _rows
     passages = _rows.passages(_layout)
     for p in passages:
         cur.execute("INSERT INTO docs_fts VALUES (?,?,?)", (p["path"], p["title"], p["body"]))
@@ -140,6 +149,17 @@ def run(project):
         cur.execute("INSERT INTO lexicon VALUES (?,?,?,?,?)",
                     (r["phrase"], r["canonical"], r["target"], r["status"], r["note"]))
     nlex = len(lexicon)
+
+    nterms = 0
+    for r in _rows.term_rows(project):
+        cur.execute("INSERT INTO terms VALUES (?,?,?,?,?,?)",
+                    (r["name"], r["kind"], r["owner"], r["spec"], r["rationale"], r["iri"]))
+        nterms += 1
+
+    nquestions = 0
+    for r in _rows.question_rows(project):
+        cur.execute("INSERT INTO questions VALUES (?,?)", (r["id"], r["spec"]))
+        nquestions += 1
 
     for r in _rows.changelog_rows(project):
         cur.execute("INSERT INTO changelog VALUES (?,?,?,?,?,?,?,?)",
@@ -167,4 +187,5 @@ def run(project):
               f"and rename it over {identity['db_name']}, or rerun without the server. "
               f"(CI is unaffected.)")
         raise SystemExit(0)
-    print(f"{os.path.basename(DB)}: {nn} nodes, {ne} edges ({nderived} derived), {ndocs} passages, {nlex} lexicon rows -> {os.path.relpath(DB, project.src)}")
+    print(f"{os.path.basename(DB)}: {nn} nodes, {ne} edges ({nderived} derived), {ndocs} passages, {nlex} lexicon rows, "
+          f"{nterms} terms, {nquestions} questions -> {os.path.relpath(DB, project.src)}")

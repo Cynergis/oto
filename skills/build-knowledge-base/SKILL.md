@@ -92,7 +92,9 @@ Do not list nouns. Write down the questions the knowledge base must answer, then
   what does each document exist to tell someone? What would a reader of this corpus need to look up?
   What changes over time in it? Write them in the reader's words, and label them as yours.
 
-**Show the question list and confirm it.** Every class in Phase 2 traces to one of these.
+**Show the question list and confirm it.** Every class in Phase 2 traces to one of these, and
+every one of these ends up in `questions.json`, written so it runs (the ontology-interview skill's
+Phase 4d): `oto query questions` then says, after every build, which the graph answers.
 
 ## Phase 2 — The vocabulary
 
@@ -267,7 +269,10 @@ oto ingest complete --project <root>   # the graph holds the run: processing/ ->
 "archived" keeps meaning "in the graph". After it, `processing/` is empty; anything left there is
 work still owed. `oto status` says so.
 
-Then verify with the questions from Gate 1. For each, run the query that should answer it:
+Then verify with the questions from Gate 1. Run them: `oto query --project <root> questions` says
+which the graph answers as required and which it cannot, with the gap; `oto query --project <root>
+ask <id> NAME=<entity>` shows one answer with its rows. For what the questions do not cover, run the
+query that should answer it:
 
 ```bash
 oto query --project <root> resolve "<a term the question uses>"
@@ -298,7 +303,7 @@ it to the host's MCP configuration; for Claude Code, in `.mcp.json` at the proje
 {"mcpServers": {"<slug>-kg": {"command": "oto", "args": ["serve", "--project", "<root>"]}}}
 ```
 
-The server speaks JSON-RPC 2.0 over stdio, exposes ten `kg_*` tools, answers current facts by
+The server speaks JSON-RPC 2.0 over stdio, exposes seventeen `kg_*` tools, answers current facts by
 default with `history` and `as_of` for time slices, and picks up a rebuilt database on the next call
 without a restart. Confirm it with a one-shot query from the shell first; the server answers the
 same way.

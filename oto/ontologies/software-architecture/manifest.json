@@ -1,17 +1,19 @@
 {
   "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
   "name": "software-architecture",
-  "release": 5,
+  "release": 8,
   "domain": "software",
   "summary": "Software estate: systems, components, interfaces, data, environments, decisions and risks.",
   "extends": [
     "oto-core"
   ],
+  "namespace": "https://cynergis.ai/ont/software-architecture#",
   "engine": ">=0.1",
   "carries": [
     "vocabulary",
     "rationale",
     "rules",
+    "questions",
     "sample",
     "readme",
     "guide",
@@ -19,6 +21,21 @@
   ],
   "maintainer": "OTO",
   "changelog": [
+    {
+      "release": 8,
+      "at": "2026-10-06",
+      "note": "Declares its shapes: a part belongs to one system, one accountable team, a component or store runs somewhere, a component is part of a system, a repository has an owner and a name; the policy on undocumented decisions names the question it protects (SA13)."
+    },
+    {
+      "release": 7,
+      "at": "2026-10-06",
+      "note": "Ships its competency questions (questions.json): every class, relation and attribute is cited by a question that runs, and the sample answers each one it must."
+    },
+    {
+      "release": 6,
+      "at": "2026-10-05",
+      "note": "Declares its namespace: its terms keep one IRI in the RDF export of every project that uses it. Asset, the kind every system, component, interface and data store is, so one question or rule covers them all."
+    },
     {
       "release": 5,
       "at": "2026-09-23",

@@ -74,7 +74,7 @@ if BACKEND not in BACKENDS:
 
 #: The highest database shape this engine understands. Keep in step with
 #: `oto.targets.sqlite.SCHEMA_VERSION`, and read the reasoning there.
-UNDERSTOOD_SCHEMA = 5
+UNDERSTOOD_SCHEMA = 6
 
 
 def _meta(path, key, default=None):
@@ -790,6 +790,93 @@ def _graph_from_store():
     return nodes, edges
 
 
+_questions = (None, None)         # (the store they were read from, {id: question})
+
+
+def questions():
+    """The competency questions the store carries, read once per loaded store."""
+    global _questions
+    if _questions[0] is not STORE:
+        _questions = (STORE, STORE.questions() if "questions" in STORE.features() else {})
+    return _questions[1]
+
+
+def _derived_attributes_from_store():
+    out = {}
+    for r in STORE.all_derived_attributes():
+        value = r.get("value")
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except ValueError:
+                pass
+        out.setdefault(r["node_id"], {})[r["name"]] = value
+    return out
+
+
+def ask_data(qid, params=None):
+    """One competency question, run: {id, question, who, status, gate, params, rows, gaps}, or an
+    error. `params` maps NAME -> an entity (id, label or alias), resolved the way kg_resolve does."""
+    from ..reason import questions as _questions_model
+    from ..model.vocabulary import covers as _covers
+    declared = questions()
+    if not declared:
+        return {"error": "No competency questions: the store carries none (questions.json absent or empty at build).", "rows": []}
+    question = declared.get(qid)
+    if question is None:
+        return {"error": "No question %r; declared: %s" % (qid, ", ".join(declared)), "rows": []}
+    if isinstance(params, str):
+        try:
+            params = json.loads(params)
+        except ValueError:
+            return {"error": "params must be an object NAME -> entity, not %r" % params, "rows": []}
+    bound, unresolved = {}, []
+    for name, spec in (question.get("params") or {}).items():
+        given = (params or {}).get(name)
+        if given in (None, ""):
+            unresolved.append("%s (a %s)" % (name, (spec or {}).get("type") or "node"))
+            continue
+        nid, _alts = resolve(str(given))
+        if not nid:
+            return {"error": "No entity matched %r for %s." % (given, name), "rows": []}
+        bound[name] = nid
+    if unresolved:
+        return {"error": "Question %s needs %s. Pass it as params." % (qid, ", ".join(unresolved)), "rows": []}
+    nodes, edges = _graph_from_store()
+    result = _questions_model.run(qid, question, bound, nodes, edges, _covers(vocabulary().classes),
+                                  _derived_attributes_from_store())
+    result["labels"] = {v: (label(v) or v) for row in result["rows"] for v in row.values()
+                        if isinstance(v, str) and node(v)}
+    return result
+
+
+def ask_text(qid, params=None):
+    """What the graph answers to one of its competency questions, with the gaps when it cannot."""
+    from ..reason import questions as _questions_model
+    result = ask_data(qid, params)
+    if result.get("error"):
+        return result["error"]
+    return _questions_model.result_text(result, result.get("labels"))
+
+
+def questions_data():
+    """Every competency question and whether the live graph answers it."""
+    from ..reason import questions as _questions_model
+    from ..model.vocabulary import covers as _covers
+    declared = questions()
+    if not declared:
+        return {"rows": []}
+    nodes, edges = _graph_from_store()
+    return {"rows": _questions_model.survey(declared, nodes, edges, _covers(vocabulary().classes),
+                                            _derived_attributes_from_store())}
+
+
+def questions_text():
+    """The questions this graph exists to answer, and whether it does: the ontology's health."""
+    from ..reason import questions as _questions_model
+    return _questions_model.survey_text(questions_data()["rows"])
+
+
 def actions_data(action=None, on=None, ready=False, due=False):
     """The catalog as data: every action, one action, or the actions bound to one entity."""
     from ..actions import catalog as _catalog
@@ -968,6 +1055,21 @@ TOOLS = [
          "query": {"type": "string", "description": "optional substring to filter document title/id"},
          "limit": {"type": "integer", "description": "max docs (default 200)"}}},
      "fn": lambda a: docs_text(a.get("query"), a.get("limit", 200))},
+    {"name": "kg_questions",
+     "description": "The competency questions this graph exists to answer, and whether it does: each question's id, "
+                    "who asks it, and its status on the live graph (answered, unanswered with the gap, violated, "
+                    "clean). Use FIRST to learn what the graph is for and where it is thin, before asking one.",
+     "inputSchema": {"type": "object", "properties": {}},
+     "fn": lambda a: questions_text()},
+    {"name": "kg_ask",
+     "description": "Run one competency question by id (see kg_questions) with its parameters bound to entities "
+                    "(id, label or alias), and return the rows the graph answers with, or the gap that explains "
+                    "an empty answer. Use for 'can the graph answer X about Y' and for the question's own answer.",
+     "inputSchema": {"type": "object", "properties": {
+         "id": {"type": "string", "description": "the question id, e.g. CQ3"},
+         "params": {"type": "object", "description": "NAME -> entity, one per declared parameter, e.g. {\"CLAIM\": \"claim.c-5001\"}"}},
+         "required": ["id"]},
+     "fn": lambda a: ask_text(a["id"], a.get("params") if "params" in a else {k: v for k, v in a.items() if k != "id"})},
 ]
 TOOL_BY_NAME = {t["name"]: t for t in TOOLS}
 
@@ -1031,9 +1133,10 @@ CLI_USAGE = """oto query — the same data as the server tools, one query per in
   search <query> [n]                               by-type <Type> [state] [limit]
   count [--type T] [--tag G] [--attr A --value V]  group <by> [--type T] [--tag G] [--level top]
   stale   resolve <term>   docs [query] [limit]   overview [limit]   define <term>
-  explain <term> [rel]   policy [limit]   pending [limit]   actions [--on <term>] [--action <id>] [--ready] [--due]"""
+  explain <term> [rel]   policy [limit]   pending [limit]   actions [--on <term>] [--action <id>] [--ready] [--due]
+  questions   ask <id> [NAME=<entity> ...]"""
 
-CLI_COMMANDS = {"entity", "neighbors", "search", "by-type", "count", "group", "define",
+CLI_COMMANDS = {"entity", "neighbors", "search", "by-type", "count", "group", "define", "questions", "ask",
                 "stale", "resolve", "docs", "overview", "explain", "policy", "pending", "actions", "help", "--help", "-h"}
 
 def _flag(a, name):
@@ -1076,6 +1179,10 @@ def cli(argv):
             print(resolve_text(" ".join(pos)))
         elif cmd == "define":
             print(define_text(" ".join(pos)))
+        elif cmd == "questions":
+            print(questions_text())
+        elif cmd == "ask":
+            print(ask_text(pos[0], dict(p.split("=", 1) for p in pos[1:] if "=" in p)))
         elif cmd == "docs":
             print(docs_text(pos[0] if pos else None, int(pos[1]) if len(pos) > 1 else 200))
     except IndexError:

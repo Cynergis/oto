@@ -57,12 +57,15 @@ class Graph:
         return True
 
     def attribute(self, nid, name):
+        """A declared attribute of the node, asserted or derived; else one of the node's own fields.
+        An attribute the vocabulary declares under a built-in name (`status`, `type`) wins when the
+        node carries it, so a declared term is never unreachable."""
         node = self.nodes.get(nid) or {}
-        if name in BUILTIN_FIELDS:
-            return node.get(name, "current" if name == "status" else None)
         value = (node.get("attributes") or {}).get(name)
         if value is None:
             value = self.derived_attributes.get(nid, {}).get(name)
+        if value is None and name in BUILTIN_FIELDS:
+            return node.get(name, "current" if name == "status" else None)
         return value
 
 
@@ -135,9 +138,10 @@ def _edges(graph, bindings, spec):
         yield edge, new
 
 
-def matches(graph, when):
-    """Every binding that satisfies all patterns, with the edges it used, in a stable order."""
-    results = [({}, [])]
+def matches(graph, when, bindings=None):
+    """Every binding that satisfies all patterns, with the edges it used, in a stable order.
+    `bindings` pre-binds variables (a question's parameters); a pattern naming one must fit it."""
+    results = [(dict(bindings or {}), [])]
     for pattern in when:
         next_results = []
         for bindings, used in results:

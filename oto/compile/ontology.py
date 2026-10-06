@@ -3,7 +3,8 @@
 against the node and relationship types actually used in the compiled graph.
 
 Into `layout.ontology`:
-  ontology.md              human-readable reference
+  ontology.md              human-readable reference (terms, hierarchy, shapes, questions)
+  questions.yaml           the competency questions rendered as SPARQL over graph.ttl
   <slug>.ttl               Turtle (OWL/RDFS)
   <slug>.context.jsonld    JSON-LD context
 
@@ -15,12 +16,24 @@ ontology.config.json, or the build reports it as unmapped. Optional sub-vocabula
 config (for example a power map) are rendered as extra sections.
 """
 
-import os, json
+import os, json, re
 
 from ..model import rationale as _rationale, vocabulary as _vocab
 from ..model.namespaces import Terms
 from ..project import ProjectError
 from . import rdf
+
+
+def _vocab_cardinality(spec):
+    """`at least 1`, `at most 1`, `exactly 1`, `between 1 and 3`."""
+    low, high = spec.get("min") or 0, spec.get("max")
+    if high is None:
+        return "at least %d" % low
+    if not low:
+        return "at most %d" % high
+    if low == high:
+        return "exactly %d" % low
+    return "between %d and %d" % (low, high)
 
 
 def run(project):
@@ -166,6 +179,34 @@ def run(project):
             for key, c in (scheme.get("concepts") or {}).items():
                 md.append(f"| `{key}` | {one(label_of(c, key))} | {('`' + c['broader'] + '`') if c.get('broader') else '—'} | "
                           f"{one(_vocab.texts(c.get('definition'), LANG))} |")
+    from ..reason import shapes as _shapes, questions as _questions
+    declared_shapes = _shapes.declared(_cfg)
+    if declared_shapes:
+        md += ["", "## Shapes\n",
+               "The constraints the graph is held to. `oto curate check` refuses a candidate that breaks one; "
+               "the Turtle carries them as SHACL.\n",
+               "| Class | Constraint | On | Says |", "| --- | --- | --- | --- |"]
+        for row in declared_shapes:
+            if row["kind"] == "min":
+                says = "at least %d" % row["count"]
+            elif row["kind"] == "max":
+                says = "at most %d" % row["count"]
+            elif row["kind"] == "required":
+                says = "every instance carries a value"
+            else:
+                says = "every instance carries it"
+            md.append(f"| `{row['class'] or 'any'}` | {row['kind']} | `{row['subject']}` | {says} |")
+    QUESTIONS = _questions.load(project)
+    if QUESTIONS:
+        md += ["", "## Competency questions\n",
+               "What the vocabulary exists to answer. Each runs over the graph (`kg_ask`, `oto query ask`); "
+               "`questions.yaml` beside this file holds the SPARQL rendering of each.\n",
+               "| Id | Who asks | Question | Gate | Covers | Confirmed by |", "| --- | --- | --- | --- | --- | --- |"]
+        cited = _questions.terms_cited(QUESTIONS, _cfg)
+        for qid, q in QUESTIONS.items():
+            covers_terms = sorted(t for t, ids in cited.items() if qid in ids)
+            md.append(f"| {qid} | {q.get('who') or 'anyone'} | {q.get('question', '')} | {q.get('gate', 'non_empty')} | "
+                      f"{', '.join('`%s`' % t for t in covers_terms)} | {q.get('validated_by') or '—'} |")
     md += ["", "## Temporal & provenance vocabulary\n",
            "Optional annotation properties on **any** node or edge that capture *when* a fact was "
            "recorded, *when* it is valid, and *what it replaced* — so queries return the current "
@@ -245,6 +286,7 @@ def run(project):
             "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
             "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .",
             f"@prefix skos: <{rdf.SKOS}> .",
+            f"@prefix sh: <{rdf.SHACL}> .",
             f"@prefix meta: <{rdf.META}> .", "",
             f"{PREFIX}: a owl:Ontology ; rdfs:label {q(NAME + ' Ontology')} .", ""]
     for c, spec in CLASSES.items():
@@ -327,6 +369,58 @@ def run(project):
                 else:
                     line += f" ; skos:topConceptOf {terms.curie(name)}"
                 ttl.append(line + " .")
+    # ---- shapes: the declared constraints as SHACL, one node shape per constrained class ----
+    by_class = {}
+    for c, spec in CLASSES.items():
+        for item in spec.get("requires") or []:
+            if item in PROPS or item in ATTRIBUTE_HOLDERS:
+                by_class.setdefault(c, []).append((item, 1, None, f"every {c} carries {item}"))
+    for p, spec in PROPS.items():
+        low, high = spec.get("min") or 0, spec.get("max")
+        if not low and high is None:
+            continue
+        for c in [t.strip() for t in (spec.get("domain") or "").split("|") if t.strip()]:
+            by_class.setdefault(c, []).append((p, low or None, high, f"a {c} has {_vocab_cardinality(spec)} {p}"))
+    for c, attrs in ATTRIBUTES.items():
+        for a, spec in attrs.items():
+            if spec.get("required"):
+                by_class.setdefault(c, []).append((a, 1, None, f"every {c} has {a}"))
+    from ..reason import rules as _rules
+    from . import sparql as _sparql
+    policies = [r for r in _rules.load(project) if isinstance(r, dict) and r.get("kind") == "policy"]
+    if by_class or policies:
+        ttl.append("")
+        ttl.append("# --- shapes: the constraints the graph is held to; `oto curate check` evaluates the same ones ---")
+        for c in CLASSES:
+            rows = by_class.get(c)
+            if not rows:
+                continue
+            props = []
+            for path, low, high, message in rows:
+                parts = [f"sh:path {terms.curie(path)}"]
+                if low:
+                    parts.append(f"sh:minCount {low}")
+                if high is not None:
+                    parts.append(f"sh:maxCount {high}")
+                parts.append(f"sh:message {q(message, LANG)}")
+                props.append("sh:property [ %s ]" % " ; ".join(parts))
+            ttl.append(f"{terms.curie(c + 'Shape')} a sh:NodeShape ; sh:targetClass {terms.curie(c)} ; " + " ; ".join(props) + " .")
+    if policies:
+        ttl.append("# policy rules, as SPARQL constraints: the focus node is the rule's first typed variable")
+        for rule in policies:
+            rendered = _sparql.policy_constraint(rule, _cfg, terms)
+            if rendered is None:
+                ttl.append("# policy %s is not rendered: its first pattern binds no class" % rule.get("id"))
+                continue
+            targets, select = rendered
+            message = (rule.get("then") or {}).get("flag") or rule.get("id")
+            if rule.get("answers"):
+                message += " (answers %s)" % rule["answers"]
+            severity = "sh:Violation" if rule.get("severity") == "blocking" else "sh:Warning"
+            shape = terms.curie(re.sub(r"[^A-Za-z0-9]+", "_", rule["id"]).strip("_") + "Policy")
+            ttl.append(f"{shape} a sh:NodeShape ; sh:targetClass " + " , ".join(terms.curie(t) for t in targets)
+                       + f" ; sh:severity {severity} ; sh:sparql [ a sh:SPARQLConstraint ; sh:message {q(message, LANG)}"
+                       + " ; sh:select \"\"\"%s\"\"\" ] ." % select.replace("\\", "\\\\"))
     ttl.append("")
     ttl.append("# --- temporal & provenance annotation properties: when a fact holds, and what it rests on ---")
     for t, spec in TEMPORAL.items():
@@ -344,6 +438,14 @@ def run(project):
         ttl.append(f"meta:{name} a owl:AnnotationProperty ; rdfs:label {q(_vocab.name_as_words(name))} ; rdfs:comment {q(comment)} ; "
                    f"rdfs:isDefinedBy <{rdf.META.rstrip('#')}> .")
     open(os.path.join(ONT, f"{SLUG}.ttl"), "w", encoding="utf-8").write("\n".join(ttl) + "\n")
+
+    # ---------- questions.yaml: the SPARQL rendering of each question ----------
+    from . import sparql as _sparql
+    yaml_path = os.path.join(ONT, "questions.yaml")
+    if QUESTIONS:
+        open(yaml_path, "w", encoding="utf-8").write(_sparql.questions_yaml(QUESTIONS, _cfg, terms, NAME, LANG))
+    elif os.path.exists(yaml_path):
+        os.remove(yaml_path)
 
     # ---------- JSON-LD context ----------
     def compact(curie):

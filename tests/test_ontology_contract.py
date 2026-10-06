@@ -31,23 +31,63 @@ def _rationale(classes, properties=()):
             "properties": {p: {"question": "How is it linked?", "why": WHY, "alternatives": "", "validated_by": ""} for p in properties}}
 
 
+def coverage_questions(classes, properties, attributes=None):
+    """One informational question per class and per relation, so a test ontology satisfies the rule
+    that every term is cited by a question that runs, without pretending to be a real question set."""
+    out = {}
+    for kind in classes:
+        out["Q-%s" % kind] = {"who": "anyone", "question": "Which %s are there?" % kind, "why": "a test asks it",
+                              "validated_by": "", "ask": {"when": [{"node": "x", "type": kind}], "select": ["x.label"]},
+                              "gate": "any"}
+    for relation in properties:
+        out["Q-%s" % relation] = {"who": "anyone", "question": "What is %s what?" % relation, "why": "a test asks it",
+                                  "validated_by": "", "ask": {"when": [{"edge": ["a", relation, "b"]}], "select": ["a.label", "b.label"]},
+                                  "gate": "any"}
+    terms = ["%s.%s" % (kind, attr) for kind, declared in (attributes or {}).items() for attr in declared]
+    if terms:
+        out["Q-attributes"] = {"who": "anyone", "question": "What is recorded on things?", "why": "a test asks it",
+                               "validated_by": "", "ask": {"when": [{"node": "x"}], "select": ["x.label"]},
+                               "gate": "any", "terms": terms}
+    return out
+
+
+def with_questions(carries):
+    """A carries list with 'questions' in its place, for a manifest a test writes by hand."""
+    if "questions" in carries:
+        return carries
+    out = list(carries)
+    out.insert(out.index("sample") if "sample" in out else len(out), "questions")
+    return out
+
+
 def write_ontology(root, name, classes, properties, sample, manifest_body=None, temporal=True, rules=None,
-                   rationale=None, lexicon=None, interview=None, gold=None, readme="# T\n\nA first draft; edit it.\n"):
+                   rationale=None, lexicon=None, interview=None, gold=None, readme="# T\n\nA first draft; edit it.\n",
+                   questions="auto", attributes=None):
     base = os.path.join(root, name)
     os.makedirs(base, exist_ok=True)
     config = {"name": name, "ontology_version": 1, "strict_domains": False, "_summary": "about %s" % name,
               "classes": classes, "properties": properties}
     if temporal:
         config["temporal"] = TEMPORAL
+    if attributes:
+        config["attributes"] = attributes
     for filename, payload in (("ontology.config.json", config), ("sample.graph.json", sample),
                               ("ontology.rationale.json", rationale or _rationale(classes, properties))):
         with open(os.path.join(base, filename), "w", encoding="utf-8") as f:
             json.dump(payload, f)
     with open(os.path.join(base, "README.md"), "w", encoding="utf-8") as f:
         f.write(readme)
+    if questions == "auto":
+        questions = coverage_questions(classes, properties, attributes)
+    if questions:
+        with open(os.path.join(base, "questions.json"), "w", encoding="utf-8") as f:
+            json.dump({"questions": questions}, f)
     if manifest_body is not False:          # False: a directory with no manifest at all
+        body = dict(manifest_body or {})
+        if questions and body.get("carries"):
+            body["carries"] = with_questions(body["carries"])
         with open(os.path.join(base, "manifest.json"), "w", encoding="utf-8") as f:
-            json.dump(dict({"name": name, "namespace": "https://example.org/ont/%s#" % name}, **(manifest_body or {})), f)
+            json.dump(dict({"name": name, "namespace": "https://example.org/ont/%s#" % name}, **body), f)
     if rules is not None:
         with open(os.path.join(base, "rules.json"), "w", encoding="utf-8") as f:
             json.dump({"rules": rules}, f)
@@ -89,7 +129,7 @@ def test_an_ontology_must_state_its_namespace(ontologies_dir):
     m = ontologies.manifest_for("plain")
     assert m["name"] == "plain" and m["release"] == 1 and m["extends"] == []
     assert m["summary"] == "about plain", "the vocabulary's _summary is the fallback"
-    assert m["carries"] == ["vocabulary", "rationale", "sample", "readme"]
+    assert m["carries"] == ["vocabulary", "rationale", "questions", "sample", "readme"]
     assert ontologies.self_check("plain") == []
 
     write_ontology(ontologies_dir, "bare", {"Thing": {"definition": "t"}}, {"near": {"domain": "Thing", "range": "Thing", "definition": "n"}}, sample,
@@ -374,11 +414,11 @@ def test_export_writes_a_manifest_and_the_ontology_shows(ontologies_dir, capsys)
         assert problems == [], problems
         m = json.load(open(os.path.join(path, "manifest.json"), encoding="utf-8"))
         assert m["name"] == "my-org" and m["release"] == 1 and m["summary"] == "mine" and m["engine"].startswith(">=")
-        assert m["carries"] == ["vocabulary", "rationale", "rules", "sample", "readme"] and m["changelog"][0]["release"] == 1, \
+        assert m["carries"] == ["vocabulary", "rationale", "rules", "questions", "sample", "readme"] and m["changelog"][0]["release"] == 1, \
             "the core's rule is inherited, so the export carries rules"
         assert main(["ontology", "show", "my-org"]) == 0
         out = capsys.readouterr().out
-        assert "my-org @1  (user)" in out and "self-check: clean" in out and "carries:  vocabulary, rationale, rules, sample, readme" in out
+        assert "my-org @1  (user)" in out and "self-check: clean" in out and "carries:  vocabulary, rationale, rules, questions, sample, readme" in out
         assert main(["ontology", "show", "no-such"]) == 1
         assert main(["ontology", "list"]) == 0
         assert "extends oto-core" in capsys.readouterr().out
@@ -405,6 +445,12 @@ def test_actions_are_carried_composed_checked_installed_and_exported(ontologies_
                                            "alternatives": "", "validated_by": ""}
     with open(rationale_path, "w", encoding="utf-8") as f:
         json.dump(base_rationale, f)
+    questions_path = os.path.join(ontologies_dir, "base", "questions.json")
+    with open(questions_path, encoding="utf-8") as f:
+        base_questions = json.load(f)
+    base_questions["questions"].update(coverage_questions(["Action"], ["acts_on", "executed_by"]))
+    with open(questions_path, "w", encoding="utf-8") as f:
+        json.dump(base_questions, f)
     action = {"id": "action.ping-party", "label": "Ping a party", "description": "Calls the party's endpoint.",
               "subject": "Party", "executed_by": "party.x",
               "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},

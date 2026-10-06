@@ -11,6 +11,7 @@ Tables
   node_fts   FTS5(id, label, aliases, summary, tags)  -- entity search
   docs_fts   FTS5(path, title, body)                  -- passage search over the corpus
   terms(name, kind, owner, spec, rationale, iri)      -- the vocabulary, so answers can say what a term means
+  questions(id, spec)                                 -- the competency questions, so kg_ask runs them
 
 Dependency-free (sqlite3 + FTS5 ship with CPython). Idempotent: rebuilds the file each run.
 Runs last: it reads knowledge-graph.json from the knowledge stage, and indexes the cards the
@@ -28,7 +29,7 @@ import os, json, sqlite3
 #: whose version is HIGHER than it understands, because that database may mean something it cannot
 #: see. It accepts a lower or absent version, because the data it knows how to read is still there.
 #: A version nothing checks protects nothing, so `oto/serve/engine.py` checks this one at startup.
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 SCHEMA_SQL = """
 CREATE TABLE nodes (
@@ -57,6 +58,7 @@ CREATE TABLE changelog (at TEXT, by TEXT, note TEXT, nodes_added INTEGER, nodes_
 CREATE TABLE lexicon (phrase TEXT, canonical TEXT, target TEXT, status TEXT, note TEXT);
 CREATE INDEX idx_lexicon_phrase ON lexicon(phrase);     -- jargon/synonym -> canonical entity (kg_resolve)
 CREATE TABLE terms (name TEXT, kind TEXT, owner TEXT, spec TEXT, rationale TEXT, iri TEXT);   -- the vocabulary (kg_define)
+CREATE TABLE questions (id TEXT, spec TEXT);           -- the competency questions, spec as JSON (kg_ask)
 """
 
 
@@ -154,6 +156,11 @@ def run(project):
                     (r["name"], r["kind"], r["owner"], r["spec"], r["rationale"], r["iri"]))
         nterms += 1
 
+    nquestions = 0
+    for r in _rows.question_rows(project):
+        cur.execute("INSERT INTO questions VALUES (?,?)", (r["id"], r["spec"]))
+        nquestions += 1
+
     for r in _rows.changelog_rows(project):
         cur.execute("INSERT INTO changelog VALUES (?,?,?,?,?,?,?,?)",
                     (r["at"], r["by"], r["note"], r["nodes_added"], r["nodes_changed"], r["edges_added"],
@@ -181,4 +188,4 @@ def run(project):
               f"(CI is unaffected.)")
         raise SystemExit(0)
     print(f"{os.path.basename(DB)}: {nn} nodes, {ne} edges ({nderived} derived), {ndocs} passages, {nlex} lexicon rows, "
-          f"{nterms} terms -> {os.path.relpath(DB, project.src)}")
+          f"{nterms} terms, {nquestions} questions -> {os.path.relpath(DB, project.src)}")

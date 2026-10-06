@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 # The DISTRIBUTION name. `oto` is taken on the package index, so the distribution is `oto-kg`
 # while the import name and the command stay `oto`. Those are separate namespaces.
 name = "oto-kg"
-version = "0.7.0"
+version = "0.8.0"
 description = "OTO, Ontology-To-Operations: from enterprise meaning to running agents. Build, validate and serve a temporal knowledge graph from your own documents and conversations."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -21,9 +21,10 @@ dependencies = []
 # Every dependency here is permissive: MIT, BSD-3-Clause or Apache-2.0. See
 # THIRD-PARTY-LICENSES.md. pypdfium2 replaced PyMuPDF, which is AGPL-3.0 or commercially licensed.
 intake = ["python-docx", "python-pptx", "pypdfium2", "pdfplumber", "beautifulsoup4", "lxml", "openpyxl"]
-# rdflib (BSD-3-Clause) reads the RDF export back in the tests. Never a runtime dependency: the
-# export is written by the stdlib compile path.
-dev = ["pytest", "rdflib"]
+# rdflib (BSD-3-Clause) reads the RDF export back in the tests, and pyshacl (Apache-2.0) checks that
+# the SHACL the export writes finds what the engine finds. Never runtime dependencies: the export is
+# written, and the shapes are evaluated, by the stdlib compile path.
+dev = ["pytest", "rdflib", "pyshacl"]
 # Benchmarking only. Never a runtime dependency: the engine must never need a model to answer.
 # fastembed is Apache-2.0, onnxruntime MIT, numpy BSD-3-Clause.
 bench = ["fastembed", "numpy"]

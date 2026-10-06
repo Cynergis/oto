@@ -62,7 +62,8 @@ class SqliteStore(Store):
             if any(r[1] == "derived_by" for r in self.con.execute("PRAGMA table_info(edges)")):
                 out.add("derived")
             for table, feature in (("changelog", "changelog"), ("policy_findings", "policy"), ("lexicon", "lexicon"),
-                                   ("derived_attributes", "derived_attributes"), ("terms", "terms")):
+                                   ("derived_attributes", "derived_attributes"), ("terms", "terms"),
+                                   ("questions", "questions")):
                 if self._has_table(table):
                     out.add(feature)
             self._features = out
@@ -212,6 +213,12 @@ class SqliteStore(Store):
         """The vocabulary: [{name, kind, owner, spec, rationale, iri}], spec and rationale parsed."""
         return [dict(r, spec=json.loads(r["spec"] or "{}"), rationale=json.loads(r["rationale"] or "{}"))
                 for r in self._rows("SELECT name,kind,owner,spec,rationale,iri FROM terms ORDER BY kind,owner,name")]
+
+    def questions(self):
+        """The competency questions: {id: question}, in declaration order."""
+        if "questions" not in self.features():
+            return {}
+        return {r["id"]: json.loads(r["spec"] or "{}") for r in self._rows("SELECT id, spec FROM questions ORDER BY rowid")}
 
     def documents(self, query=None, limit=200):
         q, a = "SELECT id,label,as_of,valid_from,attributes FROM nodes WHERE type='Document'", []
@@ -364,7 +371,7 @@ class Neo4jStore(Store):
 
     def features(self):
         if self._features is None:
-            self._features = {"derived", "derived_attributes", "policy", "lexicon", "changelog", "terms"}
+            self._features = {"derived", "derived_attributes", "policy", "lexicon", "changelog", "terms", "questions"}
         return self._features
 
     def meta(self, key):
@@ -540,6 +547,10 @@ class Neo4jStore(Store):
         rows = self._run("MATCH (t:Term {project: $project}) RETURN t.name AS name, t.kind AS kind, t.owner AS owner, "
                          "t.spec AS spec, t.rationale AS rationale, t.iri AS iri ORDER BY kind, owner, name")
         return [dict(r, spec=json.loads(r["spec"] or "{}"), rationale=json.loads(r["rationale"] or "{}")) for r in rows]
+
+    def questions(self):
+        rows = self._run("MATCH (q:Question {project: $project}) RETURN q.id AS id, q.spec AS spec")
+        return {r["id"]: json.loads(r["spec"] or "{}") for r in rows}
 
     def documents(self, query=None, limit=200):
         rows = self._run("MATCH (n:Entity:Document {project: $project}) "

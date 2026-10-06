@@ -96,6 +96,21 @@ def term_rows(project):
     return out
 
 
+def question_rows(project):
+    """One row per competency question, so a store can run them without the project beside it:
+    `id`, `spec` as JSON text (the whole question: wording, who, why, params, ask, gate, gaps, terms)."""
+    from ..project import ProjectError
+    from ..reason import questions as _questions
+    declared = _questions.load(project)
+    if declared:
+        with open(project.ontology_config_path, encoding="utf-8") as f:
+            vocabulary = json.load(f)
+        problems = _questions.problems(declared, vocabulary)
+        if problems:
+            raise ProjectError("questions.json is not usable:\n  - " + "\n  - ".join(problems))
+    return [{"id": qid, "spec": json.dumps(q, ensure_ascii=False)} for qid, q in declared.items()]
+
+
 def changelog_rows(project, tail=LEDGER_TAIL):
     """The last `tail` ledger entries, flattened; `retired` and `sources` as JSON text."""
     from ..curate import ledger as _ledger

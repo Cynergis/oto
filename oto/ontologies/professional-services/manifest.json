@@ -1,7 +1,7 @@
 {
   "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
   "name": "professional-services",
-  "release": 2,
+  "release": 4,
   "domain": "professional-services",
   "summary": "Engagements: scope, deliverables, governance, sessions, decisions and the work that follows.",
   "extends": [
@@ -12,11 +12,22 @@
   "carries": [
     "vocabulary",
     "rationale",
+    "questions",
     "sample",
     "readme"
   ],
   "maintainer": "OTO",
   "changelog": [
+    {
+      "release": 4,
+      "at": "2026-10-06",
+      "note": "Declares its shapes: a session instances one forum and has a record, an action item implements at most one decision, an engagement is scoped by a workstream."
+    },
+    {
+      "release": 3,
+      "at": "2026-10-06",
+      "note": "Ships its competency questions (questions.json): every class, relation and attribute is cited by a question that runs, and the sample answers each one it must."
+    },
     {
       "release": 2,
       "at": "2026-10-05",

@@ -9,7 +9,10 @@
   ],
   "classes": {
     "Engagement": {
-      "definition": "A contracted body of work between a supplier and a client, with a scope and a period."
+      "definition": "A contracted body of work between a supplier and a client, with a scope and a period.",
+      "requires": [
+        "scoped_as"
+      ]
     },
     "Organization": {
       "definition": "A company or a unit within one: the client, the supplier, a division, a function."
@@ -104,13 +107,16 @@
       "domain": "Session",
       "range": "GovernanceForum",
       "inverse": "has_instance",
-      "definition": "A session that is one meeting of a recurring forum."
+      "definition": "A session that is one meeting of a recurring forum.",
+      "min": 1,
+      "max": 1
     },
     "recorded_in": {
       "domain": "Session",
       "range": "Document",
       "inverse": "records",
-      "definition": "The document that records a session."
+      "definition": "The document that records a session.",
+      "min": 1
     },
     "raised": {
       "domain": "Session",
@@ -132,7 +138,8 @@
       "domain": "ActionItem",
       "range": "Decision",
       "inverse": "implemented_by",
-      "definition": "An action item carrying out a decision."
+      "definition": "An action item carrying out a decision.",
+      "max": 1
     },
     "answers": {
       "domain": "ActionItem|Decision",

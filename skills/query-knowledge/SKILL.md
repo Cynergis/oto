@@ -32,7 +32,15 @@ oto query --project <root> explain "<term>" [rel]             # why a derived fa
 oto query --project <root> define "<term>"                   # what a class, relation or attribute means, and why it exists
 oto query --project <root> policy                            # standing policy findings
 oto query --project <root> pending                           # what is on its way in, by station: not believed yet
+oto query --project <root> questions                         # what the graph exists to answer, and whether it does
+oto query --project <root> ask <id> [NAME=<entity> ...]      # one competency question, run: the rows, or the gap
 ```
+
+Open with `questions` (`kg_questions`) when a question is about what the graph is for or where it
+is thin: it lists every competency question and whether the live graph answers it. When the user's
+question matches one, `ask` (`kg_ask`) runs it with the entity bound and returns the rows the
+graph answers with, or the gap that explains an empty answer. That is the answer to cite, with the
+entities it names, before composing anything by hand.
 
 A fact `pending` lists is not believed: it sits in a proposal or the candidate and has not passed
 the gates. Say so if the question is about it ("a proposal from the memo would add this; it is in

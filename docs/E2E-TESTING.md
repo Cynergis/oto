@@ -243,7 +243,7 @@ Add entries to `lexicon.json` for your jargon, including one with `"status": "no
 rebuild. Ask a global question ("what is this organisation most concerned with") and keep the
 answer as `notes/themes/<slug>.md`. Rebuild while the server is running.
 
-Pass when the host lists fifteen `kg_*` tools, a proposal dropped into `proposals/` shows in `pending`
+Pass when the host lists seventeen `kg_*` tools, a proposal dropped into `proposals/` shows in `pending`
 and, with `--watch`, appears in the explorer dotted with its station within a few seconds and disappears
 from the lane once applied and built, `/api/entity` over HTTP returns the same text as the CLI
 plus the rows as JSON, the explorer at `/` draws the graph in columns, lights a neighbourhood on hover,

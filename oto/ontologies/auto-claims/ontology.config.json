@@ -80,31 +80,38 @@
       "domain": "Policy",
       "range": "Party",
       "inverse": "holds",
-      "definition": "The party that holds the policy."
+      "definition": "The party that holds the policy.",
+      "min": 1
     },
     "claims_under": {
       "domain": "Claim",
       "range": "Policy",
       "inverse": "claimed_against",
-      "definition": "The policy a claim is made under."
+      "definition": "The policy a claim is made under.",
+      "min": 1,
+      "max": 1
     },
     "arises_from": {
       "domain": "Claim",
       "range": "Incident",
       "inverse": "gave_rise_to",
-      "definition": "The incident a claim arises from."
+      "definition": "The incident a claim arises from.",
+      "min": 1,
+      "max": 1
     },
     "filed_by": {
       "domain": "Claim",
       "range": "Party",
       "inverse": "filed",
-      "definition": "The party who made the claim."
+      "definition": "The party who made the claim.",
+      "max": 1
     },
     "claims_against": {
       "domain": "Claim",
       "range": "Coverage",
       "inverse": "claimed_on",
-      "definition": "The coverage a claim is made against."
+      "definition": "The coverage a claim is made against.",
+      "max": 1
     },
     "involves": {
       "domain": "Incident",
@@ -116,7 +123,9 @@
       "domain": "Task|Assessment|Decision|Payment|Recovery",
       "range": "Claim",
       "inverse": "has_item",
-      "definition": "This item belongs to that claim."
+      "definition": "This item belongs to that claim.",
+      "min": 1,
+      "max": 1
     },
     "assigned_to": {
       "domain": "Task",
@@ -152,7 +161,9 @@
       "domain": "Decision",
       "range": "Claim",
       "inverse": "decided_by",
-      "definition": "The claim a decision is about."
+      "definition": "The claim a decision is about.",
+      "min": 1,
+      "max": 1
     },
     "authorizes": {
       "domain": "Decision",
@@ -164,13 +175,17 @@
       "domain": "Payment",
       "range": "Party",
       "inverse": "received",
-      "definition": "Who a payment was made to."
+      "definition": "Who a payment was made to.",
+      "min": 1,
+      "max": 1
     },
     "charged_to": {
       "domain": "Payment",
       "range": "Coverage",
       "inverse": "bears",
-      "definition": "The coverage a payment is charged against."
+      "definition": "The coverage a payment is charged against.",
+      "min": 1,
+      "max": 1
     },
     "recovered_from": {
       "domain": "Recovery",
@@ -207,7 +222,8 @@
     "Policy": {
       "policy_number": {
         "type": "string",
-        "definition": "The insurer's identifier for the policy."
+        "definition": "The insurer's identifier for the policy.",
+        "required": true
       }
     },
     "Party": {
@@ -219,23 +235,27 @@
     "Incident": {
       "occurred_on": {
         "type": "date",
-        "definition": "The date of the loss event."
+        "definition": "The date of the loss event.",
+        "required": true
       }
     },
     "Claim": {
       "claim_number": {
         "type": "string",
-        "definition": "The insurer's identifier for the claim."
+        "definition": "The insurer's identifier for the claim.",
+        "required": true
       },
       "state": {
         "type": "scheme:ClaimState",
-        "definition": "Where the claim is in its handling."
+        "definition": "Where the claim is in its handling.",
+        "required": true
       }
     },
     "Task": {
       "state": {
         "type": "scheme:TaskState",
-        "definition": "Where the task is in its life."
+        "definition": "Where the task is in its life.",
+        "required": true
       }
     },
     "Decision": {

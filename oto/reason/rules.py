@@ -12,7 +12,10 @@ the person who confirmed it, versioned in the same lock. The language is small o
     {"id": "decision-is-documented", "kind": "policy", "severity": "warn",
      "when": [{"node": "d", "type": "DecisionRecord"}, {"not_edge": ["d", "documented_in", "*"]}],
      "then": {"flag": "an architecture decision must cite the document that records it"},
-     "why": "A decision nobody can open is a rumour."}
+     "why": "A decision nobody can open is a rumour.", "answers": "SA9"}
+
+A policy may say which competency question it protects (`answers`, a question id), so a finding
+names what it would leave unanswerable; the export carries it as the shape's message.
 
 Patterns: `node` (a variable, optionally a class or `A|B`, optionally `where` conditions on its
 declared attributes or on the node's own fields: status, as_of, valid_from, valid_to,
@@ -96,42 +99,15 @@ def problems(rules, vocabulary):
             out.append("%s: severity must be warn or blocking" % label)
         if not (rule.get("why") or "").strip():
             out.append("%s has no `why`: a rule with no recorded reason cannot be reviewed" % label)
+        if rule.get("answers") is not None and (kind != "policy" or not isinstance(rule["answers"], str) or not rule["answers"].strip()):
+            out.append("%s: `answers` names the question a policy protects, as its id" % label)
 
         when = rule.get("when")
         if not isinstance(when, list) or not when:
             out.append("%s: `when` must be a non-empty list of patterns" % label)
             continue
-        var_types = {}
-        for pattern in when:
-            if not isinstance(pattern, dict) or len(pattern) < 1:
-                out.append("%s: a pattern must be an object" % label)
-                continue
-            if "node" in pattern:
-                for kind_name in _split(pattern.get("type")):
-                    if kind_name not in classes:
-                        out.append("%s: class %r is not declared" % (label, kind_name))
-                if pattern.get("type"):
-                    var_types[pattern["node"]] = _split(pattern["type"])
-                out += _condition_problems(label, pattern, attributes, classes)
-            elif "edge" in pattern or "not_edge" in pattern:
-                key = "edge" if "edge" in pattern else "not_edge"
-                spec = pattern[key]
-                if not isinstance(spec, list) or len(spec) != 3:
-                    out.append("%s: %s must be [from, relation, to]" % (label, key))
-                    continue
-                for relation in _split(spec[1]):
-                    if relation not in properties:
-                        out.append("%s: relation %r is not declared" % (label, relation))
-                if key == "not_edge" and kind != "policy":
-                    out.append("%s: not_edge is allowed in policy rules only; a derivation must stay positive" % label)
-            elif "not_node" in pattern:
-                if kind != "policy":
-                    out.append("%s: not_node is allowed in policy rules only" % label)
-                for kind_name in _split(pattern.get("type")):
-                    if kind_name not in classes:
-                        out.append("%s: class %r is not declared" % (label, kind_name))
-            else:
-                out.append("%s: unknown pattern %s" % (label, sorted(pattern)))
+        found, var_types = pattern_problems(label, when, vocabulary, negation_ok=(kind == "policy"))
+        out += found
 
         then = rule.get("then")
         if not isinstance(then, dict) or len(then) != 1:
@@ -168,6 +144,48 @@ def problems(rules, vocabulary):
             if action != "flag" or not isinstance(then["flag"], str) or not then["flag"].strip():
                 out.append("%s: a policy rule's action must be a `flag` message" % label)
     return out
+
+
+def pattern_problems(label, when, vocabulary, negation_ok=True, bound=None):
+    """What is wrong with a list of `when` patterns against the vocabulary: (problems, {var: classes}).
+    `negation_ok` allows not_edge and not_node (a policy, a question; never a derivation). `bound`
+    names variables bound from outside (a question's parameters), which a pattern may use as is."""
+    classes = vocabulary.get("classes") or {}
+    properties = vocabulary.get("properties") or {}
+    attributes = vocabulary.get("attributes") or {}
+    out = []
+    var_types = {}
+    for pattern in when:
+        if not isinstance(pattern, dict) or len(pattern) < 1:
+            out.append("%s: a pattern must be an object" % label)
+            continue
+        if "node" in pattern:
+            for kind_name in _split(pattern.get("type")):
+                if kind_name not in classes:
+                    out.append("%s: class %r is not declared" % (label, kind_name))
+            if pattern.get("type"):
+                var_types[pattern["node"]] = _split(pattern["type"])
+            out += _condition_problems(label, pattern, attributes, classes)
+        elif "edge" in pattern or "not_edge" in pattern:
+            key = "edge" if "edge" in pattern else "not_edge"
+            spec = pattern[key]
+            if not isinstance(spec, list) or len(spec) != 3:
+                out.append("%s: %s must be [from, relation, to]" % (label, key))
+                continue
+            for relation in _split(spec[1]):
+                if relation not in properties:
+                    out.append("%s: relation %r is not declared" % (label, relation))
+            if key == "not_edge" and not negation_ok:
+                out.append("%s: not_edge is allowed in policy rules only; a derivation must stay positive" % label)
+        elif "not_node" in pattern:
+            if not negation_ok:
+                out.append("%s: not_node is allowed in policy rules only" % label)
+            for kind_name in _split(pattern.get("type")):
+                if kind_name not in classes:
+                    out.append("%s: class %r is not declared" % (label, kind_name))
+        else:
+            out.append("%s: unknown pattern %s" % (label, sorted(pattern)))
+    return out, var_types
 
 
 def _condition_problems(label, pattern, attributes, classes=None):

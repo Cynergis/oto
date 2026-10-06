@@ -115,10 +115,13 @@ def test_a_real_data_sample_is_privacy_scanned(user_ontologies):
         with open(project.graph_path, "w", encoding="utf-8") as f:
             json.dump(graph, f)
         _path, problems = ontologies.export(project, "t", from_graph=5)
-        assert problems == []
         _config, sample, _readme = ontologies.load("t")
         assert 0 < len(sample["nodes"]) <= 5
         assert len({n["type"] for n in sample["nodes"]}) == len(sample["nodes"]), "round-robin across classes"
+        assert any("the sample cannot answer AC1" in p for p in problems), \
+            "a slice of real data that cannot answer the ontology's questions is reported, not shipped quietly"
+        _path, problems = ontologies.export(project, "t-whole", from_graph=50)
+        assert problems == [], problems
 
 
 def test_a_user_ontology_shadows_a_shipped_one_of_the_same_name(user_ontologies):

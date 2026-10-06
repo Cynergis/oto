@@ -167,10 +167,25 @@ def cmd_ontology(args):
         return 0
 
     if args.ontology_command == "accept":
-        from ..reason import rules as _rules
-        path = vocab.write_lock(project, current, rules=_rules.load(project))
-        print("accepted vocabulary version %d (%d classes, %d relations, %d rules)"
-              % (current.version, len(current.classes), len(current.properties), len(_rules.load(project))))
+        from ..reason import rules as _rules, questions as _questions
+        with open(project.ontology_config_path, encoding="utf-8") as f:
+            declared_config = _json.load(f)
+        declared_questions = _questions.load(project)
+        refusals = _questions.problems(declared_questions, declared_config)
+        if not refusals:
+            refusals = ["no question cites %s" % term for term in _questions.uncovered(declared_questions, declared_config)]
+        if refusals:
+            print("oto: refusing to accept a vocabulary whose questions do not cover it; every class, relation and "
+                  "attribute exists to answer a question that runs (questions.json):")
+            for problem in refusals[:args.show * 2]:
+                print("  %s" % problem)
+            if len(refusals) > args.show * 2:
+                print("  ... and %d more" % (len(refusals) - args.show * 2))
+            return 1
+        path = vocab.write_lock(project, current, rules=_rules.load(project), questions=declared_questions)
+        print("accepted vocabulary version %d (%d classes, %d relations, %d rules, %d questions)"
+              % (current.version, len(current.classes), len(current.properties), len(_rules.load(project)),
+                 len(declared_questions)))
         print("wrote %s" % os.path.relpath(path, os.path.dirname(project.src)))
         return 0
 
@@ -263,6 +278,68 @@ def cmd_ontology(args):
             print("\nblocking policy findings on the live graph: errors under --strict.")
             return 1
 
+    from ..reason import shapes as _shapes
+    with open(project.ontology_config_path, encoding="utf-8") as f:
+        shape_config = _json.load(f)
+    shape_problems = _shapes.problems(shape_config)
+    if shape_problems:
+        print("\nshapes are not usable:")
+        for problem in shape_problems[:args.show]:
+            print("  %s" % problem)
+        return 1
+    shape_findings = _shapes.findings(shape_config, nodes, edges)
+    declared_shapes = _shapes.declared(shape_config)
+    if declared_shapes:
+        print("\nshapes: %d declared (%s); %s" % (
+            len(declared_shapes), ", ".join("%d %s" % (sum(1 for s in declared_shapes if s["kind"] == k), k)
+                                            for k in ("min", "max", "required", "requires") if any(s["kind"] == k for s in declared_shapes)),
+            "every node satisfies them" if not shape_findings else "%d violation(s) on the live graph:" % len(shape_findings)))
+        for item in shape_findings[:args.show]:
+            print("  [%-8s] %s" % (item["kind"], item["message"]))
+    else:
+        print("\nshapes: none declared (no min, max, required or requires in the vocabulary)")
+
+    from ..reason import questions as _questions
+    declared_questions = _questions.load(project)
+    question_findings, uncovered = [], []
+    with open(project.ontology_config_path, encoding="utf-8") as f:
+        declared_config = _json.load(f)
+    question_problems = _questions.problems(declared_questions, declared_config)
+    if question_problems:
+        print("\nquestions.json is not usable:")
+        for problem in question_problems[:args.show]:
+            print("  %s" % problem)
+        return 1
+    uncovered = _questions.uncovered(declared_questions, declared_config)
+    if declared_questions:
+        entries = _questions.survey(declared_questions, nodes, edges, vocab.covers(current.classes))
+        question_findings = [e for e in entries if e["status"] in _questions.FINDING_STATUSES]
+        print("\nquestions: %d declared; the live graph answers %d as required%s"
+              % (len(entries), len(entries) - len(question_findings),
+                 (", %d it cannot:" % len(question_findings)) if question_findings else ""))
+        for e in question_findings[:args.show]:
+            first = (e["unanswered"] or [{"label": "(graph)", "gaps": e["gaps"]}])[0]
+            print("  %-6s %-11s %s%s%s" % (e["id"], e["status"], e["question"],
+                                            (": " + first["label"]) if e["unanswered"] else "",
+                                            ("; " + "; ".join(first["gaps"])) if first["gaps"] else ""))
+        locked_questions = _questions.read_lock(project)
+        if locked_questions is not None:
+            added, removed, changed, reworded = _questions.diff(locked_questions, declared_questions)
+            for qid in removed:
+                print("  [breaking ] question removed   %s: what the graph answered is no longer asked" % qid)
+            for qid in changed:
+                print("  [breaking ] question changed   %s: its ask, params or gate differ; it is a different question" % qid)
+            for qid in added:
+                print("  [additive ] question added     %s" % qid)
+            for qid in reworded:
+                print("  [cosmetic ] question reworded  %s" % qid)
+    else:
+        print("\nquestions: none declared (questions.json absent or empty)")
+    if uncovered:
+        print("  %d term(s) no question cites: %s%s" % (len(uncovered), ", ".join(uncovered[:args.show]),
+                                                         " ..." if len(uncovered) > args.show else ""))
+        print("  A term no question needs is a term nobody can tell the purpose of. `oto ontology accept` refuses it.")
+
     strict = False
     strict_attributes = False
     try:
@@ -277,6 +354,9 @@ def cmd_ontology(args):
         return 1
     if strict and (report["domain_violations"] or report["range_violations"]):
         print("\nstrict_domains is on: the violations above are errors.")
+        return 1
+    if args.strict and (question_findings or uncovered or shape_findings):
+        print("\nshape violations, questions the graph cannot answer, or terms no question cites: errors under --strict.")
         return 1
     # A breaking change is fine when the version was bumped: that IS the acknowledgement. Strict
     # mode objects only to a breaking change nobody declared.

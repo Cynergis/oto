@@ -258,6 +258,55 @@ def read(paths):
         if any(True for _ in g.subject_objects(predicate)):
             notes.append("%s is not read: the vocabulary cannot hold it" % what)
 
+    # ---- shapes: SHACL property shapes become min/max on a relation, required on an attribute, or
+    # a class's requires; what the vocabulary cannot hold is noted ----
+    SH = "http://www.w3.org/ns/shacl#"
+    counts = {}                                                 # (class, term) -> (min, max)
+    for shape in sorted(g.subjects(RDF.type, URIRef(SH + "NodeShape")), key=str):
+        target = g.value(shape, URIRef(SH + "targetClass"))
+        if target not in class_iris:
+            notes.append("a node shape targets <%s>, which is not a class of this vocabulary; skipped" % target)
+            continue
+        kind = name_of(target)
+        for prop in g.objects(shape, URIRef(SH + "property")):
+            path = g.value(prop, URIRef(SH + "path"))
+            low = g.value(prop, URIRef(SH + "minCount"))
+            high = g.value(prop, URIRef(SH + "maxCount"))
+            if path not in names:
+                notes.append("shape on %s constrains <%s>, which is not a term of this vocabulary; skipped" % (kind, path))
+                continue
+            others = [p for p in g.predicates(prop, None) if p not in (URIRef(SH + "path"), URIRef(SH + "minCount"), URIRef(SH + "maxCount"), URIRef(SH + "message"))]
+            if others:
+                notes.append("shape on %s %s: only minCount and maxCount are read; %s left out"
+                             % (kind, name_of(path), ", ".join(sorted(_ns(p)[1] for p in others))))
+            if low is None and high is None:
+                continue
+            counts[(kind, name_of(path))] = (int(low) if low is not None else 0, int(high) if high is not None else None)
+    for (kind, term), (low, high) in sorted(counts.items()):
+        if term in properties:
+            domain = (properties[term].get("domain") or "").split("|")
+            whole = all(counts.get((d, term)) == (low, high) for d in domain if d) and kind in domain
+            if whole:                                           # every class of the domain agrees: the relation's own
+                if low:
+                    properties[term]["min"] = low
+                if high is not None:
+                    properties[term]["max"] = high
+            elif low and high is None:
+                classes[kind].setdefault("requires", [])
+                if term not in classes[kind]["requires"]:
+                    classes[kind]["requires"].append(term)
+            else:
+                notes.append("shape on %s %s (%s..%s) is not the same on every class of the relation's domain; "
+                             "the vocabulary holds one cardinality per relation, so it is left out"
+                             % (kind, term, low, "*" if high is None else high))
+        elif term in (attributes.get(kind) or {}):
+            if low:
+                attributes[kind][term]["required"] = True
+            if high is not None and high != 1:
+                notes.append("shape on %s %s: maxCount %d on an attribute is not held; an attribute has one value" % (kind, term, high))
+        else:
+            notes.append("shape on %s constrains %s, which %s does not carry; skipped" % (kind, term, kind))
+
     # where each term lives, keyed by the file's prefix for its namespace, so the IRIs are kept
     namespaces, prefix_of = {}, {}
 

@@ -12,6 +12,7 @@ report says what it overrode, and a few overrides are refused rather than report
     attribute type           extender wins; a change is reported
     schemes                  merged by name; the extender's replaces one it redeclares, reported
     rules                    merged by id; the same id with a different body is refused
+    questions                merged by id, the same way
     actions                  merged by id; the extender's wins (an action is a binding, not a claim)
     rationale                the extender's entries apply only to names it declares itself
     sample graph             merged by node id, extender wins; edges united
@@ -73,7 +74,7 @@ def _guide(guides):
 
 def compose(name, parts, loader):
     """Apply the parts in order. `parts` is the resolved name list; `loader(name)` returns a dict
-    with keys config, sample, readme, rationale, rules, lexicon, interview, gold, manifest.
+    with keys config, sample, readme, rationale, rules, questions, lexicon, interview, gold, manifest.
 
     Returns a dict with the same keys as a part plus `report`, or raises OntologyError.
     """
@@ -81,13 +82,14 @@ def compose(name, parts, loader):
     temporal_from = None
     rationale = {"classes": {}, "properties": {}}
     rules, rule_owner = {}, {}
+    questions, question_owner = {}, {}
     sample_nodes, sample_edges = {}, []
     lexicon, interview, guides, gold = [], [], [], []
     actions, action_owner = {}, {}
     namespaces = {}
     readmes = []
     report = {"parts": list(parts), "redescribed": [], "widened": [], "retyped": [], "inverse_changed": [], "schemes_replaced": [],
-              "rationale_ignored": [], "rules_shared": [], "sample_overridden": [], "actions_overridden": []}
+              "rationale_ignored": [], "rules_shared": [], "questions_shared": [], "sample_overridden": [], "actions_overridden": []}
     leaf = None
 
     for part in parts:
@@ -169,6 +171,16 @@ def compose(name, parts, loader):
                 rules[rid] = dict(rule)
                 rule_owner[rid] = part
 
+        for qid, question in (raw.get("questions") or {}).items():
+            if qid in questions:
+                if json.dumps(questions[qid], sort_keys=True) != json.dumps(question, sort_keys=True):
+                    raise OntologyError("ontology %r declares question %r differently from %r; questions merge by id "
+                                        "and an id means one question" % (part, qid, question_owner[qid]))
+                report["questions_shared"].append((qid, question_owner[qid], part))
+            else:
+                questions[qid] = dict(question)
+                question_owner[qid] = part
+
         for node in (raw["sample"] or {}).get("nodes") or []:
             nid = node.get("id")
             if nid in sample_nodes:
@@ -220,7 +232,7 @@ def compose(name, parts, loader):
             readme += "\n---\n\n## Inherited from `%s`\n\n%s\n" % (part, text.strip())
 
     return {"config": config, "sample": {"nodes": list(sample_nodes.values()), "edges": sample_edges},
-            "readme": readme, "rationale": rationale, "rules": list(rules.values()),
+            "readme": readme, "rationale": rationale, "rules": list(rules.values()), "questions": questions,
             "lexicon": {"entries": lexicon} if lexicon else None,
             "interview": "\n\n".join(text for _part, text in interview) if interview else None,
             "guide": _guide(guides) if guides else None,
@@ -252,6 +264,8 @@ def report_lines(report):
         lines.append("action %s from %s replaced by %s" % (aid, owner, part))
     for rid, owner, part in report["rules_shared"]:
         lines.append("rule %s declared identically by %s and %s" % (rid, owner, part))
+    for qid, owner, part in report.get("questions_shared") or []:
+        lines.append("question %s declared identically by %s and %s" % (qid, owner, part))
     for nid, part in report["sample_overridden"]:
         lines.append("sample node %s overridden by %s" % (nid, part))
     return lines

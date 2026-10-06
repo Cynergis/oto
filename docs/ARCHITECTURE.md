@@ -32,7 +32,7 @@ citation on every fact.
 | Draft | `oto draft` | [draft.py](../oto/draft.py) | Optional, behind the `draft` extra: a model drafts one document's proposal from the drafting rules, the vocabulary, the brief and the whole document, constrained to the proposal's JSON schema, streamed, with Anthropic's refusal fallback on. The file records which model drafted it and is dry-run merged so a person reads the same report any proposal gets. The one model call in OTO; nothing else imports it. |
 | Author | `oto curate`, `oto vet` | [curate/](../oto/curate/) | Edits go into a candidate graph. `curate add` merges proposal files (one per document) into it by rule: new ids added, repeated facts gain a source, changed facts refused; `--dry-run` reports the same without writing. `diff` says what promoting it changes and refuses an overwrite with no supersession record. `apply` appends to the ledger what changed and why. `assertions` gives a spoken correction a citable id. `vet` finds citations to documents the corpus no longer holds. |
 | Build | `oto build`, `oto clean`, `oto verify` | [validate/preflight.py](../oto/validate/preflight.py), [builder.py](../oto/builder.py), [compile/](../oto/compile/), [targets/](../oto/targets/) | Pre-flight checks the authored inputs. The builder renames the previous output aside and runs four stages; on failure it restores the previous build. |
-| Serve | `oto query`, `oto serve` | [serve/engine.py](../oto/serve/engine.py), [serve/store.py](../oto/serve/store.py), [serve/http.py](../oto/serve/http.py) | Answers fifteen `kg_*` tools over JSON-RPC 2.0 on stdio, over HTTP (`--http`, the same messages on `POST /rpc`, one GET route per tool, `/api/graph` as the whole graph as data, and a view mounted at `/`), or one query per CLI call, from one store interface with two implementations: the SQLite build loaded into memory, the file released so a rebuild can swap it; or a self-hosted Neo4j, the production backend, a live connection checked at startup. The same queries through both must give the same text, and a test proves it. `kg_overview` is the map for a question that starts from no entity; the store carries the recent ledger so it can say what changed without reading a file. A synthesis over it is the query-knowledge skill's job, labelled and cited; readings worth keeping live as authored theme notes under `notes/themes/`. |
+| Serve | `oto query`, `oto serve` | [serve/engine.py](../oto/serve/engine.py), [serve/store.py](../oto/serve/store.py), [serve/http.py](../oto/serve/http.py) | Answers seventeen `kg_*` tools over JSON-RPC 2.0 on stdio, over HTTP (`--http`, the same messages on `POST /rpc`, one GET route per tool, `/api/graph` as the whole graph as data, and a view mounted at `/`), or one query per CLI call, from one store interface with two implementations: the SQLite build loaded into memory, the file released so a rebuild can swap it; or a self-hosted Neo4j, the production backend, a live connection checked at startup. The same queries through both must give the same text, and a test proves it. `kg_overview` is the map for a question that starts from no entity; the store carries the recent ledger so it can say what changed without reading a file. A synthesis over it is the query-knowledge skill's job, labelled and cited; readings worth keeping live as authored theme notes under `notes/themes/`. |
 | Measure | `oto bench`, `oto bench add`, `oto feedback` | [bench/](../oto/bench/) | Runs a gold question set through the graph engine, a lexical baseline and an optional dense baseline. `add` appends a document's questions with their provenance; a reader's complaint about an answer can be promoted into the set. |
 
 Every command is one module under [cli/](../oto/cli/), named after the command. `oto status` reads
@@ -72,7 +72,7 @@ write, and never derives a path from its own location or carries a default vocab
 |---|---|---|---|
 | 1 | [compile/knowledge.py](../oto/compile/knowledge.py) | `graph.json`, and `ontology.config.json` for the IRIs and attribute types of the triples | `knowledge-graph.json`, `entity-index.json`, N-Triples and the same triples as `graph.ttl` (instances typed with `rdf:type`, their labels in every language as `skos:prefLabel`, aliases and lexicon phrases as `skos:altLabel`, attributes and summaries as typed values), two CSVs, one entity page per node |
 | 2 | [compile/rules.py](../oto/compile/rules.py) | `knowledge-graph.json`, `rules.json` | `derived.json`: derived edges and attributes with rule, premises and depth; policy findings. Skipped with a note when no rules are declared. |
-| 3 | [compile/ontology.py](../oto/compile/ontology.py) | `ontology.config.json`, `knowledge-graph.json` | `ontology.md`, Turtle, JSON-LD context, every term under the IRI the N-Triples use, with its labels (`skos:prefLabel`, `skos:altLabel`), definition (`skos:definition`), scope note and example, its inverse declared as a property with its own label, and the recorded reasoning as `meta:question`, `meta:rationale`, `meta:alternatives`, `meta:validatedBy` (`https://cynergis.ai/ont/meta#`). Reports any type or relation the vocabulary does not declare. |
+| 3 | [compile/ontology.py](../oto/compile/ontology.py) | `ontology.config.json`, `knowledge-graph.json` | `ontology.md`, Turtle, JSON-LD context, every term under the IRI the N-Triples use, with its labels (`skos:prefLabel`, `skos:altLabel`), definition (`skos:definition`), scope note and example, its inverse declared as a property with its own label, and the recorded reasoning as `meta:question`, `meta:rationale`, `meta:alternatives`, `meta:validatedBy` (`https://cynergis.ai/ont/meta#`); the declared shapes and the policy rules as SHACL (`sh:NodeShape`, `sh:property`, `sh:sparql`); `questions.yaml`, every competency question rendered as SPARQL over `graph.ttl` ([compile/sparql.py](../oto/compile/sparql.py)). Reports any type or relation the vocabulary does not declare. |
 | 4 | [compile/semantic.py](../oto/compile/semantic.py) | `knowledge-graph.json` | one retrieval card per node, with neighbour context inlined so a thematic search hits the right entity |
 | 5 | [targets/sqlite.py](../oto/targets/sqlite.py) | `knowledge-graph.json`, `derived.json`, the indexed directories ([targets/rows.py](../oto/targets/rows.py)), `lexicon.json`, the ledger, the vocabulary and its rationale (a `terms` table, so `kg_define` and every card answer without the project beside the store) | `<slug>.db` with FTS5 tables, built as `.db.new` and renamed into place |
 | 7, when targeted | [targets/site.py](../oto/targets/site.py) | the SQLite store, a view directory | `build/site/`: `data.json`, the graph payload `/api/graph` serves (`serve/payload.py`), and the app's files copied beside it, for hosting anywhere static; `oto publish --site` carries it into the query repository |
@@ -100,6 +100,7 @@ clean-then-build round trip reproduces the database exactly.
                           term with no written label is read by its name: part_of as "part of"
   ontology.rationale.json why each class exists and who confirmed it (optional, reviewable)
   rules.json              rules over the graph: derive (positive patterns) and policy (may negate)
+  questions.json          competency questions that run: what the graph exists to answer, in the rules' pattern language
   ontology.lock.json      the last accepted vocabulary and rules, written by `oto ontology accept`
   graph.json              the curated graph: the source of truth
   graph.candidate.json    an open `oto curate` session, if any
@@ -339,8 +340,9 @@ ontology's `views/`.
 
 ## Ontologies: the unit a project starts from
 
-An ontology is a directory: the vocabulary, its rationale, rules, a sample graph and a README, and
-optionally a seed lexicon, the interview questions for the domain, a guide to reading the
+An ontology is a directory: the vocabulary, its rationale, rules, its competency questions
+(`questions.json`, merged by id like rules, installed with the project, carried by an export with
+`validated_by` blanked), a sample graph and a README, and optionally a seed lexicon, the interview questions for the domain, a guide to reading the
 domain's graph (installed as `GUIDE.md`, quoted by the concierge skill), the actions the domain
 declares (`actions/<id>.json`, merged by id with the extender's winning, checked against the
 composed vocabulary and the sample, installed as the project's `actions/`), gold question
@@ -354,6 +356,20 @@ or range and never narrow it, rules merge by id and one id means one rule, the r
 inherited class stays the declaring ontology's, samples merge by node id, and the temporal
 vocabulary comes from the first part that declares it and is never merged. `ontologies.load`
 returns the composed form, which is what a project gets; `load_raw` an ontology's own files.
+
+The questions are the ontology's contract, and the self-check holds it to them: every class,
+relation and attribute of the composed vocabulary must be cited by a question that runs (its
+patterns, its parameters, or its `terms` list), and the composed sample must answer every
+question it must (a `non_empty` gate for every entity of its parameter's class; no row for an
+`empty` gate). An ontology that fails either is not usable, so a shipped ontology cannot carry a
+term nobody can say the purpose of. The synthetic sample an export invents exercises every
+declared pair of domain and range, with a twin example for a relation from a class to itself,
+so an exported ontology answers its own questions; a real-data sample that cannot is reported.
+In a project, `oto ontology check` prints the questions the live graph cannot answer and the
+terms no question cites (errors under `--strict`), diffs the questions against the lock (removed
+or a changed `ask`, `params` or `gate`: breaking; added: additive; reworded: cosmetic), and `oto
+ontology accept` refuses a vocabulary its questions do not cover. `oto ontology diff` reports
+the upstream ontology's question changes beside its vocabulary and rule changes.
 
 A manifest states a `namespace`, the IRI the ontology's own terms live under. Composition
 records, in the vocabulary's `namespaces` section, which terms each part brought, a term
@@ -469,6 +485,67 @@ with its rule and its premises, so every answer shows `[derived by <rule>]`, `kg
 the chain down to document evidence, and superseding a premise retires the derivation at the next
 build. An asserted fact always wins over a derived one. Policy findings appear in `oto curate
 check` (blocking or gap by severity), `oto ontology check`, `kg_policy` and the overview.
+
+## Questions that run
+
+A competency question is what the ontology exists to answer, and in OTO it runs. `questions.json`
+([reason/questions.py](../oto/reason/questions.py)) declares each one with the sentence a person
+would ask, who asks it, why it exists and who confirmed it, and an `ask`: a `when` in the rules'
+pattern language (node, edge, `not_edge`, `not_node`, `where`) and a `select` of bound variables
+or `var.label`, `var.type`, `var.<attribute>`. A `$NAME` is a parameter bound to an entity before
+the patterns run, resolved the way `kg_resolve` resolves a label. The `gate` says what an empty
+answer means: `non_empty` (the graph must answer; empty is a finding), `empty` (nothing must match;
+a row is a finding, the shape of a policy), `any` (informational); a `gaps` pattern runs when the
+answer is empty and says why, in words, so an empty answer is never silent. A class pattern covers
+the kinds of it, as everywhere else.
+
+The questions ride in the store (a `questions` table, `Question` nodes in Neo4j), so a published
+store answers them without its project: `kg_questions` runs every question over the live graph (a
+parameterised one for every entity of its first parameter's class) and says which it answers, which
+it cannot and why; `kg_ask <id> params` runs one and returns the rows, or the gap. `oto query
+questions` and `oto query ask CQ1 SYSTEM="Payments platform"` are the CLI form; `/api/questions` and
+`/api/ask?id=CQ1&SYSTEM=...` the HTTP one, with the rows beside the text. A question that cannot
+run against the vocabulary (an undeclared class or relation, a parameter nobody declared, a selected
+attribute the class does not declare) fails pre-flight and the build, with the reason.
+Every shipped ontology ships its questions (`oto-core`'s compose into each extender), and the
+self-check holds every ontology to them: see "Ontologies" above.
+
+The build renders each question as SPARQL over `graph.ttl` into `questions.yaml`
+([compile/sparql.py](../oto/compile/sparql.py)): `node` is `?x a <C>` (a union, or a class with
+kinds, as `VALUES`), `edge` a triple (a union of relations, or a relation with the ones that
+specialise it, as `VALUES` on the predicate), `not_edge` and `not_node` are `FILTER NOT EXISTS`,
+a `where` is a `FILTER` (a scheme value is its concept IRI, a date is typed), a `$NAME` stays for
+the caller to replace with the entity's IRI, every bound node is filtered to current facts, and
+`select` binds labels, fields and attributes with `OPTIONAL`. The engine never runs the SPARQL;
+a test runs every shipped question both ways, for every entity it can be asked about, and
+requires the same rows. What SPARQL cannot read from the export is noted in the file
+(`contains` on a list attribute, `$today` rendered as the date of the rendering), and
+`graph.ttl` holds asserted facts only: derived facts stay in `derived.json`.
+
+## Shapes: the constraints a graph is held to
+
+A shape is declared beside the term it constrains ([reason/shapes.py](../oto/reason/shapes.py)):
+a relation's `min` and `max` count what one subject of its domain carries (`"max": 1` on
+`charged_to`: a payment is charged to one coverage), an attribute's `"required": true` means every
+instance of the class carries a value, a class's `requires` lists the attributes and relations
+every instance must carry, and a constraint on a class applies to the kinds of it. A policy rule
+is the fourth source of shape and may say which question it protects (`"answers": "SA13"`), so
+its finding names what it would leave unanswerable. Tightening a shape is a breaking change in
+the lock; loosening one is additive.
+
+The engine evaluates the declared shapes itself, over current facts: `oto curate check` reports
+every violation as blocking, beside the required questions the candidate cannot answer, so what
+reaches `graph.json` satisfies the vocabulary's contract; `oto ontology check` prints the
+declared shapes and the live graph's violations (errors under `--strict`); the self-check holds
+an ontology's sample to them, and the synthetic sample an export invents respects every `max`.
+The ontology Turtle carries the same constraints as SHACL (`sh:NodeShape` per constrained class,
+`sh:property` with `sh:minCount`, `sh:maxCount` and a message; each policy rule as a
+`sh:SPARQLConstraint` whose focus node is the rule's first typed variable, with the rule's
+severity and the question it answers in the message), the importer reads the property shapes
+back (minCount and maxCount only; anything else is noted), and tests with pyshacl require the
+SHACL and the engine to find the same violations on the same nodes, for declared shapes and
+for policies alike. The engine never reads SHACL to
+decide anything; it writes it so that a reader with standard tools checks what OTO checks.
 
 ## Actions: the graph's hands, described and never invoked
 

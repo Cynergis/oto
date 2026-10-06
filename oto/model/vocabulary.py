@@ -49,6 +49,12 @@ def _union(spec):
 #: question about Assets then covers Components, and an Asset's attributes apply to them. A
 #: relation may specialise one (`"subproperty_of": "depends_on"`).
 #:
+#: Shapes, the constraints a graph is held to (reason/shapes.py), are declared beside the terms:
+#: a relation's `min` and `max` are how many of it one subject carries (`"max": 1`: a Payment is
+#: charged to at most one Coverage; `"min": 1`: every Claim claims under a Policy); an attribute's
+#: `"required": true` means every instance of the class carries it; a class's `requires` lists
+#: the attributes and relations every instance must carry. Tightening one is a breaking change.
+#:
 #: Controlled values are concepts of a scheme, or a bare enum when their meaning needs no words:
 #:
 #:   schemes     {"ClaimState": {"definition": "Where a claim is in its handling.",
@@ -60,10 +66,10 @@ def _union(spec):
 TEXT = ("definition", "label", "inverse_label", "scope_note", "example")
 KEYS = {"schemes": ("definition", "label", "alt_labels", "scope_note", "example", "concepts"),
         "concepts": ("definition", "label", "alt_labels", "scope_note", "example", "broader"),
-        "classes": ("definition", "label", "alt_labels", "scope_note", "example", "subclass_of"),
+        "classes": ("definition", "label", "alt_labels", "scope_note", "example", "subclass_of", "requires"),
         "properties": ("domain", "range", "inverse", "definition", "label", "inverse_label", "alt_labels",
-                       "scope_note", "example", "subproperty_of"),
-        "attributes": ("type", "definition", "label", "alt_labels", "scope_note", "example"),
+                       "scope_note", "example", "subproperty_of", "min", "max"),
+        "attributes": ("type", "definition", "label", "alt_labels", "scope_note", "example", "required"),
         "temporal": ("type", "definition", "label")}
 TEMPORAL_TYPES = ("date", "string", "ref")
 DEFAULT_LANGUAGE = "en"
@@ -187,6 +193,17 @@ def _shape(section, label, spec):
         if key == "subclass_of":
             if not (isinstance(value, list) and all(isinstance(x, str) and x for x in value)):
                 return "%s: `subclass_of` must be a list of class names" % label
+        elif key == "requires":
+            if not (isinstance(value, list) and all(isinstance(x, str) and x for x in value)):
+                return "%s: `requires` must be a list of attribute or relation names" % label
+        elif key in ("min", "max"):
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                return "%s: `%s` must be a whole number" % (label, key)
+            if key == "max" and spec.get("min") is not None and isinstance(spec.get("min"), int) and value < spec["min"]:
+                return "%s: `max` is below `min`" % label
+        elif key == "required":
+            if not isinstance(value, bool):
+                return "%s: `required` must be true or false" % label
         elif key == "alt_labels":
             ok = (isinstance(value, list) and all(isinstance(x, str) for x in value)) or \
                  (isinstance(value, dict) and all(isinstance(k, str) and isinstance(v, list) and all(isinstance(x, str) for x in v)
@@ -455,6 +472,13 @@ class Change:
         return "%s %s %s" % (self.severity, self.kind, self.subject)
 
 
+def _cardinality(spec):
+    """A relation's declared cardinality as text: `1..1`, `0..*`, `1..*`."""
+    low = spec.get("min") or 0
+    high = spec.get("max")
+    return "%d..%s" % (low, "*" if high is None else high)
+
+
 def diff(old, new):
     """Every change from `old` to `new`, most severe first."""
     changes = []
@@ -473,8 +497,15 @@ def diff(old, new):
         if after_parents - before_parents:
             changes.append(Change("superclass added", Change.ADDITIVE, name,
                                   "now a kind of %s" % "|".join(sorted(after_parents - before_parents))))
-        same_but_parents = {k: v for k, v in old.classes[name].items() if k != "subclass_of"} == \
-            {k: v for k, v in new.classes[name].items() if k != "subclass_of"}
+        before_req, after_req = set(old.classes[name].get("requires") or []), set(new.classes[name].get("requires") or [])
+        if after_req - before_req:
+            changes.append(Change("class requires more", Change.BREAKING, name,
+                                  "every %s must now carry %s" % (name, ", ".join(sorted(after_req - before_req)))))
+        if before_req - after_req:
+            changes.append(Change("class requires less", Change.ADDITIVE, name,
+                                  "no longer requires %s" % ", ".join(sorted(before_req - after_req))))
+        same_but_parents = {k: v for k, v in old.classes[name].items() if k not in ("subclass_of", "requires")} == \
+            {k: v for k, v in new.classes[name].items() if k not in ("subclass_of", "requires")}
         if old.classes[name].get("definition") != new.classes[name].get("definition"):
             changes.append(Change("class described", Change.COSMETIC, name, "definition changed"))
         elif not same_but_parents:
@@ -493,6 +524,14 @@ def diff(old, new):
         if old.range(name) != new.range(name):
             changes.append(Change("range changed", Change.BREAKING, name,
                                   "%s -> %s" % (before.get("range"), after.get("range"))))
+        before_min, after_min = before.get("min") or 0, after.get("min") or 0
+        before_max, after_max = before.get("max"), after.get("max")
+        if after_min > before_min or (after_max is not None and (before_max is None or after_max < before_max)):
+            changes.append(Change("cardinality tightened", Change.BREAKING, name,
+                                  "%s -> %s" % (_cardinality(before), _cardinality(after))))
+        elif after_min < before_min or (before_max is not None and (after_max is None or after_max > before_max)):
+            changes.append(Change("cardinality loosened", Change.ADDITIVE, name,
+                                  "%s -> %s" % (_cardinality(before), _cardinality(after))))
         if before.get("inverse") != after.get("inverse"):
             changes.append(Change("inverse changed", Change.ADDITIVE, name,
                                   "%s -> %s" % (before.get("inverse"), after.get("inverse"))))
@@ -520,6 +559,11 @@ def diff(old, new):
             if before[name].get("type") != after[name].get("type"):
                 changes.append(Change("attribute type changed", Change.BREAKING, "%s.%s" % (kind, name),
                                       "%s -> %s" % (before[name].get("type"), after[name].get("type"))))
+            elif bool(before[name].get("required")) != bool(after[name].get("required")):
+                changes.append(Change("attribute required" if after[name].get("required") else "attribute optional",
+                                      Change.BREAKING if after[name].get("required") else Change.ADDITIVE,
+                                      "%s.%s" % (kind, name),
+                                      "every %s must carry it" % kind if after[name].get("required") else "no longer required"))
             elif before[name].get("definition") != after[name].get("definition"):
                 changes.append(Change("attribute described", Change.COSMETIC, "%s.%s" % (kind, name),
                                       "definition changed"))
@@ -686,12 +730,16 @@ def reconfirm(locked, current, rationale):
     return out
 
 
-def write_lock(project, vocabulary, rules=None):
+def write_lock(project, vocabulary, rules=None, questions=None):
     payload = vocabulary.to_dict()
     if rules is None:
         from ..reason import rules as _rules
         rules = _rules.load(project)
     payload["rules"] = rules
+    if questions is None:
+        from ..reason import questions as _questions
+        questions = _questions.load(project)
+    payload["questions"] = questions
     from . import rationale as _rationale
     payload["rationale"] = _rationale.load(project)
     payload["_about"] = ("The vocabulary as last accepted. `oto ontology check` diffs the current "

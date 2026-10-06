@@ -46,7 +46,7 @@ def test_publish_pushes_the_store_with_identity_and_manifest_and_skips_an_unchan
         target = _bare(root)
         manifest = pub.publish(project, target, source="org/knowledge@abc123")
         assert manifest["changed"] and manifest["build_seq"] == int(project.build_seq())
-        assert manifest["schema_version"] == 5 and manifest["source"] == "org/knowledge@abc123"
+        assert manifest["schema_version"] == 6 and manifest["source"] == "org/knowledge@abc123"
         # What landed: the store, the identity marked store_only, the manifest, a README. Nothing else.
         listing = subprocess.run(["git", "--git-dir", target, "ls-tree", "--name-only", "main"],
                                  capture_output=True, text=True, check=True).stdout.split()

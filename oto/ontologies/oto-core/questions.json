@@ -1,0 +1,98 @@
+{
+  "_about": "What this ontology exists to answer. Each question runs over the graph in the pattern language of rules.json; `gate` says what an empty answer means; `gaps` says why it is empty; `terms` names the vocabulary the question covers. Reasoned about in `why`, confirmed in `validated_by`.",
+  "questions": {
+    "CORE1": {
+      "who": "anyone",
+      "question": "Which documents does $DOC cite, so a fact traced to it can be traced further?",
+      "why": "A citation chain is how a reader gets from an answer to the source that actually says it.",
+      "validated_by": "",
+      "params": {
+        "DOC": {
+          "type": "Document"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$DOC",
+              "cites",
+              "d"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Document"
+          }
+        ],
+        "select": [
+          "d.label",
+          "d.as_of"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "node": "$DOC",
+            "type": "Document"
+          }
+        ],
+        "say": "the document cites nothing on record"
+      }
+    },
+    "CORE2": {
+      "who": "anyone",
+      "question": "Which documents does the corpus hold, and how old is each?",
+      "why": "Every fact cites a document; the list of documents is the honest extent of what the graph can know.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "d",
+            "type": "Document"
+          }
+        ],
+        "select": [
+          "d.label",
+          "d.as_of"
+        ]
+      },
+      "gate": "non_empty"
+    },
+    "CORE3": {
+      "who": "an operator",
+      "question": "Which actions are declared, on what do they act, and who is accountable for invoking them?",
+      "why": "OTO never invokes; a reader must be able to see what can be done, on what, and who answers for it.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "a",
+            "type": "Action"
+          },
+          {
+            "edge": [
+              "a",
+              "acts_on",
+              "x"
+            ]
+          },
+          {
+            "edge": [
+              "a",
+              "executed_by",
+              "t"
+            ]
+          }
+        ],
+        "select": [
+          "a.label",
+          "x.label",
+          "t.label"
+        ]
+      },
+      "gate": "any"
+    }
+  }
+}

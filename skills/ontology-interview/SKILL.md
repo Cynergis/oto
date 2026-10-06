@@ -157,7 +157,51 @@ request, so a rule that is wrong is visible; a rule nobody needed is just noise.
 are positive; only policy rules may say `not_edge` or `not_node`. `oto rules check` dry-runs the
 set and shows what each rule would derive or flag.
 
-## Phase 5 — Write both files
+## Phase 4d — Write the questions so they run, and the shapes they imply
+
+A question in prose is a promise; a question that runs is a check. Write each Gate 1 question
+into `questions.json`, in the pattern language of the rules, so `oto ontology check` can say
+whether the graph answers it and `oto curate check` can refuse a change that would make it
+unanswerable:
+
+```json
+{"questions": {
+  "CQ3": {"who": "claims handler",
+          "question": "Which coverage is claim $CLAIM paid under, and what limit applies?",
+          "why": "A payment charged to the wrong coverage is the costliest error in handling.",
+          "validated_by": "",
+          "params": {"CLAIM": {"type": "Claim"}},
+          "ask": {"when": [{"edge": ["p", "part_of_claim", "$CLAIM"]}, {"node": "p", "type": "Payment"},
+                           {"edge": ["p", "charged_to", "c"]}, {"node": "c", "type": "Coverage"}],
+                  "select": ["p.label", "c.label", "c.limit"]},
+          "gate": "non_empty",
+          "gaps": {"when": [{"node": "$CLAIM", "type": "Claim", "where": {"state": "open"}}],
+                   "say": "the claim is open and nothing has been charged yet"}}}}
+```
+
+- `ask.when` is a rule's `when`; `select` names bound variables, `var.label`, `var.type` or
+  `var.<attribute>`; a `$NAME` is a parameter bound to an entity when the question is asked.
+- The **gate** says what an empty answer means, and choose it with care: `non_empty` means every
+  entity of the parameter's class must answer, and `oto curate check` blocks a candidate where one
+  does not. Use it for structural invariants (a claim claims under a policy); use `any` with a
+  `gaps` explanation for what may legitimately be absent yet (a claim not yet decided); use
+  `empty` for a policy (which closed claims carry no decision?).
+- **Every class, relation and attribute must be cited by a question** (its patterns, its
+  parameters, or a `terms` list). `oto ontology check` lists the terms no question cites, and
+  `oto ontology accept` refuses the vocabulary until they are. This is the discipline of Phase 1
+  made executable: a term no question needs is a term nobody can say the purpose of.
+- Show the questions to the user with the classes: `oto query questions` after a build says which
+  the sample graph answers, and `oto query ask CQ3 CLAIM="<a claim>"` shows one answer.
+
+The same questions imply **shapes**, declared beside the terms in `ontology.config.json`: a
+relation's `min` and `max` (`"charged_to": {..., "min": 1, "max": 1}`: a payment is charged to
+exactly one coverage), an attribute's `"required": true`, a class's `"requires": ["part_of"]`.
+Declare a shape only where a question would be unanswerable without it; `oto curate check`
+refuses a candidate that breaks one, and tightening one later is a breaking change. A policy
+rule may name the question it protects (`"answers": "CQ3"`), so its finding says what it would
+leave unanswerable.
+
+## Phase 5 — Write the files
 
 1. Write `ontology.config.json`: `ontology_version: 1`, `strict_domains: false`, classes, properties,
    temporal. Every declaration is an object, and the build refuses any other form:
@@ -177,6 +221,8 @@ set and shows what each rule would derive or flag.
    - `validated_by` — **leave empty.** It is filled only when a person who knows the domain has
      actually confirmed the entry. Never guess it, and never put your own name in it.
 3. Add a relation rationale only where the definition does not already say enough.
+4. Write `questions.json` (Phase 4d): the Gate 1 questions, each with `who`, `why`, an `ask` that
+   runs, a `gate`, and `validated_by` empty until the person who asks it confirms it.
 
 ## Phase 6 — Validate with the tooling, not by eye
 
@@ -184,8 +230,11 @@ set and shows what each rule would derive or flag.
 oto ontology rationale --project <project> --strict   # every class has a recorded reason
 oto rules check --project <project>                  # the rules validate and derive what you expect
 oto build --project <project>                        # the integrity gate must be clean
-oto ontology check --project <project>               # domain and range conformance, policy findings
-oto ontology accept --project <project>              # record vocabulary and rules as the baseline
+oto ontology check --project <project>               # conformance, shapes, policy findings, the questions
+                                                     # the graph cannot answer, the terms no question cites
+oto query --project <project> questions              # every question, and whether the graph answers it
+oto ontology accept --project <project>              # record vocabulary, rules and questions as the baseline;
+                                                     # refuses while a term is cited by no question
 ```
 
 Fix what these report before showing anyone. `oto ontology check` reporting zero violations on day
@@ -214,7 +263,10 @@ is not.
 
 ## Guardrails
 
-- **A class with no question behind it does not go in.** This is the whole discipline.
+- **A class with no question behind it does not go in.** This is the whole discipline, and the
+  engine enforces it: a term no question in `questions.json` cites is refused by `oto ontology accept`.
+- **A `non_empty` gate is a promise about every instance.** Choose `any` with a `gaps` line for what
+  may legitimately be absent; a gate set too strict blocks every curator after you.
 - **Nine classes will feel too few.** Add the tenth when a question needs it, and write down which.
 - **Never fill `validated_by` yourself.** It is the only field that says a human checked, and a guessed
   value makes the whole record worthless.

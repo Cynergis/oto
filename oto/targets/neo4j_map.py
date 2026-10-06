@@ -66,7 +66,7 @@ def _typed(spec, value):
 
 
 def plan(graph, config, project, build_seq, derived=None, passages=None, lexicon=None, changelog=None,
-         schema_version=None, terms=None):
+         schema_version=None, terms=None, questions=None):
     """Everything the loader writes, as sorted lists of rows."""
     from . import rows as _rows
     from ..model import vocabulary as _vocab
@@ -160,11 +160,15 @@ def plan(graph, config, project, build_seq, derived=None, passages=None, lexicon
     term_rows = [dict(r, key="%s:term:%s:%s" % (project, r["kind"], (r["owner"] + "." if r["owner"] else "") + r["name"]),
                       project=project, build_seq=build_seq) for r in terms or []]
 
+    question_rows = [dict(r, key="%s:question:%s" % (project, r["id"]), project=project, build_seq=build_seq)
+                     for r in questions or []]
+
     return {"project": project, "build_seq": build_seq, "schema_version": schema_version,
             "nodes": nodes, "evidence": evidence,
             "documents": [documents[k] for k in sorted(documents)], "rels": rels,
             "derived_attributes": derived_attrs, "findings": findings,
             "passages": passage_rows, "lexicon": lexicon_rows, "changelog": changelog_rows, "terms": term_rows,
+            "questions": question_rows,
             "labels": sorted({n["label"] for n in nodes}), "rel_types": sorted({r["type"] for r in rels})}
 
 

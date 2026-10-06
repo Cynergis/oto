@@ -14,7 +14,7 @@ nothing), and is reported as not usable: an ontology states its namespace.
       "extends": ["oto-core", "insurance-party"],
       "namespace": "https://example.org/ont/insurance-claims#",
       "engine": ">=0.1",
-      "carries": ["vocabulary", "rationale", "rules", "sample", "lexicon", "interview", "guide", "gold"],
+      "carries": ["vocabulary", "rationale", "rules", "questions", "sample", "lexicon", "interview", "guide", "gold"],
       "maintainer": "Claims knowledge team <claims-kb@example.com>",
       "changelog": [{"release": 3, "at": "2026-10-02", "note": "Reserve became a class."}]
     }
@@ -44,6 +44,7 @@ CARRIES = {
     "vocabulary": "ontology.config.json",
     "rationale": "ontology.rationale.json",
     "rules": "rules.json",
+    "questions": "questions.json",
     "sample": "sample.graph.json",
     "readme": "README.md",
     "lexicon": "lexicon.json",

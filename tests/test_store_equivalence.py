@@ -68,6 +68,10 @@ QUERIES = [
     ("resolve_text", {"term": "unknown jargon"}),
     ("docs_text", {}),
     ("docs_text", {"query": "zzz"}),
+    ("questions_text", {}),                                      # the questions ride in the store
+    ("ask_text", {"qid": "CQ1", "params": {"SYSTEM": "Payments platform"}}),
+    ("ask_text", {"qid": "CQ2"}),
+    ("ask_text", {"qid": "CQ9"}),
 ]
 SEARCHES = ["payments ledger", "decision", "risk"]
 
@@ -99,6 +103,15 @@ def _project(root):
     os.makedirs(os.path.join(root, "notes"), exist_ok=True)
     with open(os.path.join(root, "notes", "ledger.md"), "w", encoding="utf-8") as f:
         f.write("# The ledger\n\nThe payments ledger records every transfer; a risk to it reaches the system.\n")
+    from oto.reason import questions as _questions
+    _questions.save(project, {
+        "CQ1": {"who": "on-call", "question": "Which components make up $SYSTEM?", "why": "incidents start from a system",
+                "params": {"SYSTEM": {"type": "System"}},
+                "ask": {"when": [{"edge": ["c", "part_of", "$SYSTEM"]}, {"node": "c", "type": "Asset"}], "select": ["c", "c.type"]},
+                "gaps": {"when": [{"not_edge": ["*", "part_of", "$SYSTEM"]}], "say": "nothing is part of it"}},
+        "CQ2": {"who": "architect", "question": "Which data stores have no decision behind them?", "why": "retirement",
+                "ask": {"when": [{"node": "d", "type": "DataStore"}, {"not_edge": ["d", "decided_by", "*"]}], "select": ["d"]},
+                "gate": "empty"}})
     cfg = json.load(open(project.config_path, encoding="utf-8"))
     cfg["targets"] = ["sqlite", "neo4j"]
     cfg["neo4j"] = {"uri": os.environ["NEO4J_URI"], "database": os.environ.get("NEO4J_DATABASE") or "neo4j", "batch": 3}

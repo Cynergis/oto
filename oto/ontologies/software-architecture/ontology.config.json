@@ -21,6 +21,9 @@
       "definition": "A part of a system deployed or released as a unit: a service, a job, a library, a front end.",
       "subclass_of": [
         "Asset"
+      ],
+      "requires": [
+        "part_of"
       ]
     },
     "Interface": {
@@ -68,13 +71,15 @@
       "domain": "Component|Interface|DataStore",
       "range": "System",
       "inverse": "contains",
-      "definition": "This belongs to that system."
+      "definition": "This belongs to that system.",
+      "max": 1
     },
     "owned_by": {
       "domain": "System|Component|Interface|DataStore|Capability",
       "range": "Team",
       "inverse": "owns",
-      "definition": "The team accountable."
+      "definition": "The team accountable.",
+      "max": 1
     },
     "exposes": {
       "domain": "System|Component",
@@ -109,7 +114,8 @@
       "domain": "Component|DataStore",
       "range": "Environment",
       "inverse": "hosts",
-      "definition": "Where something runs."
+      "definition": "Where something runs.",
+      "min": 1
     },
     "supports": {
       "domain": "System|Component|Capability",
@@ -170,11 +176,13 @@
     "Repository": {
       "owner": {
         "type": "string",
-        "definition": "The organisation or account that owns the repository."
+        "definition": "The organisation or account that owns the repository.",
+        "required": true
       },
       "name": {
         "type": "string",
-        "definition": "The repository's name within its owner."
+        "definition": "The repository's name within its owner.",
+        "required": true
       },
       "url": {
         "type": "string",

@@ -1,0 +1,588 @@
+{
+  "_about": "What this ontology exists to answer. Each question runs over the graph in the pattern language of rules.json; `gate` says what an empty answer means; `gaps` says why it is empty; `terms` names the vocabulary the question covers. Reasoned about in `why`, confirmed in `validated_by`.",
+  "questions": {
+    "SA1": {
+      "who": "an on-call engineer",
+      "question": "Which components make up $SYSTEM, and where does each run?",
+      "why": "An incident starts from a system; the responder needs its parts and their environments in front of them.",
+      "validated_by": "",
+      "params": {
+        "SYSTEM": {
+          "type": "System"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "c",
+              "part_of",
+              "$SYSTEM"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "Component"
+          },
+          {
+            "edge": [
+              "c",
+              "runs_in",
+              "e"
+            ]
+          },
+          {
+            "node": "e",
+            "type": "Environment"
+          }
+        ],
+        "select": [
+          "c.label",
+          "e.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "part_of",
+              "$SYSTEM"
+            ]
+          }
+        ],
+        "say": "no component is recorded as part of the system"
+      }
+    },
+    "SA2": {
+      "who": "anyone",
+      "question": "Who owns $ASSET: which team do I call?",
+      "why": "Ownership is the first question in every incident and every change; an asset nobody owns is nobody's problem.",
+      "validated_by": "",
+      "params": {
+        "ASSET": {
+          "type": "Asset"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ASSET",
+              "owned_by",
+              "t"
+            ]
+          },
+          {
+            "node": "t",
+            "type": "Team"
+          }
+        ],
+        "select": [
+          "t.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$ASSET",
+              "owned_by",
+              "*"
+            ]
+          }
+        ],
+        "say": "no team is recorded as owning it; the system it is part of may be"
+      }
+    },
+    "SA3": {
+      "who": "an architect",
+      "question": "Which interfaces does $COMPONENT expose or consume, and at what URL? If one changes, who breaks?",
+      "why": "Coupling lives in interfaces; the blast radius of a change is read from exposes and consumes.",
+      "validated_by": "",
+      "params": {
+        "COMPONENT": {
+          "type": "Component"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$COMPONENT",
+              "exposes|consumes",
+              "i"
+            ]
+          },
+          {
+            "node": "i",
+            "type": "Interface"
+          }
+        ],
+        "select": [
+          "i.label",
+          "i.url"
+        ]
+      },
+      "gate": "any"
+    },
+    "SA4": {
+      "who": "a data owner",
+      "question": "Which components write to $STORE?",
+      "why": "A store with an unknown writer cannot be migrated or retired; two writers to one store is a design smell worth seeing.",
+      "validated_by": "",
+      "params": {
+        "STORE": {
+          "type": "DataStore"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "c",
+              "writes_to",
+              "$STORE"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "Component"
+          }
+        ],
+        "select": [
+          "c.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "writes_to",
+              "$STORE"
+            ]
+          }
+        ],
+        "say": "nothing is recorded as writing to it: the writer is unknown"
+      }
+    },
+    "SA5": {
+      "who": "a data owner",
+      "question": "Which components read from $STORE?",
+      "why": "Readers are who breaks when the schema changes.",
+      "validated_by": "",
+      "params": {
+        "STORE": {
+          "type": "DataStore"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "c",
+              "reads_from",
+              "$STORE"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "Component"
+          }
+        ],
+        "select": [
+          "c.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "SA6": {
+      "who": "an on-call engineer",
+      "question": "Which components run nowhere on record?",
+      "why": "A component with no environment cannot be found at three in the morning.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "c",
+            "type": "Component"
+          },
+          {
+            "not_edge": [
+              "c",
+              "runs_in",
+              "*"
+            ]
+          }
+        ],
+        "select": [
+          "c.label"
+        ]
+      },
+      "gate": "empty"
+    },
+    "SA7": {
+      "who": "the business",
+      "question": "Which capabilities does $SYSTEM support: what does the business lose if it is down?",
+      "why": "Impact is stated in business capabilities, not in services; without the link an outage has no stated cost.",
+      "validated_by": "",
+      "params": {
+        "SYSTEM": {
+          "type": "System"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$SYSTEM",
+              "supports",
+              "cap"
+            ]
+          },
+          {
+            "node": "cap",
+            "type": "Capability"
+          }
+        ],
+        "select": [
+          "cap.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$SYSTEM",
+              "supports",
+              "*"
+            ]
+          }
+        ],
+        "say": "no capability is recorded for the system"
+      }
+    },
+    "SA8": {
+      "who": "compliance",
+      "question": "Which requirements does $ASSET satisfy?",
+      "why": "A stated need must be traceable to the thing that meets it, or nobody can say whether it is met.",
+      "validated_by": "",
+      "params": {
+        "ASSET": {
+          "type": "Asset"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ASSET",
+              "satisfies",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Requirement"
+          }
+        ],
+        "select": [
+          "r.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "SA9": {
+      "who": "anyone",
+      "question": "Why is $ASSET the way it is: which recorded decision shaped it?",
+      "why": "A decision nobody can find is re-litigated; the record is what stops that.",
+      "validated_by": "",
+      "params": {
+        "ASSET": {
+          "type": "Asset"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ASSET",
+              "decided_by",
+              "d"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "DecisionRecord"
+          }
+        ],
+        "select": [
+          "d.label",
+          "d.as_of"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$ASSET",
+              "decided_by",
+              "*"
+            ]
+          }
+        ],
+        "say": "no decision record is linked to it"
+      }
+    },
+    "SA10": {
+      "who": "a risk owner",
+      "question": "What is fragile: which risks threaten which assets, and what mitigates each?",
+      "why": "The risk register must be readable from the graph alone, with the mitigation beside each risk.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "r",
+              "threatens",
+              "a"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Risk"
+          },
+          {
+            "node": "a",
+            "type": "Asset"
+          },
+          {
+            "edge": [
+              "r",
+              "mitigated_by",
+              "m"
+            ]
+          }
+        ],
+        "select": [
+          "r.label",
+          "a.label",
+          "a.type",
+          "m.label",
+          "m.type"
+        ]
+      },
+      "gate": "non_empty"
+    },
+    "SA11": {
+      "who": "a risk owner",
+      "question": "Which risks have nothing mitigating them?",
+      "why": "An unmitigated risk is a decision somebody has not yet made; it must be visible until it is.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "r",
+            "type": "Risk"
+          },
+          {
+            "not_edge": [
+              "r",
+              "mitigated_by",
+              "*"
+            ]
+          }
+        ],
+        "select": [
+          "r.label"
+        ]
+      },
+      "gate": "empty"
+    },
+    "SA12": {
+      "who": "an on-call engineer",
+      "question": "How do I operate or recover $ASSET: which runbook?",
+      "why": "The runbook is the answer at three in the morning; the graph must hand it over without a search.",
+      "validated_by": "",
+      "params": {
+        "ASSET": {
+          "type": "Asset"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ASSET",
+              "operated_by",
+              "rb"
+            ]
+          },
+          {
+            "node": "rb",
+            "type": "Runbook"
+          }
+        ],
+        "select": [
+          "rb.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$ASSET",
+              "operated_by",
+              "*"
+            ]
+          }
+        ],
+        "say": "no runbook is recorded for it"
+      }
+    },
+    "SA13": {
+      "who": "anyone",
+      "question": "Where is $ASSET written down?",
+      "why": "Every answer must lead to a document a reader can open.",
+      "validated_by": "",
+      "params": {
+        "ASSET": {
+          "type": "Asset"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ASSET",
+              "documented_in",
+              "d"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Document"
+          }
+        ],
+        "select": [
+          "d.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$ASSET",
+              "documented_in",
+              "*"
+            ]
+          }
+        ],
+        "say": "no design, review or standard is linked to it"
+      }
+    },
+    "SA14": {
+      "who": "a developer",
+      "question": "Where is the code for $COMPONENT: which repository, owned by whom, on which default branch?",
+      "why": "An action on a component starts from its repository; the repository's identity must be data, not a guess.",
+      "validated_by": "",
+      "params": {
+        "COMPONENT": {
+          "type": "Component"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$COMPONENT",
+              "implemented_by",
+              "repo"
+            ]
+          },
+          {
+            "node": "repo",
+            "type": "Repository"
+          }
+        ],
+        "select": [
+          "repo.name",
+          "repo.owner",
+          "repo.url",
+          "repo.default_branch"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$COMPONENT",
+              "implemented_by",
+              "*"
+            ]
+          }
+        ],
+        "say": "no repository is recorded for it"
+      }
+    },
+    "SA15": {
+      "who": "an architect",
+      "question": "What replaced what: which decisions, interfaces, components or systems were superseded, and by what?",
+      "why": "A supersession is how the estate changes without losing what was true before.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "new",
+              "supersedes",
+              "old"
+            ]
+          }
+        ],
+        "select": [
+          "new.label",
+          "new.type",
+          "old.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "SA16": {
+      "who": "an architect",
+      "question": "What does $COMPONENT depend on, so a change to the provider is checked against the consumer?",
+      "why": "Dependencies are where a change propagates; the graph must say what needs what.",
+      "validated_by": "",
+      "params": {
+        "COMPONENT": {
+          "type": "Component"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$COMPONENT",
+              "depends_on",
+              "p"
+            ]
+          }
+        ],
+        "select": [
+          "p.label",
+          "p.type"
+        ]
+      },
+      "gate": "any"
+    }
+  }
+}

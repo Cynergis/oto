@@ -324,7 +324,7 @@ def test_diff_reports_what_the_upstream_ontology_changed_since(home, capsys):
         assert main(["ontology", "diff", "--project", root]) == 0
         out = capsys.readouterr().out
         assert "started from release 1" in out and "holds release 2" in out and "against the release this project started from (tag claims/v1)" in out
-        assert "[additive] class added Adjuster" in out and "1 additive" in out
+        assert "[additive] class added Adjuster" in out and "[additive] question added: Q-Adjuster" in out and "2 additive" in out
         # the registry moves on with a breaking change: Claim is gone, and the project holds one
         write_ontology(work, "claims", {"Case": {"definition": "a case"}}, {"about": {"domain": "Case", "range": "Document", "definition": "about"}},
                        {"nodes": [_node("case.1", "Case", "One")], "edges": []},

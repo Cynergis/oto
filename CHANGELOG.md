@@ -4,6 +4,46 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.8.0 — 2026-10-06
+
+Questions that run, and shapes that gate. An ontology without competency questions, or whose
+sample cannot answer them, is not usable from this release on; the shipped ontologies and the
+registry packs are republished with theirs.
+
+**Competency questions.** `questions.json` beside the vocabulary (`reason/questions.py`): each
+question with who asks it, why, an `ask` in the pattern language of the rules (`when` + `select`,
+`$NAME` parameters), a `gate` (`non_empty`, `empty`, `any`) and a `gaps` pattern that says why an
+answer is empty. They ride in the store (SQLite schema 6, Neo4j `Question` nodes): `kg_questions`
+surveys every question over the live graph, `kg_ask` runs one with its parameters bound (ids,
+labels or aliases), `oto query questions` / `oto query ask` and `/api/questions` / `/api/ask` are
+the other faces. Questions are carried by the ontology unit (`carries`), merged by id through
+`extends`, installed by `oto init`, exported with `validated_by` blanked, locked, and diffed
+(a changed `ask`, `params` or `gate` is breaking; added is additive; reworded is cosmetic).
+
+**The contract.** Every class, relation and attribute must be cited by a question that runs, and
+an ontology's sample must answer every question it must: the self-check refuses otherwise, `oto
+ontology check` prints the terms no question cites and the questions the live graph cannot
+answer (`--strict` fails), and `oto ontology accept` refuses an uncovered vocabulary.
+
+**Shapes.** A relation's `min` and `max`, an attribute's `required`, a class's `requires`
+(`reason/shapes.py`), evaluated over current facts with the hierarchy honoured; a policy rule may
+say which question it protects (`answers`). `oto curate check` blocks a candidate that breaks a
+shape or leaves a required question unanswered; `oto ontology check` prints the declared shapes
+and the live graph's violations; the self-check holds the sample to them. Tightening is breaking
+in the lock, loosening additive.
+
+**Rendered for everyone else.** The ontology Turtle carries the shapes as SHACL (`sh:NodeShape`,
+`sh:property` with counts; each policy rule as a `sh:SPARQLConstraint`), and `oto ontology import`
+reads the property shapes back. `questions.yaml` holds every question rendered as SPARQL over
+`graph.ttl` (`compile/sparql.py`); `ontology.md` lists the shapes and the questions. Tests with
+rdflib and pyshacl (dev extras) require the SPARQL to return the engine's rows and the SHACL to
+find the engine's violations.
+
+**Also.** A declared attribute named like a node's own field (`status`) now wins in rules and
+questions when the node carries it; the invented sample of an export exercises every pair of
+domain and range, respects `max`, and gives twins their attributes; the skills (ontology-interview
+Phase 4d, build-knowledge-base, curate, query-knowledge) know the questions and the gate.
+
 ## 0.7.0 — 2026-10-06
 
 The semantic layer. OTO is still before its first announced release, so nothing here keeps an

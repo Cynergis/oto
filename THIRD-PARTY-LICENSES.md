@@ -20,6 +20,7 @@ licence obligations at all.
 | beautifulsoup4 | MIT | Web pages and MHTML archives |
 | pypdfium2 | BSD-3-Clause and Apache-2.0 | PDF page rasterization and figure detection |
 | rdflib (`rdf` extra) | BSD-3-Clause | Reading a real ontology into the vocabulary with `oto ontology import --file` |
+| pyshacl (`dev` extra only) | Apache-2.0 | The test that the SHACL in the export finds the same violations the engine finds |
 
 Every one is permissive and compatible with Apache-2.0, with no obligation beyond attribution.
 

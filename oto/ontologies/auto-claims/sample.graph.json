@@ -1,39 +1,349 @@
 {
   "_about": "A tiny, entirely fictional example so `oto build` works the moment the ontology is installed. Replace it.",
   "nodes": [
-    {"id": "policy.p-1001", "type": "Policy", "label": "Policy P-1001", "aliases": ["P-1001"], "summary": "A private passenger motor policy, effective for twelve months.", "attributes": {"policy_number": "P-1001"}, "tags": ["policy"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
-    {"id": "coverage.collision", "type": "Coverage", "label": "Collision", "aliases": [], "summary": "Damage to the insured vehicle from impact, subject to a deductible.", "attributes": {}, "tags": ["coverage"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
-    {"id": "party.policyholder", "type": "Party", "label": "The policyholder", "aliases": [], "summary": "A fictional named insured. Real claim files hold personal data; see the ontology README.", "attributes": {"party_role": "policyholder"}, "tags": ["party"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
-    {"id": "vehicle.insured", "type": "Vehicle", "label": "The insured vehicle", "aliases": [], "summary": "A fictional vehicle. Vehicle identification numbers are personal data in context.", "attributes": {}, "tags": ["vehicle"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
-    {"id": "incident.2026-03-14", "type": "Incident", "label": "Single vehicle impact, 2026-03-14", "aliases": [], "summary": "The insured vehicle struck a fixed object. No injuries reported.", "attributes": {"occurred_on": "2026-03-14"}, "tags": ["incident"], "as_of": "2026-03-15", "valid_from": "2026-03-14", "source_doc": "sample", "status": "current", "sources": ["sample"]},
-    {"id": "claim.c-5001", "type": "Claim", "label": "Claim C-5001", "aliases": ["C-5001"], "summary": "A collision claim arising from the 2026-03-14 incident.", "attributes": {"claim_number": "C-5001", "state": "open"}, "tags": ["claim"], "as_of": "2026-03-15", "valid_from": "2026-03-15", "source_doc": "sample", "status": "current", "sources": ["sample"]},
-    {"id": "role.adjuster", "type": "Role", "label": "Claims adjuster", "aliases": ["adjuster"], "summary": "Investigates, evaluates and settles a claim within an authority limit.", "attributes": {}, "tags": ["role"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
-    {"id": "procedure.fnol", "type": "Procedure", "label": "First notice of loss intake", "aliases": ["FNOL intake"], "summary": "How a new loss is taken, validated and routed.", "attributes": {}, "tags": ["procedure"], "as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "sample", "status": "current", "sources": ["sample"]},
-    {"id": "task.intake.c-5001", "type": "Task", "label": "Take first notice of loss for C-5001", "aliases": [], "summary": "Record the loss, confirm cover in force, assign an adjuster.", "attributes": {"state": "done"}, "tags": ["task"], "as_of": "2026-03-15", "valid_from": "2026-03-15", "source_doc": "sample", "status": "current", "sources": ["sample"]},
-    {"id": "assessment.estimate.c-5001", "type": "Assessment", "label": "Repair estimate for C-5001", "aliases": [], "summary": "An appraiser's estimate of repair cost for the insured vehicle.", "attributes": {}, "tags": ["assessment"], "as_of": "2026-03-20", "valid_from": "2026-03-20", "source_doc": "sample", "status": "current", "sources": ["sample"]},
-    {"id": "decision.coverage.c-5001", "type": "Decision", "label": "Coverage confirmed for C-5001", "aliases": [], "summary": "Collision cover was in force at the time of loss, so the claim is payable subject to the deductible.", "attributes": {"reason": "cover in force, loss within policy period"}, "tags": ["decision"], "as_of": "2026-03-21", "valid_from": "2026-03-21", "source_doc": "sample", "status": "current", "sources": ["sample"]},
-    {"id": "payment.indemnity.c-5001", "type": "Payment", "label": "Indemnity payment for C-5001", "aliases": [], "summary": "Repair cost less the deductible, paid on the authorized decision.", "attributes": {}, "tags": ["payment"], "as_of": "2026-03-28", "valid_from": "2026-03-28", "source_doc": "sample", "status": "current", "sources": ["sample"]}
+    {
+      "id": "policy.p-1001",
+      "type": "Policy",
+      "label": "Policy P-1001",
+      "aliases": [
+        "P-1001"
+      ],
+      "summary": "A private passenger motor policy, effective for twelve months.",
+      "attributes": {
+        "policy_number": "P-1001"
+      },
+      "tags": [
+        "policy"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "coverage.collision",
+      "type": "Coverage",
+      "label": "Collision",
+      "aliases": [],
+      "summary": "Damage to the insured vehicle from impact, subject to a deductible.",
+      "attributes": {},
+      "tags": [
+        "coverage"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "party.policyholder",
+      "type": "Party",
+      "label": "The policyholder",
+      "aliases": [],
+      "summary": "A fictional named insured. Real claim files hold personal data; see the ontology README.",
+      "attributes": {
+        "party_role": "policyholder"
+      },
+      "tags": [
+        "party"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "vehicle.insured",
+      "type": "Vehicle",
+      "label": "The insured vehicle",
+      "aliases": [],
+      "summary": "A fictional vehicle. Vehicle identification numbers are personal data in context.",
+      "attributes": {},
+      "tags": [
+        "vehicle"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "incident.2026-03-14",
+      "type": "Incident",
+      "label": "Single vehicle impact, 2026-03-14",
+      "aliases": [],
+      "summary": "The insured vehicle struck a fixed object. No injuries reported.",
+      "attributes": {
+        "occurred_on": "2026-03-14"
+      },
+      "tags": [
+        "incident"
+      ],
+      "as_of": "2026-03-15",
+      "valid_from": "2026-03-14",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "claim.c-5001",
+      "type": "Claim",
+      "label": "Claim C-5001",
+      "aliases": [
+        "C-5001"
+      ],
+      "summary": "A collision claim arising from the 2026-03-14 incident.",
+      "attributes": {
+        "claim_number": "C-5001",
+        "state": "open"
+      },
+      "tags": [
+        "claim"
+      ],
+      "as_of": "2026-03-15",
+      "valid_from": "2026-03-15",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "role.adjuster",
+      "type": "Role",
+      "label": "Claims adjuster",
+      "aliases": [
+        "adjuster"
+      ],
+      "summary": "Investigates, evaluates and settles a claim within an authority limit.",
+      "attributes": {},
+      "tags": [
+        "role"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "procedure.fnol",
+      "type": "Procedure",
+      "label": "First notice of loss intake",
+      "aliases": [
+        "FNOL intake"
+      ],
+      "summary": "How a new loss is taken, validated and routed.",
+      "attributes": {},
+      "tags": [
+        "procedure"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "task.intake.c-5001",
+      "type": "Task",
+      "label": "Take first notice of loss for C-5001",
+      "aliases": [],
+      "summary": "Record the loss, confirm cover in force, assign an adjuster.",
+      "attributes": {
+        "state": "done"
+      },
+      "tags": [
+        "task"
+      ],
+      "as_of": "2026-03-15",
+      "valid_from": "2026-03-15",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "assessment.estimate.c-5001",
+      "type": "Assessment",
+      "label": "Repair estimate for C-5001",
+      "aliases": [],
+      "summary": "An appraiser's estimate of repair cost for the insured vehicle.",
+      "attributes": {},
+      "tags": [
+        "assessment"
+      ],
+      "as_of": "2026-03-20",
+      "valid_from": "2026-03-20",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "decision.coverage.c-5001",
+      "type": "Decision",
+      "label": "Coverage confirmed for C-5001",
+      "aliases": [],
+      "summary": "Collision cover was in force at the time of loss, so the claim is payable subject to the deductible.",
+      "attributes": {
+        "reason": "cover in force, loss within policy period"
+      },
+      "tags": [
+        "decision"
+      ],
+      "as_of": "2026-03-21",
+      "valid_from": "2026-03-21",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "payment.indemnity.c-5001",
+      "type": "Payment",
+      "label": "Indemnity payment for C-5001",
+      "aliases": [],
+      "summary": "Repair cost less the deductible, paid on the authorized decision.",
+      "attributes": {},
+      "tags": [
+        "payment"
+      ],
+      "as_of": "2026-03-28",
+      "valid_from": "2026-03-28",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    }
   ],
   "edges": [
-    {"from": "policy.p-1001", "rel": "covers", "to": "coverage.collision"},
-    {"from": "policy.p-1001", "rel": "held_by", "to": "party.policyholder"},
-    {"from": "policy.p-1001", "rel": "insures", "to": "vehicle.insured"},
-    {"from": "incident.2026-03-14", "rel": "involves", "to": "vehicle.insured"},
-    {"from": "claim.c-5001", "rel": "arises_from", "to": "incident.2026-03-14"},
-    {"from": "claim.c-5001", "rel": "claims_under", "to": "policy.p-1001"},
-    {"from": "claim.c-5001", "rel": "claims_against", "to": "coverage.collision"},
-    {"from": "claim.c-5001", "rel": "filed_by", "to": "party.policyholder"},
-    {"from": "task.intake.c-5001", "rel": "part_of_claim", "to": "claim.c-5001"},
-    {"from": "task.intake.c-5001", "rel": "assigned_to", "to": "role.adjuster"},
-    {"from": "task.intake.c-5001", "rel": "follows", "to": "procedure.fnol"},
-    {"from": "assessment.estimate.c-5001", "rel": "assesses", "to": "vehicle.insured"},
-    {"from": "assessment.estimate.c-5001", "rel": "supports", "to": "decision.coverage.c-5001"},
-    {"from": "assessment.estimate.c-5001", "rel": "part_of_claim", "to": "claim.c-5001"},
-    {"from": "decision.coverage.c-5001", "rel": "decides", "to": "claim.c-5001"},
-    {"from": "decision.coverage.c-5001", "rel": "authorizes", "to": "payment.indemnity.c-5001"},
-    {"from": "payment.indemnity.c-5001", "rel": "paid_to", "to": "party.policyholder"},
-    {"from": "payment.indemnity.c-5001", "rel": "charged_to", "to": "coverage.collision"},
-    {"from": "payment.indemnity.c-5001", "rel": "part_of_claim", "to": "claim.c-5001"},
-    {"from": "role.adjuster", "rel": "performs", "to": "procedure.fnol"}
+    {
+      "from": "policy.p-1001",
+      "rel": "covers",
+      "to": "coverage.collision"
+    },
+    {
+      "from": "policy.p-1001",
+      "rel": "held_by",
+      "to": "party.policyholder"
+    },
+    {
+      "from": "policy.p-1001",
+      "rel": "insures",
+      "to": "vehicle.insured"
+    },
+    {
+      "from": "incident.2026-03-14",
+      "rel": "involves",
+      "to": "vehicle.insured"
+    },
+    {
+      "from": "claim.c-5001",
+      "rel": "arises_from",
+      "to": "incident.2026-03-14"
+    },
+    {
+      "from": "claim.c-5001",
+      "rel": "claims_under",
+      "to": "policy.p-1001"
+    },
+    {
+      "from": "claim.c-5001",
+      "rel": "claims_against",
+      "to": "coverage.collision"
+    },
+    {
+      "from": "claim.c-5001",
+      "rel": "filed_by",
+      "to": "party.policyholder"
+    },
+    {
+      "from": "task.intake.c-5001",
+      "rel": "part_of_claim",
+      "to": "claim.c-5001"
+    },
+    {
+      "from": "task.intake.c-5001",
+      "rel": "assigned_to",
+      "to": "role.adjuster"
+    },
+    {
+      "from": "task.intake.c-5001",
+      "rel": "follows",
+      "to": "procedure.fnol"
+    },
+    {
+      "from": "assessment.estimate.c-5001",
+      "rel": "assesses",
+      "to": "vehicle.insured"
+    },
+    {
+      "from": "assessment.estimate.c-5001",
+      "rel": "supports",
+      "to": "decision.coverage.c-5001"
+    },
+    {
+      "from": "assessment.estimate.c-5001",
+      "rel": "part_of_claim",
+      "to": "claim.c-5001"
+    },
+    {
+      "from": "decision.coverage.c-5001",
+      "rel": "decides",
+      "to": "claim.c-5001"
+    },
+    {
+      "from": "decision.coverage.c-5001",
+      "rel": "authorizes",
+      "to": "payment.indemnity.c-5001"
+    },
+    {
+      "from": "payment.indemnity.c-5001",
+      "rel": "paid_to",
+      "to": "party.policyholder"
+    },
+    {
+      "from": "payment.indemnity.c-5001",
+      "rel": "charged_to",
+      "to": "coverage.collision"
+    },
+    {
+      "from": "payment.indemnity.c-5001",
+      "rel": "part_of_claim",
+      "to": "claim.c-5001"
+    },
+    {
+      "from": "role.adjuster",
+      "rel": "performs",
+      "to": "procedure.fnol"
+    },
+    {
+      "from": "decision.coverage.c-5001",
+      "rel": "part_of_claim",
+      "to": "claim.c-5001"
+    }
   ]
 }

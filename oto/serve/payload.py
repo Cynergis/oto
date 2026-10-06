@@ -185,6 +185,16 @@ def tool_data(engine, name, args):
     if name == "kg_define":
         words = engine.vocabulary()
         return {"terms": [words.describe(kind, key) for kind, key in words.find(args.get("term", ""))]}
+    if name == "kg_questions":
+        return engine.questions_data()
+    if name == "kg_ask":
+        params = args.get("params")
+        if isinstance(params, str):
+            params = _loads(params, {})
+        if not isinstance(params, dict):
+            # the query string form: every argument but `id` is a parameter
+            params = {k: v for k, v in args.items() if k not in ("id", "params")}
+        return engine.ask_data(args.get("id", ""), params)
     if name == "kg_resolve":
         term = (args.get("term") or "").strip().lower()
         return {"lexicon": store.lexicon(term) or store.lexicon_fuzzy(term)}

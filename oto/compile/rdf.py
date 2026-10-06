@@ -14,6 +14,7 @@ RDFS = "http://www.w3.org/2000/01/rdf-schema#"
 SKOS = "http://www.w3.org/2004/02/skos/core#"
 #: Where a term's recorded reasoning is annotated: the vocabulary the report ontology uses too.
 META = "https://cynergis.ai/ont/meta#"
+SHACL = "http://www.w3.org/ns/shacl#"
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _ESCAPES = {"\\": "\\\\", '"': '\\"', "\n": "\\n", "\r": "\\r"}
 

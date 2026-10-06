@@ -81,7 +81,7 @@ def build_plan(project):
     from .sqlite import SCHEMA_VERSION
     return _map.plan(graph, config, project.identity()["slug"], int(project.build_seq()), derived,
                      passages=_rows.passages(layout), lexicon=_rows.lexicon_rows(project), terms=_rows.term_rows(project),
-                     changelog=_rows.changelog_rows(project), schema_version=SCHEMA_VERSION)
+                     questions=_rows.question_rows(project), changelog=_rows.changelog_rows(project), schema_version=SCHEMA_VERSION)
 
 
 # ---- the queries, one place, so a fake driver can check them ----
@@ -133,6 +133,8 @@ def load(driver, database, planned, batch=DEFAULT_BATCH):
         run("UNWIND $rows AS row MERGE (c:Changelog {key: row.key}) SET c = row", rows=chunk)
     for chunk in _batches([dict(r, load=load_id) for r in planned.get("terms") or []], batch):
         run("UNWIND $rows AS row MERGE (t:Term {key: row.key}) SET t = row", rows=chunk)
+    for chunk in _batches([dict(r, load=load_id) for r in planned.get("questions") or []], batch):
+        run("UNWIND $rows AS row MERGE (q:Question {key: row.key}) SET q = row", rows=chunk)
     for chunk in _batches([dict(a, load=load_id) for a in planned["derived_attributes"]], batch):
         run("UNWIND $rows AS row MERGE (a:DerivedAttribute {key: row.key}) SET a = row "
             "WITH a, row MATCH (n:Entity {key: row.entity}) MERGE (a)-[r:DERIVED_ON]->(n) SET r.load = row.load", rows=chunk)

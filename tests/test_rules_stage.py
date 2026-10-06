@@ -80,7 +80,7 @@ def test_the_store_marks_derived_edges_and_keeps_findings():
         assert ("risk.ledger-single-point", "threatens", "system.payments", "risk-reaches-system") in derived
         asserted = con.execute("SELECT count(*) FROM edges WHERE status='current' AND derived_by IS NULL").fetchone()[0]
         assert asserted > 0
-        assert con.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()[0] == "5"
+        assert con.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()[0] == "6"
         con.close()
 
 

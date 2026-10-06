@@ -335,6 +335,11 @@
       "from": "component.payment-api",
       "rel": "implemented_by",
       "to": "repo.payment-api"
+    },
+    {
+      "from": "datastore.ledger",
+      "rel": "runs_in",
+      "to": "environment.production"
     }
   ]
 }

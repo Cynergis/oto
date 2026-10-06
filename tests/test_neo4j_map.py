@@ -86,9 +86,11 @@ def test_the_plan_carries_what_serving_reads():
                      passages=[{"path": "documents/b.md", "title": "B", "body": "b"}, {"path": "documents/a.md", "title": "A", "body": "a"}],
                      lexicon=[{"phrase": "the press", "canonical": "Press", "target": "claim.1", "status": "current", "note": ""}],
                      changelog=[{"at": "2026-01-01T00:00:00", "by": "me", "note": "n", "nodes_added": 1, "nodes_changed": 0,
-                                 "edges_added": 0, "retired": "[]", "sources": "[]"}], schema_version=5)
+                                 "edges_added": 0, "retired": "[]", "sources": "[]"}], schema_version=5,
+                     questions=[{"id": "CQ1", "spec": "{}"}])
     assert [p["key"] for p in planned["passages"]] == ["acme:passage:documents/a.md", "acme:passage:documents/b.md"]
     assert planned["lexicon"][0]["key"] == "acme:lexicon:1" and planned["lexicon"][0]["project"] == "acme"
     assert planned["changelog"][0]["key"] == "acme:changelog:1" and planned["schema_version"] == 5
+    assert planned["questions"][0]["key"] == "acme:question:CQ1" and planned["questions"][0]["project"] == "acme"
     assert m.summary(planned)["passages"] == 2
     assert planned["evidence"][0]["index"] == 1, "evidence keeps its order, so a card lists it as authored"

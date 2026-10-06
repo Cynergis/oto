@@ -99,6 +99,17 @@ def preflight(project):
         declared_rules, problems = [], problems + ["rules.json is not valid JSON: %s" % exc]
     problems += _rules.problems(declared_rules, ontology)
 
+    # Questions too: a question that cannot run is not a question.
+    from ..reason import questions as _questions
+    try:
+        declared_questions = _questions.load(project)
+    except ValueError as exc:
+        declared_questions, problems = {}, problems + ["questions.json is not valid JSON: %s" % exc]
+    problems += _questions.problems(declared_questions, ontology)
+    from ..reason import shapes as _shapes
+    problems += _shapes.problems(ontology)
+    problems += _shapes.rule_question_problems(declared_rules, declared_questions)
+
     # Declared attributes: a bad declaration or a value that contradicts one is blocking. An
     # attribute nobody declared on a class that declares others is advisory, unless the project
     # has said `strict_attributes`, because a passing build must not start failing because a

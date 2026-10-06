@@ -1,0 +1,561 @@
+{
+  "_about": "What this ontology exists to answer. Each question runs over the graph in the pattern language of rules.json; `gate` says what an empty answer means; `gaps` says why it is empty; `terms` names the vocabulary the question covers. Reasoned about in `why`, confirmed in `validated_by`.",
+  "questions": {
+    "PS1": {
+      "who": "anyone",
+      "question": "What is engagement $ENGAGEMENT: who is the client, who delivers it, and which workstreams scope it?",
+      "why": "An engagement is the frame every other fact hangs in; its parties and scope must be readable at once.",
+      "validated_by": "",
+      "params": {
+        "ENGAGEMENT": {
+          "type": "Engagement"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "client",
+              "client_of",
+              "$ENGAGEMENT"
+            ]
+          },
+          {
+            "node": "client",
+            "type": "Organization"
+          },
+          {
+            "edge": [
+              "supplier",
+              "delivers",
+              "$ENGAGEMENT"
+            ]
+          },
+          {
+            "node": "supplier",
+            "type": "Organization"
+          },
+          {
+            "edge": [
+              "$ENGAGEMENT",
+              "scoped_as",
+              "ws"
+            ]
+          },
+          {
+            "node": "ws",
+            "type": "Workstream"
+          }
+        ],
+        "select": [
+          "client.label",
+          "supplier.label",
+          "ws.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "client_of",
+              "$ENGAGEMENT"
+            ]
+          }
+        ],
+        "say": "no client organization is recorded"
+      }
+    },
+    "PS2": {
+      "who": "anyone",
+      "question": "What does workstream $WORKSTREAM produce, and who runs it?",
+      "why": "A workstream is accountable for what it produces; both must be visible.",
+      "validated_by": "",
+      "params": {
+        "WORKSTREAM": {
+          "type": "Workstream"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$WORKSTREAM",
+              "produces",
+              "d"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Deliverable|Concept"
+          },
+          {
+            "edge": [
+              "o",
+              "owns",
+              "$WORKSTREAM"
+            ]
+          },
+          {
+            "node": "o",
+            "type": "Person|Role|Organization"
+          }
+        ],
+        "select": [
+          "d.label",
+          "d.type",
+          "o.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "PS3": {
+      "who": "an engagement lead",
+      "question": "Which document specifies $DELIVERABLE?",
+      "why": "What we contracted to produce is read from the document that specifies it, not from memory.",
+      "validated_by": "",
+      "params": {
+        "DELIVERABLE": {
+          "type": "Deliverable"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "doc",
+              "specifies",
+              "$DELIVERABLE"
+            ]
+          },
+          {
+            "node": "doc",
+            "type": "Document"
+          }
+        ],
+        "select": [
+          "doc.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "specifies",
+              "$DELIVERABLE"
+            ]
+          }
+        ],
+        "say": "no document specifies it"
+      }
+    },
+    "PS4": {
+      "who": "an engagement lead",
+      "question": "What does $ITEM depend on, so a slip is seen before it blocks something?",
+      "why": "Dependencies between deliverables, workstreams and actions are where delay propagates.",
+      "validated_by": "",
+      "params": {
+        "ITEM": {
+          "type": "Deliverable|Workstream|ActionItem"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ITEM",
+              "depends_on",
+              "x"
+            ]
+          }
+        ],
+        "select": [
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "any"
+    },
+    "PS5": {
+      "who": "anyone",
+      "question": "Which forum did session $SESSION instance, who are its members, and where is it recorded?",
+      "why": "A governance decision counts because of the body that took it and the record that holds it.",
+      "validated_by": "",
+      "params": {
+        "SESSION": {
+          "type": "Session"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$SESSION",
+              "instance_of",
+              "f"
+            ]
+          },
+          {
+            "node": "f",
+            "type": "GovernanceForum"
+          },
+          {
+            "edge": [
+              "m",
+              "member_of",
+              "f"
+            ]
+          },
+          {
+            "node": "m",
+            "type": "Person|Role"
+          },
+          {
+            "edge": [
+              "$SESSION",
+              "recorded_in",
+              "doc"
+            ]
+          },
+          {
+            "node": "doc",
+            "type": "Document"
+          }
+        ],
+        "select": [
+          "f.label",
+          "m.label",
+          "doc.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$SESSION",
+              "recorded_in",
+              "*"
+            ]
+          }
+        ],
+        "say": "the session has no record"
+      }
+    },
+    "PS6": {
+      "who": "anyone",
+      "question": "What came out of session $SESSION: which decisions, action items and questions did it raise?",
+      "why": "What happened on a date is read from what the session raised.",
+      "validated_by": "",
+      "params": {
+        "SESSION": {
+          "type": "Session"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$SESSION",
+              "raised",
+              "x"
+            ]
+          },
+          {
+            "node": "x",
+            "type": "Decision|ActionItem|Question"
+          }
+        ],
+        "select": [
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "any"
+    },
+    "PS7": {
+      "who": "anyone",
+      "question": "What does $SOURCE discuss?",
+      "why": "A session or document is found again by what it discusses.",
+      "validated_by": "",
+      "params": {
+        "SOURCE": {
+          "type": "Session|Document"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$SOURCE",
+              "discusses",
+              "x"
+            ]
+          }
+        ],
+        "select": [
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "any"
+    },
+    "PS8": {
+      "who": "anyone",
+      "question": "What did decision $DECISION settle, and which action items implement it?",
+      "why": "A decision is only real once something implements it.",
+      "validated_by": "",
+      "params": {
+        "DECISION": {
+          "type": "Decision"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$DECISION",
+              "decides",
+              "x"
+            ]
+          },
+          {
+            "edge": [
+              "a",
+              "implements",
+              "$DECISION"
+            ]
+          },
+          {
+            "node": "a",
+            "type": "ActionItem"
+          }
+        ],
+        "select": [
+          "x.label",
+          "x.type",
+          "a.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "PS9": {
+      "who": "an engagement lead",
+      "question": "What is still open: which questions have no answer yet?",
+      "why": "An open question is work somebody owes; the list must be readable without a search.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "qn",
+            "type": "Question"
+          },
+          {
+            "not_edge": [
+              "*",
+              "answers",
+              "qn"
+            ]
+          }
+        ],
+        "select": [
+          "qn.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "PS10": {
+      "who": "anyone",
+      "question": "Who owns $ITEM?",
+      "why": "Every workstream, deliverable, action and question has one owner, or it drifts.",
+      "validated_by": "",
+      "params": {
+        "ITEM": {
+          "type": "Workstream|Deliverable|ActionItem|Question"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "o",
+              "owns",
+              "$ITEM"
+            ]
+          },
+          {
+            "node": "o",
+            "type": "Person|Role|Organization"
+          }
+        ],
+        "select": [
+          "o.label",
+          "o.type"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "owns",
+              "$ITEM"
+            ]
+          }
+        ],
+        "say": "no owner is recorded"
+      }
+    },
+    "PS11": {
+      "who": "anyone",
+      "question": "Who fills role $ROLE?",
+      "why": "Accountability is attached to the role; the person filling it is looked up, not modelled.",
+      "validated_by": "",
+      "params": {
+        "ROLE": {
+          "type": "Role"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "p",
+              "fills",
+              "$ROLE"
+            ]
+          },
+          {
+            "node": "p",
+            "type": "Person"
+          }
+        ],
+        "select": [
+          "p.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "fills",
+              "$ROLE"
+            ]
+          }
+        ],
+        "say": "nobody is recorded as filling the role"
+      }
+    },
+    "PS12": {
+      "who": "a practitioner",
+      "question": "What method are we applying: which framework informs $ITEM?",
+      "why": "A design that cites its framework can be checked against it.",
+      "validated_by": "",
+      "params": {
+        "ITEM": {
+          "type": "Workstream|Concept|Deliverable"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ITEM",
+              "informed_by",
+              "f"
+            ]
+          },
+          {
+            "node": "f",
+            "type": "Framework"
+          }
+        ],
+        "select": [
+          "f.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "PS13": {
+      "who": "anyone",
+      "question": "What is $THING part of?",
+      "why": "Organizations, workstreams, concepts and roles nest; the whole is read from part_of.",
+      "validated_by": "",
+      "params": {
+        "THING": {
+          "type": "Organization|Workstream|Concept|Role"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$THING",
+              "part_of",
+              "x"
+            ]
+          }
+        ],
+        "select": [
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "any"
+    },
+    "PS14": {
+      "who": "anyone",
+      "question": "What replaced what: which decision, concept, deliverable or document superseded which?",
+      "why": "An engagement changes its mind; the chain keeps what was true before.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "new",
+              "supersedes",
+              "old"
+            ]
+          }
+        ],
+        "select": [
+          "new.label",
+          "new.type",
+          "old.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "PS15": {
+      "who": "an engagement lead",
+      "question": "Which decisions were raised in no session?",
+      "why": "A decision with no session behind it has no authority on record.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "d",
+            "type": "Decision"
+          },
+          {
+            "not_edge": [
+              "*",
+              "raised",
+              "d"
+            ]
+          }
+        ],
+        "select": [
+          "d.label"
+        ]
+      },
+      "gate": "empty"
+    }
+  }
+}

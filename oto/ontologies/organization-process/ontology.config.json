@@ -18,7 +18,10 @@
       "definition": "A repeatable way of getting something done, made of steps."
     },
     "Step": {
-      "definition": "One action within a process, with an owner and an input and output."
+      "definition": "One action within a process, with an owner and an input and output.",
+      "requires": [
+        "part_of"
+      ]
     },
     "Policy": {
       "definition": "A rule that constrains how work is done, internal or imposed."
@@ -53,13 +56,16 @@
       "domain": "Role",
       "range": "Step",
       "inverse": "performed_by",
-      "definition": "The role that carries out a step."
+      "definition": "The role that carries out a step.",
+      "min": 1
     },
     "belongs_to": {
       "domain": "Role",
       "range": "Unit",
       "inverse": "has_role",
-      "definition": "The unit a role sits in."
+      "definition": "The unit a role sits in.",
+      "min": 1,
+      "max": 1
     },
     "precedes": {
       "domain": "Step",
@@ -83,7 +89,8 @@
       "domain": "Measure",
       "range": "Process|Unit",
       "inverse": "measured_by",
-      "definition": "What a measure is about."
+      "definition": "What a measure is about.",
+      "min": 1
     },
     "changes": {
       "domain": "Decision",

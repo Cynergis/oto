@@ -1,0 +1,439 @@
+{
+  "_about": "What this ontology exists to answer. Each question runs over the graph in the pattern language of rules.json; `gate` says what an empty answer means; `gaps` says why it is empty; `terms` names the vocabulary the question covers. Reasoned about in `why`, confirmed in `validated_by`.",
+  "questions": {
+    "OP1": {
+      "who": "anyone",
+      "question": "How does $PROCESS actually get done: which steps, performed by which role?",
+      "why": "A process nobody can list the steps of is folklore; the steps and their performers are the process.",
+      "validated_by": "",
+      "params": {
+        "PROCESS": {
+          "type": "Process"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "s",
+              "part_of",
+              "$PROCESS"
+            ]
+          },
+          {
+            "node": "s",
+            "type": "Step"
+          },
+          {
+            "edge": [
+              "r",
+              "performs",
+              "s"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Role"
+          }
+        ],
+        "select": [
+          "s.label",
+          "r.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "part_of",
+              "$PROCESS"
+            ]
+          }
+        ],
+        "say": "no step is recorded for the process"
+      }
+    },
+    "OP2": {
+      "who": "anyone",
+      "question": "What is the sequence in $PROCESS: which step precedes which?",
+      "why": "Where a process stalls is read from the sequence.",
+      "validated_by": "",
+      "params": {
+        "PROCESS": {
+          "type": "Process"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "a",
+              "part_of",
+              "$PROCESS"
+            ]
+          },
+          {
+            "node": "a",
+            "type": "Step"
+          },
+          {
+            "edge": [
+              "a",
+              "precedes",
+              "b"
+            ]
+          },
+          {
+            "node": "b",
+            "type": "Step"
+          }
+        ],
+        "select": [
+          "a.label",
+          "b.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "OP3": {
+      "who": "anyone",
+      "question": "Who owns $THING: which unit or role?",
+      "why": "Accountability is attached to a unit or a role, never a person.",
+      "validated_by": "",
+      "params": {
+        "THING": {
+          "type": "Process|Measure|Policy|System"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "o",
+              "owns",
+              "$THING"
+            ]
+          },
+          {
+            "node": "o",
+            "type": "Unit|Role"
+          }
+        ],
+        "select": [
+          "o.label",
+          "o.type"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "owns",
+              "$THING"
+            ]
+          }
+        ],
+        "say": "no owner is recorded"
+      }
+    },
+    "OP4": {
+      "who": "anyone",
+      "question": "Which roles belong to $UNIT, and which units make it up?",
+      "why": "The organization is read from units and the roles in them.",
+      "validated_by": "",
+      "params": {
+        "UNIT": {
+          "type": "Unit"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "r",
+              "belongs_to",
+              "$UNIT"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Role"
+          }
+        ],
+        "select": [
+          "r.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "OP5": {
+      "who": "anyone",
+      "question": "Which part of the organization is $UNIT part of?",
+      "why": "A unit's place in the organization is where escalation goes.",
+      "validated_by": "",
+      "params": {
+        "UNIT": {
+          "type": "Unit"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$UNIT",
+              "part_of",
+              "parent"
+            ]
+          },
+          {
+            "node": "parent",
+            "type": "Unit"
+          }
+        ],
+        "select": [
+          "parent.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "OP6": {
+      "who": "anyone",
+      "question": "Which systems does $PROCESS depend on, used by which of its steps?",
+      "why": "A tool outage must be traceable to the processes it stops.",
+      "validated_by": "",
+      "params": {
+        "PROCESS": {
+          "type": "Process"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "s",
+              "part_of",
+              "$PROCESS"
+            ]
+          },
+          {
+            "node": "s",
+            "type": "Step"
+          },
+          {
+            "edge": [
+              "s",
+              "uses",
+              "sys"
+            ]
+          },
+          {
+            "node": "sys",
+            "type": "System"
+          }
+        ],
+        "select": [
+          "s.label",
+          "sys.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "OP7": {
+      "who": "compliance",
+      "question": "What rule constrains $THING?",
+      "why": "A constraint nobody can see is a constraint nobody follows.",
+      "validated_by": "",
+      "params": {
+        "THING": {
+          "type": "Process|Step|System"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "p",
+              "constrains",
+              "$THING"
+            ]
+          },
+          {
+            "node": "p",
+            "type": "Policy"
+          }
+        ],
+        "select": [
+          "p.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "OP8": {
+      "who": "anyone",
+      "question": "Where is $ITEM written down?",
+      "why": "Every answer must lead to a document a reader can open.",
+      "validated_by": "",
+      "params": {
+        "ITEM": {
+          "type": "Process|Policy|Measure|Decision|Role"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ITEM",
+              "documented_in",
+              "d"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Document"
+          }
+        ],
+        "select": [
+          "d.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$ITEM",
+              "documented_in",
+              "*"
+            ]
+          }
+        ],
+        "say": "no document is recorded for it"
+      }
+    },
+    "OP9": {
+      "who": "a manager",
+      "question": "How do we know $PROCESS is working: which measures measure it?",
+      "why": "A process without a measure cannot be said to work or fail.",
+      "validated_by": "",
+      "params": {
+        "PROCESS": {
+          "type": "Process"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "m",
+              "measures",
+              "$PROCESS"
+            ]
+          },
+          {
+            "node": "m",
+            "type": "Measure"
+          }
+        ],
+        "select": [
+          "m.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "measures",
+              "$PROCESS"
+            ]
+          }
+        ],
+        "say": "no measure is recorded: nobody can tell whether it works"
+      }
+    },
+    "OP10": {
+      "who": "anyone",
+      "question": "Why did $THING change, and when: which decisions changed it?",
+      "why": "A change with no recorded decision is re-argued every time it is questioned.",
+      "validated_by": "",
+      "params": {
+        "THING": {
+          "type": "Process|Policy|Unit|Role|System"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "d",
+              "changes",
+              "$THING"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Decision"
+          }
+        ],
+        "select": [
+          "d.label",
+          "d.as_of"
+        ]
+      },
+      "gate": "any"
+    },
+    "OP11": {
+      "who": "anyone",
+      "question": "What replaced what: which decision, policy or process superseded which?",
+      "why": "The history of how things are done is the supersession chain.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "new",
+              "supersedes",
+              "old"
+            ]
+          }
+        ],
+        "select": [
+          "new.label",
+          "new.type",
+          "old.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "OP12": {
+      "who": "a manager",
+      "question": "Which steps has no role performing them?",
+      "why": "A step nobody performs is where the process stalls.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "s",
+            "type": "Step"
+          },
+          {
+            "not_edge": [
+              "*",
+              "performs",
+              "s"
+            ]
+          }
+        ],
+        "select": [
+          "s.label"
+        ]
+      },
+      "gate": "empty"
+    }
+  }
+}

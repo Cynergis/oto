@@ -19,6 +19,7 @@ licence obligations at all.
 | lxml | BSD-3-Clause | XML parsing, pulled in by the Office parsers |
 | beautifulsoup4 | MIT | Web pages and MHTML archives |
 | pypdfium2 | BSD-3-Clause and Apache-2.0 | PDF page rasterization and figure detection |
+| rdflib (`rdf` extra) | BSD-3-Clause | Reading a real ontology into the vocabulary with `oto ontology import --file` |
 
 Every one is permissive and compatible with Apache-2.0, with no obligation beyond attribution.
 

@@ -71,8 +71,8 @@ def test_preflight_reports_every_problem_at_once():
     with tempfile.TemporaryDirectory() as root:
         project = _project(root)
         with open(project.ontology_config_path, "w", encoding="utf-8") as f:
-            json.dump({"classes": {"Claim": "A claim."},
-                       "properties": {"filed_by": ["Claim", "Person", None, "Filer."]}}, f)
+            json.dump({"classes": {"Claim": {"definition": "A claim."}},
+                       "properties": {"filed_by": {"domain": "Claim", "range": "Person", "definition": "Filer."}}}, f)
         with open(os.path.join(root, "graph.json"), "w", encoding="utf-8") as f:
             json.dump({"nodes": [{"id": "c.1", "type": "Claim", "label": "One"},
                                  {"id": "c.1", "type": "Claim", "label": "Duplicate"},
@@ -91,8 +91,8 @@ def test_preflight_accepts_a_valid_project():
     with tempfile.TemporaryDirectory() as root:
         project = _project(root)
         with open(project.ontology_config_path, "w", encoding="utf-8") as f:
-            json.dump({"classes": {"Claim": "A claim.", "Person": "A person."},
-                       "properties": {"filed_by": ["Claim", "Person", None, "Filer."]}}, f)
+            json.dump({"classes": {"Claim": {"definition": "A claim."}, "Person": {"definition": "A person."}},
+                       "properties": {"filed_by": {"domain": "Claim", "range": "Person", "definition": "Filer."}}}, f)
         with open(os.path.join(root, "graph.json"), "w", encoding="utf-8") as f:
             json.dump({"nodes": [{"id": "c.1", "type": "Claim", "label": "One"},
                                  {"id": "p.1", "type": "Person", "label": "Two"}],
@@ -118,8 +118,8 @@ def test_preflight_explains_a_malformed_lexicon():
     with tempfile.TemporaryDirectory() as root:
         project = _project(root)
         with open(project.ontology_config_path, "w", encoding="utf-8") as f:
-            json.dump({"classes": {"Machine": "A machine."},
-                       "properties": {"near": ["Machine", "Machine", None, "Close to."]}}, f)
+            json.dump({"classes": {"Machine": {"definition": "A machine."}},
+                       "properties": {"near": {"domain": "Machine", "range": "Machine", "definition": "Close to."}}}, f)
         with open(os.path.join(root, "graph.json"), "w", encoding="utf-8") as f:
             json.dump({"nodes": [{"id": "machine.press", "type": "Machine", "label": "Press",
                                   "as_of": "2026-01-01", "valid_from": "2026-01-01",

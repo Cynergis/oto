@@ -105,7 +105,7 @@ def test_get_routes_carry_the_text_and_the_rows(served):
     status, ctype, body = _get(server.url + "/api/entity?term=system.payments")
     assert status == 200 and ctype.startswith("application/json")
     answer = json.loads(body)
-    assert answer["tool"] == "kg_entity" and "[System]" in answer["text"]
+    assert answer["tool"] == "kg_entity" and "[System — " in answer["text"]
     node = answer["data"]["node"]
     assert node["id"] == "system.payments" and isinstance(node["attributes"], dict) and node["evidence"] == []
     assert any(e["rel"] == "part_of" for e in answer["data"]["edges_in"])
@@ -115,6 +115,10 @@ def test_get_routes_carry_the_text_and_the_rows(served):
     assert json.loads(body)["data"]["count"] == 1 and "count = 1" in json.loads(body)["text"]
     status, _c, body = _get(server.url + "/api/explain?term=system.payments")
     assert json.loads(body)["data"]["derived_edges"][0]["premises"], "premises come back parsed"
+    status, _c, body = _get(server.url + "/api/define?term=part%20of")
+    answer = json.loads(body)
+    assert status == 200 and answer["tool"] == "kg_define" and "inverse: contains" in answer["text"]
+    assert answer["data"]["terms"][0]["name"] == "part_of" and answer["data"]["terms"][0]["labels"] == {"en": "part of"}
     status, _c, body = _get(server.url + "/api/tools")
     assert "/api/entity" in json.loads(body)["routes"]
     status, _c, body = _get(server.url + "/api/nothing")

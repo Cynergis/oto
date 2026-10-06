@@ -7,6 +7,9 @@ Into `layout.ontology`:
   <slug>.ttl               Turtle (OWL/RDFS)
   <slug>.context.jsonld    JSON-LD context
 
+Every term is written under the IRI its ontology declares (model/namespaces.py), the same IRI the
+knowledge stage uses in `triples.nt`, so the ontology describes the exported graph.
+
 The cross-check is the integrity gate. Every type and relation in the graph must be declared in
 ontology.config.json, or the build reports it as unmapped. Optional sub-vocabularies declared in the
 config (for example a power map) are rendered as extra sections.
@@ -14,7 +17,10 @@ config (for example a power map) are rendered as extra sections.
 
 import os, json
 
+from ..model import rationale as _rationale, vocabulary as _vocab
+from ..model.namespaces import Terms
 from ..project import ProjectError
+from . import rdf
 
 
 def run(project):
@@ -23,7 +29,6 @@ def run(project):
     os.makedirs(ONT, exist_ok=True)
     identity = project.identity()
     SLUG = identity["slug"]
-    BASE = identity["namespace"]
     PREFIX = identity["prefix"]
 
     graph = json.load(open(os.path.join(_layout.graph, "knowledge-graph.json"), encoding="utf-8"))
@@ -39,18 +44,46 @@ def run(project):
     _cfg = json.load(open(_cfg_path, encoding="utf-8"))
     NAME = _cfg.get("name") or identity["name"]
     CLASSES = dict(_cfg.get("classes") or {})
-    PROPS = {k: tuple(v) for k, v in (_cfg.get("properties") or {}).items()}
-    TEMPORAL = {k: tuple(v) for k, v in (_cfg.get("temporal") or {}).items()}
+    PROPS = dict(_cfg.get("properties") or {})
+    TEMPORAL = dict(_cfg.get("temporal") or {})
     POWERMAP = dict(_cfg.get("powermap") or {})
     ATTRIBUTES = {k: dict(v or {}) for k, v in (_cfg.get("attributes") or {}).items()}
+    LANG = _vocab.languages(_cfg)[0]
+    terms = Terms(_cfg, identity)
+    WHY = _rationale.load(project)
+    # An attribute name is one property, whichever classes declare it: name -> [(class, spec)].
+    ATTRIBUTE_HOLDERS = {}
+    for _c, _attrs in ATTRIBUTES.items():
+        for _a, _spec in _attrs.items():
+            ATTRIBUTE_HOLDERS.setdefault(_a, []).append((_c, _spec))
     XSD = {"string": "xsd:string", "number": "xsd:decimal", "integer": "xsd:integer",
            "boolean": "xsd:boolean", "date": "xsd:date", "list": "rdf:List"}
+
+    SCHEMES = dict(_cfg.get("schemes") or {})
 
     def xsd_of(spec):
         return "xsd:string" if str(spec).startswith("enum:") else XSD.get(spec, "xsd:string")
 
-    def attribute_meaning(spec, desc):
-        return ("%s (one of: %s)" % (desc, spec[5:])) if str(spec).startswith("enum:") else desc
+    def scheme_of(spec):
+        return spec[7:] if str(spec).startswith("scheme:") else None
+
+    def concept(scheme, key):
+        return terms.curie("%s.%s" % (scheme, key), beside=scheme)
+
+    def meaning(spec):
+        """An attribute's definition per language, the enum's values or the scheme spelled out."""
+        out = _vocab.texts(spec.get("definition"), LANG)
+        if str(spec.get("type", "")).startswith("enum:"):
+            out = {lang: "%s (one of: %s)" % (d, spec["type"][5:]) for lang, d in out.items()} or \
+                  {LANG: "(one of: %s)" % spec["type"][5:]}
+        elif scheme_of(spec.get("type")):
+            out = {lang: "%s (a concept of %s)" % (d, scheme_of(spec["type"])) for lang, d in out.items()} or \
+                  {LANG: "(a concept of %s)" % scheme_of(spec["type"])}
+        return out
+
+    def label_of(spec, name):
+        return _vocab.texts(spec.get("label"), LANG) or {LANG: _vocab.name_as_words(name)}
+
     if not CLASSES:
         raise ProjectError("ontology.config.json declares no classes.")
     if not PROPS:
@@ -65,11 +98,21 @@ def run(project):
     missing_prop = graph_rels - set(PROPS)
 
     # ---------- ontology.md ----------
+    def one(texts):
+        return texts.get(LANG) or next(iter(texts.values()), "")
+
+    def why_cells(section, name):
+        entry = (WHY.get(section) or {}).get(name) or {}
+        return (entry.get("why") or "").strip(), (entry.get("validated_by") or "").strip() or "—"
+
     md = [f"# {NAME} — Ontology\n",
           f"A lightweight domain ontology (OWL/RDFS-style) for the {NAME} knowledge system. "
           "It defines the **classes** (entity types) and **object properties** (relationship types) "
           "used across the knowledge graph (`graph/knowledge-graph.json` under the build directory).\n",
-          f"- **Namespace:** `{BASE}` (prefix `{PREFIX}:`)",
+          "- **Terms:** " + ", ".join(f"`{prefix}:` <{iri}>" + (" (this project's own)" if prefix == PREFIX else "")
+                                     for prefix, iri in terms.prefixes.items()),
+          f"- **Instances:** <{terms.instances}>",
+          "- **Languages:** " + ", ".join(_vocab.languages(_cfg)),
           f"- **Classes:** {len(CLASSES)}  ·  **Object properties:** {len(PROPS)}  ·  "
           f"**Temporal/provenance properties:** {len(TEMPORAL)}",
           f"- **Validated against graph:** {len(graph_types)} node types, {len(graph_rels)} relationship types"
@@ -77,30 +120,60 @@ def run(project):
           + (f"  ⚠️ unmapped props: {missing_prop}" if missing_prop else "  (all mapped ✓)"),
           "",
           "## Classes\n",
-          "| Class | Description |", "| --- | --- |"]
-    for c, d in CLASSES.items():
-        md.append(f"| `{PREFIX}:{c}` | {d} |")
+          "| Class | Label | A kind of | Definition | Why it exists | Confirmed by |", "| --- | --- | --- | --- | --- | --- |"]
+    for c, spec in CLASSES.items():
+        why, by = why_cells("classes", c)
+        kind_of = ", ".join(f"`{p}`" for p in spec.get("subclass_of") or []) or "—"
+        md.append(f"| `{terms.curie(c)}` | {one(label_of(spec, c))} | {kind_of} | {one(_vocab.texts(spec.get('definition'), LANG))} | {why} | {by} |")
+    tree = _vocab.covers(CLASSES)
+    roots = [c for c in CLASSES if not (CLASSES[c].get("subclass_of"))]
+    if any(len(tree[c]) > 1 for c in CLASSES):
+        md += ["", "The hierarchy, as a question about a class covers the kinds of it:", ""]
+
+        def branch(kind, depth):
+            md.append("%s- `%s`" % ("  " * depth, kind))
+            for child in CLASSES:
+                if kind in (CLASSES[child].get("subclass_of") or []):
+                    branch(child, depth + 1)
+        for root in roots:
+            branch(root, 0)
     md += ["", "## Object properties\n",
-           "| Property | Domain | Range | Inverse | Meaning |", "| --- | --- | --- | --- | --- |"]
-    for p, (dom, rng, inv, desc) in PROPS.items():
-        md.append(f"| `{PREFIX}:{p}` | {dom} | {rng} | {('`'+inv+'`') if inv else '—'} | {desc} |")
+           "| Property | Label | Domain | Range | Inverse | Specialises | Definition |", "| --- | --- | --- | --- | --- | --- | --- |"]
+    for p, spec in PROPS.items():
+        inv = spec.get("inverse")
+        inverse = f"`{inv}` ({one(_vocab.texts(spec.get('inverse_label'), LANG) or {LANG: _vocab.name_as_words(inv)})})" if inv else "—"
+        md.append(f"| `{terms.curie(p)}` | {one(label_of(spec, p))} | {spec.get('domain') or 'any'} | {spec.get('range') or 'any'} | "
+                  f"{inverse} | {('`' + spec['subproperty_of'] + '`') if spec.get('subproperty_of') else '—'} | "
+                  f"{one(_vocab.texts(spec.get('definition'), LANG))} |")
     if ATTRIBUTES:
         md += ["", "## Attributes\n",
                "Typed values a node of the class may carry in its `attributes`. Absent is always allowed; "
                "a present value must fit the type. Exported as datatype properties.\n",
-               "| Class | Attribute | Type | Meaning |", "| --- | --- | --- | --- |"]
+               "| Class | Attribute | Label | Type | Definition |", "| --- | --- | --- | --- | --- |"]
         for c, attrs in ATTRIBUTES.items():
             for a, spec in attrs.items():
-                md.append(f"| `{PREFIX}:{c}` | `{a}` | {spec[0]} | {spec[1] if len(spec) > 1 else ''} |")
+                typed = f"`{spec['type']}`" if scheme_of(spec["type"]) else spec["type"]
+                md.append(f"| `{terms.curie(c)}` | `{a}` | {one(label_of(spec, a))} | {typed} | "
+                          f"{one(_vocab.texts(spec.get('definition'), LANG))} |")
+    if SCHEMES:
+        md += ["", "## Controlled values\n",
+               "A scheme's concepts are the values an attribute of type `scheme:<Name>` may take, each with its "
+               "label and definition; a concept narrower than another rolls up to it (`kg_group_by ... level=top`).\n"]
+        for name, scheme in SCHEMES.items():
+            md += [f"### `{terms.curie(name)}` — {one(label_of(scheme, name))}", "",
+                   one(_vocab.texts(scheme.get("definition"), LANG)), "",
+                   "| Concept | Label | Narrower than | Definition |", "| --- | --- | --- | --- |"]
+            for key, c in (scheme.get("concepts") or {}).items():
+                md.append(f"| `{key}` | {one(label_of(c, key))} | {('`' + c['broader'] + '`') if c.get('broader') else '—'} | "
+                          f"{one(_vocab.texts(c.get('definition'), LANG))} |")
     md += ["", "## Temporal & provenance vocabulary\n",
            "Optional annotation properties on **any** node or edge that capture *when* a fact was "
            "recorded, *when* it is valid, and *what it replaced* — so queries return the current "
-           "state instead of stale answers while history stays auditable. Backward-compatible: an "
-           "item without them is "
+           "state instead of stale answers while history stays auditable. An item without them is "
            "`status: current`.\n",
-           "| Property | Kind | Meaning |", "| --- | --- | --- |"]
-    for p, (kind, desc) in TEMPORAL.items():
-        md.append(f"| `{PREFIX}:{p}` | {kind} | {desc} |")
+           "| Property | Label | Kind | Definition |", "| --- | --- | --- | --- |"]
+    for t, spec in TEMPORAL.items():
+        md.append(f"| `{terms.temporal_curie(t)}` | {one(label_of(spec, t))} | {spec['type']} | {one(_vocab.texts(spec.get('definition'), LANG))} |")
     if POWERMAP:
         md += ["", "## Additional sub-vocabulary (`powermap`)\n",
                "Declared under `powermap` in the vocabulary config: an object a node may carry, with "
@@ -114,7 +187,10 @@ def run(project):
            "retrieval — not heavy reasoning.",
            "- **Instances** live in `graph/knowledge-graph.json` (nodes and edges) and `graph/triples.nt` "
            "(RDF), under the build directory.",
-           "- Multi-valued domains/ranges are written `A|B` (union).",
+           "- Multi-valued domains/ranges are written `A|B` (union); the Turtle writes them as `owl:unionOf`.",
+           "- Every term carries its labels (`skos:prefLabel`), definition (`skos:definition`) and, when "
+           "recorded, the reasoning behind it (`meta:question`, `meta:rationale`, `meta:alternatives`, "
+           "`meta:validatedBy`) in the Turtle.",
            "- The same vocabulary backs the per-entity pages under `entities/` and the retrieval cards "
            "under `cards/`.",
            "- **`state` vs `status`:** a node may carry a domain-lifecycle `state` in its attributes "
@@ -124,72 +200,186 @@ def run(project):
     open(os.path.join(ONT, "ontology.md"), "w", encoding="utf-8").write("\n".join(md))
 
     # ---------- <slug>.ttl ----------
-    ttl = [f"@prefix {PREFIX}: <{BASE}> .",
-           "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .",
-           "@prefix owl: <http://www.w3.org/2002/07/owl#> .",
-           "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .", "",
-           f"{PREFIX}: a owl:Ontology ; rdfs:label \"{NAME} Ontology\" .", ""]
-    for c, d in CLASSES.items():
-        ttl.append(f"{PREFIX}:{c} a owl:Class ; rdfs:label \"{c}\" ; rdfs:comment \"{d}\" .")
+    def q(text, lang=None):
+        return '"%s"' % rdf.escape(text) + (f"@{lang}" if lang else "")
+
+    def tagged(predicate, texts):
+        """`pred "a"@en , "b"@fr`, or nothing when there is no text."""
+        return f" ; {predicate} " + " , ".join(q(t, lang) for lang, t in texts.items()) if texts else ""
+
+    def labels(spec, name):
+        """rdfs:label and skos:prefLabel per language, skos:altLabel for the alternatives."""
+        pref = label_of(spec, name)
+        return tagged("rdfs:label", pref) + tagged("skos:prefLabel", pref) + tagged(
+            "skos:altLabel", {}) + "".join(f" ; skos:altLabel " + " , ".join(q(x, lang) for x in items)
+                                             for lang, items in _vocab.alt_labels(spec.get("alt_labels"), LANG).items())
+
+    def notes(spec, definitions=None):
+        """rdfs:comment and skos:definition from the definition, then scope note and example."""
+        texts = definitions if definitions is not None else _vocab.texts(spec.get("definition"), LANG)
+        return (tagged("rdfs:comment", texts) + tagged("skos:definition", texts)
+                + tagged("skos:scopeNote", _vocab.texts(spec.get("scope_note"), LANG))
+                + tagged("skos:example", _vocab.texts(spec.get("example"), LANG)))
+
+    def reasoning(section, name):
+        """The recorded rationale, as meta: annotations; only what is recorded."""
+        entry = (WHY.get(section) or {}).get(name) or {}
+        out = ""
+        for key, predicate in (("question", "meta:question"), ("why", "meta:rationale"),
+                               ("alternatives", "meta:alternatives"), ("validated_by", "meta:validatedBy")):
+            if (entry.get(key) or "").strip():
+                out += f" ; {predicate} {q(entry[key].strip())}"
+        return out
+
+    def classes_of(spec):
+        """A declared domain or range. Several classes are a union: written as a list of
+        `rdfs:domain` values they would mean every one of them at once."""
+        names = [t.strip() for t in spec.split("|") if t.strip()]
+        if len(names) == 1:
+            return terms.curie(names[0])
+        return "[ a owl:Class ; owl:unionOf ( %s ) ]" % " ".join(terms.curie(t) for t in names)
+
+    ttl = [f"@prefix {prefix}: <{iri}> ." for prefix, iri in terms.prefixes.items()]
+    ttl += ["@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .",
+            "@prefix owl: <http://www.w3.org/2002/07/owl#> .",
+            "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
+            "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .",
+            f"@prefix skos: <{rdf.SKOS}> .",
+            f"@prefix meta: <{rdf.META}> .", "",
+            f"{PREFIX}: a owl:Ontology ; rdfs:label {q(NAME + ' Ontology')} .", ""]
+    for c, spec in CLASSES.items():
+        parents = "".join(f" ; rdfs:subClassOf {terms.curie(parent)}" for parent in spec.get("subclass_of") or [])
+        ttl.append(f"{terms.curie(c)} a owl:Class{labels(spec, c)}{parents}{notes(spec)}{reasoning('classes', c)} .")
     ttl.append("")
-    def rng_union(x): return ", ".join(f"{PREFIX}:{t}" for t in x.split("|"))
-    for p, (dom, rng, inv, desc) in PROPS.items():
+    for p, spec in PROPS.items():
         # A null domain or range is "any class" and is simply not asserted.
-        line = f"{PREFIX}:{p} a owl:ObjectProperty ; rdfs:label \"{p}\""
-        if dom:
-            line += f" ; rdfs:domain {rng_union(dom)}"
-        if rng:
-            line += f" ; rdfs:range {rng_union(rng)}"
-        line += f" ; rdfs:comment \"{desc}\""
-        if inv:
-            line += f" ; owl:inverseOf {PREFIX}:{inv}"
-        ttl.append(line + " .")
+        line = f"{terms.curie(p)} a owl:ObjectProperty{labels(spec, p)}"
+        if spec.get("domain"):
+            line += f" ; rdfs:domain {classes_of(spec['domain'])}"
+        if spec.get("range"):
+            line += f" ; rdfs:range {classes_of(spec['range'])}"
+        if spec.get("subproperty_of"):
+            line += f" ; rdfs:subPropertyOf {terms.curie(spec['subproperty_of'])}"
+        line += notes(spec)
+        if spec.get("inverse"):
+            line += f" ; owl:inverseOf {terms.curie(spec['inverse'], beside=p)}"
+        ttl.append(line + reasoning("properties", p) + " .")
+    # An inverse that is not a relation of its own is still a property: declared with its label,
+    # so the reading "Payments platform contains Payment API" is in the RDF too.
+    inverses = [(p, spec) for p, spec in PROPS.items() if spec.get("inverse") and spec["inverse"] not in PROPS]
+    if inverses:
+        ttl.append("")
+        ttl.append("# --- inverses: the same relations read from the other side ---")
+        for p, spec in inverses:
+            inv = spec["inverse"]
+            pref = _vocab.texts(spec.get("inverse_label"), LANG) or {LANG: _vocab.name_as_words(inv)}
+            ttl.append(f"{terms.curie(inv, beside=p)} a owl:ObjectProperty{tagged('rdfs:label', pref)}{tagged('skos:prefLabel', pref)}"
+                       f" ; owl:inverseOf {terms.curie(p)} .")
     if ATTRIBUTES:
         ttl.append("")
-        ttl.append("# --- attributes: datatype properties per class ---")
-        for c, attrs in ATTRIBUTES.items():
-            for a, spec in attrs.items():
-                desc = attribute_meaning(spec[0], spec[1] if len(spec) > 1 else "")
-                ttl.append(f"{PREFIX}:{a} a owl:DatatypeProperty ; rdfs:label \"{a}\" ; rdfs:domain {PREFIX}:{c} ; "
-                           f"rdfs:range {xsd_of(spec[0])} ; rdfs:comment \"{desc}\" .")
+        ttl.append("# --- attributes: one property per name, its domain every class that declares it ---")
+        for a, holders in ATTRIBUTE_HOLDERS.items():
+            ranges = list(dict.fromkeys(xsd_of(spec["type"]) for _c, spec in holders))
+            schemes = list(dict.fromkeys(scheme_of(spec["type"]) for _c, spec in holders))
+            if len(holders) == 1:
+                definitions = meaning(holders[0][1])
+            else:                                 # one definition per class, each prefixed with the class
+                definitions = {}
+                for c, spec in holders:
+                    for lang, d in meaning(spec).items():
+                        definitions.setdefault(lang, [])
+                        definitions[lang].append("%s: %s" % (c, d))
+            # A list is written as an RDF collection, which is a resource, not a literal; a scheme's
+            # values are its concepts, so the property is an object property onto them.
+            if schemes != [None] and len(schemes) == 1:
+                kind = "owl:ObjectProperty"
+                rng = " ; rdfs:range [ a owl:Restriction ; owl:onProperty skos:inScheme ; owl:hasValue %s ]" % terms.curie(schemes[0])
+            elif None not in schemes:                           # a scheme per class: the definitions say which
+                kind, rng = "owl:ObjectProperty", " ; rdfs:range skos:Concept"
+            elif any(schemes):
+                kind, rng = "rdf:Property", ""
+            elif ranges == ["rdf:List"]:
+                kind, rng = "owl:ObjectProperty", " ; rdfs:range rdf:List"
+            elif "rdf:List" in ranges:
+                kind, rng = "rdf:Property", ""
+            elif len(ranges) == 1:
+                kind, rng = "owl:DatatypeProperty", f" ; rdfs:range {ranges[0]}"
+            else:
+                kind, rng = "owl:DatatypeProperty", " ; rdfs:range [ a rdfs:Datatype ; owl:unionOf ( %s ) ]" % " ".join(ranges)
+            comments = {lang: d for lang, d in definitions.items()} if len(holders) == 1 else definitions
+            comment_text = "".join(
+                f" ; {predicate} " + " , ".join(q(d, lang) for lang, ds in comments.items() for d in (ds if isinstance(ds, list) else [ds]))
+                for predicate in ("rdfs:comment", "skos:definition")) if comments else ""
+            ttl.append(f"{terms.curie(a)} a {kind}{labels(holders[0][1], a)} ; "
+                       f"rdfs:domain {classes_of('|'.join(c for c, _spec in holders))}{rng}{comment_text} .")
+    if SCHEMES:
+        ttl.append("")
+        ttl.append("# --- controlled values: each scheme and its concepts ---")
+        for name, scheme in SCHEMES.items():
+            concepts = scheme.get("concepts") or {}
+            tops = [k for k, c in concepts.items() if not c.get("broader")]
+            ttl.append(f"{terms.curie(name)} a skos:ConceptScheme{labels(scheme, name)}{notes(scheme)}"
+                       + (" ; skos:hasTopConcept " + " , ".join(concept(name, k) for k in tops) if tops else "") + " .")
+            for key, c in concepts.items():
+                line = f"{concept(name, key)} a skos:Concept{labels(c, key)}{notes(c)} ; skos:inScheme {terms.curie(name)}"
+                if c.get("broader"):
+                    line += f" ; skos:broader {concept(name, c['broader'])}"
+                else:
+                    line += f" ; skos:topConceptOf {terms.curie(name)}"
+                ttl.append(line + " .")
     ttl.append("")
-    ttl.append("# --- temporal & provenance annotation properties ---")
-    for p, (kind, desc) in TEMPORAL.items():
-        ptype = "owl:ObjectProperty" if kind == "ref" else "owl:DatatypeProperty"
-        rng = ("xsd:date" if kind == "date" else "xsd:string") if kind != "ref" else None
-        line = f"{PREFIX}:{p} a {ptype} ; rdfs:label \"{p}\" ; rdfs:comment \"{desc}\""
+    ttl.append("# --- temporal & provenance annotation properties: when a fact holds, and what it rests on ---")
+    for t, spec in TEMPORAL.items():
+        rng = ("xsd:date" if spec["type"] == "date" else "xsd:string") if spec["type"] != "ref" else None
+        line = f"{terms.temporal_curie(t)} a owl:AnnotationProperty{labels(spec, t)}{notes(spec)}"
         if rng:
             line += f" ; rdfs:range {rng}"
-        if p == "supersedes":
-            line += f" ; owl:inverseOf {PREFIX}:supersededBy"
         ttl.append(line + " .")
-    ttl.insert(3, "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .")
+    ttl.append("")
+    ttl.append("# --- the annotation properties the reasoning is recorded with ---")
+    for name, comment in (("question", "The question a term exists to answer, in the asker's words."),
+                          ("rationale", "Why the term is its own: why a class and not an attribute or a merge."),
+                          ("alternatives", "What was considered instead, and why it was rejected."),
+                          ("validatedBy", "The person who knows the domain and confirmed the term as written.")):
+        ttl.append(f"meta:{name} a owl:AnnotationProperty ; rdfs:label {q(_vocab.name_as_words(name))} ; rdfs:comment {q(comment)} ; "
+                   f"rdfs:isDefinedBy <{rdf.META.rstrip('#')}> .")
     open(os.path.join(ONT, f"{SLUG}.ttl"), "w", encoding="utf-8").write("\n".join(ttl) + "\n")
 
     # ---------- JSON-LD context ----------
-    ctx = {"@version": 1.1, PREFIX: BASE,
-           "id": "@id", "type": "@type",
-           "label": "rdfs:label", "rdfs": "http://www.w3.org/2000/01/rdf-schema#"}
+    def compact(curie):
+        return curie.strip("<>")          # a name that is no local name is written as its full IRI
+
+    ctx = {"@version": 1.1}
+    ctx.update(terms.prefixes)
+    ctx.update({"id": "@id", "type": "@type",
+                "label": "rdfs:label", "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+                "skos": rdf.SKOS, "meta": rdf.META})
+    for c in CLASSES:
+        ctx[c] = {"@id": compact(terms.curie(c))}          # so a node's `type` resolves to its class
     for p in PROPS:
-        ctx[p] = {"@id": f"{PREFIX}:{p}", "@type": "@id"}
-    for c, attrs in ATTRIBUTES.items():
-        for a, spec in attrs.items():
-            entry = {"@id": f"{PREFIX}:{a}"}
-            if xsd_of(spec[0]) != "rdf:List":
-                entry["@type"] = "http://www.w3.org/2001/XMLSchema#" + xsd_of(spec[0]).split(":")[1]
-            ctx.setdefault(a, entry)
-    for p, (kind, _desc) in TEMPORAL.items():
-        if kind == "ref":
-            ctx[p] = {"@id": f"{PREFIX}:{p}", "@type": "@id"}
-        elif kind == "date":
-            ctx[p] = {"@id": f"{PREFIX}:{p}", "@type": "http://www.w3.org/2001/XMLSchema#date"}
+        ctx[p] = {"@id": compact(terms.curie(p)), "@type": "@id"}
+    for a, holders in ATTRIBUTE_HOLDERS.items():
+        entry = {"@id": compact(terms.curie(a))}
+        ranges = list(dict.fromkeys(xsd_of(spec["type"]) for _c, spec in holders))
+        if any(scheme_of(spec["type"]) for _c, spec in holders):
+            entry["@type"] = "@id"
+        elif ranges == ["rdf:List"]:
+            entry["@container"] = "@list"
+        elif len(ranges) == 1:
+            entry["@type"] = "http://www.w3.org/2001/XMLSchema#" + ranges[0].split(":")[1]
+        ctx.setdefault(a, entry)
+    for t, spec in TEMPORAL.items():
+        if spec["type"] == "ref":
+            ctx[t] = {"@id": compact(terms.temporal_curie(t)), "@type": "@id"}
+        elif spec["type"] == "date":
+            ctx[t] = {"@id": compact(terms.temporal_curie(t)), "@type": "http://www.w3.org/2001/XMLSchema#date"}
         else:
-            ctx[p] = {"@id": f"{PREFIX}:{p}"}
+            ctx[t] = {"@id": compact(terms.temporal_curie(t))}
     jsonld = {"@context": ctx,
-              "classes": [f"{PREFIX}:{c}" for c in CLASSES],
-              "properties": [f"{PREFIX}:{p}" for p in PROPS],
+              "classes": [compact(terms.curie(c)) for c in CLASSES],
+              "properties": [compact(terms.curie(p)) for p in PROPS],
               "attributes": {c: list(attrs) for c, attrs in ATTRIBUTES.items()},
-              "temporal_properties": [f"{PREFIX}:{p}" for p in TEMPORAL]}
+              "temporal_properties": [compact(terms.temporal_curie(t)) for t in TEMPORAL]}
     json.dump(jsonld, open(os.path.join(ONT, f"{SLUG}.context.jsonld"), "w", encoding="utf-8"),
               indent=2, ensure_ascii=False)
 

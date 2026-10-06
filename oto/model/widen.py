@@ -47,8 +47,8 @@ def analyse(config, nodes, edges, frequent=FREQUENT):
     findings = []
     for relation in sorted(observed):
         spec = properties[relation]
-        declared_from = _union(spec[0] if len(spec) > 0 else "")
-        declared_to = _union(spec[1] if len(spec) > 1 else "")
+        declared_from = _union(spec.get("domain"))
+        declared_to = _union(spec.get("range"))
 
         # Count per ENDPOINT TYPE, not per pair, before thresholding. Thresholding pairs put the
         # same type in both buckets: a type used 11 times with one partner and 4 with another looked
@@ -69,8 +69,8 @@ def analyse(config, nodes, edges, frequent=FREQUENT):
             continue
         findings.append({
             "relation": relation,
-            "declared_domain": spec[0] if len(spec) > 0 else "",
-            "declared_range": spec[1] if len(spec) > 1 else "",
+            "declared_domain": spec.get("domain") or "",
+            "declared_range": spec.get("range") or "",
             "widen_domain": dict(sorted(widen_from.items(), key=lambda kv: -kv[1])),
             "widen_range": dict(sorted(widen_to.items(), key=lambda kv: -kv[1])),
             "inspect_domain": dict(sorted(rare_from.items(), key=lambda kv: -kv[1])),
@@ -86,13 +86,11 @@ def propose(config, findings):
     changed = []
     for finding in findings:
         relation = finding["relation"]
-        spec = list(properties.get(relation) or [])
-        while len(spec) < 4:
-            spec.append("")
+        spec = dict(properties.get(relation) or {})
         if finding["widen_domain"]:
-            spec[0] = "|".join(sorted(set(_union(spec[0])) | set(finding["widen_domain"])))
+            spec["domain"] = "|".join(sorted(set(_union(spec.get("domain"))) | set(finding["widen_domain"])))
         if finding["widen_range"]:
-            spec[1] = "|".join(sorted(set(_union(spec[1])) | set(finding["widen_range"])))
+            spec["range"] = "|".join(sorted(set(_union(spec.get("range"))) | set(finding["widen_range"])))
         if finding["widen_domain"] or finding["widen_range"]:
             properties[relation] = spec
             changed.append(relation)

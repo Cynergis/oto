@@ -26,6 +26,7 @@ Every tool is temporality-aware and returns current facts by default.
 import os, sys, json, sqlite3, re
 
 from .store import SqliteStore, Neo4jStore
+from ..model import vocabulary as _vocab
 
 # MCP requires UTF-8; Windows consoles default to cp1252 which breaks chars like "→".
 try:
@@ -73,7 +74,7 @@ if BACKEND not in BACKENDS:
 
 #: The highest database shape this engine understands. Keep in step with
 #: `oto.targets.sqlite.SCHEMA_VERSION`, and read the reasoning there.
-UNDERSTOOD_SCHEMA = 4
+UNDERSTOOD_SCHEMA = 5
 
 
 def _meta(path, key, default=None):
@@ -285,6 +286,19 @@ def no_data_message():
             "it up on the next query, with no restart." % (NAME, DB, DB_NAME))
 
 
+# ============================ the vocabulary, as the store carries it ============================
+_vocabulary = (None, None)        # (the store it was read from, the Vocabulary)
+
+
+def vocabulary():
+    """What the terms are called and mean, read once per loaded store."""
+    global _vocabulary
+    if _vocabulary[0] is not STORE:
+        from ..model.terms import Vocabulary
+        _vocabulary = (STORE, Vocabulary.of_store(STORE))
+    return _vocabulary[1]
+
+
 # ============================ query helpers (return text) ============================
 def node(nid):
     return STORE.node(nid)
@@ -320,16 +334,29 @@ def entity_text(term, history=False, as_of=None):
         ("\n\nOther matches: " + ", ".join(f"{label(a)} ({a})" for a in alts)) if alts else "")
 
 
+def relation_name(rel):
+    """A relation as the caller names it, by name or by label ("part of" is part_of)."""
+    if not rel:
+        return rel
+    words = vocabulary()
+    if rel in words.relations:
+        return rel
+    names = [key for kind, key in words.find(rel) if kind == "relation"]
+    return names[0] if names else rel
+
+
 def neighbors_text(term, rel=None):
     nid, _ = resolve(term)
     if not nid:
         return f"No entity matched '{term}'."
-    return _card(nid, False, rel, None)
+    rels = vocabulary().relation_covers(relation_name(rel)) if rel else None
+    return _card(nid, False, (rels[0] if len(rels) == 1 else rels) if rels else None, None)
 
 
 def _card(nid, history, rel, as_of):
     n = node(nid)
-    L = [f"=== {n['label']}  [{n['type']}]  ({nid}) ==="]
+    words = vocabulary()
+    L = [f"=== {n['label']}  [{words.classed(n['type'])}]  ({nid}) ==="]
     if n["status"] == "superseded" and not history and not as_of and n["superseded_by"] and node(n["superseded_by"]):
         L.append(f"⚠️ SUPERSEDED (valid_to={n['valid_to']}). Current → {label(n['superseded_by'])}. Showing current.")
         return "\n".join(L) + "\n\n" + _card(n["superseded_by"], history, rel, as_of)
@@ -340,14 +367,16 @@ def _card(nid, history, rel, as_of):
         L.append("🔵 INTENDED: asserted as a plan, not yet observed. Not the current state; an action's "
                  "recorded run is what would make it so (kg_actions).")
     al = STORE.aliases(nid)
-    if al:
-        L.append("aka: " + ", ".join(dict.fromkeys(al)))
+    ancestors = words.ancestors(n["type"])
+    if al or ancestors:
+        L.append("  ·  ".join(x for x in ("aka: " + ", ".join(dict.fromkeys(al)) if al else "",
+                                          "a kind of " + ", ".join(ancestors) if ancestors else "") if x))
     if n["summary"]:
         L.append("\n" + n["summary"])
     attrs = json.loads(n["attributes"] or "{}")
     if attrs:
         L.append("\nAttributes:")
-        L += [f"  - {k}: {v}" for k, v in attrs.items() if v not in (None, "", [], {})]
+        L += [f"  - {words.attribute_label(n['type'], k)}: {words.value_text(n['type'], k, v)}" for k, v in attrs.items() if v not in (None, "", [], {})]
 
     def keep(o):
         m = node(o)
@@ -367,12 +396,18 @@ def _card(nid, history, rel, as_of):
            if (history or as_of is not None or e["status"] != "superseded") and keep(e["dst"])]
     inc = [(e["rel"], e["src"], mark(e)) for e in STORE.edges_in(nid, rel)
            if (history or as_of is not None or e["status"] != "superseded") and keep(e["src"])]
+    # Each relation reads as the vocabulary labels it; an incoming edge reads from this entity's
+    # side when the relation declares an inverse ("contains → Payment API"), and as the other
+    # entity's statement otherwise ("Payments team → owns").
     if out:
         L.append("\nRelationships (outgoing):")
-        L += [f"  {rl} → {label(t)}" + ("" if node(t) and node(t)['status'] == 'current' else f"  [{node(t)['status']}]" if node(t) else "") + m for rl, t, m in out[:50]]
+        L += [f"  {words.relation_label(rl)} → {label(t)}"
+              + ("" if node(t) and node(t)['status'] == 'current' else f"  [{node(t)['status']}]" if node(t) else "") + m
+              for rl, t, m in out[:50]]
     if inc:
         L.append("\nRelationships (incoming):")
-        L += [f"  {label(s)} → {rl}{m}" for rl, s, m in inc[:50]]
+        L += [(f"  {words.inverse_label(rl)} → {label(s)}" if words.inverse_label(rl) else f"  {label(s)} → {words.relation_label(rl)}") + m
+              for rl, s, m in inc[:50]]
     rows = STORE.derived_attributes(nid)
     if rows:
         L.append("\nAttributes (derived):")
@@ -399,6 +434,79 @@ def _card(nid, history, rel, as_of):
     return "\n".join(L)
 
 
+def define_text(term):
+    """What a class, relation or attribute is called and means, with the reasoning behind it."""
+    words = vocabulary()
+    found = words.find(term)
+    if not found:
+        known = sorted(set(list(words.classes) + list(words.relations)))
+        return (f"No class, relation or attribute is called '{term}'. The vocabulary declares: "
+                + (", ".join(known) if known else "nothing the store carries (built without a vocabulary?)") + ".")
+    out = []
+    for kind, key in found:
+        d = words.describe(kind, key)
+        head = d["name"] if not d["owner"] else f"{d['owner']}.{d['name']}"
+        if kind == "concept":
+            head = f"{d['owner']}.{d['name']}"
+        out.append(f"=== {d['labels'].get(words.language) or d['name']}  [{kind} {head}]" + (f"  <{d['iri']}>" if d.get("iri") else "") + " ===")
+        if len(d["labels"]) > 1 or d["alt_labels"]:
+            out.append("labels: " + "; ".join(f"{lang} \"{text}\"" for lang, text in d["labels"].items())
+                       + ("".join(f"; also {lang} " + ", ".join(f"\"{x}\"" for x in items) for lang, items in d["alt_labels"].items())))
+        if d.get("definition"):
+            out.append("definition: " + d["definition"].get(words.language, next(iter(d["definition"].values()))))
+        for field, title in (("scope_note", "scope"), ("example", "example")):
+            if d.get(field):
+                out.append(f"{title}: " + d[field].get(words.language, next(iter(d[field].values()))))
+        if kind == "relation":
+            arrow = f"from: {d.get('domain') or 'any class'}  →  to: {d.get('range') or 'any class'}"
+            if d.get("inverse"):
+                arrow += f"\ninverse: {d['inverse']} (\"{d['inverse_label'].get(words.language, '')}\")"
+            out.append(arrow)
+            if d.get("specialises"):
+                out.append("specialises: " + ", ".join(d["specialises"]))
+            if d.get("specialised_by"):
+                out.append("specialised by: " + ", ".join(d["specialised_by"]))
+            counts = {r["rel"]: r["c"] for r in STORE.rels_counts(10000)}
+            own = counts.get(d["name"], 0)
+            under = sum(counts.get(r, 0) for r in d.get("specialised_by") or [])
+            out.append(f"in the graph: {own} edge(s)" + (f", {own + under} with the relations that specialise it" if under else ""))
+        elif kind == "class":
+            if d.get("ancestors"):
+                out.append("a kind of: " + ", ".join(d["ancestors"]))
+            if d.get("kinds"):
+                out.append("kinds of it: " + ", ".join(d["kinds"]))
+            own = STORE.count(d["name"])
+            covered = STORE.count(words.covers(d["name"])) if d.get("kinds") else own
+            out.append(f"in the graph: {own} node(s)" + (f", {covered} with the kinds of it" if d.get("kinds") else ""))
+        elif kind == "attribute":
+            out.append(f"type: {d.get('type')}  ·  declared on {d['owner']}")
+        elif kind == "temporal":
+            out.append(f"type: {d.get('type')}  ·  a temporal field every fact may carry")
+        elif kind == "scheme":
+            out.append("concepts:")
+            out += [f"  - {c['key']}: {c['label']}" + (f" — {c['definition']}" if c["definition"] else "")
+                    + (f"  (narrower than {c['broader']})" if c.get("broader") else "") for c in d["concepts"]]
+            out.append("values of: " + ", ".join(f"{o}.{a}" for o, a in d["used_by"]) if d["used_by"] else "values of: no attribute yet")
+        elif kind == "concept":
+            out.append(f"a concept of {d['owner']}" + (f", narrower than {', '.join(d['broader'])}" if d["broader"] else "")
+                       + (f"; narrower concepts: {', '.join(d['narrower'])}" if d["narrower"] else ""))
+            used = [f"{STORE.count(words.covers(owner), None, attr, d['name'])} {owner}" for owner, attr in d["used_by"]]
+            out.append("in the graph: " + (", ".join(used) if used else "no attribute takes it"))
+        why = d["rationale"]
+        if why.get("question") or why.get("why"):
+            out.append("why it exists: " + (why.get("why") or "").strip())
+            if why.get("question"):
+                out.append("the question it answers: " + why["question"].strip())
+            if why.get("alternatives"):
+                out.append("alternatives considered: " + why["alternatives"].strip())
+            out.append("confirmed by: " + (why.get("validated_by").strip() if (why.get("validated_by") or "").strip()
+                                           else "nobody yet (validated_by is empty)"))
+        elif kind == "class":
+            out.append("why it exists: not recorded (ontology.rationale.json)")
+        out.append("")
+    return "\n".join(out).rstrip()
+
+
 def search_text(query, n=8):
     rows = STORE.search(query, int(n))
     if not rows:
@@ -407,12 +515,24 @@ def search_text(query, n=8):
         f"  {r['r']:.3f}  {r['title'][:58]:<58}  {r['path']}" for r in rows)
 
 
+def kinds_of(type_):
+    """The classes a question about `type_` covers, by name or label."""
+    words = vocabulary()
+    if type_ not in words.classes:
+        found = [key for kind, key in words.find(type_) if kind == "class"]
+        type_ = found[0] if found else type_
+    return type_, words.covers(type_)
+
+
 def by_type_text(type_, state=None, limit=50):
-    rows = STORE.by_type(type_, state, int(limit))
+    type_, kinds = kinds_of(type_)
+    rows = STORE.by_type(kinds, state, int(limit))
     if not rows:
         return f"No nodes of type '{type_}'" + (f" with state '{state}'" if state else "") + "."
-    return f"{type_} ({len(rows)}):\n" + "\n".join(
-        f"  {r['label']}  ({r['id']})" + ("" if r['status'] == 'current' else f"  [{r['status']}]") for r in rows)
+    head = f"{type_} ({len(rows)}" + (f"; covers {', '.join(k for k in kinds if k != type_)}" if len(kinds) > 1 else "") + "):"
+    return head + "\n" + "\n".join(
+        f"  {r['label']}  ({r['id']})" + (f"  [{r['type']}]" if len(kinds) > 1 else "")
+        + ("" if r['status'] == 'current' else f"  [{r['status']}]") for r in rows)
 
 
 def stale_text():
@@ -548,22 +668,55 @@ def overview_text(limit=10):
 
 def count_text(type_=None, tag=None, attr=None, value=None):
     key = re.sub(r"[^A-Za-z0-9_]", "", attr) if attr else None
-    n = STORE.count(type_, tag, key, value)
-    filt = ", ".join(p for p in (f"type={type_}" if type_ else None, f"tag~{tag}" if tag else None,
+    type_, kinds = kinds_of(type_) if type_ else (None, [])
+    n = STORE.count(kinds or None, tag, key, value)
+    covered = f" (covers {', '.join(k for k in kinds if k != type_)})" if len(kinds) > 1 else ""
+    filt = ", ".join(p for p in (f"type={type_}{covered}" if type_ else None, f"tag~{tag}" if tag else None,
                                  f"{attr}={value}" if attr and value is not None else None) if p)
     return f"count = {n}" + (f"  ({filt})" if filt else "  (all nodes)")
 
 
-def group_by_text(by, type_=None, tag=None, limit=200):
-    """Aggregate: GROUP BY a node column (type/status) or an attribute key (e.g. state, region)."""
+def scheme_for(key, type_=None):
+    """The scheme an attribute's values come from, on `type_` or on any class declaring it."""
+    words = vocabulary()
+    owners = [type_] if type_ else sorted({owner for owner, name in words.attributes if name == key})
+    for owner in owners:
+        scheme = words.scheme_of(owner, key)
+        if scheme:
+            return scheme
+    return None
+
+
+def group_by_rows(by, type_=None, tag=None, limit=200, level=None):
+    """The groups, each value of a scheme read with its label; `level="top"` rolls a value up to
+    the concept at the top of its broader chain."""
     key = re.sub(r"[^A-Za-z0-9_]", "", by or "")
-    rows = STORE.group_by(key, type_, tag, int(limit))
+    type_, kinds = kinds_of(type_) if type_ else (None, [])
+    rows = STORE.group_by(key, kinds or None, tag, int(limit))
+    words, scheme = vocabulary(), scheme_for(key, type_)
+    if scheme and level == "top":
+        rolled = {}
+        for r in rows:
+            top = words.top_of(scheme, r["g"]) if isinstance(r["g"], str) else r["g"]
+            rolled[top] = rolled.get(top, 0) + r["c"]
+        rows = sorted(({"g": g, "c": c} for g, c in rolled.items()), key=lambda r: (-r["c"], str(r["g"])))
+    for r in rows:
+        concept = words.concept(scheme, r["g"]) if scheme and isinstance(r["g"], str) else None
+        r["label"] = _vocab.label(concept, r["g"], words.language, words.language) if concept is not None else None
+    return key, type_, scheme, rows
+
+
+def group_by_text(by, type_=None, tag=None, limit=200, level=None):
+    """Aggregate: GROUP BY a node column (type/status) or an attribute key (e.g. state, region)."""
+    key, type_, scheme, rows = group_by_rows(by, type_, tag, limit, level)
     if not rows:
         return f"No nodes to group by '{by}'" + (f" (type={type_})" if type_ else "") + "."
     total = sum(r["c"] for r in rows)
-    head = f"group by {key}" + (f", type={type_}" if type_ else "") + (f", tag~{tag}" if tag else "")
+    head = f"group by {key}" + (f", type={type_}" if type_ else "") + (f", tag~{tag}" if tag else "") \
+        + (f", values of {scheme}" + (" rolled up to the top concepts" if level == "top" else "") if scheme else "")
     return f"{head} — {total} nodes in {len(rows)} group(s):\n" + "\n".join(
-        f"  {r['c']:5}  {r['g'] if r['g'] is not None else '(none)'}" for r in rows)
+        f"  {r['c']:5}  {r['g'] if r['g'] is not None else '(none)'}" + (f"  ({r['label']})" if r.get("label") and r["label"] != r["g"] else "")
+        for r in rows)
 
 
 def resolve_text(term):
@@ -640,20 +793,22 @@ def _graph_from_store():
 def actions_data(action=None, on=None, ready=False, due=False):
     """The catalog as data: every action, one action, or the actions bound to one entity."""
     from ..actions import catalog as _catalog
+    from ..model.vocabulary import covers as _covers
     nodes, edges = _graph_from_store()
     definitions = _catalog.definitions_from_nodes(nodes)
+    covers = _covers(vocabulary().classes)
     if on:
         nid, _alts = resolve(on)
         if not nid:
             return {"error": f"No entity matched '{on}'.", "actions": []}
         subject = next(n for n in nodes if n["id"] == nid)
-        return {"on": nid, "actions": _catalog.for_entity(definitions, nodes, edges, subject)}
+        return {"on": nid, "actions": _catalog.for_entity(definitions, nodes, edges, subject, covers=covers)}
     if action:
         chosen = [a for a in definitions if a["id"] == action]
         if not chosen:
             return {"error": "No action %r; declared: %s" % (action, ", ".join(a["id"] for a in definitions) or "none"), "actions": []}
-        return {"actions": _catalog.catalog(chosen, nodes, edges)}
-    return {"actions": _catalog.catalog(definitions, nodes, edges, ready_only=bool(ready), due_only=bool(due))}
+        return {"actions": _catalog.catalog(chosen, nodes, edges, covers=covers)}
+    return {"actions": _catalog.catalog(definitions, nodes, edges, ready_only=bool(ready), due_only=bool(due), covers=covers)}
 
 
 def actions_text(action=None, on=None, ready=False, due=False):
@@ -725,9 +880,10 @@ TOOLS = [
          "by": {"type": "string", "description": "field to group by: type | status | or an attribute key like state, region"},
          "type": {"type": "string", "description": "optional node-type filter"},
          "tag": {"type": "string", "description": "optional tag substring filter"},
-         "limit": {"type": "integer", "description": "max groups to return (default 200)"}},
+         "limit": {"type": "integer", "description": "max groups to return (default 200)"},
+         "level": {"type": "string", "description": "for values of a scheme: 'top' rolls each value up to the top concept of its broader chain"}},
          "required": ["by"]},
-     "fn": lambda a: group_by_text(a["by"], a.get("type"), a.get("tag"), a.get("limit", 200))},
+     "fn": lambda a: group_by_text(a["by"], a.get("type"), a.get("tag"), a.get("limit", 200), a.get("level"))},
     {"name": "kg_search",
      "description": "Full-text (FTS5) passage search across documents, knowledge-base notes and semantic cards.",
      "inputSchema": {"type": "object", "properties": {
@@ -741,6 +897,15 @@ TOOLS = [
          "type": {"type": "string"}, "state": {"type": "string"}, "limit": {"type": "integer"}},
          "required": ["type"]},
      "fn": lambda a: by_type_text(a["type"], a.get("state"), a.get("limit", 50))},
+    {"name": "kg_define",
+     "description": "What a class, relation or attribute of the vocabulary is called and means: its labels in every "
+                    "language, definition, scope note and example, domain, range and inverse, the question it "
+                    "answers and why it exists, who confirmed it, and how much of the graph uses it. Use when an "
+                    "answer names a term and the reader asks what it means, or before using a term in a question.",
+     "inputSchema": {"type": "object", "properties": {
+         "term": {"type": "string", "description": "a class, relation or attribute: its name or its label"}},
+         "required": ["term"]},
+     "fn": lambda a: define_text(a["term"])},
     {"name": "kg_explain",
      "description": "Why the graph holds a derived fact about an entity: the rule that derived it and every "
                     "premise down to the document evidence. Use when an answer shows [derived by <rule>].",
@@ -864,11 +1029,11 @@ def handle(req):
 CLI_USAGE = """oto query — the same data as the server tools, one query per invocation
   entity <term> [--history] [--as-of YYYY-MM-DD]   neighbors <term> [rel]
   search <query> [n]                               by-type <Type> [state] [limit]
-  count [--type T] [--tag G] [--attr A --value V]  group <by> [--type T] [--tag G]
-  stale   resolve <term>   docs [query] [limit]   overview [limit]
+  count [--type T] [--tag G] [--attr A --value V]  group <by> [--type T] [--tag G] [--level top]
+  stale   resolve <term>   docs [query] [limit]   overview [limit]   define <term>
   explain <term> [rel]   policy [limit]   pending [limit]   actions [--on <term>] [--action <id>] [--ready] [--due]"""
 
-CLI_COMMANDS = {"entity", "neighbors", "search", "by-type", "count", "group",
+CLI_COMMANDS = {"entity", "neighbors", "search", "by-type", "count", "group", "define",
                 "stale", "resolve", "docs", "overview", "explain", "policy", "pending", "actions", "help", "--help", "-h"}
 
 def _flag(a, name):
@@ -894,7 +1059,7 @@ def cli(argv):
         elif cmd == "count":
             print(count_text(_flag(a, "--type"), _flag(a, "--tag"), _flag(a, "--attr"), _flag(a, "--value")))
         elif cmd == "group":
-            print(group_by_text(pos[0], _flag(a, "--type"), _flag(a, "--tag")))
+            print(group_by_text(pos[0], _flag(a, "--type"), _flag(a, "--tag"), 200, _flag(a, "--level")))
         elif cmd == "stale":
             print(stale_text())
         elif cmd == "overview":
@@ -909,6 +1074,8 @@ def cli(argv):
             print(actions_text(_flag(a, "--action"), _flag(a, "--on"), "--ready" in a, "--due" in a))
         elif cmd == "resolve":
             print(resolve_text(" ".join(pos)))
+        elif cmd == "define":
+            print(define_text(" ".join(pos)))
         elif cmd == "docs":
             print(docs_text(pos[0] if pos else None, int(pos[1]) if len(pos) > 1 else 200))
     except IndexError:

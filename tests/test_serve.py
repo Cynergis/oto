@@ -14,8 +14,8 @@ from oto.scaffold import init
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 ONTOLOGY = {
-    "classes": {"Machine": "A machine.", "Site": "A place where machines run."},
-    "properties": {"installed_at": ["Machine", "Site", "hosts", "Where a machine runs."]},
+    "classes": {"Machine": {"definition": "A machine."}, "Site": {"definition": "A place where machines run."}},
+    "properties": {"installed_at": {"domain": "Machine", "range": "Site", "inverse": "hosts", "definition": "Where a machine runs."}},
     "temporal": {},
 }
 STAMP = {"as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "handbook",
@@ -55,7 +55,7 @@ def test_query_resolves_an_alias():
         _built_project(root)
         out = _query(root, "entity", "Press One")
         assert "Press 01" in out
-        assert "[Machine]" in out
+        assert "[Machine — " in out, "the class is read with its definition"
 
 
 def test_answers_carry_provenance_and_a_date():
@@ -246,3 +246,102 @@ def test_the_query_skill_labels_a_synthesis_and_keeps_theme_notes():
     skill = open(os.path.join(root, "skills", "query-knowledge", "SKILL.md"), encoding="utf-8").read()
     for marker in ("kg_overview", "A reading of the graph as of", "Rests on", "notes/themes/", "Decline what a synthesis cannot ground"):
         assert marker in skill, marker
+
+
+# ---- what a term means ----
+
+WORDED = {
+    "languages": ["en", "fr"],
+    "classes": {"Machine": {"definition": {"en": "A machine.", "fr": "Une machine."}, "label": {"en": "machine", "fr": "machine"},
+                            "alt_labels": {"en": ["press"], "fr": ["presse"]}, "scope_note": "Not the tooling it carries."},
+                "Site": {"definition": "A place where machines run.", "label": {"fr": "site"}}},
+    "properties": {"installed_at": {"domain": "Machine", "range": "Site", "inverse": "hosts",
+                                    "definition": "Where a machine runs.", "label": {"en": "installed at", "fr": "installée à"},
+                                    "inverse_label": {"en": "hosts", "fr": "héberge"}}},
+    "attributes": {"Machine": {"serial": {"type": "string", "definition": "The maker's number.", "label": "serial number"}}},
+    "temporal": {},
+}
+RATIONALE = {"classes": {"Machine": {"question": "What runs where?", "why": "Downtime questions name the machine, never the line it sits on.",
+                                     "alternatives": "A line class; rejected, nobody asks about lines.", "validated_by": "R. Plant, 2026-05-01"}},
+             "properties": {}}
+
+
+def _worded_project(root):
+    init(root, slug="kb", name="Test KB")
+    with open(os.path.join(root, "ontology.config.json"), "w", encoding="utf-8") as f:
+        json.dump(WORDED, f)
+    with open(os.path.join(root, "ontology.rationale.json"), "w", encoding="utf-8") as f:
+        json.dump(RATIONALE, f)
+    graph = json.loads(json.dumps(GRAPH))
+    graph["nodes"][0].update(labels={"fr": "Presse 01"}, hidden_labels=["PRS-01"], attributes={"serial": "X-9"})
+    with open(os.path.join(root, "graph.json"), "w", encoding="utf-8") as f:
+        json.dump(graph, f)
+    with open(os.path.join(root, "lexicon.json"), "w", encoding="utf-8") as f:
+        json.dump({"entries": [{"term": "the big press", "aka": ["BP"], "targets": ["m.1"], "status": "current", "note": ""}]}, f)
+    project = Project.standard(root)
+    build(project)
+    return project
+
+
+def test_an_answer_reads_the_vocabulary_as_it_is_labelled():
+    with tempfile.TemporaryDirectory() as root:
+        _worded_project(root)
+        card = _query(root, "entity", "Press 01")
+        assert "[Machine — A machine.]" in card and "aka: Press One" in card
+        assert "  - serial number: X-9" in card, "an attribute reads by its label"
+        assert "  installed at → North Plant" in card
+        site = _query(root, "entity", "North Plant")
+        assert "  hosts → Press 01" in site, "an incoming edge reads from this side, by the inverse label"
+        assert "Press 01" in _query(root, "entity", "Presse 01"), "a label in another language resolves"
+        assert "Press 01" in _query(root, "entity", "PRS-01"), "a hidden label resolves"
+        assert "PRS-01" not in _query(root, "entity", "Press 01"), "and is never shown"
+        assert "Press 01" in _query(root, "neighbors", "North Plant", "héberge"), "a relation filter takes a label in any language"
+
+
+def test_define_says_what_a_term_means_and_why_it_exists():
+    with tempfile.TemporaryDirectory() as root:
+        _worded_project(root)
+        text = _query(root, "define", "presse")                # found by a French alternative label
+        assert text.startswith("=== machine  [class Machine]  <https://kb.example/kg/ont/Machine> ===")
+        assert 'labels: en "machine"; fr "machine"; also en "press"; also fr "presse"' in text
+        assert "definition: A machine." in text and "scope: Not the tooling it carries." in text
+        assert "in the graph: 1 node(s)" in text
+        assert "why it exists: Downtime questions name the machine" in text and "the question it answers: What runs where?" in text
+        assert "confirmed by: R. Plant, 2026-05-01" in text
+        relation = _query(root, "define", "installed at")
+        assert "from: Machine  →  to: Site" in relation and 'inverse: hosts ("hosts")' in relation and "in the graph: 1 edge(s)" in relation
+        attribute = _query(root, "define", "serial number")
+        assert "[attribute Machine.serial]" in attribute and "type: string  ·  declared on Machine" in attribute
+        assert "not recorded" not in relation, "a relation's reasoning is optional"
+        assert "No class, relation or attribute is called 'gizmo'" in _query(root, "define", "gizmo")
+
+
+def test_a_question_about_a_class_covers_the_kinds_of_it():
+    with tempfile.TemporaryDirectory() as root:
+        init(root, slug="kb", name="Test KB", ontology="software-architecture")
+        build(Project.standard(root))
+        listed = _query(root, "by-type", "Asset")
+        assert listed.startswith("Asset (5; covers Component, DataStore, Interface, System):") and "[Component]" in listed
+        assert "count = 5  (type=Asset (covers" in _query(root, "count", "--type", "Asset")
+        assert "count = 2  (type=Component)" in _query(root, "count", "--type", "Component")
+        card = _query(root, "entity", "Payment API")
+        assert "a kind of Asset" in card
+        defined = _query(root, "define", "Asset")
+        assert "kinds of it: Component, DataStore, Interface, System" in defined and "in the graph: 0 node(s), 5 with the kinds of it" in defined
+        assert "a kind of: Asset" in _query(root, "define", "component")
+
+
+def test_a_controlled_value_is_read_by_its_concept():
+    with tempfile.TemporaryDirectory() as root:
+        init(root, slug="kb", name="Test KB", ontology="auto-claims")
+        build(Project.standard(root))
+        card = _query(root, "entity", "C-5001")
+        assert "  - state: Open — Reported and being handled: assessed, decided or paid." in card
+        grouped = _query(root, "group", "state", "--type", "Task", "--level", "top")
+        assert "values of TaskState rolled up to the top concepts" in grouped
+        defined = _query(root, "define", "claim state")
+        assert "[scheme ClaimState]" in defined and "  - reopened: Reopened — Opened again after closing" in defined and "(narrower than open)" in defined
+        assert "values of: Claim.state" in defined
+        concept = _query(root, "define", "Reopened")
+        assert "[concept ClaimState.reopened]" in concept and "a concept of ClaimState, narrower than open" in concept
+

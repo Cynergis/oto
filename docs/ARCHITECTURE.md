@@ -27,12 +27,12 @@ citation on every fact.
 |---|---|---|---|
 | Create | `oto init`, `oto ontology`, `oto ontology export` | [scaffold.py](../oto/scaffold.py), [model/ontologies.py](../oto/model/ontologies.py) | Writes the identity config, a vocabulary, an empty or sample graph, and the directory tree. Nothing else is copied: the engine stays installed. `export` turns a project's accepted vocabulary into an ontology for the next project. |
 | Ingest | `oto ingest`, `oto ingest complete`, `oto figures`, `oto survey` | [intake/](../oto/intake/) | A run claims the inbox into `processing/`, and each file becomes one `Document` of typed blocks through a registered extractor, is rendered to Markdown, given figure descriptions, scanned for personal data, and only then written to the corpus. Failures go to `errors/<run>/` with the reason beside them. `complete` moves a run's files to `archive/` once the graph holds their facts. `survey` maps the corpus, and `survey --doc` briefs one document for whoever drafts its proposal: its terms, and which already resolve to entities. |
-| Declare | `oto ontology`, `oto ontology import`, `oto ontology` | [model/](../oto/model/) | The vocabulary lives in `ontology.config.json`. It arrives from an ontology (a versioned, composable unit: see Ontologies below) or several merged, from a file (the Turtle OTO emits, CSV, JSON), from the documents via the interview, or by interview alone; `oto status` lists the four when none is declared. This package diffs it against the last accepted version, counts what a change breaks, checks domain and range conformance, proposes honest widenings, and reports who confirmed each class. |
+| Declare | `oto ontology`, `oto ontology import`, `oto ontology` | [model/](../oto/model/) | The vocabulary lives in `ontology.config.json`. It arrives from an ontology (a versioned, composable unit: see Ontologies below) or several merged, from a file (any OWL, RDFS or SKOS ontology in any RDF syntax through the `rdf` extra, [model/rdf_import.py](../oto/model/rdf_import.py): every class, relation, attribute, union, parent, scheme, label, definition and recorded reason, each term keeping its IRI, and what cannot be held reported; without the extra the Turtle OTO writes, one statement per line; or a CSV or JSON vocabulary), from the documents via the interview, or by interview alone; `oto status` lists the four when none is declared. This package diffs it against the last accepted version, counts what a change breaks, checks domain and range conformance, proposes honest widenings, and reports who confirmed each class. |
 | Capture | `oto capture` | [capture.py](../oto/capture.py) | What someone said in conversation becomes a dated, attributed source document in the inbox, with the statements in the speaker's words, and enters through the same ingest, drafting and gates as a file. The graph then cites it and the speaker is who to ask. |
 | Draft | `oto draft` | [draft.py](../oto/draft.py) | Optional, behind the `draft` extra: a model drafts one document's proposal from the drafting rules, the vocabulary, the brief and the whole document, constrained to the proposal's JSON schema, streamed, with Anthropic's refusal fallback on. The file records which model drafted it and is dry-run merged so a person reads the same report any proposal gets. The one model call in OTO; nothing else imports it. |
 | Author | `oto curate`, `oto vet` | [curate/](../oto/curate/) | Edits go into a candidate graph. `curate add` merges proposal files (one per document) into it by rule: new ids added, repeated facts gain a source, changed facts refused; `--dry-run` reports the same without writing. `diff` says what promoting it changes and refuses an overwrite with no supersession record. `apply` appends to the ledger what changed and why. `assertions` gives a spoken correction a citable id. `vet` finds citations to documents the corpus no longer holds. |
 | Build | `oto build`, `oto clean`, `oto verify` | [validate/preflight.py](../oto/validate/preflight.py), [builder.py](../oto/builder.py), [compile/](../oto/compile/), [targets/](../oto/targets/) | Pre-flight checks the authored inputs. The builder renames the previous output aside and runs four stages; on failure it restores the previous build. |
-| Serve | `oto query`, `oto serve` | [serve/engine.py](../oto/serve/engine.py), [serve/store.py](../oto/serve/store.py), [serve/http.py](../oto/serve/http.py) | Answers fourteen `kg_*` tools over JSON-RPC 2.0 on stdio, over HTTP (`--http`, the same messages on `POST /rpc`, one GET route per tool, `/api/graph` as the whole graph as data, and a view mounted at `/`), or one query per CLI call, from one store interface with two implementations: the SQLite build loaded into memory, the file released so a rebuild can swap it; or a self-hosted Neo4j, the production backend, a live connection checked at startup. The same queries through both must give the same text, and a test proves it. `kg_overview` is the map for a question that starts from no entity; the store carries the recent ledger so it can say what changed without reading a file. A synthesis over it is the query-knowledge skill's job, labelled and cited; readings worth keeping live as authored theme notes under `notes/themes/`. |
+| Serve | `oto query`, `oto serve` | [serve/engine.py](../oto/serve/engine.py), [serve/store.py](../oto/serve/store.py), [serve/http.py](../oto/serve/http.py) | Answers fifteen `kg_*` tools over JSON-RPC 2.0 on stdio, over HTTP (`--http`, the same messages on `POST /rpc`, one GET route per tool, `/api/graph` as the whole graph as data, and a view mounted at `/`), or one query per CLI call, from one store interface with two implementations: the SQLite build loaded into memory, the file released so a rebuild can swap it; or a self-hosted Neo4j, the production backend, a live connection checked at startup. The same queries through both must give the same text, and a test proves it. `kg_overview` is the map for a question that starts from no entity; the store carries the recent ledger so it can say what changed without reading a file. A synthesis over it is the query-knowledge skill's job, labelled and cited; readings worth keeping live as authored theme notes under `notes/themes/`. |
 | Measure | `oto bench`, `oto bench add`, `oto feedback` | [bench/](../oto/bench/) | Runs a gold question set through the graph engine, a lexical baseline and an optional dense baseline. `add` appends a document's questions with their provenance; a reader's complaint about an answer can be promoted into the set. |
 
 Every command is one module under [cli/](../oto/cli/), named after the command. `oto status` reads
@@ -70,11 +70,11 @@ write, and never derives a path from its own location or carries a default vocab
 
 | Order | Module | Reads | Writes |
 |---|---|---|---|
-| 1 | [compile/knowledge.py](../oto/compile/knowledge.py) | `graph.json` | `knowledge-graph.json`, `entity-index.json`, N-Triples, two CSVs, one entity page per node |
+| 1 | [compile/knowledge.py](../oto/compile/knowledge.py) | `graph.json`, and `ontology.config.json` for the IRIs and attribute types of the triples | `knowledge-graph.json`, `entity-index.json`, N-Triples and the same triples as `graph.ttl` (instances typed with `rdf:type`, their labels in every language as `skos:prefLabel`, aliases and lexicon phrases as `skos:altLabel`, attributes and summaries as typed values), two CSVs, one entity page per node |
 | 2 | [compile/rules.py](../oto/compile/rules.py) | `knowledge-graph.json`, `rules.json` | `derived.json`: derived edges and attributes with rule, premises and depth; policy findings. Skipped with a note when no rules are declared. |
-| 3 | [compile/ontology.py](../oto/compile/ontology.py) | `ontology.config.json`, `knowledge-graph.json` | `ontology.md`, Turtle, JSON-LD context. Reports any type or relation the vocabulary does not declare. |
+| 3 | [compile/ontology.py](../oto/compile/ontology.py) | `ontology.config.json`, `knowledge-graph.json` | `ontology.md`, Turtle, JSON-LD context, every term under the IRI the N-Triples use, with its labels (`skos:prefLabel`, `skos:altLabel`), definition (`skos:definition`), scope note and example, its inverse declared as a property with its own label, and the recorded reasoning as `meta:question`, `meta:rationale`, `meta:alternatives`, `meta:validatedBy` (`https://cynergis.ai/ont/meta#`). Reports any type or relation the vocabulary does not declare. |
 | 4 | [compile/semantic.py](../oto/compile/semantic.py) | `knowledge-graph.json` | one retrieval card per node, with neighbour context inlined so a thematic search hits the right entity |
-| 5 | [targets/sqlite.py](../oto/targets/sqlite.py) | `knowledge-graph.json`, `derived.json`, the indexed directories ([targets/rows.py](../oto/targets/rows.py)), `lexicon.json`, the ledger | `<slug>.db` with FTS5 tables, built as `.db.new` and renamed into place |
+| 5 | [targets/sqlite.py](../oto/targets/sqlite.py) | `knowledge-graph.json`, `derived.json`, the indexed directories ([targets/rows.py](../oto/targets/rows.py)), `lexicon.json`, the ledger, the vocabulary and its rationale (a `terms` table, so `kg_define` and every card answer without the project beside the store) | `<slug>.db` with FTS5 tables, built as `.db.new` and renamed into place |
 | 7, when targeted | [targets/site.py](../oto/targets/site.py) | the SQLite store, a view directory | `build/site/`: `data.json`, the graph payload `/api/graph` serves (`serve/payload.py`), and the app's files copied beside it, for hosting anywhere static; `oto publish --site` carries it into the query repository |
 | 6, when configured | [targets/neo4j.py](../oto/targets/neo4j.py) | the same inputs as stage 5 | the graph in a self-hosted Neo4j: entities labelled by class with typed attributes, relations, evidence and source nodes, derived facts marked, findings, and everything serving reads besides (passages with a full-text index, lexicon rows, the ledger, the schema version); the previous load retired once the new one is in; `--verify` reads it back |
 
@@ -86,8 +86,18 @@ clean-then-build round trip reproduces the database exactly.
 ```
 <root>/
   project.config.json     identity: slug, name, namespace, database name
-  ontology.config.json    the vocabulary: classes, properties [domain, range, inverse, description],
-                          attributes per class [type, description]
+  ontology.config.json    the vocabulary, every declaration an object: classes {definition},
+                          properties {domain, range, inverse, definition}, attributes per class
+                          {type, definition}, the temporal terms {type, definition}; on any of them
+                          a label, alt_labels, a scope_note and an example (a text is one string,
+                          or a map of language to string; `languages` lists them, the first the
+                          default), on a property an inverse_label; on a class `subclass_of`
+                          (the classes it is a kind of), on a property `subproperty_of`; `schemes`:
+                          the controlled values, each concept with a label, a definition and a
+                          `broader` concept, taken by an attribute of type `scheme:<Name>` (an
+                          `enum:a|b` is a scheme whose values carry nothing but their key); and
+                          `namespaces`: which ontology each term came from, and so its IRI. A
+                          term with no written label is read by its name: part_of as "part of"
   ontology.rationale.json why each class exists and who confirmed it (optional, reviewable)
   rules.json              rules over the graph: derive (positive patterns) and policy (may negate)
   ontology.lock.json      the last accepted vocabulary and rules, written by `oto ontology accept`
@@ -334,9 +344,9 @@ optionally a seed lexicon, the interview questions for the domain, a guide to re
 domain's graph (installed as `GUIDE.md`, quoted by the concierge skill), the actions the domain
 declares (`actions/<id>.json`, merged by id with the extender's winning, checked against the
 composed vocabulary and the sample, installed as the project's `actions/`), gold question
-patterns, and a manifest, `manifest.json`, that names it, versions it and says what it `extends`. A directory
-without a manifest is still an ontology with defaults, so nothing exported before manifests
-existed breaks. [model/ontology_manifest.py](../oto/model/ontology_manifest.py) reads and checks
+patterns, and a manifest, `manifest.json`, that names it, versions it, states its `namespace` and
+says what it `extends`. A directory without a manifest, or whose manifest states no namespace, is
+not usable, and the self-check says so. [model/ontology_manifest.py](../oto/model/ontology_manifest.py) reads and checks
 the manifest; [model/ontology_compose.py](../oto/model/ontology_compose.py) resolves `extends`
 (bases first, each once, cycles refused) and applies the parts in order: the extender wins a
 class description or an attribute type and the report says so, it may widen a relation's domain
@@ -344,6 +354,15 @@ or range and never narrow it, rules merge by id and one id means one rule, the r
 inherited class stays the declaring ontology's, samples merge by node id, and the temporal
 vocabulary comes from the first part that declares it and is never merged. `ontologies.load`
 returns the composed form, which is what a project gets; `load_raw` an ontology's own files.
+
+A manifest states a `namespace`, the IRI the ontology's own terms live under. Composition
+records, in the vocabulary's `namespaces` section, which terms each part brought, a term
+belonging to the first part that declares it
+([model/namespaces.py](../oto/model/namespaces.py)). The RDF export reads that section and
+nothing else, so `auto-claims`' `Claim` is one IRI in every project that uses it, on any machine.
+A term no part claims is the project's own and lives under the project's namespace:
+`<namespace>ont/`, beside its instances under `<namespace>id/`. `oto ontology export` gives the
+new ontology that same namespace, so a term keeps the IRI it already had.
 
 The four shipped ontologies extend `oto-core`, which holds the temporal fields and `Document`,
 the class every fact cites. `oto ontology show <name>` prints an ontology's manifest, its
@@ -471,7 +490,7 @@ intended facts, the first pattern binds the subject, and the answer is the actio
 definition (name, description, input schema, annotations) plus an `oto` block: the subject class,
 the entities it is ready on or why none, the inputs bound from one entity and the ones the caller
 must supply, the declared invocation, the variable names it needs, what a recorded result would
-assert. The fourteenth tool, `kg_actions` (on both stores, in the equivalence battery, `GET
+assert. The tool `kg_actions` (on both stores, in the equivalence battery, `GET
 /api/actions`, `oto query actions`), and `oto actions list [--ready]` / `show <id> --on <entity>`
 answer it; the CLI reads the authored graph, the tool reads the store, both through the same
 functions. The caller invokes, then hands the response to `oto actions record <id> --on <entity>
@@ -508,6 +527,47 @@ exception. `Action`, `acts_on` and `executed_by` live in
 the tools print as such, the apps draw dotted, and no "what is" answer includes. The design is
 in [plans/actions.md](plans/actions.md).
 
+## What a term is called
+
+Every answer reads the vocabulary as it is labelled: `kg_entity` says `[Component — a part of a
+system deployed or released as a unit]`, reads an outgoing edge as `part of → Payments platform`
+and an incoming one from this side when the relation declares an inverse, `contains → Payment
+API`; the cards under `cards/` and the explorer's edges read the same way. `kg_define <term>`
+(also `oto query define`, `GET /api/define`) says what a class, relation or attribute is called
+in every language, what it means, its domain, range and inverse, the question it answers, why it
+exists, who confirmed it, and how much of the graph uses it; a relation filter (`kg_neighbors`,
+`oto query neighbors <term> <relation>`) takes a label as well as a name. The reading comes from
+[model/terms.py](../oto/model/terms.py) over the store's term rows, so a published store answers
+without the project. A node may carry `labels` (its label per language) and `hidden_labels`
+(misspellings and codes, for resolution only, never shown); `kg_resolve` and `kg_entity` match
+them, and the lexicon's phrases become the targets' alternative labels in the export.
+
+A class may be a kind of others (`"subclass_of": ["Asset"]`), a relation may specialise one
+(`"subproperty_of": "located_at"`), and the engine honours it everywhere a class or relation is
+named: `kg_by_type`, `kg_count` and `kg_group_by` on `Asset` cover the components and systems
+that are kinds of it and say so; a rule or an action pattern `node: Asset` matches them; a
+relation filter covers the relations that specialise it; domain and range conformance accepts a
+Component where an Asset is declared; a parent's attribute declarations apply to its kinds. The
+closure is computed from the vocabulary each time (`model/vocabulary.py`: `ancestors`, `covers`,
+`relation_covers`), never stored. The Turtle writes `rdfs:subClassOf` and `rdfs:subPropertyOf`,
+the reference page draws the tree, `kg_entity` says "a kind of Asset" and `kg_define` lists both
+directions. A parent that is not declared, or a class that is a kind of itself, fails the gate.
+`oto ontology check` sorts a parent added as additive and a parent removed as breaking, counting
+the nodes the class covered; it also lists, as RECONFIRM, each class or relation whose definition
+changed since the person named in `validated_by` confirmed it, because the lock now carries the
+rationale as accepted.
+
+Controlled values are concepts of a scheme: `"state": {"type": "scheme:ClaimState"}` takes the
+keys of `schemes.ClaimState.concepts`, each with a label, a definition and optionally a `broader`
+concept. An answer shows the value by its concept (`state: Open — Reported and being handled`),
+`kg_group_by ... level=top` rolls values up to the top of their broader chain, `kg_define` describes
+a scheme with its concepts or a concept with its scheme, and the export writes the scheme as a
+`skos:ConceptScheme` with `skos:Concept`s (`skos:inScheme`, `skos:topConceptOf`, `skos:broader`),
+the attribute as an object property whose range is the concepts of that scheme, and each value as
+its concept IRI. `enum:` stays for values whose meaning needs no words; once a vocabulary declares
+`languages`, `oto ontology check` notes each enum. A concept removed is breaking, counted as the
+values that use it.
+
 ## The shape of a fact
 
 A node carries its type, label, aliases, summary, attributes, tags and sources, plus the temporal
@@ -520,7 +580,7 @@ fields that make the graph bi-temporal:
 | `status` | `current`, `superseded`, `proposed` or `intended` (asserted as a plan, not observed; never answers "what is") |
 | `supersedes`, `superseded_by` | the chain a correction leaves behind |
 | `source_doc`, `sources` | the documents or assertions that attest it |
-| `attributes` | typed values about the thing. A class may declare them in the vocabulary as `"attributes": {"Claim": {"state": ["enum:open|closed", "..."]}}` with types string, number, integer, boolean, date, list or enum. A present value must fit; a key nobody declared on a declaring class is reported, and refused under `strict_attributes`. Exported as datatype properties. |
+| `attributes` | typed values about the thing. A class may declare them in the vocabulary as `"attributes": {"Claim": {"state": {"type": "enum:open|closed", "definition": "..."}}}` with types string, number, integer, boolean, date, list, enum or `scheme:<Name>` (the concepts of a declared scheme). A present value must fit; a key nobody declared on a declaring class is reported, and refused under `strict_attributes`. Exported as datatype properties. |
 | `evidence` | where in the document: `[{"doc", "where", "quote"}]`, shown on the entity page and in every answer |
 | `source_type` | `document` (default), `human_assertion`, or `inference` |
 

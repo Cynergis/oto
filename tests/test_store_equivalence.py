@@ -34,6 +34,15 @@ QUERIES = [
     ("entity_text", {"term": "nothing-like-this-xyz"}),
     ("neighbors_text", {"term": "system.payments"}),
     ("neighbors_text", {"term": "system.payments", "rel": "part_of"}),
+    ("neighbors_text", {"term": "system.payments", "rel": "part of"}),   # a relation by its label
+    ("define_text", {"term": "Component"}),
+    ("define_text", {"term": "Asset"}),
+    ("by_type_text", {"type_": "Asset"}),                       # a class covers the kinds of it
+    ("count_text", {"type_": "Asset"}),
+    ("group_by_text", {"by": "type", "type_": "Asset"}),
+    ("group_by_text", {"by": "status", "level": "top"}),
+    ("define_text", {"term": "part of"}),
+    ("define_text", {"term": "nothing-like-this-xyz"}),
     ("explain_text", {"term": "system.payments"}),
     ("explain_text", {"term": "datastore.ledger"}),
     ("policy_text", {}),
@@ -166,13 +175,13 @@ def test_the_engine_serves_neo4j_when_the_project_says_so():
             return r.returncode, r.stdout, r.stderr
 
         code, out, err = query("entity", "system.payments")
-        assert code == 0 and "[System]" in out and "serving Neo4j" in err, err
+        assert code == 0 and "[System — " in out and "serving Neo4j" in err, err
         code, out, err = query("--backend", "sqlite", "entity", "system.payments")
-        assert code == 0 and "[System]" in out and "loaded into memory" in err, err
+        assert code == 0 and "[System — " in out and "loaded into memory" in err, err
         # An unreachable Neo4j is an honest error, never a silent fallback.
         code, out, err = query("--backend", "neo4j", "entity", "system.payments")
         assert code == 0
         bad = dict(env, NEO4J_URI="bolt://127.0.0.1:1")
         r = subprocess.run([sys.executable, "-m", "oto.cli", "query", "--project", root, "entity", "system.payments"],
                            cwd=repo, env=dict(bad, PYTHONPATH=repo), capture_output=True, text=True, timeout=120)
-        assert r.returncode == 1 and "cannot reach Neo4j" in r.stdout and "[System]" not in r.stdout
+        assert r.returncode == 1 and "cannot reach Neo4j" in r.stdout and "[System — " not in r.stdout

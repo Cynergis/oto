@@ -6,16 +6,19 @@ resolved depth-first, bases before the ontologies that extend them, each name on
 parts are applied in that order, so the extending ontology wins over anything it extends; the
 report says what it overrode, and a few overrides are refused rather than reported:
 
-    class description        extender wins; reported as redescribed
+    class definition         extender wins; reported as redescribed
     relation signature       widening the domain or range is accepted and reported;
                              narrowing, or changing to something else, is refused
     attribute type           extender wins; a change is reported
+    schemes                  merged by name; the extender's replaces one it redeclares, reported
     rules                    merged by id; the same id with a different body is refused
     actions                  merged by id; the extender's wins (an action is a binding, not a claim)
     rationale                the extender's entries apply only to names it declares itself
     sample graph             merged by node id, extender wins; edges united
     lexicon, interview, gold concatenated, bases first; the guide is the leaf's, the bases'
     appended under "Inherited from"
+    namespaces               a term belongs to the first part that declares it; each part that
+                             states a `namespace` in its manifest is recorded with its terms
     temporal vocabulary      taken from the first part that declares it and never merged,
                              because supersession depends on it being one thing
 
@@ -24,6 +27,9 @@ form, so composing cannot recurse into itself.
 """
 import json
 import os
+
+from . import namespaces as _namespaces
+from . import vocabulary as _vocabulary
 
 
 class OntologyError(ValueError):
@@ -71,36 +77,40 @@ def compose(name, parts, loader):
 
     Returns a dict with the same keys as a part plus `report`, or raises OntologyError.
     """
-    classes, properties, attributes, temporal = {}, {}, {}, None
+    classes, properties, attributes, temporal, schemes = {}, {}, {}, None, {}
     temporal_from = None
     rationale = {"classes": {}, "properties": {}}
     rules, rule_owner = {}, {}
     sample_nodes, sample_edges = {}, []
     lexicon, interview, guides, gold = [], [], [], []
     actions, action_owner = {}, {}
+    namespaces = {}
     readmes = []
-    report = {"parts": list(parts), "redescribed": [], "widened": [], "retyped": [], "inverse_changed": [],
+    report = {"parts": list(parts), "redescribed": [], "widened": [], "retyped": [], "inverse_changed": [], "schemes_replaced": [],
               "rationale_ignored": [], "rules_shared": [], "sample_overridden": [], "actions_overridden": []}
     leaf = None
 
     for part in parts:
         raw = loader(part)
         config = raw["config"]
+        malformed = _vocabulary.shape_problems(config)
+        if malformed:
+            raise OntologyError("ontology %r is not in the form the engine reads: %s" % (part, "; ".join(malformed[:5])))
         leaf = raw
         own_classes = config.get("classes") or {}
         own_props = config.get("properties") or {}
 
-        for kind, description in own_classes.items():
-            if kind in classes and (classes[kind] or "").strip() != (description or "").strip():
+        for kind, spec in own_classes.items():
+            if kind in classes and (classes[kind].get("definition") or "").strip() != (spec.get("definition") or "").strip():
                 report["redescribed"].append((kind, part))
-            classes[kind] = description
+            classes[kind] = dict(spec)
 
         for relation, spec in own_props.items():
-            spec = list(spec)
+            spec = dict(spec)
             if relation in properties:
-                old = list(properties[relation])
-                for position, label in ((0, "domain"), (1, "range")):
-                    before, after = set(_declared(old[position])), set(_declared(spec[position]))
+                old = properties[relation]
+                for label in ("domain", "range"):
+                    before, after = set(_declared(old.get(label))), set(_declared(spec.get(label)))
                     if after == before:
                         continue
                     if after > before:
@@ -112,8 +122,8 @@ def compose(name, parts, loader):
                     else:
                         raise OntologyError("ontology %r changes the %s of %r from %s to %s; declare a new relation "
                                             "instead" % (part, label, relation, "|".join(sorted(before)), "|".join(sorted(after))))
-                if len(old) > 2 and len(spec) > 2 and (old[2] or None) != (spec[2] or None):
-                    report["inverse_changed"].append((relation, part, old[2], spec[2]))
+                if (old.get("inverse") or None) != (spec.get("inverse") or None):
+                    report["inverse_changed"].append((relation, part, old.get("inverse"), spec.get("inverse")))
             properties[relation] = spec
 
         if config.get("temporal") and temporal is None:
@@ -122,9 +132,21 @@ def compose(name, parts, loader):
         for kind, declared in (config.get("attributes") or {}).items():
             for attr, spec in (declared or {}).items():
                 previous = (attributes.get(kind) or {}).get(attr)
-                if previous is not None and list(previous)[:1] != list(spec)[:1]:
-                    report["retyped"].append((kind, attr, part, previous[0], spec[0]))
-                attributes.setdefault(kind, {})[attr] = list(spec)
+                if previous is not None and previous.get("type") != spec.get("type"):
+                    report["retyped"].append((kind, attr, part, previous.get("type"), spec.get("type")))
+                attributes.setdefault(kind, {})[attr] = dict(spec)
+
+        for scheme_name, scheme in (config.get("schemes") or {}).items():
+            if scheme_name in schemes and schemes[scheme_name] != scheme:
+                report["schemes_replaced"].append((scheme_name, part))
+            schemes[scheme_name] = json.loads(json.dumps(scheme))
+
+        # What the part's own vocabulary already records (an exported ontology carries where its
+        # terms came from) is kept; the rest of what it declares is its own.
+        _namespaces.inherit(namespaces, config.get(_namespaces.SECTION))
+        if raw["manifest"].get("namespace"):
+            _namespaces.claim(namespaces, part, raw["manifest"]["namespace"], _namespaces.own_terms(config),
+                              temporal=temporal_from == part)
 
         record = raw["rationale"] or {}
         for section, owned in (("classes", own_classes), ("properties", own_props)):
@@ -176,7 +198,7 @@ def compose(name, parts, loader):
         raise OntologyError("nothing to compose for %r" % name)
     config = {}
     for key, value in leaf["config"].items():                 # the leaf's own scalars: name, versions, notes
-        if key not in ("classes", "properties", "temporal", "attributes"):
+        if key not in ("classes", "properties", "temporal", "attributes", "schemes", _namespaces.SECTION):
             config[key] = value
     config["classes"] = classes
     config["properties"] = properties
@@ -184,6 +206,10 @@ def compose(name, parts, loader):
         config["temporal"] = temporal
     if attributes:
         config["attributes"] = attributes
+    if schemes:
+        config["schemes"] = schemes
+    if _namespaces.settled(namespaces):
+        config[_namespaces.SECTION] = _namespaces.settled(namespaces)
     report["temporal_from"] = temporal_from
 
     if len(parts) == 1:
@@ -215,6 +241,8 @@ def report_lines(report):
         lines.append("relation %s: %s widened by %s with %s" % (relation, label, part, "|".join(added)))
     for kind, attr, part, before, after in report["retyped"]:
         lines.append("attribute %s.%s retyped by %s: %s -> %s" % (kind, attr, part, before, after))
+    for scheme_name, part in report.get("schemes_replaced") or []:
+        lines.append("scheme %s replaced by %s" % (scheme_name, part))
     for relation, part, before, after in report["inverse_changed"]:
         lines.append("relation %s: inverse changed by %s: %r -> %r" % (relation, part, before, after))
     for section, key, part in report["rationale_ignored"]:

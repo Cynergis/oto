@@ -10,9 +10,9 @@ from oto.scaffold import init
 from oto.serve.store import SqliteStore, fts_tokens
 
 ONTOLOGY = {
-    "classes": {"Machine": "A machine.", "Site": "A place.", "Document": "A source."},
-    "properties": {"installed_at": ["Machine", "Site", "hosts", "Where a machine runs."]},
-    "attributes": {"Machine": {"state": ["enum:running|idle", "lifecycle"], "tonnage": ["number", "t"]}},
+    "classes": {"Machine": {"definition": "A machine."}, "Site": {"definition": "A place."}, "Document": {"definition": "A source."}},
+    "properties": {"installed_at": {"domain": "Machine", "range": "Site", "inverse": "hosts", "definition": "Where a machine runs."}},
+    "attributes": {"Machine": {"state": {"type": "enum:running|idle", "definition": "lifecycle"}, "tonnage": {"type": "number", "definition": "t"}}},
     "temporal": {},
 }
 STAMP = {"as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "handbook", "status": "current",

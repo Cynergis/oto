@@ -29,8 +29,8 @@ def test_ontology_declares_every_class_it_references(name):
     config, _sample, _readme = ontologies.load(name)
     classes = set(config["classes"])
     for relation, spec in config["properties"].items():
-        for position in (0, 1):
-            for kind in [x.strip() for x in (spec[position] or "").split("|") if x.strip()]:
+        for position in ("domain", "range"):
+            for kind in [x.strip() for x in (spec.get(position) or "").split("|") if x.strip()]:
                 assert kind in classes, "%s: %s names undeclared %s" % (name, relation, kind)
 
 

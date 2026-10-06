@@ -13,12 +13,12 @@ from oto.project import Project
 from oto.scaffold import init
 from oto.validate.preflight import preflight
 
-VOCAB = {"classes": {"Claim": "A claim.", "Party": "A party."},
-         "properties": {"filed_by": ["Claim", "Party", None, "Who filed it."]},
-         "attributes": {"Claim": {"claim_number": ["string", "The identifier."],
-                                  "state": ["enum:open|closed", "Where it is."],
-                                  "amount": ["number", "Reserve."],
-                                  "opened_on": ["date", "When it was opened."]}},
+VOCAB = {"classes": {"Claim": {"definition": "A claim."}, "Party": {"definition": "A party."}},
+         "properties": {"filed_by": {"domain": "Claim", "range": "Party", "definition": "Who filed it."}},
+         "attributes": {"Claim": {"claim_number": {"type": "string", "definition": "The identifier."},
+                                  "state": {"type": "enum:open|closed", "definition": "Where it is."},
+                                  "amount": {"type": "number", "definition": "Reserve."},
+                                  "opened_on": {"type": "date", "definition": "When it was opened."}}},
          "temporal": {}}
 STAMP = {"as_of": "2026-01-01", "valid_from": "2026-01-01", "source_doc": "d", "status": "current", "sources": ["d"]}
 
@@ -54,11 +54,11 @@ def test_values_are_checked_against_their_declared_type():
 
 
 def test_a_bad_declaration_is_reported_before_anything_is_checked():
-    problems = vocab.declaration_problems({"Claim": "c"}, {"Ghost": {"x": ["string", ""]},
-                                                          "Claim": {"y": ["money", ""], "z": "string"}})
+    problems = vocab.declaration_problems({"Claim": "c"}, {"Ghost": {"x": {"type": "string", "definition": ""}},
+                                                          "Claim": {"y": {"type": "money", "definition": ""}, "z": "string"}})
     assert any("undeclared class 'Ghost'" in p for p in problems)
     assert any("Claim.y" in p and "unknown attribute type" in p for p in problems)
-    assert any("Claim.z must be [type, description]" in p for p in problems)
+    assert any("Claim.z must be an object" in p for p in problems)
 
 
 def test_conformance_checks_declared_classes_only():
@@ -116,8 +116,8 @@ def test_attribute_changes_are_diffed_and_their_impact_counted():
     old = vocab.Vocabulary.from_config(VOCAB)
     changed = json.loads(json.dumps(VOCAB))
     changed["attributes"]["Claim"].pop("amount")
-    changed["attributes"]["Claim"]["state"] = ["string", "Where it is."]
-    changed["attributes"]["Claim"]["priority"] = ["integer", "Urgency."]
+    changed["attributes"]["Claim"]["state"] = {"type": "string", "definition": "Where it is."}
+    changed["attributes"]["Claim"]["priority"] = {"type": "integer", "definition": "Urgency."}
     changes = vocab.impact(vocab.diff(old, vocab.Vocabulary.from_config(changed)),
                            [_node("c.1", amount=1), _node("c.2", amount=2, state="open")], [])
     by_kind = {c.kind: c for c in changes}
@@ -133,11 +133,12 @@ def test_attributes_are_exported_as_datatype_properties_and_round_trip():
         project = _project(root, [_node("c.1", claim_number="C-1", state="open")])
         build(project)
         ttl = open(os.path.join(project.layout.ontology, "kb.ttl"), encoding="utf-8").read()
-        assert 'kb:claim_number a owl:DatatypeProperty ; rdfs:label "claim_number" ; rdfs:domain kb:Claim ; rdfs:range xsd:string' in ttl
-        assert 'rdfs:comment "Where it is. (one of: open|closed)"' in ttl
+        assert ('kb:claim_number a owl:DatatypeProperty ; rdfs:label "claim number"@en ; skos:prefLabel "claim number"@en ; '
+                'rdfs:domain kb:Claim ; rdfs:range xsd:string') in ttl
+        assert 'rdfs:comment "Where it is. (one of: open|closed)"@en' in ttl
         assert "rdfs:range xsd:date" in ttl and "rdfs:range xsd:decimal" in ttl
         md = open(os.path.join(project.layout.ontology, "ontology.md"), encoding="utf-8").read()
-        assert "## Attributes" in md and "| `kb:Claim` | `state` | enum:open|closed |" in md
+        assert "## Attributes" in md and "| `kb:Claim` | `state` | state | enum:open|closed |" in md
         ctx = json.load(open(os.path.join(project.layout.ontology, "kb.context.jsonld"), encoding="utf-8"))
         assert ctx["attributes"] == {"Claim": ["claim_number", "state", "amount", "opened_on"]}
         assert ctx["@context"]["opened_on"]["@type"].endswith("#date")
@@ -161,15 +162,15 @@ def test_csv_import_carries_attribute_rows(capsys):
         assert main(["ontology", "import", "--project", root, "--file", path]) == 0
         assert "2 attribute declaration(s)" in capsys.readouterr().out
         config = json.load(open(os.path.join(root, "ontology.config.json"), encoding="utf-8"))
-        assert config["attributes"] == {"Machine": {"serial": ["string", "The serial number."],
-                                                    "installed_on": ["date", "Install date."]}}
+        assert config["attributes"] == {"Machine": {"serial": {"type": "string", "definition": "The serial number."},
+                                                    "installed_on": {"type": "date", "definition": "Install date."}}}
 
 
 # ---- ontologies ----
 
 def test_the_claims_ontology_declares_attributes_and_its_sample_conforms():
     config, sample, _ = ontologies.load("auto-claims")
-    assert config["attributes"]["Claim"]["state"][0].startswith("enum:")
+    assert config["attributes"]["Claim"]["state"]["type"] == "scheme:ClaimState" and "reopened" in config["schemes"]["ClaimState"]["concepts"]
     assert ontologies.self_check("auto-claims") == []
     report = vocab.attribute_conformance(vocab.Vocabulary.from_config(config), sample["nodes"])
     assert report["mistyped"] == [] and report["undeclared"] == [] and report["checked"] > 0
@@ -183,7 +184,7 @@ def test_a_ontology_with_a_bad_attribute_declaration_fails_its_self_check(tmp_pa
         ontologies.export(project, "bad")
         path = os.path.join(str(tmp_path), "bad", "ontology.config.json")
         config = json.load(open(path, encoding="utf-8"))
-        config["attributes"]["Claim"]["state"] = ["money", "x"]
+        config["attributes"]["Claim"]["state"] = {"type": "money", "definition": "x"}
         json.dump(config, open(path, "w", encoding="utf-8"))
         assert any("unknown attribute type" in p for p in ontologies.self_check("bad"))
 
@@ -195,7 +196,7 @@ def test_an_exported_ontology_keeps_attributes_and_its_invented_sample_fits_them
         _path, problems = ontologies.export(Project.standard(root), "kept")
         assert problems == []
         config, sample, _ = ontologies.load("kept")
-        assert config["attributes"]["Claim"]["state"][0].startswith("enum:")
+        assert config["attributes"]["Claim"]["state"]["type"] == "scheme:ClaimState" and "reopened" in config["schemes"]["ClaimState"]["concepts"]
         claim = next(n for n in sample["nodes"] if n["type"] == "Claim")
         assert claim["attributes"]["state"] == "open"
 

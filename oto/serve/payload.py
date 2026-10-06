@@ -57,9 +57,9 @@ def derived_vocabulary(nodes, edges):
     """Classes and relations as the data uses them, for a store with no project beside it."""
     classes, properties = {}, {}
     for n in nodes:
-        classes.setdefault(n["type"], "")
+        classes.setdefault(n["type"], {"definition": ""})
     for e in edges:
-        properties.setdefault(e["rel"], ["", "", None, ""])
+        properties.setdefault(e["rel"], {"definition": ""})
     return {"classes": classes, "properties": properties, "attributes": {}, "temporal": {}, "ontology_version": None,
             "derived_from_data": True}
 
@@ -168,7 +168,9 @@ def tool_data(engine, name, args):
         key = args.get("attr")
         return {"count": store.count(args.get("type"), args.get("tag"), key, args.get("value"))}
     if name == "kg_group_by":
-        return {"rows": store.group_by(args.get("by", ""), args.get("type"), args.get("tag"), int(args.get("limit", 200)))}
+        _key, _type, scheme, rows = engine.group_by_rows(args.get("by", ""), args.get("type"), args.get("tag"),
+                                                         int(args.get("limit", 200)), args.get("level"))
+        return {"rows": rows, "scheme": scheme}
     if name == "kg_stale":
         return {"status_counts": store.status_counts(), "superseded": store.superseded()}
     if name == "kg_policy":
@@ -180,6 +182,9 @@ def tool_data(engine, name, args):
     if name == "kg_actions":
         flag = lambda k: str(args.get(k, "")).lower() in ("1", "true", "yes", "on")   # noqa: E731
         return engine.actions_data(args.get("action"), args.get("on"), flag("ready"), flag("due"))
+    if name == "kg_define":
+        words = engine.vocabulary()
+        return {"terms": [words.describe(kind, key) for kind, key in words.find(args.get("term", ""))]}
     if name == "kg_resolve":
         term = (args.get("term") or "").strip().lower()
         return {"lexicon": store.lexicon(term) or store.lexicon_fuzzy(term)}

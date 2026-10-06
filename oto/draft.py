@@ -106,17 +106,20 @@ SCHEMA = {
 
 def vocabulary_text(config):
     lines = ["Classes:"]
-    for name, description in (config.get("classes") or {}).items():
-        lines.append("  %s: %s" % (name, description))
+    for name, spec in (config.get("classes") or {}).items():
+        lines.append("  %s: %s" % (name, spec.get("definition") or ""))
     lines.append("Relations (domain -> range):")
     for name, spec in (config.get("properties") or {}).items():
-        lines.append("  %s: %s -> %s. %s" % (name, spec[0], spec[1] if len(spec) > 1 else "?", spec[3] if len(spec) > 3 else ""))
+        lines.append("  %s: %s -> %s. %s" % (name, spec.get("domain") or "?", spec.get("range") or "?", spec.get("definition") or ""))
     attributes = config.get("attributes") or {}
     if attributes:
         lines.append("Attributes (per class, with type):")
+        from .model.vocabulary import concepts_of
         for kind, declared in attributes.items():
             for attr, spec in declared.items():
-                lines.append("  %s.%s: %s. %s" % (kind, attr, spec[0], spec[1] if len(spec) > 1 else ""))
+                allowed = concepts_of(spec["type"], config.get("schemes") or {}) if str(spec["type"]).startswith("scheme:") else None
+                lines.append("  %s.%s: %s%s. %s" % (kind, attr, spec["type"],
+                                                    " (one of: %s)" % ", ".join(allowed) if allowed else "", spec.get("definition") or ""))
     return "\n".join(lines)
 
 

@@ -260,16 +260,16 @@ def _ontology_sections(name, roots):
     config, rationale = result["config"], result.get("rationale") or {}
     classes = config.get("classes") or {}
     rows = []
-    for kind, description in classes.items():
+    for kind, spec in classes.items():
         why = (rationale.get("classes") or {}).get(kind) or {}
         rows.append("<tr><td><strong>%s</strong></td><td>%s</td><td>%s</td><td>%s</td></tr>"
-                    % (_e(kind), _e(description), _e(why.get("question") or ""), _e(why.get("why") or "")))
+                    % (_e(kind), _e(spec.get("definition") or ""), _e(why.get("question") or ""), _e(why.get("why") or "")))
     classes_html = ("<div class=\"tablewrap\"><table><thead><tr><th>Class</th><th>What it is</th><th>The question it answers</th><th>Why it exists</th></tr></thead><tbody>%s</tbody></table></div>"
                     % "".join(rows))
     rels = []
     for rel, spec in (config.get("properties") or {}).items():
-        spec = list(spec) + [None] * 4
-        rels.append("<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td>%s</td></tr>" % (_e(rel), _e(spec[0]), _e(spec[1]), _e(spec[3] or "")))
+        rels.append("<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td>%s</td></tr>"
+                    % (_e(rel), _e(spec.get("domain")), _e(spec.get("range")), _e(spec.get("definition") or "")))
     rels_html = ("<div class=\"tablewrap\"><table><thead><tr><th>Relation</th><th>From</th><th>To</th><th>Meaning</th></tr></thead><tbody>%s</tbody></table></div>"
                  % "".join(rels))
     actions = "".join("<li><code>%s</code> on <strong>%s</strong>%s: %s</li>"

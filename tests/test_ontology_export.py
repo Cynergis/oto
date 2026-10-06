@@ -81,8 +81,8 @@ def test_export_refuses_a_vocabulary_with_no_recorded_reasoning(user_ontologies)
         project = Project.standard(root)
         with open(project.ontology_config_path, encoding="utf-8") as f:
             config = json.load(f)
-        config["classes"] = {"Machine": "A machine."}
-        config["properties"] = {"at": ["Machine", "Machine", None, "Where it is."]}
+        config["classes"] = {"Machine": {"definition": "A machine."}}
+        config["properties"] = {"at": {"domain": "Machine", "range": "Machine", "definition": "Where it is."}}
         with open(project.ontology_config_path, "w", encoding="utf-8") as f:
             json.dump(config, f)
         with pytest.raises(ValueError, match="no recorded reason"):

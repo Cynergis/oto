@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """The ontology manifest: `manifest.json` beside the vocabulary.
 
-An ontology directory is still an ontology without one: the manifest defaults are derived from the
-directory (its name, release 1, extends nothing), so every ontology exported before manifests
-existed keeps working. With one, an ontology has a release number, can say what it composes on top of
-(`extends`), what it carries, and which engine contract it was written for.
+The manifest gives an ontology its name, its namespace and its release number, and says what it
+composes on top of (`extends`), what it carries, and which engine contract it was written for.
+A directory without one can still be read (the defaults are its name, release 1, extends
+nothing), and is reported as not usable: an ontology states its namespace.
 
     {
       "name": "insurance-claims",
@@ -12,12 +12,16 @@ existed keeps working. With one, an ontology has a release number, can say what 
       "domain": "insurance",
       "summary": "Auto and property claims: parties, policies, losses, adjusters, reserves.",
       "extends": ["oto-core", "insurance-party"],
+      "namespace": "https://example.org/ont/insurance-claims#",
       "engine": ">=0.1",
       "carries": ["vocabulary", "rationale", "rules", "sample", "lexicon", "interview", "guide", "gold"],
       "maintainer": "Claims knowledge team <claims-kb@example.com>",
       "changelog": [{"release": 3, "at": "2026-10-02", "note": "Reserve became a class."}]
     }
 
+`namespace` is the IRI the ontology's own terms live under in every RDF export, in every project
+that uses it (model/namespaces.py). It is required: an ontology without one is not usable. Once
+published it is an identifier others hold: do not change it.
 `domain` is the category the ontology belongs to, one lowercase slug, for grouping a listing or a
 catalog; optional. `release` is an integer that rises on every published change; whether a change breaks a project
 is computed by a diff, never declared here. The vocabulary's own `ontology_version` inside
@@ -29,6 +33,7 @@ import os
 import re
 
 from .. import __version__
+from . import namespaces as _namespaces
 
 MANIFEST_NAME = "manifest.json"
 NAME_OK = re.compile(r"^[a-z][a-z0-9-]*$")
@@ -47,7 +52,7 @@ CARRIES = {
     "actions": "actions",
     "gold": os.path.join("gold", "patterns.jsonl"),
 }
-FIELDS = ("name", "release", "domain", "summary", "extends", "engine", "carries", "maintainer", "changelog")
+FIELDS = ("name", "release", "domain", "summary", "extends", "namespace", "engine", "carries", "maintainer", "changelog")
 #: The domains the engine has seen: the category an ontology or a pack belongs to. A new one is
 #: allowed and noted, never refused; add it here once it is deliberate. Never the same word as a
 #: relation's domain and range, which live inside the vocabulary.
@@ -147,7 +152,7 @@ def problems(directory):
     out = []
     path = path_for(directory)
     if not os.path.exists(path):
-        return out
+        return ["no manifest.json: an ontology states its name and its namespace there"]
     try:
         with open(path, encoding="utf-8") as f:
             declared = json.load(f)
@@ -196,6 +201,13 @@ def problems(directory):
                 if item != "readme":
                     out.append("the directory holds %s but manifest.json does not list %r in carries" % (CARRIES[item], item))
     out += domain_problems(declared.get("domain"), "manifest.json")
+    if declared.get("namespace") in (None, ""):
+        out.append("manifest.json states no namespace: the IRI the ontology's terms live under, "
+                   "for example https://example.org/ont/%s#" % (name or "name"))
+    else:
+        problem = _namespaces.iri_problem(declared["namespace"], "manifest.json namespace")
+        if problem:
+            out.append(problem)
     changelog = declared.get("changelog", [])
     if not isinstance(changelog, list):
         out.append("manifest.json changelog must be a list")

@@ -679,7 +679,8 @@ def diff_project(project):
                 from ..reason import rules as _rules
                 old_rules = _rules.load(project)
 
-        changes = vocab.impact(vocab.diff(old_vocab, vocab.Vocabulary.from_config(new["config"])), nodes, edges)
+        new_vocab = vocab.Vocabulary.from_config(new["config"])
+        changes = vocab.impact(vocab.diff(old_vocab, new_vocab), nodes, edges, new_vocab)
         old_by = {r.get("id"): r for r in old_rules or []}
         new_by = {r.get("id"): r for r in new["rules"] or []}
         rules = {"added": sorted(set(new_by) - set(old_by)), "removed": sorted(set(old_by) - set(new_by)),

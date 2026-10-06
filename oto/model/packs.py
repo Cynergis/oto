@@ -296,7 +296,7 @@ def plugin_files(directory, registry_name=None):
              "   generic skills are available once it is installed.", "",
              "## What the ontology declares", ""]
     for kind in classes:
-        lines.append("- **%s**: %s" % (kind, (raw["config"]["classes"].get(kind) or "").strip()))
+        lines.append("- **%s**: %s" % (kind, (raw["config"]["classes"][kind].get("definition") or "").strip()))
     if raw.get("actions"):
         lines += ["", "## The actions it ships", "", "OTO lists them; the caller invokes (the act skill):", ""]
         for action in raw["actions"]:

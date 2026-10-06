@@ -1,6 +1,12 @@
 {
   "_about": "Why each class and relation exists, and who confirmed it. Written by the ontology interview and edited by hand. `validated_by` is empty until a person who knows the domain has actually confirmed the entry; leave it empty rather than guessing.",
   "classes": {
+    "Asset": {
+      "alternatives": "Naming the four classes in every question and rule; rejected because a question such as \"what does the payments team own\" has to be asked four times, and a rule about ownership written four times.",
+      "question": "What do we run, and who is accountable for it?",
+      "validated_by": "",
+      "why": "Ownership, risk and environment questions are asked about anything the estate runs or stores, not about one class at a time; the parent is what lets one question or one rule cover all of them."
+    },
     "Capability": {
       "alternatives": "",
       "question": "What does the business lose if this is down?",
@@ -43,6 +49,12 @@
       "validated_by": "",
       "why": "Coupling lives in the contracts others depend on, so the contract must be a node that both sides can point at."
     },
+    "Repository": {
+      "alternatives": "A url attribute on Component. It could not be intended, checked, or acted on as a thing of its own.",
+      "question": "Where is the code?",
+      "validated_by": "",
+      "why": "A component without a repository cannot be changed, and an architecture graph that cannot say where the code lives cannot be acted on. Recorded as intended before the repository exists, it is the fact an action realises."
+    },
     "Requirement": {
       "alternatives": "",
       "question": "What must this satisfy, and does it?",
@@ -72,12 +84,6 @@
       "question": "Who do I call?",
       "validated_by": "",
       "why": "Accountability must point at a group rather than a person, because people move and the question does not."
-    },
-    "Repository": {
-      "question": "Where is the code?",
-      "why": "A component without a repository cannot be changed, and an architecture graph that cannot say where the code lives cannot be acted on. Recorded as intended before the repository exists, it is the fact an action realises.",
-      "alternatives": "A url attribute on Component. It could not be intended, checked, or acted on as a thing of its own.",
-      "validated_by": ""
     }
   },
   "properties": {
@@ -87,23 +93,23 @@
       "validated_by": "",
       "why": "This is the edge the impact question runs on, which is why interfaces are modelled at all."
     },
+    "depends_on": {
+      "alternatives": "",
+      "question": "If this component changes, what else must change?",
+      "validated_by": "",
+      "why": "Mostly derived by a rule from consumes and exposes; declared so a document that states a dependency outright can be recorded."
+    },
+    "implemented_by": {
+      "alternatives": "",
+      "question": "Which repository holds this component's code?",
+      "validated_by": "",
+      "why": "Change impact ends in code; the edge is how a reader gets from the box to the checkout."
+    },
     "writes_to": {
       "alternatives": "Considered a single accesses relation; rejected because it cannot answer the question that matters.",
       "question": "Who writes this store?",
       "validated_by": "",
       "why": "Kept separate from reading so more than one writer is visible as a query rather than as folklore."
-    },
-    "depends_on": {
-      "question": "If this component changes, what else must change?",
-      "why": "Mostly derived by a rule from consumes and exposes; declared so a document that states a dependency outright can be recorded.",
-      "alternatives": "",
-      "validated_by": ""
-    },
-    "implemented_by": {
-      "question": "Which repository holds this component's code?",
-      "why": "Change impact ends in code; the edge is how a reader gets from the box to the checkout.",
-      "alternatives": "",
-      "validated_by": ""
     }
   }
 }

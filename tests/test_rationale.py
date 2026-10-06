@@ -9,8 +9,8 @@ from oto.model import rationale, ontologies
 from oto.project import Project
 from oto.scaffold import init
 
-CONFIG = {"classes": {"Claim": "a request for payment", "Party": "a person or organization"},
-          "properties": {"filed_by": ["Claim", "Party", "filed", "who made the claim"]}}
+CONFIG = {"classes": {"Claim": {"definition": "a request for payment"}, "Party": {"definition": "a person or organization"}},
+          "properties": {"filed_by": {"domain": "Claim", "range": "Party", "inverse": "filed", "definition": "who made the claim"}}}
 
 
 def _entry(question="Which policy applies?", why="Cover is decided against a policy at a moment in time.",
@@ -29,7 +29,7 @@ def test_a_rationale_that_repeats_the_description_is_rejected():
     entry = _entry(why="a request for payment")
     report = rationale.report(CONFIG, {"classes": {"Claim": entry, "Party": _entry()},
                                        "properties": {}})
-    assert any("repeats its description" in p for p in report["problems"])
+    assert any("repeats its definition" in p for p in report["problems"])
 
 
 def test_a_rationale_too_short_to_say_anything_is_rejected():

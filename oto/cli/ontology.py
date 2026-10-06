@@ -57,17 +57,21 @@ def cmd_ontology(args):
                               for r, a, b in report["relation_clashes"]]
                     notes.append("merged %d ontologies; prune before accepting" % len(names))
                 attributes = config.get("attributes") or {}
+                namespaces, schemes = config.get("namespaces"), config.get("schemes")
             else:
                 classes, properties, notes = _importer.read(args.file)
-                attributes = _importer.read.attributes
-            problems = _importer.check(classes, properties, attributes)
+                attributes, schemes = _importer.read.attributes, _importer.read.schemes
+                namespaces = _importer.read.namespaces
+                if _importer.read.rationale and any(_importer.read.rationale.values()):
+                    rationale = _importer.read.rationale
+            problems = _importer.check(classes, properties, attributes, schemes)
             if problems:
                 print("the vocabulary is not usable as read:")
                 for problem in problems[:args.show * 2]:
                     print("  %s" % problem)
                 return 1
             path = _importer.apply(project, classes, properties, rationale=rationale, replace=args.replace,
-                                   attributes=attributes)
+                                   attributes=attributes, namespaces=namespaces, schemes=schemes)
         except (OSError, ValueError) as exc:
             print("oto: %s" % exc, file=sys.stderr)
             return 1
@@ -179,7 +183,7 @@ def cmd_ontology(args):
         print("\nno accepted vocabulary on record. Run `oto ontology accept` to record this one as "
               "the baseline, then future changes can be diffed against it.")
     else:
-        changes = vocab.impact(vocab.diff(locked, current), nodes, edges)
+        changes = vocab.impact(vocab.diff(locked, current), nodes, edges, current)
         if not changes:
             print("\nno change since version %d was accepted" % locked.version)
         else:
@@ -188,6 +192,10 @@ def cmd_ontology(args):
                 touches = (" — touches %d" % change.affected) if change.affected else ""
                 print("  [%-9s] %-28s %-24s %s%s"
                       % (change.severity, change.kind, change.subject, change.detail, touches))
+            from ..model import rationale as _rationale
+            for kind, name, by in vocab.reconfirm(locked, current, _rationale.load(project)):
+                print("  RECONFIRM %s %s: its definition changed since %s confirmed it; ask them again, "
+                      "or clear validated_by" % (kind, name, by))
             breaking = sum(1 for c in changes if c.severity == vocab.Change.BREAKING)
             if breaking and current.version <= locked.version:
                 unacknowledged = breaking
@@ -197,6 +205,15 @@ def cmd_ontology(args):
                 unacknowledged = 0
                 print("\n%d breaking change(s), acknowledged by the bump to version %d. Run "
                       "`oto ontology accept` to record it." % (breaking, current.version))
+
+    with open(project.ontology_config_path, encoding="utf-8") as f:
+        _declared_languages = _json.load(f).get("languages")
+    if _declared_languages:
+        for kind, declared in current.attributes.items():
+            for name, spec in declared.items():
+                if str(spec.get("type", "")).startswith("enum:"):
+                    print("  note: attribute %s.%s is an enum, so its values carry no label in %s; declare a scheme "
+                          "if people ask what they mean" % (kind, name, ", ".join(_declared_languages)))
 
     report = vocab.conformance(current, nodes, edges)
     print("\ndomain and range conformance over %d declared edge(s):" % report["checked"])
@@ -235,7 +252,7 @@ def cmd_ontology(args):
             for problem in rule_problems[:args.show]:
                 print("  %s" % problem)
             return 1
-        outcome = _engine.run(declared_rules, nodes, edges)
+        outcome = _engine.run(declared_rules, nodes, edges, covers=vocab.covers(current.classes))
         blocking = [f for f in outcome["findings"] if f["severity"] == "blocking"]
         print("\nrules: %d declared; %d edge(s) and %d attribute(s) would be derived; %d policy finding(s)%s"
               % (len(declared_rules), len(outcome["edges"]), len(outcome["attributes"]), len(outcome["findings"]),
@@ -281,7 +298,7 @@ def register(sub):
     project_arguments(ontology)
     ontology.add_argument("--show", type=int, default=8, help="how many mismatch patterns to list")
     ontology.add_argument("--file", default=None,
-                          help="for import: a vocabulary as .ttl (as OTO emits it), .csv or .json")
+                          help="for import: an ontology (.ttl, .rdf, .owl, .jsonld, .nt; any OWL/RDFS/SKOS, with the rdf extra), or a .csv or .json vocabulary")
     ontology.add_argument("--from", dest="from_name", default=None,
                           help="for import: an ontology name, or several comma-separated to merge; for publish: "
                                "publish this ontology from this machine instead of exporting the project")

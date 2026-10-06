@@ -1,213 +1,294 @@
 {
-  "_about": "Starter vocabulary for motor vehicle claims handling. A FIRST DRAFT to edit, not a finished model. Property value is [Domain, Range, inverse_or_null, description]. Use A|B for a union.",
+  "_about": "Starter vocabulary for motor vehicle claims handling. A FIRST DRAFT to edit, not a finished model. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
   "_summary": "Motor vehicle claims: policy, coverage, claim, incident, handling, money in and out.",
   "name": "Auto Claims Knowledge Base",
   "ontology_version": 1,
   "strict_domains": false,
+  "languages": [
+    "en"
+  ],
   "classes": {
-    "Policy": "A contract of insurance, identified by a policy number and effective period.",
-    "Coverage": "One protection within a policy, with its own limit and deductible.",
-    "Endorsement": "A change to a policy: an addition, removal or amendment of terms.",
-    "Claim": "A request for payment made under a policy after an incident.",
-    "Incident": "The loss event itself: what happened, when and where. Distinct from the Claim reporting it.",
-    "Vehicle": "A motor vehicle, identified by its vehicle identification number.",
-    "Party": "A person or organization involved: policyholder, claimant, third party, witness, repairer, medical provider.",
-    "Role": "A defined function in claims handling, such as adjuster, appraiser or examiner. A role is filled by a party.",
-    "Task": "A unit of handling work on a claim, with an owner and a state.",
-    "Assessment": "A damage appraisal, estimate or expert opinion supporting a decision.",
-    "Decision": "A determination on a claim: coverage, liability, quantum, or a denial, with the reason recorded.",
-    "Payment": "Money paid out, whether indemnity to a claimant or expense to a vendor.",
-    "Recovery": "Money recovered, whether by subrogation from a responsible party or by salvage disposal.",
-    "Procedure": "A documented internal way of handling something: a guideline, a checklist, a service standard.",
-    "Regulation": "An external rule that constrains handling: a statute, a regulator's guidance, an industry standard.",
-    "Document": "A source document in the corpus: a policy wording, a bulletin, a procedure, a transcript."
+    "Policy": {
+      "definition": "A contract of insurance, identified by a policy number and effective period."
+    },
+    "Coverage": {
+      "definition": "One protection within a policy, with its own limit and deductible."
+    },
+    "Endorsement": {
+      "definition": "A change to a policy: an addition, removal or amendment of terms."
+    },
+    "Claim": {
+      "definition": "A request for payment made under a policy after an incident."
+    },
+    "Incident": {
+      "definition": "The loss event itself: what happened, when and where. Distinct from the Claim reporting it."
+    },
+    "Vehicle": {
+      "definition": "A motor vehicle, identified by its vehicle identification number."
+    },
+    "Party": {
+      "definition": "A person or organization involved: policyholder, claimant, third party, witness, repairer, medical provider."
+    },
+    "Role": {
+      "definition": "A defined function in claims handling, such as adjuster, appraiser or examiner. A role is filled by a party."
+    },
+    "Task": {
+      "definition": "A unit of handling work on a claim, with an owner and a state."
+    },
+    "Assessment": {
+      "definition": "A damage appraisal, estimate or expert opinion supporting a decision."
+    },
+    "Decision": {
+      "definition": "A determination on a claim: coverage, liability, quantum, or a denial, with the reason recorded."
+    },
+    "Payment": {
+      "definition": "Money paid out, whether indemnity to a claimant or expense to a vendor."
+    },
+    "Recovery": {
+      "definition": "Money recovered, whether by subrogation from a responsible party or by salvage disposal."
+    },
+    "Procedure": {
+      "definition": "A documented internal way of handling something: a guideline, a checklist, a service standard."
+    },
+    "Regulation": {
+      "definition": "An external rule that constrains handling: a statute, a regulator's guidance, an industry standard."
+    },
+    "Document": {
+      "definition": "A source document in the corpus: a policy wording, a bulletin, a procedure, a transcript."
+    }
   },
   "properties": {
-    "covers": [
-      "Policy",
-      "Coverage",
-      "covered_by",
-      "A policy provides this coverage."
-    ],
-    "amended_by": [
-      "Policy",
-      "Endorsement",
-      "amends",
-      "An endorsement changes this policy."
-    ],
-    "insures": [
-      "Policy",
-      "Vehicle|Party",
-      "insured_by",
-      "A policy insures this vehicle or party."
-    ],
-    "held_by": [
-      "Policy",
-      "Party",
-      "holds",
-      "The party that holds the policy."
-    ],
-    "claims_under": [
-      "Claim",
-      "Policy",
-      "claimed_against",
-      "The policy a claim is made under."
-    ],
-    "arises_from": [
-      "Claim",
-      "Incident",
-      "gave_rise_to",
-      "The incident a claim arises from."
-    ],
-    "filed_by": [
-      "Claim",
-      "Party",
-      "filed",
-      "The party who made the claim."
-    ],
-    "claims_against": [
-      "Claim",
-      "Coverage",
-      "claimed_on",
-      "The coverage a claim is made against."
-    ],
-    "involves": [
-      "Incident",
-      "Vehicle|Party",
-      "involved_in",
-      "A vehicle or party involved in the incident."
-    ],
-    "part_of_claim": [
-      "Task|Assessment|Decision|Payment|Recovery",
-      "Claim",
-      "has_item",
-      "This item belongs to that claim."
-    ],
-    "assigned_to": [
-      "Task",
-      "Role",
-      "assigned",
-      "The role responsible for a task."
-    ],
-    "filled_by": [
-      "Role",
-      "Party",
-      "fills",
-      "The party performing a role."
-    ],
-    "follows": [
-      "Task",
-      "Procedure",
-      "followed_by",
-      "The procedure a task follows."
-    ],
-    "assesses": [
-      "Assessment",
-      "Vehicle",
-      "assessed_by",
-      "The vehicle an assessment examines."
-    ],
-    "supports": [
-      "Assessment|Document",
-      "Decision",
-      "supported_by",
-      "Evidence relied on for a decision."
-    ],
-    "decides": [
-      "Decision",
-      "Claim",
-      "decided_by",
-      "The claim a decision is about."
-    ],
-    "authorizes": [
-      "Decision",
-      "Payment",
-      "authorized_by",
-      "A decision that authorizes a payment."
-    ],
-    "paid_to": [
-      "Payment",
-      "Party",
-      "received",
-      "Who a payment was made to."
-    ],
-    "charged_to": [
-      "Payment",
-      "Coverage",
-      "bears",
-      "The coverage a payment is charged against."
-    ],
-    "recovered_from": [
-      "Recovery",
-      "Party",
-      "paid_recovery",
-      "The party a recovery came from."
-    ],
-    "governs": [
-      "Regulation",
-      "Procedure",
-      "governed_by",
-      "A rule that constrains a procedure."
-    ],
-    "documented_in": [
-      "Procedure|Regulation|Policy",
-      "Document",
-      "documents",
-      "Where this is written down."
-    ],
-    "supersedes": [
-      "Procedure|Regulation|Policy|Coverage",
-      "Procedure|Regulation|Policy|Coverage",
-      "superseded_by",
-      "This replaced that. Use with the temporal fields, never by overwriting."
-    ],
-    "performs": [
-      "Role",
-      "Procedure",
-      "performed_by",
-      "The role that carries out this procedure."
-    ]
+    "covers": {
+      "domain": "Policy",
+      "range": "Coverage",
+      "inverse": "covered_by",
+      "definition": "A policy provides this coverage."
+    },
+    "amended_by": {
+      "domain": "Policy",
+      "range": "Endorsement",
+      "inverse": "amends",
+      "definition": "An endorsement changes this policy."
+    },
+    "insures": {
+      "domain": "Policy",
+      "range": "Vehicle|Party",
+      "inverse": "insured_by",
+      "definition": "A policy insures this vehicle or party."
+    },
+    "held_by": {
+      "domain": "Policy",
+      "range": "Party",
+      "inverse": "holds",
+      "definition": "The party that holds the policy."
+    },
+    "claims_under": {
+      "domain": "Claim",
+      "range": "Policy",
+      "inverse": "claimed_against",
+      "definition": "The policy a claim is made under."
+    },
+    "arises_from": {
+      "domain": "Claim",
+      "range": "Incident",
+      "inverse": "gave_rise_to",
+      "definition": "The incident a claim arises from."
+    },
+    "filed_by": {
+      "domain": "Claim",
+      "range": "Party",
+      "inverse": "filed",
+      "definition": "The party who made the claim."
+    },
+    "claims_against": {
+      "domain": "Claim",
+      "range": "Coverage",
+      "inverse": "claimed_on",
+      "definition": "The coverage a claim is made against."
+    },
+    "involves": {
+      "domain": "Incident",
+      "range": "Vehicle|Party",
+      "inverse": "involved_in",
+      "definition": "A vehicle or party involved in the incident."
+    },
+    "part_of_claim": {
+      "domain": "Task|Assessment|Decision|Payment|Recovery",
+      "range": "Claim",
+      "inverse": "has_item",
+      "definition": "This item belongs to that claim."
+    },
+    "assigned_to": {
+      "domain": "Task",
+      "range": "Role",
+      "inverse": "assigned",
+      "definition": "The role responsible for a task."
+    },
+    "filled_by": {
+      "domain": "Role",
+      "range": "Party",
+      "inverse": "fills",
+      "definition": "The party performing a role."
+    },
+    "follows": {
+      "domain": "Task",
+      "range": "Procedure",
+      "inverse": "followed_by",
+      "definition": "The procedure a task follows."
+    },
+    "assesses": {
+      "domain": "Assessment",
+      "range": "Vehicle",
+      "inverse": "assessed_by",
+      "definition": "The vehicle an assessment examines."
+    },
+    "supports": {
+      "domain": "Assessment|Document",
+      "range": "Decision",
+      "inverse": "supported_by",
+      "definition": "Evidence relied on for a decision."
+    },
+    "decides": {
+      "domain": "Decision",
+      "range": "Claim",
+      "inverse": "decided_by",
+      "definition": "The claim a decision is about."
+    },
+    "authorizes": {
+      "domain": "Decision",
+      "range": "Payment",
+      "inverse": "authorized_by",
+      "definition": "A decision that authorizes a payment."
+    },
+    "paid_to": {
+      "domain": "Payment",
+      "range": "Party",
+      "inverse": "received",
+      "definition": "Who a payment was made to."
+    },
+    "charged_to": {
+      "domain": "Payment",
+      "range": "Coverage",
+      "inverse": "bears",
+      "definition": "The coverage a payment is charged against."
+    },
+    "recovered_from": {
+      "domain": "Recovery",
+      "range": "Party",
+      "inverse": "paid_recovery",
+      "definition": "The party a recovery came from."
+    },
+    "governs": {
+      "domain": "Regulation",
+      "range": "Procedure",
+      "inverse": "governed_by",
+      "definition": "A rule that constrains a procedure."
+    },
+    "documented_in": {
+      "domain": "Procedure|Regulation|Policy",
+      "range": "Document",
+      "inverse": "documents",
+      "definition": "Where this is written down."
+    },
+    "supersedes": {
+      "domain": "Procedure|Regulation|Policy|Coverage",
+      "range": "Procedure|Regulation|Policy|Coverage",
+      "inverse": "superseded_by",
+      "definition": "This replaced that. Use with the temporal fields, never by overwriting."
+    },
+    "performs": {
+      "domain": "Role",
+      "range": "Procedure",
+      "inverse": "performed_by",
+      "definition": "The role that carries out this procedure."
+    }
   },
   "attributes": {
     "Policy": {
-      "policy_number": [
-        "string",
-        "The insurer's identifier for the policy."
-      ]
+      "policy_number": {
+        "type": "string",
+        "definition": "The insurer's identifier for the policy."
+      }
     },
     "Party": {
-      "party_role": [
-        "enum:policyholder|claimant|third_party|witness|repairer|medical_provider",
-        "The part the party plays in this claim."
-      ]
+      "party_role": {
+        "type": "enum:policyholder|claimant|third_party|witness|repairer|medical_provider",
+        "definition": "The part the party plays in this claim."
+      }
     },
     "Incident": {
-      "occurred_on": [
-        "date",
-        "The date of the loss event."
-      ]
+      "occurred_on": {
+        "type": "date",
+        "definition": "The date of the loss event."
+      }
     },
     "Claim": {
-      "claim_number": [
-        "string",
-        "The insurer's identifier for the claim."
-      ],
-      "state": [
-        "enum:open|closed|denied|reopened",
-        "Where the claim is in its handling."
-      ]
+      "claim_number": {
+        "type": "string",
+        "definition": "The insurer's identifier for the claim."
+      },
+      "state": {
+        "type": "scheme:ClaimState",
+        "definition": "Where the claim is in its handling."
+      }
     },
     "Task": {
-      "state": [
-        "enum:open|in_progress|done|cancelled",
-        "Where the task is in its life."
-      ]
+      "state": {
+        "type": "scheme:TaskState",
+        "definition": "Where the task is in its life."
+      }
     },
     "Decision": {
-      "reason": [
-        "string",
-        "The recorded reason for the determination."
-      ]
+      "reason": {
+        "type": "string",
+        "definition": "The recorded reason for the determination."
+      }
+    }
+  },
+  "schemes": {
+    "ClaimState": {
+      "definition": "Where a claim is in its handling.",
+      "concepts": {
+        "open": {
+          "label": "Open",
+          "definition": "Reported and being handled: assessed, decided or paid."
+        },
+        "reopened": {
+          "label": "Reopened",
+          "definition": "Opened again after closing, on new information or a dispute.",
+          "broader": "open"
+        },
+        "closed": {
+          "label": "Closed",
+          "definition": "Settled or withdrawn; nothing left to do."
+        },
+        "denied": {
+          "label": "Denied",
+          "definition": "Refused: the policy does not cover it, or the claim failed."
+        }
+      }
+    },
+    "TaskState": {
+      "definition": "Where a piece of work on a claim is.",
+      "concepts": {
+        "open": {
+          "label": "Open",
+          "definition": "Assigned, not started."
+        },
+        "in_progress": {
+          "label": "In progress",
+          "definition": "Started, not finished.",
+          "broader": "open"
+        },
+        "done": {
+          "label": "Done",
+          "definition": "Finished."
+        },
+        "cancelled": {
+          "label": "Cancelled",
+          "definition": "Dropped before it was done."
+        }
+      }
     }
   }
 }

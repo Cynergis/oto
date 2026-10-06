@@ -22,6 +22,8 @@ def cmd_actions(args):
     project = _resolve(args)
     with open(project.ontology_config_path, encoding="utf-8") as f:
         vocabulary = json.load(f)
+    from ..model.vocabulary import covers as _covers
+    covers = _covers(vocabulary.get("classes") or {})
     loaded = _model.load(project)
     problems = _model.problems(loaded, vocabulary)
 
@@ -80,7 +82,7 @@ def cmd_actions(args):
             if subject.get("type") != action.get("subject"):
                 print("oto: %s is a %s; %s acts on %s" % (args.on, subject.get("type"), action["id"], action.get("subject")), file=sys.stderr)
                 return 1
-        definition = _catalog.tool_definition(action, nodes, edges, on=subject)
+        definition = _catalog.tool_definition(action, nodes, edges, on=subject, covers=covers)
         if args.json:
             print(json.dumps(definition, indent=2, ensure_ascii=False))
         else:
@@ -92,7 +94,7 @@ def cmd_actions(args):
         print("no actions declared. An action is a file actions/<id>.json; `oto actions check` validates them.")
         return 0
     nodes, edges = _graph(project)
-    definitions = _catalog.catalog(usable, nodes, edges, ready_only=args.ready, due_only=args.due)
+    definitions = _catalog.catalog(usable, nodes, edges, ready_only=args.ready, due_only=args.due, covers=covers)
     if args.json:
         print(json.dumps(definitions, indent=2, ensure_ascii=False))
         return 0
@@ -148,7 +150,10 @@ def _record(args, project, usable):
         print("oto: %s renders a proposal from the response, which must be a JSON object; got %s"
               % (action["id"], "text" if isinstance(response, str) else type(response).__name__), file=sys.stderr)
         return 1
-    ready, _reason = _catalog.readiness(action, nodes, edges)
+    from ..model.vocabulary import covers as _covers
+    with open(project.ontology_config_path, encoding="utf-8") as f:
+        covers = _covers((json.load(f).get("classes") or {}))
+    ready, _reason = _catalog.readiness(action, nodes, edges, covers)
     inputs, missing = _catalog.bind(action, subject)
     try:
         rec = _runs.record(project, action, subject, response, args.by or "", args.at or _today(),

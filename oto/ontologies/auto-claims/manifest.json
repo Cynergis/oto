@@ -1,12 +1,13 @@
 {
   "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
   "name": "auto-claims",
-  "release": 2,
+  "release": 3,
   "domain": "insurance",
   "summary": "Motor vehicle claims: policy, coverage, claim, incident, handling, money in and out.",
   "extends": [
     "oto-core"
   ],
+  "namespace": "https://cynergis.ai/ont/auto-claims#",
   "engine": ">=0.1",
   "carries": [
     "vocabulary",
@@ -16,6 +17,11 @@
   ],
   "maintainer": "OTO",
   "changelog": [
+    {
+      "release": 3,
+      "at": "2026-10-05",
+      "note": "Declares its namespace: its terms keep one IRI in the RDF export of every project that uses it. The states of a claim and of a task are schemes: each value has a label, a definition, and reopened and in_progress are kinds of open."
+    },
     {
       "release": 1,
       "at": "2026-09-19",

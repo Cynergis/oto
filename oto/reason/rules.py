@@ -112,7 +112,7 @@ def problems(rules, vocabulary):
                         out.append("%s: class %r is not declared" % (label, kind_name))
                 if pattern.get("type"):
                     var_types[pattern["node"]] = _split(pattern["type"])
-                out += _condition_problems(label, pattern, attributes)
+                out += _condition_problems(label, pattern, attributes, classes)
             elif "edge" in pattern or "not_edge" in pattern:
                 key = "edge" if "edge" in pattern else "not_edge"
                 spec = pattern[key]
@@ -170,27 +170,30 @@ def problems(rules, vocabulary):
     return out
 
 
-def _condition_problems(label, pattern, attributes):
+def _condition_problems(label, pattern, attributes, classes=None):
+    classes = classes or {}
     out = []
     where = pattern.get("where") or {}
     if not isinstance(where, dict):
         return ["%s: `where` must be an object of attribute conditions" % label]
     declared = {}
+    from .. import model as _model  # noqa: F401  (the vocabulary module, for inherited declarations)
+    from ..model.vocabulary import declared_attributes
     for kind_name in _split(pattern.get("type")):
-        declared.update(attributes.get(kind_name) or {})
+        declared.update(declared_attributes({"classes": classes, "attributes": attributes}, kind_name))
     from .match import BUILTIN_FIELDS
     for name, condition in where.items():
         if name in BUILTIN_FIELDS:
-            spec = ("date", "") if name in ("as_of", "valid_from", "valid_to") else ("string", "")
+            declared_type = "date" if name in ("as_of", "valid_from", "valid_to") else "string"
         else:
-            spec = declared.get(name)
+            declared_type = (declared.get(name) or {}).get("type")
         if isinstance(condition, dict):
             for op in condition:
                 if op not in OPERATORS:
                     out.append("%s: operator %r on %s is not one of %s" % (label, op, name, ", ".join(OPERATORS)))
-                elif spec and op in ("<", "<=", ">", ">=") and spec[0] not in ORDERED_TYPES:
-                    out.append("%s: %r on %s, which is declared %s, not a number or date" % (label, op, name, spec[0]))
-        elif pattern.get("type") and declared and spec is None and name not in BUILTIN_FIELDS:
+                elif declared_type and op in ("<", "<=", ">", ">=") and declared_type not in ORDERED_TYPES:
+                    out.append("%s: %r on %s, which is declared %s, not a number or date" % (label, op, name, declared_type))
+        elif pattern.get("type") and declared and declared_type is None and name not in BUILTIN_FIELDS:
             out.append("%s: attribute %r is not declared for %s" % (label, name, pattern.get("type")))
     return out
 

@@ -38,7 +38,7 @@ from ..apps import manifest as _apps
 ROUTES = {"entity": "kg_entity", "neighbors": "kg_neighbors", "search": "kg_search", "type": "kg_by_type",
           "by-type": "kg_by_type", "count": "kg_count", "group": "kg_group_by", "explain": "kg_explain",
           "policy": "kg_policy", "overview": "kg_overview", "stale": "kg_stale", "resolve": "kg_resolve",
-          "docs": "kg_docs", "pending": "kg_pending", "actions": "kg_actions"}
+          "docs": "kg_docs", "pending": "kg_pending", "actions": "kg_actions", "define": "kg_define"}
 INTEGER_ARGS = {"n", "limit"}
 BOOLEAN_ARGS = {"history", "ready", "due"}
 LOOPBACK = ("127.0.0.1", "localhost", "::1")

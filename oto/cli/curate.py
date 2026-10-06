@@ -204,7 +204,9 @@ def cmd_curate(args):
     declared_rules = _rules.load(project)
     if declared_rules and not _rules.problems(declared_rules, vocabulary):
         try:
-            outcome = _engine.run(declared_rules, proposed.get("nodes") or [], proposed.get("edges") or [])
+            from ..model.vocabulary import covers as _covers
+            outcome = _engine.run(declared_rules, proposed.get("nodes") or [], proposed.get("edges") or [],
+                                  covers=_covers(vocabulary.get("classes") or {}))
         except _engine.DoesNotConverge as exc:
             findings.append(_diff.Finding(_diff.Finding.BLOCKING, "rules", str(exc)))
         else:

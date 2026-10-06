@@ -29,6 +29,7 @@ oto query --project <root> docs [filter]                     # what is ingested,
 oto query --project <root> stale                             # every superseded fact and its successor
 oto query --project <root> overview [limit]                  # the map of the whole graph, for a global question
 oto query --project <root> explain "<term>" [rel]             # why a derived fact holds: rule, premises, evidence
+oto query --project <root> define "<term>"                   # what a class, relation or attribute means, and why it exists
 oto query --project <root> policy                            # standing policy findings
 oto query --project <root> pending                           # what is on its way in, by station: not believed yet
 ```
@@ -47,7 +48,7 @@ it: the chain ends in documents, and that is what you cite.
    cannot know what it has not read.
 2. **Read current facts.** `entity` and `neighbors` return `status: current` by default and steer a
    superseded id to its successor. For a multi-hop question, follow the relations they print; the
-   ontology (`build/ontology/ontology.md`) says what each relation means. Use `search` for a
+   ontology (`build/ontology/ontology.md`, or `define <term>`) says what each relation means. Use `search` for a
    thematic question, then `entity` on what it surfaces.
 3. **Check the date before answering.** Every fact carries `as_of` and `valid_from`; state them when
    precision matters ("current as of 2026-03-01"). A superseded fact is history: mention it only if

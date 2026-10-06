@@ -66,6 +66,8 @@ pip install "oto-kg[draft] @ git+https://github.com/Cynergis/oto"     # `oto dra
 pip install "oto-kg[neo4j] @ git+https://github.com/Cynergis/oto"     # the production store: load the
      # built graph into a self-hosted Neo4j and serve from it (serve.backend: neo4j); SQLite stays the
      # development store and the fallback, and the two answer alike
+pip install "oto-kg[rdf] @ git+https://github.com/Cynergis/oto"       # `oto ontology import --file`: read a
+     # real ontology, OWL, RDFS or SKOS in any RDF syntax, every term keeping its IRI
 ```
 
 To test everything end to end, in the order a real project goes through it, follow
@@ -112,7 +114,7 @@ oto curate check --project claims       # blocking problems, contradictions, gap
 oto curate apply --project claims && oto build --project claims
 oto bench add --project claims --from claims/proposals/handbook.questions.json   # evaluate skill
 oto ingest complete --project claims    # the graph holds the run: processing/ -> archive/
-oto serve --project claims              # fourteen kg_* tools over JSON-RPC 2.0, for an MCP host
+oto serve --project claims              # fifteen kg_* tools over JSON-RPC 2.0, for an MCP host
 oto serve --project claims --http 8765              # the same over HTTP, the graph explorer at /, the whole
      # graph at /api/graph; --view reader for the page-shaped reader; --view <name|dir> serves your own
      # web app instead, its data files generated from the graph as its app.json projections say

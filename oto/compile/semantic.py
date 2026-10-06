@@ -24,6 +24,8 @@ def run(project):
     os.makedirs(SEM, exist_ok=True)
     os.makedirs(CARDS, exist_ok=True)
 
+    from ..model.terms import Vocabulary
+    words = Vocabulary.of_project(project)
     graph = json.load(open(os.path.join(SEM, "knowledge-graph.json"), encoding="utf-8"))
     nodes = {n["id"]: n for n in graph["nodes"]}
     out_edges = defaultdict(list); in_edges = defaultdict(list)
@@ -52,13 +54,14 @@ def run(project):
     curated = list(graph["nodes"])
     for n in curated:
         nid = n["id"]; slug = nid.replace(".", "__")
-        related = []
+        related = []                     # each relation read as the vocabulary labels it, from this node's side
         for e in out_edges.get(nid, []):
-            t = nodes.get(e["to"]);
-            if t: related.append(f"{e['rel']} → {t['label']}")
+            t = nodes.get(e["to"])
+            if t: related.append(f"{words.relation_label(e['rel'])} → {t['label']}")
         for e in in_edges.get(nid, []):
             s = nodes.get(e["from"])
-            if s: related.append(f"{s['label']} → {e['rel']}")
+            if s: related.append(f"{words.inverse_label(e['rel'])} → {s['label']}" if words.inverse_label(e["rel"])
+                                 else f"{s['label']} → {words.relation_label(e['rel'])}")
         kws = card_keywords(n)
         status = n.get("status", "current")
         fm = ["---", f"id: {nid}", f"type: {n['type']}", f"label: \"{n['label']}\"",
@@ -74,7 +77,7 @@ def run(project):
         fm += [f"sources: {json.dumps(n.get('sources', []), ensure_ascii=False)}",
                f"entity_page: {os.path.relpath(os.path.join(ENT_DIR, slug + '.md'), CARDS).replace(os.sep, '/')}",
                "---", ""]
-        body = [f"# {n['label']}  ·  _{n['type']}_", ""]
+        body = [f"# {n['label']}  ·  _{words.classed(n['type'])}_", ""]
         if status == "superseded":
             sb = n.get("superseded_by")
             sb_lbl = nodes[sb]["label"] if sb and sb in nodes else (sb or "a newer fact")
@@ -87,7 +90,8 @@ def run(project):
         body += [n.get("summary", ""), ""]
         attrs = n.get("attributes") or {}
         if attrs:
-            body.append("**Key facts:** " + "; ".join(f"{k}={v}" for k, v in attrs.items() if v not in (None, "")) + ".")
+            body.append("**Key facts:** " + "; ".join(f"{words.attribute_label(n['type'], k)}: {words.value_text(n['type'], k, v)}"
+                                                      for k, v in attrs.items() if v not in (None, "")) + ".")
             body.append("")
         if related:
             body.append("**Connected to:** " + "; ".join(related) + ".")

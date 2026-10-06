@@ -40,6 +40,7 @@ version of `auto-claims` under the same name.
 import json
 import os
 
+from . import namespaces as _namespaces
 from . import ontology_compose as _compose
 from . import ontology_manifest as _manifest
 from .ontology_compose import OntologyError  # noqa: F401  (re-exported: callers catch it here)
@@ -304,28 +305,25 @@ def self_check(name, roots=None):
     if not readme.strip():
         problems.append("has no README explaining the choices")
 
-    def declared(spec):
-        return [x.strip() for x in (spec or "").split("|") if x.strip()]
+    from . import vocabulary as _vocab
+    malformed = _vocab.shape_problems(config) or _vocab.hierarchy_problems(config) + _vocab.scheme_problems(config)
+    if malformed:
+        return problems + malformed
 
-    for relation, value in sorted(properties.items()):
-        if not isinstance(value, (list, tuple)) or len(value) < 4:
-            problems.append("relation %r must be [domain, range, inverse_or_null, description]"
-                            % relation)
-            continue
-        for position, spec in (("domain", value[0]), ("range", value[1])):
-            for kind in declared(spec):
+    for relation, spec in sorted(properties.items()):
+        for position in ("domain", "range"):
+            for kind in _union(spec.get(position)):
                 if kind not in classes:
                     problems.append("relation %r names an undeclared class in its %s: %s"
                                     % (relation, position, kind))
-        if not (value[3] or "").strip():
-            problems.append("relation %r has no description" % relation)
+        if not (spec.get("definition") or "").strip():
+            problems.append("relation %r has no definition" % relation)
 
-    for kind, description in sorted(classes.items()):
-        if not (description or "").strip():
-            problems.append("class %r has no description" % kind)
+    for kind, spec in sorted(classes.items()):
+        if not (spec.get("definition") or "").strip():
+            problems.append("class %r has no definition" % kind)
 
-    from . import vocabulary as _vocab
-    problems += _vocab.declaration_problems(classes, config.get("attributes") or {})
+    problems += _vocab.declaration_problems(classes, config.get("attributes") or {}, config.get("schemes") or {})
     from ..reason import rules as _rules
     problems += _rules.problems(result["rules"], config)
     from ..actions import model as _actions
@@ -456,25 +454,26 @@ def synthetic_sample(config):
         if nid not in ids:
             ids[nid] = True
             nodes.append(dict(id=nid, type=kind, label="%s example%s" % (kind, suffix.replace("-", " ")),
-                              aliases=[], summary=(classes.get(kind) or "").strip() or "An example.",
+                              aliases=[], summary=(classes[kind].get("definition") or "").strip() or "An example.",
                               attributes={}, tags=[kind.lower()], **SAMPLE_STAMP))
         return nid
 
-    from .vocabulary import parse_attribute_type
+    from .vocabulary import concepts_of, parse_attribute_type
 
     def example_value(spec):
         kind, options = parse_attribute_type(spec)
-        return {"enum": (options or ["example"])[0], "string": "example", "number": 1.5, "integer": 1,
-                "boolean": True, "date": "2026-01-01", "list": ["example"]}[kind]
+        if kind in ("enum", "scheme"):
+            return next(iter(concepts_of(spec, config.get("schemes") or {})), "example")
+        return {"string": "example", "number": 1.5, "integer": 1, "boolean": True, "date": "2026-01-01", "list": ["example"]}[kind]
 
     for kind in classes:
         nid = node_for(kind)
         declared = (config.get("attributes") or {}).get(kind) or {}
         if declared:
             node = next(n for n in nodes if n["id"] == nid)
-            node["attributes"] = {a: example_value(spec[0]) for a, spec in declared.items()}
+            node["attributes"] = {a: example_value(spec["type"]) for a, spec in declared.items()}
     for relation, spec in properties.items():
-        domain, rng = _union(spec[0]), _union(spec[1]) if len(spec) > 1 else ()
+        domain, rng = _union(spec.get("domain")), _union(spec.get("range"))
         if not domain:
             continue
         if not rng:                                            # any class: point the example at its own kind
@@ -521,15 +520,15 @@ def _readme(name, config, rationale, source_name, confirmed):
     lines += ["## Classes, and the question each answers", ""]
     for kind in classes:
         entry = entries.get(kind) or {}
-        lines.append("- **%s**: %s" % (kind, (classes[kind] or "").strip()))
+        lines.append("- **%s**: %s" % (kind, (classes[kind].get("definition") or "").strip()))
         if entry.get("question"):
             lines.append("  - *Question:* %s" % entry["question"].strip())
         if entry.get("why"):
             lines.append("  - *Why a class:* %s" % entry["why"].strip())
     lines += ["", "## Relations", "", "| Relation | Domain | Range | Meaning |", "| --- | --- | --- | --- |"]
     for relation, spec in properties.items():
-        lines.append("| `%s` | %s | %s | %s |" % (relation, spec[0], spec[1] if len(spec) > 1 else "",
-                                                  (spec[3] if len(spec) > 3 else "") or ""))
+        lines.append("| `%s` | %s | %s | %s |" % (relation, spec.get("domain") or "", spec.get("range") or "",
+                                                  spec.get("definition") or ""))
     lines += ["", "## Growing it", "", "```bash",
               "oto ontology check --project <root>      # what a change breaks, and conformance",
               "oto ontology rationale --project <root>  # which classes still lack a confirmed reason",
@@ -564,8 +563,8 @@ def export(project, name, to=None, from_graph=0, summary=None, force=False):
     identity = project.identity()
     exported = dict(config)
     exported["_about"] = ("Starter vocabulary exported from the project %r. A FIRST DRAFT to edit, "
-                          "not a finished model. Property value is [Domain, Range, inverse_or_null, "
-                          "description]. Use A|B for a union." % identity["name"])
+                          "not a finished model. A relation is {domain, range, inverse, definition}. "
+                          "Use A|B for a union." % identity["name"])
     exported["_exported_from_version"] = config.get("ontology_version", 1)
     exported["_summary"] = (summary or config.get("_summary") or "").strip()
     exported["ontology_version"] = 1
@@ -633,7 +632,10 @@ def export(project, name, to=None, from_graph=0, summary=None, force=False):
         f.write(_readme(name, exported, rationale, identity["name"], confirmed))
     from .. import __version__
     engine = ">=%s" % ".".join(str(x) for x in _manifest._version_tuple(__version__)[:2])
+    # The terms the project declared itself keep the IRIs its own export gave them; what it took
+    # from other ontologies is in the vocabulary's `namespaces` section and keeps theirs.
     _manifest.write(target, {"name": name, "release": 1, "summary": exported["_summary"], "extends": [],
+                             "namespace": _namespaces.Terms(config, identity).project,
                              "engine": engine, "carries": _manifest.detect_carries(target),
                              "maintainer": "", "changelog": [{"release": 1, "at": _today(),
                                                               "note": "Exported from the project %s." % identity["name"]}]})
@@ -654,7 +656,7 @@ def merge(names):
     every clash so a person can see what was silently kept, and the totals, because two glued
     ontologies are the fastest way to the forty-class model nobody owns. Prune before accepting.
     """
-    classes, properties, temporal, attributes = {}, {}, {}, {}
+    classes, properties, temporal, attributes, namespaces, schemes = {}, {}, {}, {}, {}, {}
     rationale = {"classes": {}, "properties": {}}
     merged_rules = {}
     owner = {}
@@ -682,15 +684,19 @@ def merge(names):
             classes.setdefault(kind, description)
             owner.setdefault(kind, name)
         for relation, spec in (config.get("properties") or {}).items():
-            if relation in properties and list(properties[relation])[:2] != list(spec)[:2]:
+            if relation in properties and [properties[relation].get(k) for k in ("domain", "range")] \
+                    != [spec.get(k) for k in ("domain", "range")]:
                 report["relation_clashes"].append((relation, owner[relation], name))
-            properties.setdefault(relation, list(spec))
+            properties.setdefault(relation, dict(spec))
             owner.setdefault(relation, name)
         for field, spec in (config.get("temporal") or {}).items():
             temporal.setdefault(field, spec)
         for kind, declared in (config.get("attributes") or {}).items():
             for attr, spec in (declared or {}).items():
-                attributes.setdefault(kind, {}).setdefault(attr, list(spec))
+                attributes.setdefault(kind, {}).setdefault(attr, dict(spec))
+        _namespaces.inherit(namespaces, config.get(_namespaces.SECTION))
+        for scheme_name, scheme in (config.get("schemes") or {}).items():
+            schemes.setdefault(scheme_name, scheme)
         for rule in result["rules"]:
             merged_rules.setdefault(rule["id"], dict(rule))
         for action in result.get("actions") or []:
@@ -706,6 +712,10 @@ def merge(names):
               "classes": classes, "properties": properties, "temporal": temporal}
     if attributes:
         config["attributes"] = attributes
+    if schemes:
+        config["schemes"] = schemes
+    if _namespaces.settled(namespaces):
+        config[_namespaces.SECTION] = _namespaces.settled(namespaces)
     config["_rules"] = list(merged_rules.values())
     config["_lexicon"] = {"entries": lexicon_entries} if lexicon_entries else None
     config["_interview"] = "\n\n".join(interviews) if interviews else None

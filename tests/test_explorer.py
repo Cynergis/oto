@@ -75,7 +75,7 @@ def test_the_adapter_and_the_defaults_under_node():
         assert out["inverses"]["owned_by"] == "owns" and out["inverses"]["part_of"] == "contains"
         assert out["edgeSample"]["dash"] is True and out["edgeSample"]["derived_by"] == "risk-reaches-system" and out["edgeSample"]["premises"]
         assert ["datastore.ledger", "contains", "in"] in out["neighbours"], "an incoming edge reads by its inverse"
-        assert ["team.payments", "owned_by", "out"] in out["neighbours"]
+        assert ["team.payments", "owned by", "out"] in out["neighbours"], "an edge reads as the vocabulary labels it"
         assert "datastore.ledger" in out["hop1"] and "system.payments" in out["hop1"] and out["hop2"] > len(out["hop1"])
         assert out["sub"] == ["part_of"]
         lane = out["lane"]
@@ -86,7 +86,7 @@ def test_the_adapter_and_the_defaults_under_node():
         assert out["search"][0] in ("datastore.ledger", "decision.single-ledger")
         assert out["assumed"] == 0, "every sample entity cites its sample source"
         assert out["assumedStripped"] is True and out["assumedDocument"] is False, "a document is never unsourced; an entity with no source is"
-        assert out["columns"][0] == ["Document"] and sum(len(c) for c in out["columns"]) == 14 and len(out["columns"]) <= 9
+        assert out["columns"][0] == ["Document"] and sum(len(c) for c in out["columns"]) == 15 and len(out["columns"]) <= 9
         assert "Document" not in out["evidenceable"] and "System" in out["evidenceable"] and out["threshold"] == 400
         assert out["meta"]["DecisionRecord"] == ["Decision Record", "check", True] and out["meta"]["Risk"][1] == "warn"
         assert out["overColumns"][:2] == [["Risk"], ["System", "Component"]] and len(out["overColumns"]) == 3, "forgotten classes still get a column"

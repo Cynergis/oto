@@ -107,7 +107,7 @@ least once:
 1. Two ontologies merged: `oto init --ontology software-architecture,organization-process ...`
 2. From the documents: ask for the **ontology-interview** skill after stage 3; it reads the
    survey, asks its questions, and writes `ontology.config.json` and `ontology.rationale.json`.
-3. From a file you own: `oto ontology import --project acme --file vocab.ttl` (or `.csv`, `.json`).
+3. From a file you own: `oto ontology import --project acme --file ontology.ttl` (any OWL, RDFS or SKOS in any RDF syntax, with `oto-kg[rdf]`; or a `.csv` or `.json` vocabulary).
 4. By interview alone, with no documents.
 
 Then:
@@ -243,7 +243,7 @@ Add entries to `lexicon.json` for your jargon, including one with `"status": "no
 rebuild. Ask a global question ("what is this organisation most concerned with") and keep the
 answer as `notes/themes/<slug>.md`. Rebuild while the server is running.
 
-Pass when the host lists fourteen `kg_*` tools, a proposal dropped into `proposals/` shows in `pending`
+Pass when the host lists fifteen `kg_*` tools, a proposal dropped into `proposals/` shows in `pending`
 and, with `--watch`, appears in the explorer dotted with its station within a few seconds and disappears
 from the lane once applied and built, `/api/entity` over HTTP returns the same text as the CLI
 plus the rows as JSON, the explorer at `/` draws the graph in columns, lights a neighbourhood on hover,

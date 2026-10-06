@@ -32,6 +32,11 @@ def preflight(project):
 
     ontology = _load(project.ontology_config_path, "ontology.config.json")
     classes = ontology.get("classes") or {}
+    # Nothing below can be checked against a vocabulary that is not in the form the engine reads.
+    from ..model import vocabulary as _vocab
+    malformed = _vocab.shape_problems(ontology) or _vocab.hierarchy_problems(ontology) + _vocab.scheme_problems(ontology)
+    if malformed:
+        raise ProjectError("ontology.config.json is not in the form the engine reads:\n  - " + "\n  - ".join(malformed))
     properties = ontology.get("properties") or {}
     if not classes:
         problems.append("ontology.config.json declares no classes")
@@ -98,8 +103,9 @@ def preflight(project):
     # attribute nobody declared on a class that declares others is advisory, unless the project
     # has said `strict_attributes`, because a passing build must not start failing because a
     # declaration was added yesterday.
-    from ..model import vocabulary as _vocab
-    problems += _vocab.declaration_problems(classes, ontology.get("attributes") or {})
+    from ..model import namespaces as _namespaces
+    problems += _namespaces.problems(ontology)
+    problems += _vocab.declaration_problems(classes, ontology.get("attributes") or {}, ontology.get("schemes") or {})
     if not problems:
         report = _vocab.attribute_conformance(_vocab.Vocabulary.from_config(ontology), nodes)
         for nid, key, why, value in report["mistyped"][:8]:

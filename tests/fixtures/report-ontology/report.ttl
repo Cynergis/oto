@@ -1,0 +1,364 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix dct:  <http://purl.org/dc/terms/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix dt:   <https://cynergis.ai/ont/doctemplate#> .
+@prefix rpt:  <https://cynergis.ai/ont/report#> .
+@prefix meta: <https://cynergis.ai/ont/meta#> .
+
+# Report ontology — meaning, provenance, data mapping and operating contract of a report type.
+# Generated from questions/report_cq.yaml. Every class and property exists because at least one question needs it,
+# and every one carries a label, a definition, a domain and a range (kgctl terms enforces both rules, and that every
+# property of the four schemas in schemas/ names one of these terms).
+#
+# 2.1.0 (2026-10-05) — additive:
+#   - A report's definition has an accepted history (semantic/history.yaml): revisions, each with who accepted it, when
+#     it was recorded, from when it applies and why, and the facts it added, changed or removed with the value before
+#     and after (CQ20, CQ21). A changed fact is superseded, never overwritten.
+#   - A field may carry aliases: the other names readers use for it (CQ18; kg.py resolve).
+#   - rpt:order, rpt:changedBy and rpt:at also apply to a revision. Terms may record why they exist and who confirmed
+#     them (meta:, ontology/meta.ttl).
+#
+# 2.0.0 (2026-10-05) — breaking:
+#   - A report type has a lifecycle: a log of status changes (inception, saved, in_validation, in_production), each
+#     with who recorded it and when; the report carries its current status (CQ19).
+#   - A report can be defined before its template is built: provenance needs a source document, not yet a run.
+#   - The data mapping is field → column of the report's table, proposed by the agent and verified by the analyst.
+#     rpt:DataSource now means the database the analyst names; the column it used to mean is rpt:Column.
+#   - rpt:Computation, rpt:computedBy, rpt:computedFrom, rpt:expression are removed: transformations happen upstream
+#     (medallion module), so every field reads a finished column.
+#   - Added: report owner, the report's table and parameter columns (CQ7), the catalogue (CQ14), reports sharing
+#     fields (CQ15), component usage (CQ16), observability policy (CQ17).
+#   - One field, one column. A field with a single value reads the column's value; a structured field (a list of
+#     rows, or a value with named parts) reads JSON text from its column, shaped by rpt:rowStructure. CQ5 says which.
+#
+# The extraction/rendering side (pages, spans, regions, blueprints, renders) stays in dt:; this ontology links to it
+# through rpt:renderedBy (section → dt:Component) and rpt:releasedAs (report → dt:TemplateRelease).
+
+<https://cynergis.ai/ont/report> a owl:Ontology ;
+    rdfs:label "Report ontology" ; owl:versionInfo "2.1.0" ;
+    owl:imports <https://cynergis.ai/ont/doctemplate> , <http://www.w3.org/ns/prov#> ;
+    dct:description "What a report type is, what its sections are for, what each field means per locale, which rules apply, which column of which table supplies each value, when and under which policies it runs, and which source documents, runs and approvals produced its template." .
+
+# ─────────────── Classes (CQ that motivates each in brackets) ───────────────
+rpt:ReportType a owl:Class ; rdfs:label "Report type" ;
+    skos:definition "A family of documents sharing one purpose, one set of sections and fields, one table and one template folder; identified by id and version. [CQ1-19]" .
+rpt:Parameter a owl:Class ; rdfs:label "Parameter" ;
+    skos:definition "A value that identifies one document of a report type (fund id, series, as-of month, locale). [CQ2]" .
+rpt:Section a owl:Class ; rdfs:label "Section" ;
+    skos:definition "A named part of the report with one purpose, rendered by one component, holding an ordered set of fields; may be present only in some layouts. [CQ2, CQ8]" .
+rpt:Field a owl:Class ; rdfs:label "Field" ;
+    skos:definition "A piece of information the report shows, with a type, at least one meaning per locale, optional rules, and the column that supplies it. The semantic counterpart of a template slot. [CQ1, CQ4-6, CQ8-9, CQ15, CQ18]" .
+rpt:FieldMeaning a owl:Class ; rdfs:label "Field meaning" ;
+    skos:definition "The label and definition of a field in one locale. [CQ1]" .
+rpt:Rule a owl:Class ; rdfs:label "Rule" ;
+    skos:definition "A constraint or regulatory requirement on a field or report (sums to 100%, must carry disclaimer, not annualized under one year). [CQ4]" .
+rpt:DataSource a owl:Class ; rdfs:label "Data source" ;
+    skos:definition "A database the analyst names as the origin of a report's data: a connection name, a kind (bigquery, sqlite…) and a database. Endpoints and credentials are environment config, never here. [CQ7]" .
+rpt:Table a owl:Class ; rdfs:label "Table" ;
+    skos:definition "A table of a data source, identified by dataset and name. A report type reads one table that holds every column it needs; how that table is populated belongs to the data team's own lineage, which joins to this graph on the same names. [CQ5-7]" .
+rpt:Column a owl:Class ; rdfs:label "Column" ;
+    skos:definition "A column of a table. A field is mapped to the one column that supplies its value: the value itself for a single-valued field, JSON text for a structured field. A parameter is bound to the column that selects one document's rows. [CQ5-7]" .
+rpt:Run a owl:Class ; rdfs:subClassOf prov:Activity ; rdfs:label "Run" ;
+    skos:definition "One execution of the template-build flow: which flow and engine version, which source documents it used, which steps ran, what it produced. [CQ3]" .
+rpt:Approval a owl:Class ; rdfs:label "Approval" ;
+    skos:definition "A recorded human decision at a gate of a run: reviewer, decision, time, hashes reviewed. [CQ3]" .
+rpt:Schedule a owl:Class ; rdfs:label "Schedule" ;
+    skos:definition "When documents of a release are produced: cadence, day within the cadence, as-of rule, business calendar, timezone. Declared in the release manifest; the dispatcher reads it, nothing else holds it. [CQ10]" .
+rpt:VerificationPolicy a owl:Class ; rdfs:label "Verification policy" ;
+    skos:definition "Thresholds a produced document must meet in a production run: static-region similarity to golden images, overflow, fidelity. [CQ11]" .
+rpt:ApprovalPolicy a owl:Class ; rdfs:label "Approval policy" ;
+    skos:definition "How much human review a production batch gets: sample rate and minimum, full review after a new release, reviewer role. [CQ11]" .
+rpt:PublishPolicy a owl:Class ; rdfs:label "Publish policy" ;
+    skos:definition "Where produced documents go: path pattern over the parameters, formats, retention. Endpoints are environment config, not here. [CQ12]" .
+rpt:UniverseQuery a owl:Class ; rdfs:label "Universe query" ;
+    skos:definition "A named query (lineage.yaml → queries) that lists the allowed values of a parameter at run time, e.g. active funds. [CQ12]" .
+rpt:ObservabilityPolicy a owl:Class ; rdfs:label "Observability policy" ;
+    skos:definition "What a production run of a release is expected to achieve and who hears about it when it does not: delivery deadline, tolerated failure rate, alert recipients, and where the run history is recorded. The history itself lives in that log, not in this graph. [CQ17]" .
+rpt:StatusChange a owl:Class ; rdfs:label "Status change" ;
+    skos:definition "One step in the lifecycle of a report type: the status it reached, who recorded the step and when. Steps are appended as the work progresses and never rewritten; the last one is the report's current status. [CQ19]" .
+rpt:Revision a owl:Class ; rdfs:label "Revision" ;
+    skos:definition "One accepted revision of a report type's definition: who accepted it, when it was recorded, from which date it applies, why, and the facts it changed. The first revision holds the whole definition as first accepted; revisions are appended and never rewritten, so replaying them gives the definition as it stood on any date. [CQ20, CQ21]" ;
+    meta:rationale "Without it a corrected meaning or column overwrites the old one, and 'what did this report say when that document was produced' has no answer. Compliance asks exactly that." ;
+    meta:alternatives "Relying on git history of the YAML files: rejected because the graph and its consumers cannot query it, it records who committed rather than who accepted, and it has no reason or effective date." .
+rpt:Change a owl:Class ; rdfs:label "Change" ;
+    skos:definition "One fact of a definition that a revision added, changed or removed, named by its file and path (semantic/lineage.yaml → fields.mer.column), with its value before and after. [CQ20, CQ21]" ;
+    meta:rationale "A revision without its facts says that something changed, not what; questions about one field's history need the fact itself." .
+# Reused from dt: — dt:SourceDocument (the PDF), dt:TemplateRelease (frozen template), dt:Component (what renders a section)
+
+# ─────────────── Object properties: structure of a report ───────────────
+rpt:hasParameter a owl:ObjectProperty ; rdfs:label "has parameter" ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( rpt:ReportType dt:TemplateRelease ) ] ; rdfs:range rpt:Parameter ;
+    skos:definition "From a report type: a value that identifies one of its documents, with its meaning. From a template release: the same parameter, with where its allowed values come from at that version." .
+rpt:hasSection a owl:ObjectProperty ; rdfs:label "has section" ; rdfs:domain rpt:ReportType ; rdfs:range rpt:Section ;
+    skos:definition "The report type is made of this section." .
+rpt:hasField a owl:ObjectProperty ; rdfs:label "has field" ; rdfs:domain rpt:Section ; rdfs:range rpt:Field ;
+    skos:definition "The section shows this field." .
+rpt:inSection a owl:ObjectProperty ; rdfs:label "in section" ; rdfs:domain rpt:Field ; rdfs:range rpt:Section ; owl:inverseOf rpt:hasField ;
+    skos:definition "The one section that shows the field." .
+rpt:inReport a owl:ObjectProperty ; rdfs:label "in report" ; rdfs:domain rpt:Field ; rdfs:range rpt:ReportType ;
+    skos:definition "The report type the field belongs to. Stated directly on the field so fields can be compared across reports (CQ9, CQ15)." .
+rpt:hasMeaning a owl:ObjectProperty ; rdfs:label "has meaning" ; rdfs:domain rpt:Field ; rdfs:range rpt:FieldMeaning ;
+    skos:definition "The label and definition of the field in one locale; one per locale the report is offered in." .
+rpt:hasRule a owl:ObjectProperty ; rdfs:label "has rule" ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( rpt:Field rpt:ReportType ) ] ; rdfs:range rpt:Rule ;
+    skos:definition "A constraint or regulatory requirement that applies to the field, or to the report as a whole." .
+rpt:renderedBy a owl:ObjectProperty ; rdfs:label "rendered by" ; rdfs:domain rpt:Section ; rdfs:range dt:Component ;
+    skos:definition "The component (one template macro of the shared library) that draws the section. Reports that use the same component are affected together when it changes (CQ16)." .
+
+# ─────────────── Object properties: template, source and runs ───────────────
+rpt:releasedAs a owl:ObjectProperty ; rdfs:label "released as" ; rdfs:domain rpt:ReportType ; rdfs:range dt:TemplateRelease ;
+    skos:definition "The versioned template folder that renders documents of the report type, with its operating contract." .
+rpt:ofReport a owl:ObjectProperty ; rdfs:label "of report" ; rdfs:domain dt:TemplateRelease ; rdfs:range rpt:ReportType ; owl:inverseOf rpt:releasedAs ;
+    skos:definition "The report type a template release belongs to." .
+rpt:derivedFrom a owl:ObjectProperty ; rdfs:label "derived from" ; rdfs:domain rpt:ReportType ; rdfs:range dt:SourceDocument ;
+    skos:definition "The sample PDF the analyst provided, which the report's template reproduces." .
+rpt:producedBy a owl:ObjectProperty ; rdfs:label "produced by" ; rdfs:domain dt:TemplateRelease ; rdfs:range rpt:Run ; rdfs:subPropertyOf prov:wasGeneratedBy ;
+    skos:definition "The run of the template-build flow that produced the release." .
+rpt:usedSource a owl:ObjectProperty ; rdfs:label "used source" ; rdfs:domain rpt:Run ; rdfs:range dt:SourceDocument ; rdfs:subPropertyOf prov:used ;
+    skos:definition "A source document the run read as input." .
+rpt:hasApproval a owl:ObjectProperty ; rdfs:label "has approval" ; rdfs:domain rpt:Run ; rdfs:range rpt:Approval ;
+    skos:definition "A human decision recorded at a gate of the run." .
+
+rpt:hasStatusChange a owl:ObjectProperty ; rdfs:label "has status change" ; rdfs:domain rpt:ReportType ; rdfs:range rpt:StatusChange ;
+    skos:definition "A step in the report type's lifecycle. Together the steps are its history: when it was started, saved, put in validation and deployed, and by whom." .
+
+rpt:hasRevision a owl:ObjectProperty ; rdfs:label "has revision" ; rdfs:domain rpt:ReportType ; rdfs:range rpt:Revision ;
+    skos:definition "An accepted revision of the report type's definition. Together they are its history: what the definition said, and since when." .
+rpt:hasChange a owl:ObjectProperty ; rdfs:label "has change" ; rdfs:domain rpt:Revision ; rdfs:range rpt:Change ;
+    skos:definition "A fact the revision added, changed or removed." .
+
+# ─────────────── Object properties: data mapping ───────────────
+rpt:readsTable a owl:ObjectProperty ; rdfs:label "reads table" ; rdfs:domain rpt:ReportType ; rdfs:range rpt:Table ;
+    skos:definition "The table the analyst named for the report: it holds every column the report needs, and the rows of one document are selected by the parameter columns." .
+rpt:inDataSource a owl:ObjectProperty ; rdfs:label "in data source" ; rdfs:domain rpt:Table ; rdfs:range rpt:DataSource ;
+    skos:definition "The data source the table lives in." .
+rpt:inTable a owl:ObjectProperty ; rdfs:label "in table" ; rdfs:domain rpt:Column ; rdfs:range rpt:Table ;
+    skos:definition "The table the column belongs to." .
+rpt:sourcedFrom a owl:ObjectProperty ; rdfs:label "sourced from" ; rdfs:domain rpt:Field ; rdfs:range rpt:Column ;
+    skos:definition "The column that supplies the field's value. This is the mapping: the agent proposes it, the analyst verifies it (rpt:lineageStatus)." .
+rpt:boundToColumn a owl:ObjectProperty ; rdfs:label "bound to column" ; rdfs:domain rpt:Parameter ; rdfs:range rpt:Column ;
+    skos:definition "The column whose value must equal the parameter's value to select the rows of one document." .
+
+# ─────────────── Object properties: operating contract of a release ───────────────
+rpt:hasSchedule a owl:ObjectProperty ; rdfs:label "has schedule" ; rdfs:domain dt:TemplateRelease ; rdfs:range rpt:Schedule ;
+    skos:definition "When documents of the release are produced." .
+rpt:hasVerificationPolicy a owl:ObjectProperty ; rdfs:label "has verification policy" ; rdfs:domain dt:TemplateRelease ; rdfs:range rpt:VerificationPolicy ;
+    skos:definition "The thresholds every produced document of the release must meet." .
+rpt:hasApprovalPolicy a owl:ObjectProperty ; rdfs:label "has approval policy" ; rdfs:domain dt:TemplateRelease ; rdfs:range rpt:ApprovalPolicy ;
+    skos:definition "How much human review a production batch of the release gets before publishing." .
+rpt:hasPublishPolicy a owl:ObjectProperty ; rdfs:label "has publish policy" ; rdfs:domain dt:TemplateRelease ; rdfs:range rpt:PublishPolicy ;
+    skos:definition "Where the produced documents of the release go, in which formats, and for how long they are kept." .
+rpt:hasObservabilityPolicy a owl:ObjectProperty ; rdfs:label "has observability policy" ; rdfs:domain dt:TemplateRelease ; rdfs:range rpt:ObservabilityPolicy ;
+    skos:definition "What a production run of the release is expected to achieve, who is alerted when it does not, and where its history is recorded." .
+rpt:hasUniverseQuery a owl:ObjectProperty ; rdfs:label "has universe query" ; rdfs:domain rpt:ReportType ; rdfs:range rpt:UniverseQuery ;
+    skos:definition "A named query the report type declares, which a parameter can point at for its allowed values." .
+rpt:universeQuery a owl:ObjectProperty ; rdfs:label "universe query" ; rdfs:domain rpt:Parameter ; rdfs:range rpt:UniverseQuery ;
+    skos:definition "The query that lists the parameter's allowed values at run time. Written in the manifest as lineage:queries.<name>." .
+
+# ─────────────── Datatype properties: report type ───────────────
+rpt:reportId a owl:DatatypeProperty ; rdfs:label "report id" ; rdfs:domain rpt:ReportType ; rdfs:range xsd:string ;
+    skos:definition "Identifier of the report type (lower case, hyphens). The template folder, the manifest's template_id and, by convention, the report's table carry the same name." .
+rpt:version a owl:DatatypeProperty ; rdfs:label "version" ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( rpt:ReportType dt:TemplateRelease ) ] ; rdfs:range xsd:string ;
+    skos:definition "Semantic version: of the report type's definition, or of the template release." .
+rpt:kind a owl:DatatypeProperty ; rdfs:label "kind" ; rdfs:domain rpt:ReportType ; rdfs:range xsd:string ;
+    skos:definition "The family the report type belongs to (fund-fact-sheet, statement…); used to group the catalogue." .
+rpt:purpose a owl:DatatypeProperty ; rdfs:label "purpose" ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( rpt:ReportType rpt:Section ) ] ; rdfs:range xsd:string ;
+    skos:definition "What the report, or the section, is for: the question it answers for its reader." .
+rpt:owner a owl:DatatypeProperty ; rdfs:label "owner" ; rdfs:domain rpt:ReportType ; rdfs:range xsd:string ;
+    skos:definition "The report analyst responsible for the report's definition and for verifying its field-to-column mapping." .
+rpt:lifecycleStatus a owl:DatatypeProperty ; rdfs:label "lifecycle status" ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( rpt:ReportType rpt:StatusChange ) ] ; rdfs:range xsd:string ;
+    skos:definition "Where a report type is in its lifecycle: inception (its definition has been started) | saved (the definition validates and is part of the catalogue graph) | in_validation (the definition and its template are being checked by agents and a person) | in_production (documents are produced from a frozen release). On a status change: the status that step reached. On a report type: its current status, the one of its latest step." .
+rpt:changedBy a owl:DatatypeProperty ; rdfs:label "changed by" ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( rpt:StatusChange rpt:Revision ) ] ; rdfs:range xsd:string ;
+    skos:definition "The person who recorded the status change (who started the definition, who put it in validation, who deployed it to production), or who accepted the revision of the definition." .
+rpt:audience a owl:DatatypeProperty ; rdfs:label "audience" ; rdfs:domain rpt:ReportType ; rdfs:range xsd:string ;
+    skos:definition "A group of readers the report is written for (investors, advisors, compliance); one value per group." .
+rpt:cadence a owl:DatatypeProperty ; rdfs:label "cadence" ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( rpt:Schedule rpt:ReportType ) ] ; rdfs:range xsd:string ;
+    skos:definition "How often documents are produced: daily | weekly | monthly | quarterly | semi_annual | annual | on_demand. On a schedule it is the operating value; on a report type it is informative." .
+rpt:locale a owl:DatatypeProperty ; rdfs:label "locale" ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( rpt:ReportType rpt:FieldMeaning ) ] ; rdfs:range xsd:string ;
+    skos:definition "A language code (en, fr): on a report type, a language it is offered in; on a field meaning, the language of that meaning." .
+rpt:layout a owl:DatatypeProperty ; rdfs:label "layout" ; rdfs:domain rpt:ReportType ; rdfs:range xsd:string ;
+    skos:definition "The named arrangement of components the report type uses (layouts.json of its template folder)." .
+rpt:compiledAt a owl:DatatypeProperty ; rdfs:label "compiled at" ; rdfs:domain rpt:ReportType ; rdfs:range xsd:dateTime ;
+    skos:definition "When semantic.py compiled this report's graph from its files." .
+rpt:ontologyVersion a owl:DatatypeProperty ; rdfs:label "ontology version" ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( dt:TemplateRelease rpt:ReportType ) ] ; rdfs:range xsd:string ;
+    skos:definition "The version of this ontology the release's semantic layer was written for, or the report's graph was compiled against." .
+
+# ─────────────── Datatype properties: section and field ───────────────
+rpt:presentWhen a owl:DatatypeProperty ; rdfs:label "present when" ; rdfs:domain rpt:Section ; rdfs:range xsd:string ;
+    skos:definition "Layout condition under which the section appears; absent means always present." .
+rpt:order a owl:DatatypeProperty ; rdfs:label "order" ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( rpt:Section rpt:Field rpt:StatusChange rpt:Revision ) ] ; rdfs:range xsd:integer ;
+    skos:definition "Position of a section in the report, of a field in its section, of a status change in the report's lifecycle, or of a revision in the history of its definition, starting at 1." .
+rpt:fieldId a owl:DatatypeProperty ; rdfs:label "field id" ; rdfs:domain rpt:Field ; rdfs:range xsd:string ;
+    skos:definition "Identifier of the field, unique in its report: the snake_case form of its English label. By convention the column that supplies it has the same name; the column actually used is the one rpt:sourcedFrom points at. Two reports that use the same field id show the same information (CQ9, CQ15)." .
+rpt:fieldType a owl:DatatypeProperty ; rdfs:label "field type" ; rdfs:domain rpt:Field ; rdfs:range xsd:string ;
+    skos:definition "How the value is shaped and formatted. Single-valued: text | enum | number | integer | percent | currency | date | boolean. Structured, stored as JSON text in the field's column: list | grouped_list | series | list_of_text | currency_pair | percent_by_series." .
+rpt:rowStructure a owl:DatatypeProperty ; rdfs:label "row structure" ; rdfs:domain rpt:Field ; rdfs:range xsd:string ;
+    skos:definition "For list-like fields, the shape of one row as JSON: member name → type and meaning. The field's column holds the list as JSON text: an array of rows of this shape." .
+rpt:members a owl:DatatypeProperty ; rdfs:label "members" ; rdfs:domain rpt:Field ; rdfs:range xsd:string ;
+    skos:definition "For a composite field (risk measures), its named members and the definition of each, as JSON." .
+rpt:label a owl:DatatypeProperty ; rdfs:label "label" ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( rpt:FieldMeaning rpt:Parameter ) ] ; rdfs:range xsd:string ;
+    skos:definition "On a field meaning: the text the report shows for the field in that locale (English or French). On a parameter: its name. Names of other nodes use rdfs:label." .
+rpt:definition a owl:DatatypeProperty ; rdfs:label "definition" ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( rpt:FieldMeaning rpt:Parameter ) ] ; rdfs:range xsd:string ;
+    skos:definition "What the field means, in the locale of the field meaning; or what the parameter identifies." .
+rpt:alias a owl:DatatypeProperty ; rdfs:label "alias" ; rdfs:domain rpt:Field ; rdfs:range xsd:string ;
+    skos:definition "Another name readers use for the field (management expense ratio for mer, frais de gestion); one value per name. Lets a question in the reader's words find the field, and a new report reuse it instead of inventing a second id." ;
+    meta:rationale "Field ids are snake_case and labels are short (MER); analysts and data teams ask with the long name or the other language, and without aliases the same information gets a second field id." .
+rpt:ruleText a owl:DatatypeProperty ; rdfs:label "rule text" ; rdfs:domain rpt:Rule ; rdfs:range xsd:string ;
+    skos:definition "The rule, stated in one sentence." .
+rpt:regulatory a owl:DatatypeProperty ; rdfs:label "regulatory" ; rdfs:domain rpt:Rule ; rdfs:range xsd:boolean ;
+    skos:definition "True when the rule comes from regulation or compliance and not from presentation choices." .
+
+# ─────────────── Datatype properties: data mapping ───────────────
+rpt:sourceKind a owl:DatatypeProperty ; rdfs:label "source kind" ; rdfs:domain rpt:DataSource ; rdfs:range xsd:string ;
+    skos:definition "The database technology of the data source (bigquery, sqlite, postgres…); tells the loader which dialect and connection to use." .
+rpt:database a owl:DatatypeProperty ; rdfs:label "database" ; rdfs:domain rpt:DataSource ; rdfs:range xsd:string ;
+    skos:definition "The database (or cloud project) inside the data source that holds the report's dataset." .
+rpt:dataset a owl:DatatypeProperty ; rdfs:label "dataset" ; rdfs:domain rpt:Table ; rdfs:range xsd:string ;
+    skos:definition "The dataset or schema the table sits in." .
+rpt:tableName a owl:DatatypeProperty ; rdfs:label "table name" ; rdfs:domain rpt:Table ; rdfs:range xsd:string ;
+    skos:definition "Name of the table. By convention the report's table takes the report's name." .
+rpt:columnName a owl:DatatypeProperty ; rdfs:label "column name" ; rdfs:domain rpt:Column ; rdfs:range xsd:string ;
+    skos:definition "Name of the column in its table." .
+rpt:lineageStatus a owl:DatatypeProperty ; rdfs:label "lineage status" ; rdfs:domain rpt:Field ; rdfs:range xsd:string ;
+    skos:definition "How far the field's mapping has got: unmapped (no column known) | proposed (suggested, not yet confirmed) | verified (confirmed by the analyst). Unmapped fields block a production release." .
+rpt:lineageNote a owl:DatatypeProperty ; rdfs:label "lineage note" ; rdfs:domain rpt:Field ; rdfs:range xsd:string ;
+    skos:definition "A remark on the field's mapping: why it is unmapped, who owns the content, what remains to confirm." .
+
+# ─────────────── Datatype properties: source document, run, approval ───────────────
+rpt:repoUrl a owl:DatatypeProperty ; rdfs:label "repository URL" ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( dt:SourceDocument dt:TemplateRelease ) ] ; rdfs:range xsd:string ;
+    skos:definition "Where the source PDF, or the template folder, is stored in a repository." .
+rpt:sha256 a owl:DatatypeProperty ; rdfs:label "sha256" ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( dt:SourceDocument dt:TemplateRelease ) ] ; rdfs:range xsd:string ;
+    skos:definition "On a source document: the fingerprint that identifies it. On a template release: the fingerprint of each source document it was built from." .
+rpt:role a owl:DatatypeProperty ; rdfs:label "role" ; rdfs:domain dt:SourceDocument ; rdfs:range xsd:string ;
+    skos:definition "What the source document is used for: primary (the one the template reproduces) | alternate | reference." .
+rpt:receivedOn a owl:DatatypeProperty ; rdfs:label "received on" ; rdfs:domain dt:SourceDocument ; rdfs:range xsd:string ;
+    skos:definition "The date the analyst provided the source document." .
+rpt:pageKind a owl:DatatypeProperty ; rdfs:label "page kind" ; rdfs:domain dt:SourceDocument ; rdfs:range xsd:string ;
+    skos:definition "How each page of the source document is encoded, one value per page: vector | raster | mixed." .
+rpt:referenceKind a owl:DatatypeProperty ; rdfs:label "reference kind" ; rdfs:domain dt:SourceDocument ; rdfs:range xsd:string ;
+    skos:definition "What the fidelity gate compared the render against: vector | raster. A raster reference caps the fidelity that can be claimed." .
+rpt:note a owl:DatatypeProperty ; rdfs:label "note" ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( dt:SourceDocument rpt:UniverseQuery rpt:StatusChange ) ] ; rdfs:range xsd:string ;
+    skos:definition "A free remark on a source document, a universe query or a status change." .
+rpt:flow a owl:DatatypeProperty ; rdfs:label "flow" ; rdfs:domain rpt:Run ; rdfs:range xsd:string ;
+    skos:definition "Identifier of the flow the run executed." .
+rpt:flowVersion a owl:DatatypeProperty ; rdfs:label "flow version" ; rdfs:domain rpt:Run ; rdfs:range xsd:string ;
+    skos:definition "Version of the flow definition the run executed." .
+rpt:engineVersion a owl:DatatypeProperty ; rdfs:label "engine version" ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( rpt:Run dt:TemplateRelease ) ] ; rdfs:range xsd:string ;
+    skos:definition "On a run: the engine that executed it. On a release: the engine it was frozen with; a production run refuses another major.minor." .
+rpt:startedAt a owl:DatatypeProperty ; rdfs:label "started at" ; rdfs:domain rpt:Run ; rdfs:range xsd:string ;
+    skos:definition "When the run started." .
+rpt:step a owl:DatatypeProperty ; rdfs:label "step" ; rdfs:domain rpt:Run ; rdfs:range xsd:string ;
+    skos:definition "The steps that ran, as JSON: step id, tool or prompt@version, outputs, metrics." .
+rpt:result a owl:DatatypeProperty ; rdfs:label "result" ; rdfs:domain rpt:Run ; rdfs:range xsd:string ;
+    skos:definition "Where the run ended: draft | signed_off | frozen." .
+rpt:gate a owl:DatatypeProperty ; rdfs:label "gate" ; rdfs:domain rpt:Approval ; rdfs:range xsd:string ;
+    skos:definition "The human step of the flow at which the decision was taken." .
+rpt:decision a owl:DatatypeProperty ; rdfs:label "decision" ; rdfs:domain rpt:Approval ; rdfs:range xsd:string ;
+    skos:definition "What the reviewer decided (approve, reject, revise…)." .
+rpt:reviewer a owl:DatatypeProperty ; rdfs:label "reviewer" ; rdfs:domain rpt:Approval ; rdfs:range xsd:string ;
+    skos:definition "The person who took the decision." .
+rpt:at a owl:DatatypeProperty ; rdfs:label "at" ;
+    rdfs:domain [ a owl:Class ; owl:unionOf ( rpt:Approval rpt:StatusChange rpt:Revision ) ] ; rdfs:range xsd:string ;
+    skos:definition "When the decision, the status change or the revision was recorded: an ISO 8601 date or date-time." .
+rpt:reviewedHash a owl:DatatypeProperty ; rdfs:label "reviewed hash" ; rdfs:domain rpt:Approval ; rdfs:range xsd:string ;
+    skos:definition "What the reviewer saw, as JSON: path → sha256 of each file reviewed." .
+
+# ─────────────── Datatype properties: template release (CQ13) ───────────────
+rpt:frozen a owl:DatatypeProperty ; rdfs:label "frozen" ; rdfs:domain dt:TemplateRelease ; rdfs:range xsd:boolean ;
+    skos:definition "True once the release is signed off and can no longer change; only frozen releases run in production." .
+rpt:frozenAt a owl:DatatypeProperty ; rdfs:label "frozen at" ; rdfs:domain dt:TemplateRelease ; rdfs:range xsd:dateTime ;
+    skos:definition "When the release was frozen." .
+rpt:libraryVersion a owl:DatatypeProperty ; rdfs:label "library version" ; rdfs:domain dt:TemplateRelease ; rdfs:range xsd:string ;
+    skos:definition "Version of the shared component library the release's templates were built against." .
+rpt:fileHash a owl:DatatypeProperty ; rdfs:label "file hash" ; rdfs:domain dt:TemplateRelease ; rdfs:range xsd:string ;
+    skos:definition "Every released file and its fingerprint, as JSON: path → sha256." .
+rpt:font a owl:DatatypeProperty ; rdfs:label "font" ; rdfs:domain dt:TemplateRelease ; rdfs:range xsd:string ;
+    skos:definition "The fonts the release needs, as JSON: family, file, license, sha256, and the source font each stands in for." .
+rpt:assetPending a owl:DatatypeProperty ; rdfs:label "asset pending" ; rdfs:domain dt:TemplateRelease ; rdfs:range xsd:string ;
+    skos:definition "An asset the release still lacks (logo, licensed font); one value per asset." .
+rpt:waiver a owl:DatatypeProperty ; rdfs:label "waiver" ; rdfs:domain dt:TemplateRelease ; rdfs:range xsd:string ;
+    skos:definition "A named exception accepted at sign-off, for instance when the reference is not vector." .
+
+# ─────────────── Datatype properties: schedule (CQ10) ───────────────
+rpt:runOn a owl:DatatypeProperty ; rdfs:label "run on" ; rdfs:domain rpt:Schedule ; rdfs:range xsd:string ;
+    skos:definition "The day within the cadence on which the run starts: business_day:N | calendar_day:N | weekday:N | on_demand." .
+rpt:asOfRule a owl:DatatypeProperty ; rdfs:label "as-of rule" ; rdfs:domain rpt:Schedule ; rdfs:range xsd:string ;
+    skos:definition "Which date the data is taken at, relative to the run: prev_month_end | prev_quarter_end | prev_year_end | run_date | prev_business_day." .
+rpt:calendar a owl:DatatypeProperty ; rdfs:label "calendar" ; rdfs:domain rpt:Schedule ; rdfs:range xsd:string ;
+    skos:definition "The business calendar that decides which days are business days (TSX, NYSE…)." .
+rpt:timezone a owl:DatatypeProperty ; rdfs:label "timezone" ; rdfs:domain rpt:Schedule ; rdfs:range xsd:string ;
+    skos:definition "The timezone the schedule's days and times are read in (IANA name)." .
+
+# ─────────────── Datatype properties: parameter universe (CQ12) ───────────────
+rpt:allowedValue a owl:DatatypeProperty ; rdfs:label "allowed value" ; rdfs:domain rpt:Parameter ; rdfs:range xsd:string ;
+    skos:definition "A value the parameter may take, when the values are enumerated in the manifest; one per value." .
+rpt:boundBy a owl:DatatypeProperty ; rdfs:label "bound by" ; rdfs:domain rpt:Parameter ; rdfs:range xsd:string ;
+    skos:definition "What supplies the parameter's value at run time when it is not enumerated: schedule | batch_spec." .
+rpt:sql a owl:DatatypeProperty ; rdfs:label "sql" ; rdfs:domain rpt:UniverseQuery ; rdfs:range xsd:string ;
+    skos:definition "The query text that returns the allowed values." .
+rpt:returnsParameter a owl:DatatypeProperty ; rdfs:label "returns parameter" ; rdfs:domain rpt:UniverseQuery ; rdfs:range xsd:string ;
+    skos:definition "Name of the parameter whose values the query returns." .
+
+# ─────────────── Datatype properties: policies (CQ11, CQ12, CQ17) ───────────────
+rpt:goldenStaticSsimMin a owl:DatatypeProperty ; rdfs:label "golden static SSIM minimum" ; rdfs:domain rpt:VerificationPolicy ; rdfs:range xsd:decimal ;
+    skos:definition "Lowest accepted similarity between the static regions of a produced document and the golden image; below it the document fails." .
+rpt:overflowBlocking a owl:DatatypeProperty ; rdfs:label "overflow blocking" ; rdfs:domain rpt:VerificationPolicy ; rdfs:range xsd:boolean ;
+    skos:definition "True when any content overflowing its box fails the document." .
+rpt:fidelityMin a owl:DatatypeProperty ; rdfs:label "fidelity minimum" ; rdfs:domain rpt:VerificationPolicy ; rdfs:range xsd:decimal ;
+    skos:definition "Lowest accepted share of data values found unchanged in the produced document." .
+rpt:sampleRate a owl:DatatypeProperty ; rdfs:label "sample rate" ; rdfs:domain rpt:ApprovalPolicy ; rdfs:range xsd:decimal ;
+    skos:definition "Share of a batch's documents shown to the reviewer, between 0 and 1." .
+rpt:sampleMin a owl:DatatypeProperty ; rdfs:label "sample minimum" ; rdfs:domain rpt:ApprovalPolicy ; rdfs:range xsd:integer ;
+    skos:definition "Smallest number of documents shown to the reviewer, whatever the sample rate gives." .
+rpt:fullReviewAfterRelease a owl:DatatypeProperty ; rdfs:label "full review after release" ; rdfs:domain rpt:ApprovalPolicy ; rdfs:range xsd:boolean ;
+    skos:definition "True when the first batch after a new template release is reviewed in full." .
+rpt:reviewerRole a owl:DatatypeProperty ; rdfs:label "reviewer role" ; rdfs:domain rpt:ApprovalPolicy ; rdfs:range xsd:string ;
+    skos:definition "The role that must approve a batch before it is published." .
+rpt:pathPattern a owl:DatatypeProperty ; rdfs:label "path pattern" ; rdfs:domain rpt:PublishPolicy ; rdfs:range xsd:string ;
+    skos:definition "Destination path of a published document, as a pattern over the parameters and {template_id}." .
+rpt:publishFormat a owl:DatatypeProperty ; rdfs:label "publish format" ; rdfs:domain rpt:PublishPolicy ; rdfs:range xsd:string ;
+    skos:definition "A format the document is published in: pdf | png | html; one value per format." .
+rpt:retentionDays a owl:DatatypeProperty ; rdfs:label "retention days" ; rdfs:domain rpt:PublishPolicy ; rdfs:range xsd:integer ;
+    skos:definition "How many days a published document is kept." .
+rpt:deliverWithinHours a owl:DatatypeProperty ; rdfs:label "deliver within hours" ; rdfs:domain rpt:ObservabilityPolicy ; rdfs:range xsd:integer ;
+    skos:definition "The delivery deadline: hours after the scheduled start by which every approved document must be published. A run that misses it raises an alert." .
+rpt:maxFailureRate a owl:DatatypeProperty ; rdfs:label "maximum failure rate" ; rdfs:domain rpt:ObservabilityPolicy ; rdfs:range xsd:decimal ;
+    skos:definition "Share of a batch's documents, between 0 and 1, that may fail verification before the run raises an alert." .
+rpt:alertRecipient a owl:DatatypeProperty ; rdfs:label "alert recipient" ; rdfs:domain rpt:ObservabilityPolicy ; rdfs:range xsd:string ;
+    skos:definition "A role or channel told when a run misses its deadline or exceeds its failure rate; one value per recipient. Addresses are environment config, not here." .
+rpt:runLog a owl:DatatypeProperty ; rdfs:label "run log" ; rdfs:domain rpt:ObservabilityPolicy ; rdfs:range xsd:string ;
+    skos:definition "Where each run of the release records its history (start, end, documents produced, failed, published): a table or path. The graph points at the log; it does not hold the history." .
+
+# ─────────────── Datatype properties: history of a definition (CQ20, CQ21) ───────────────
+rpt:reason a owl:DatatypeProperty ; rdfs:label "reason" ; rdfs:domain rpt:Revision ; rdfs:range xsd:string ;
+    skos:definition "Why the revision was accepted: what was wrong or missing before. Required whenever a revision changes or removes a fact." ;
+    meta:rationale "Supersession without a reason tells the reader that a value changed but not whether the old one was wrong or merely out of date." .
+rpt:effectiveFrom a owl:DatatypeProperty ; rdfs:label "effective from" ; rdfs:domain rpt:Revision ; rdfs:range xsd:string ;
+    skos:definition "The date (YYYY-MM-DD) from which the revision applies. Usually the day it was recorded (rpt:at); earlier for a correction that applies retroactively, later for a change planned for a future run." ;
+    meta:rationale "When a fact was recorded and when it became true differ: a mapping fixed today may have been wrong since last month's run. As-of questions read this date." .
+rpt:fact a owl:DatatypeProperty ; rdfs:label "fact" ; rdfs:domain rpt:Change ; rdfs:range xsd:string ;
+    skos:definition "The fact that changed, named by the file and the path where it is written, the way gaps and explain name it: semantic/report.yaml → fields.mer.meaning." .
+rpt:changeKind a owl:DatatypeProperty ; rdfs:label "change kind" ; rdfs:domain rpt:Change ; rdfs:range xsd:string ;
+    skos:definition "What the revision did to the fact: added | changed | removed." .
+rpt:previousValue a owl:DatatypeProperty ; rdfs:label "previous value" ; rdfs:domain rpt:Change ; rdfs:range xsd:string ;
+    skos:definition "The value the fact held before the revision: text as written, any other value as JSON. Absent when the fact was added." .
+rpt:newValue a owl:DatatypeProperty ; rdfs:label "new value" ; rdfs:domain rpt:Change ; rdfs:range xsd:string ;
+    skos:definition "The value the fact holds from the revision on: text as written, any other value as JSON. Absent when the fact was removed." .

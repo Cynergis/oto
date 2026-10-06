@@ -75,6 +75,10 @@ candidate class:
 3. **Is it one thing or two merged?** If two people would populate it differently, it is two.
 4. **Does it need its own history?** Something that gets superseded, dated or reasoned about must be a
    node. A status field keeps no reason and no history.
+5. **Is it a kind of another class?** When a question or a rule would be asked about several classes
+   at once ("what does this team own", over systems, components and stores), declare the parent and
+   mark each as `"subclass_of": ["Asset"]`: a question about the parent then covers them, and the
+   parent's attributes apply to them. A parent that no question needs is a class nobody asked for.
 
 Three decisions come up in almost every domain, so decide them explicitly:
 
@@ -95,8 +99,13 @@ For each question, ask what has to be traversed to answer it. Then:
 - Declare `domain` and `range` honestly, matching how the relation will really be used. A narrow
   declaration that the data violates is worse than a wide one, because `rdfs:domain` and `rdfs:range`
   are inference rules in the RDF export: a reasoner will infer the wrong type.
-- Name an inverse only where someone would traverse the other way.
-- Give every relation a description that says what it means, not what it is called.
+- Name an inverse only where someone would traverse the other way, and give it an `inverse_label`
+  when its name does not read well from the other side.
+- Every term is read by its name unless it carries a `label` (`part_of` reads "part of"; `url`
+  needs `"label": "URL"`). Add `alt_labels` for the words the documents use for it, a `scope_note`
+  where the boundary is easy to get wrong, and an `example`. A text is one string, or a map of
+  language to string when the vocabulary declares `languages`.
+- Give every relation a definition that says what it means, not what it is called.
 
 Keep the temporal vocabulary the ontology ships. It is what makes supersession work.
 
@@ -108,13 +117,16 @@ ones a question will filter or count on, per class, with a type:
 
 ```json
 "attributes": {
-  "Claim": {"claim_number": ["string", "The insurer's identifier."],
-            "state": ["enum:open|closed|denied", "Where the claim is in its handling."],
-            "opened_on": ["date", "When it was opened."]}
+  "Claim": {"claim_number": {"type": "string", "definition": "The insurer's identifier."},
+            "state": {"type": "enum:open|closed|denied", "definition": "Where the claim is in its handling."},
+            "opened_on": {"type": "date", "definition": "When it was opened."}}
 }
 ```
 
-Types: `string`, `number`, `integer`, `boolean`, `date`, `list`, or `enum:a|b|c`. A present value
+Types: `string`, `number`, `integer`, `boolean`, `date`, `list`, `enum:a|b|c`, or `scheme:<Name>`. Use
+a scheme when people ask what a value means, translate it, or roll it up: declare it under
+`"schemes"` with a `definition` and its `concepts`, each with a `label`, a `definition` and, where one
+is a kind of another, a `broader` concept. Keep an enum for codes whose meaning needs no words. A present value
 must fit the type; absent is always allowed. A class that declares attributes reports any key it
 carries that nobody declared, so two drafters cannot call the same thing `state` and
 `status_code`. Declare what "how many X where Y" needs, and nothing speculative: an undeclared
@@ -148,14 +160,23 @@ set and shows what each rule would derive or flag.
 ## Phase 5 — Write both files
 
 1. Write `ontology.config.json`: `ontology_version: 1`, `strict_domains: false`, classes, properties,
-   temporal.
+   temporal. Every declaration is an object, and the build refuses any other form:
+
+   ```json
+   "classes": {"Claim": {"definition": "A request for payment under a policy."}},
+   "properties": {"filed_by": {"domain": "Claim", "range": "Party|Organization", "inverse": "filed",
+                               "definition": "Who filed the claim."}}
+   ```
+
+   `domain` and `range` name one class or a union written `A|B`; leave `range` or `inverse` out
+   when there is none.
 2. Write `ontology.rationale.json`. For every class, record:
    - `question` — what it exists to answer, in the asker's words
    - `why` — why it is its own class rather than an attribute or a merge
    - `alternatives` — what was considered and rejected, and why
    - `validated_by` — **leave empty.** It is filled only when a person who knows the domain has
      actually confirmed the entry. Never guess it, and never put your own name in it.
-3. Add a relation rationale only where the description does not already say enough.
+3. Add a relation rationale only where the definition does not already say enough.
 
 ## Phase 6 — Validate with the tooling, not by eye
 

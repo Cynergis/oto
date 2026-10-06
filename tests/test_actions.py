@@ -201,7 +201,7 @@ def test_rules_see_intended_facts_in_policies_only_and_where_may_name_the_nodes_
              {"id": "b", "type": "T", "status": "intended", "as_of": "2026-06-01"},
              {"id": "c", "type": "T", "status": "superseded", "as_of": "2025-01-01"}]
     edges = [{"from": "a", "rel": "near", "to": "b"}, {"from": "a", "rel": "near", "to": "a"}]
-    vocabulary = {"classes": {"T": "t"}, "properties": {"near": ["T", "T", None, "n"], "far": ["T", "T", None, "f"]}}
+    vocabulary = {"classes": {"T": {"definition": "t"}}, "properties": {"near": {"domain": "T", "range": "T", "definition": "n"}, "far": {"domain": "T", "range": "T", "definition": "f"}}}
     rules = [{"id": "derive-far", "kind": "derive", "when": [{"edge": ["x", "near", "y"]}], "then": {"edge": ["x", "far", "y"]},
               "why": "w", "validated_by": ""},
              {"id": "stale", "kind": "policy", "severity": "warn",
@@ -441,7 +441,9 @@ def test_a_recorded_run_realises_an_intended_fact_through_the_gates_with_the_run
         assert main(["actions", "list", "--project", root]) == 0
         assert "last run: 2026-09-22" in capsys.readouterr().out
         assert main(["query", "--project", root, "neighbors", "repo.billing"]) == 0
-        assert "acts_on" in capsys.readouterr().out
+        assert "→ acts on" in capsys.readouterr().out, "the relation reads as the vocabulary labels it"
+        assert main(["query", "--project", root, "neighbors", "repo.billing", "acts on"]) == 0
+        assert "→ acts on" in capsys.readouterr().out, "a relation filter takes the label too"
         # a second run whose response contradicts what the graph now holds is refused at merge
         response2 = _response_file(root, dict(RESPONSE, default_branch="develop"))
         assert main(["actions", "record", "action.check-repository", "--on", "repo.billing", "--by", "Chiheb",

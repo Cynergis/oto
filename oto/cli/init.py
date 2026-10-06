@@ -23,7 +23,9 @@ def register(sub):
     init.add_argument("--slug", default=None,
                       help="short kebab id every generated name derives from (default: from --name)")
     init.add_argument("--project", default=".", help="target folder (default: current directory)")
-    init.add_argument("--namespace", default=None, help="RDF namespace URI (default: from the slug)")
+    init.add_argument("--namespace", default=None,
+                      help="base IRI of the RDF export: instances under id/, the project's own terms "
+                           "under ont/ (default: from the slug)")
     init.add_argument("--prefix", default=None, help="RDF prefix (default: the slug)")
     init.add_argument("--force", action="store_true", help="overwrite existing config files")
     init.add_argument("--ontology", default=None,

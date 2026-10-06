@@ -9,8 +9,8 @@ from oto.project import Project
 from oto.scaffold import init
 
 TODAY = "2026-09-12"
-VOCAB = {"classes": {"Role": "a role", "Procedure": "a procedure"},
-         "properties": {"performs": ["Role", "Procedure", None, "does it"]}}
+VOCAB = {"classes": {"Role": {"definition": "a role"}, "Procedure": {"definition": "a procedure"}},
+         "properties": {"performs": {"domain": "Role", "range": "Procedure", "definition": "does it"}}}
 
 
 def _candidate():

@@ -1,10 +1,10 @@
 """A rule set is vocabulary: validated before it runs, reasoned about, versioned."""
 from oto.reason import rules
 
-VOCAB = {"classes": {"Risk": "r", "Component": "c", "System": "s", "DecisionRecord": "d", "Document": "doc", "Claim": "cl"},
-         "properties": {"threatens": ["Risk", "Component|System", None, "x"], "part_of": ["Component", "System", None, "x"],
-                        "documented_in": ["DecisionRecord", "Document", None, "x"], "depends_on": ["Component", "Component", None, "x"]},
-         "attributes": {"Claim": {"amount": ["number", "x"], "state": ["enum:open|closed", "x"]}}}
+VOCAB = {"classes": {"Risk": {"definition": "r"}, "Component": {"definition": "c"}, "System": {"definition": "s"}, "DecisionRecord": {"definition": "d"}, "Document": {"definition": "doc"}, "Claim": {"definition": "cl"}},
+         "properties": {"threatens": {"domain": "Risk", "range": "Component|System", "definition": "x"}, "part_of": {"domain": "Component", "range": "System", "definition": "x"},
+                        "documented_in": {"domain": "DecisionRecord", "range": "Document", "definition": "x"}, "depends_on": {"domain": "Component", "range": "Component", "definition": "x"}},
+         "attributes": {"Claim": {"amount": {"type": "number", "definition": "x"}, "state": {"type": "enum:open|closed", "definition": "x"}}}}
 
 
 def _rule(**over):

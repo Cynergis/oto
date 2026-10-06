@@ -38,13 +38,13 @@ DIRS = ["inbox", "processing", "errors", "archive", "runs", "notes", "actions",
 
 # The temporal and provenance vocabulary is shared by every domain, so it is pre-filled.
 TEMPORAL = {
-    "asOf": ["date", "When this fact was recorded or observed (transaction time)."],
-    "validFrom": ["date", "When the fact became true in the world (valid time)."],
-    "validTo": ["date", "When the fact stopped being true. Absent means it still holds."],
-    "status": ["string", "current | superseded | proposed | intended."],
-    "supersedes": ["ref", "The fact this one replaces."],
-    "supersededBy": ["ref", "The newer fact that retired this one."],
-    "sourceDoc": ["string", "Slug of the document that introduced or changed this fact."],
+    "asOf": {"type": "date", "definition": "When this fact was recorded or observed (transaction time)."},
+    "validFrom": {"type": "date", "definition": "When the fact became true in the world (valid time)."},
+    "validTo": {"type": "date", "definition": "When the fact stopped being true. Absent means it still holds."},
+    "status": {"type": "string", "definition": "current | superseded | proposed | intended."},
+    "supersedes": {"type": "ref", "definition": "The fact this one replaces."},
+    "supersededBy": {"type": "ref", "definition": "The newer fact that retired this one."},
+    "sourceDoc": {"type": "string", "definition": "Slug of the document that introduced or changed this fact."},
 }
 
 PROJECT_README = """# {name}
@@ -270,8 +270,8 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
 
     _write(os.path.join(root, "ontology.config.json"), ontology_config or {
         "_about": "Your domain vocabulary. This file is the ONLY source of it: the build fails if the "
-                  "graph uses a class or relation declared nowhere here. Property value is "
-                  "[Domain, Range, inverse_or_null, description]. Use A|B for a union. Raise "
+                  "graph uses a class or relation declared nowhere here. A class is {definition}; a "
+                  "relation is {domain, range, inverse, definition}. Use A|B for a union. Raise "
                   "`ontology_version` when a change breaks existing data, then run "
                   "`oto ontology accept`. Set `strict_domains` to true once every edge respects its "
                   "declared domain and range.",

@@ -1,139 +1,168 @@
 {
-  "_about": "Starter vocabulary for a consulting or transformation engagement. A FIRST DRAFT to edit. Property value is [Domain, Range, inverse_or_null, description]. Use A|B for a union.",
+  "_about": "Starter vocabulary for a consulting or transformation engagement. A FIRST DRAFT to edit. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
   "_summary": "Engagements: scope, deliverables, governance, sessions, decisions and the work that follows.",
   "name": "Engagement Knowledge Base",
   "ontology_version": 1,
   "strict_domains": false,
+  "languages": [
+    "en"
+  ],
   "classes": {
-    "Engagement": "A contracted body of work between a supplier and a client, with a scope and a period.",
-    "Organization": "A company or a unit within one: the client, the supplier, a division, a function.",
-    "Person": "A named individual. Consider carefully whether you need this class at all; see the README.",
-    "Role": "A defined function in the target operating model or the delivery team. Filled by a person.",
-    "Workstream": "One scope area of the engagement, with its own plan and owner.",
-    "Deliverable": "A contracted artifact with a due date and an acceptance condition.",
-    "GovernanceForum": "A recurring body that decides or validates: a steering committee, a working group, a review board.",
-    "Session": "A dated event that produced something: an interview, a workshop, a meeting. Distinct from the transcript recording it.",
-    "Decision": "A choice made, proposed or deferred, with its reason. Superseded by a later decision, never overwritten.",
-    "ActionItem": "A committed task arising from a session or a decision, with an owner and a state.",
-    "Question": "An open question raised and not yet answered, with an owner.",
-    "Concept": "A construct the engagement designs or adopts: an operating model element, a way of working, a capability.",
-    "Framework": "A reusable method or model brought to the engagement rather than invented in it.",
-    "Document": "A source document in the corpus: a contract, a deck, a transcript, a plan."
+    "Engagement": {
+      "definition": "A contracted body of work between a supplier and a client, with a scope and a period."
+    },
+    "Organization": {
+      "definition": "A company or a unit within one: the client, the supplier, a division, a function."
+    },
+    "Person": {
+      "definition": "A named individual. Consider carefully whether you need this class at all; see the README."
+    },
+    "Role": {
+      "definition": "A defined function in the target operating model or the delivery team. Filled by a person."
+    },
+    "Workstream": {
+      "definition": "One scope area of the engagement, with its own plan and owner."
+    },
+    "Deliverable": {
+      "definition": "A contracted artifact with a due date and an acceptance condition."
+    },
+    "GovernanceForum": {
+      "definition": "A recurring body that decides or validates: a steering committee, a working group, a review board."
+    },
+    "Session": {
+      "definition": "A dated event that produced something: an interview, a workshop, a meeting. Distinct from the transcript recording it."
+    },
+    "Decision": {
+      "definition": "A choice made, proposed or deferred, with its reason. Superseded by a later decision, never overwritten."
+    },
+    "ActionItem": {
+      "definition": "A committed task arising from a session or a decision, with an owner and a state."
+    },
+    "Question": {
+      "definition": "An open question raised and not yet answered, with an owner."
+    },
+    "Concept": {
+      "definition": "A construct the engagement designs or adopts: an operating model element, a way of working, a capability."
+    },
+    "Framework": {
+      "definition": "A reusable method or model brought to the engagement rather than invented in it."
+    },
+    "Document": {
+      "definition": "A source document in the corpus: a contract, a deck, a transcript, a plan."
+    }
   },
   "properties": {
-    "delivers": [
-      "Organization",
-      "Engagement",
-      "delivered_by",
-      "The supplier delivering an engagement."
-    ],
-    "client_of": [
-      "Organization",
-      "Engagement",
-      "serves",
-      "The client an engagement is for."
-    ],
-    "part_of": [
-      "Organization|Workstream|Concept|Role",
-      "Organization|Workstream|Concept|Engagement",
-      "contains",
-      "A containment or membership relationship."
-    ],
-    "scoped_as": [
-      "Engagement",
-      "Workstream",
-      "scopes",
-      "A workstream inside an engagement's scope."
-    ],
-    "produces": [
-      "Workstream|Session",
-      "Deliverable|Concept",
-      "produced_by",
-      "What a workstream or session produced."
-    ],
-    "owns": [
-      "Person|Role|Organization",
-      "Workstream|Deliverable|ActionItem|Question",
-      "owned_by",
-      "Accountability for something."
-    ],
-    "fills": [
-      "Person",
-      "Role",
-      "filled_by",
-      "The person performing a role."
-    ],
-    "member_of": [
-      "Person|Role",
-      "Organization|GovernanceForum",
-      "has_member",
-      "Membership in an organization or forum."
-    ],
-    "instance_of": [
-      "Session",
-      "GovernanceForum",
-      "has_instance",
-      "A session that is one meeting of a recurring forum."
-    ],
-    "recorded_in": [
-      "Session",
-      "Document",
-      "records",
-      "The document that records a session."
-    ],
-    "raised": [
-      "Session",
-      "Decision|ActionItem|Question",
-      "raised_in",
-      "An outcome that came out of a session."
-    ],
-    "discusses": [
-      "Session|Document",
-      "Concept|Workstream|Deliverable|Organization|Role|Decision",
-      null,
-      "A subject a session or document covers."
-    ],
-    "decides": [
-      "Decision",
-      "Concept|Workstream|Deliverable|Role",
-      null,
-      "What a decision settles."
-    ],
-    "implements": [
-      "ActionItem",
-      "Decision",
-      "implemented_by",
-      "An action item carrying out a decision."
-    ],
-    "answers": [
-      "ActionItem|Decision",
-      "Question",
-      "answered_by",
-      "What resolved an open question."
-    ],
-    "informed_by": [
-      "Workstream|Concept|Deliverable",
-      "Framework",
-      "informs",
-      "A method or model relied on."
-    ],
-    "depends_on": [
-      "Deliverable|Workstream|ActionItem",
-      "Deliverable|Workstream|ActionItem",
-      "blocks",
-      "A sequencing or blocking dependency."
-    ],
-    "specifies": [
-      "Document",
-      "Engagement|Deliverable",
-      "specified_in",
-      "The document that defines something."
-    ],
-    "supersedes": [
-      "Decision|Concept|Deliverable|Document",
-      "Decision|Concept|Deliverable|Document",
-      "superseded_by",
-      "This replaced that. Use with the temporal fields, never by overwriting."
-    ]
+    "delivers": {
+      "domain": "Organization",
+      "range": "Engagement",
+      "inverse": "delivered_by",
+      "definition": "The supplier delivering an engagement."
+    },
+    "client_of": {
+      "domain": "Organization",
+      "range": "Engagement",
+      "inverse": "serves",
+      "definition": "The client an engagement is for."
+    },
+    "part_of": {
+      "domain": "Organization|Workstream|Concept|Role",
+      "range": "Organization|Workstream|Concept|Engagement",
+      "inverse": "contains",
+      "definition": "A containment or membership relationship."
+    },
+    "scoped_as": {
+      "domain": "Engagement",
+      "range": "Workstream",
+      "inverse": "scopes",
+      "definition": "A workstream inside an engagement's scope."
+    },
+    "produces": {
+      "domain": "Workstream|Session",
+      "range": "Deliverable|Concept",
+      "inverse": "produced_by",
+      "definition": "What a workstream or session produced."
+    },
+    "owns": {
+      "domain": "Person|Role|Organization",
+      "range": "Workstream|Deliverable|ActionItem|Question",
+      "inverse": "owned_by",
+      "definition": "Accountability for something."
+    },
+    "fills": {
+      "domain": "Person",
+      "range": "Role",
+      "inverse": "filled_by",
+      "definition": "The person performing a role."
+    },
+    "member_of": {
+      "domain": "Person|Role",
+      "range": "Organization|GovernanceForum",
+      "inverse": "has_member",
+      "definition": "Membership in an organization or forum."
+    },
+    "instance_of": {
+      "domain": "Session",
+      "range": "GovernanceForum",
+      "inverse": "has_instance",
+      "definition": "A session that is one meeting of a recurring forum."
+    },
+    "recorded_in": {
+      "domain": "Session",
+      "range": "Document",
+      "inverse": "records",
+      "definition": "The document that records a session."
+    },
+    "raised": {
+      "domain": "Session",
+      "range": "Decision|ActionItem|Question",
+      "inverse": "raised_in",
+      "definition": "An outcome that came out of a session."
+    },
+    "discusses": {
+      "domain": "Session|Document",
+      "range": "Concept|Workstream|Deliverable|Organization|Role|Decision",
+      "definition": "A subject a session or document covers."
+    },
+    "decides": {
+      "domain": "Decision",
+      "range": "Concept|Workstream|Deliverable|Role",
+      "definition": "What a decision settles."
+    },
+    "implements": {
+      "domain": "ActionItem",
+      "range": "Decision",
+      "inverse": "implemented_by",
+      "definition": "An action item carrying out a decision."
+    },
+    "answers": {
+      "domain": "ActionItem|Decision",
+      "range": "Question",
+      "inverse": "answered_by",
+      "definition": "What resolved an open question."
+    },
+    "informed_by": {
+      "domain": "Workstream|Concept|Deliverable",
+      "range": "Framework",
+      "inverse": "informs",
+      "definition": "A method or model relied on."
+    },
+    "depends_on": {
+      "domain": "Deliverable|Workstream|ActionItem",
+      "range": "Deliverable|Workstream|ActionItem",
+      "inverse": "blocks",
+      "definition": "A sequencing or blocking dependency."
+    },
+    "specifies": {
+      "domain": "Document",
+      "range": "Engagement|Deliverable",
+      "inverse": "specified_in",
+      "definition": "The document that defines something."
+    },
+    "supersedes": {
+      "domain": "Decision|Concept|Deliverable|Document",
+      "range": "Decision|Concept|Deliverable|Document",
+      "inverse": "superseded_by",
+      "definition": "This replaced that. Use with the temporal fields, never by overwriting."
+    }
   }
 }

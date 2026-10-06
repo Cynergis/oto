@@ -32,8 +32,10 @@ class Graph:
     """What a rule can see: the nodes whose status is in `statuses` (current by default), their
     edges (asserted and derived so far), attributes."""
 
-    def __init__(self, nodes, edges, derived_attributes=None, statuses=BELIEVED):
+    def __init__(self, nodes, edges, derived_attributes=None, statuses=BELIEVED, covers=None):
         self.nodes = {n["id"]: n for n in nodes if n.get("id") and n.get("status", "current") in statuses}
+        #: class -> the classes a pattern naming it matches: itself and the kinds of it (model/vocabulary.py)
+        self.covers = covers or {}
         self.edges = []
         self.out = {}
         self.inc = {}
@@ -97,7 +99,7 @@ def node_fits(graph, nid, pattern):
     if node is None:
         return False
     kinds = _split(pattern.get("type"))
-    if kinds and node.get("type") not in kinds:
+    if kinds and not any(node.get("type") in graph.covers.get(kind, {kind}) for kind in kinds):
         return False
     for name, condition in (pattern.get("where") or {}).items():
         value = graph.attribute(nid, name)

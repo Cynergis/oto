@@ -36,6 +36,7 @@ def cmd_ontology(args):
                   file=sys.stderr)
             return 1
         rationale = None
+        carried_rules, carried_questions = [], {}
         try:
             if args.from_name:
                 names = [t.strip() for t in args.from_name.split(",") if t.strip()]
@@ -44,13 +45,19 @@ def cmd_ontology(args):
                         raise ValueError("unknown ontology %r. Available: %s"
                                          % (one, ", ".join(_ontologies.available()) or "none"))
                 if len(names) == 1:
-                    config, _sample, _readme = _ontologies.load(names[0])
+                    composed = _ontologies.composed(names[0])
+                    config = composed["config"]
                     classes, properties = config["classes"], config["properties"]
-                    rationale = _ontologies.rationale_for(names[0])
+                    rationale = composed["rationale"]
+                    carried_rules, carried_questions = composed["rules"], composed["questions"]
                     notes = []
                 else:
                     config, _sample, _readme, rationale, report = _ontologies.merge(names)
                     classes, properties = config["classes"], config["properties"]
+                    carried_rules = list(config.pop("_rules", None) or [])
+                    carried_questions = dict(config.pop("_questions", None) or {})
+                    for key in ("_lexicon", "_interview", "_guide", "_actions", "_gold"):
+                        config.pop(key, None)
                     notes = ["class %s: described differently in %s and %s; kept %s" % (k, a, b, a)
                              for k, a, b in report["class_clashes"]]
                     notes += ["relation %s: domain or range differ in %s and %s; kept %s" % (r, a, b, a)
@@ -77,6 +84,22 @@ def cmd_ontology(args):
             return 1
         print("wrote %d class(es), %d relation(s) and %d attribute declaration(s) to %s"
               % (len(classes), len(properties), sum(len(v) for v in attributes.values()), os.path.basename(path)))
+        # The rules and the questions an ontology ships come with its vocabulary: merged by id into
+        # what the project already declares, so a project's own stay and the ontology's are added.
+        from ..reason import rules as _rules, questions as _questions
+        if carried_rules:
+            own = _rules.load(project)
+            have = {r.get("id") for r in own if isinstance(r, dict)}
+            added = [r for r in carried_rules if r.get("id") not in have]
+            if added or not own:
+                _rules.save(project, own + added)
+            print("  rules: %d carried, %d added to %s" % (len(carried_rules), len(added), _rules.NAME))
+        if carried_questions:
+            own = _questions.load(project)
+            added = {k: v for k, v in carried_questions.items() if k not in own}
+            if added or not own:
+                _questions.save(project, dict(own, **added))
+            print("  questions: %d carried, %d added to %s" % (len(carried_questions), len(added), _questions.NAME))
         for note in notes:
             print("  note: %s" % note)
         if rationale:

@@ -99,9 +99,21 @@ def test_import_from_ontologies_carries_the_rationale(capsys):
         assert "rationale carried over" in capsys.readouterr().out
         assert _config(root)["classes"]
         assert main(["ontology", "rationale", "--project", root, "--strict"]) == 0
+        # the rules and the questions the ontology ships come with it, merged by id into the project's own
+        from oto.project import Project
+        from oto.reason import questions as Q, rules as R
+        project = Project.standard(root)
+        assert "OP1" in Q.load(project) and "CORE1" in Q.load(project), "the questions, the core's included"
+        assert any(r["id"] == "intended-fact-overdue" for r in R.load(project)), "the core's rule"
+        Q.save(project, dict(Q.load(project), MINE={"who": "me", "question": "Mine?", "why": "because the documents keep raising it",
+                                                    "ask": {"when": [{"node": "u", "type": "Unit"}], "select": ["u"]}, "gate": "any"}))
         assert main(["ontology", "import", "--project", root, "--from",
                      "organization-process,auto-claims", "--replace"]) == 0
-        assert "merged 2 ontologies" in capsys.readouterr().out
+        out = capsys.readouterr().out
+        assert "merged 2 ontologies" in out and "questions:" in out
+        merged = Q.load(project)
+        assert "MINE" in merged and "AC1" in merged and "OP1" in merged, "the project's own question stays; the merge's are added"
+        assert "_questions" not in _config(root) and "_rules" not in _config(root), "the merge's carriers do not leak into the config"
 
 
 def test_unsupported_vocabulary_file_is_refused():

@@ -298,7 +298,7 @@ it to the host's MCP configuration; for Claude Code, in `.mcp.json` at the proje
 {"mcpServers": {"<slug>-kg": {"command": "oto", "args": ["serve", "--project", "<root>"]}}}
 ```
 
-The server speaks JSON-RPC 2.0 over stdio, exposes ten `kg_*` tools, answers current facts by
+The server speaks JSON-RPC 2.0 over stdio, exposes fifteen `kg_*` tools, answers current facts by
 default with `history` and `as_of` for time slices, and picks up a rebuilt database on the next call
 without a restart. Confirm it with a one-shot query from the shell first; the server answers the
 same way.

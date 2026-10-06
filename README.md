@@ -84,6 +84,13 @@ In Claude Code, install the plugin and the engine comes with it: `/plugin market
 then `/plugin install oto@oto`, or `claude --plugin-dir <a clone of this repository>`. The plugin's
 server and hook run the engine through `uvx`, so uv is the only prerequisite.
 
+## Getting started
+
+In Claude Code with the plugin, `/oto:start`: it asks what you have (a specification, a folder of
+documents, a domain expert, an ontology or pack that is close), gets it in, derives the first
+questions for you to confirm, and hands off to the interview. The rest of this section is the
+same path by hand.
+
 ## From a folder of documents to a served graph
 
 OTO is the deterministic half of that job: extraction, gates, compilation, serving. The other half,

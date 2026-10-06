@@ -215,9 +215,9 @@ def cmd_status(args):
             print("              recorded under the old key `template` in project.config.json; rename it to "
                   "`ontology` and `version` inside it to `release`")
     if s["classes"] == 0 or s["properties"] == 0:
-        print("              none declared yet. Four ways to get one, usually combined:")
+        print("              none declared yet. Four ways to get one, usually combined (the start skill, /oto:start, asks which):")
         print("                1. from an ontology:       oto ontology import --from <name>[,<name>]   (oto ontology list)")
-        print("                2. from the documents:     oto ingest, oto survey, then the ontology-interview skill")
+        print("                2. from a specification or the documents: oto ingest, oto survey, then the start skill")
         print("                3. from a file you own:    oto ontology import --file <vocabulary>.ttl|.rdf|.jsonld|.csv|.json")
         print("                4. by interview:           the ontology-interview skill, questions before nouns")
         print("              whichever: oto ontology rationale --strict, then oto ontology accept")

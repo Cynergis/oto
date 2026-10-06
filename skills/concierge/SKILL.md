@@ -88,6 +88,7 @@ oto bench validate --project <root>      # the gold set's shape
 
 | Decision | Options | Recommend | Commands |
 |---|---|---|---|
+| Nothing yet | a specification or brief; a folder of documents; an expert; an ontology or pack that is close | the start skill (`/oto:start`): it asks which, and runs the first phase | `oto init`, then the start skill |
 | Where the vocabulary comes from | a pack; an ontology; the documents by interview; a file you own | a pack or an ontology if one fits, then the interview to prune it | `oto pack list`, `oto init --pack <name>`, `oto ontology list`, `oto init --ontology <name>`, `oto ontology import --file <path>`, the ontology-interview skill |
 | How facts get in | author proposals by reading; a model drafts them (`draft` extra); a conversation captured | reading, for anything that will be believed; `oto draft` for volume, still through the gates | `oto curate start`, `oto curate add --from <proposal> --dry-run`, `oto draft <slug>`, the capture skill |
 | Where apply happens | locally by a person; in a repository, by pull request | local for one author; repository mode for a team | `oto curate apply --by <you> --note <why>`; `oto init --repo` and the workflows it writes |

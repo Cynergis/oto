@@ -6,6 +6,13 @@ file is the engine's.
 
 ## 0.8.1 — 2026-10-06
 
+**The start skill** (`/oto:start`): a new project from whatever the person has (a specification,
+a folder of documents, a domain expert, an ontology or pack that is close), to the first
+confirmed questions and a hand-off to the interview. Found by starting the report ontology
+from scratch: the path from a specification existed inside the interview skill and nobody
+looking for it could find it. The concierge, `oto status` and the README point at it.
+
+
 What porting the report ontology (github.com/Cynergis/report-ontology, `oto/report`) as an OTO
 unit needed of the pattern language, so its 21 SPARQL questions could be written once in the
 form the engine runs:

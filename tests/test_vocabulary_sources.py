@@ -117,7 +117,7 @@ def test_status_lists_the_four_ways_when_nothing_is_declared(capsys):
         capsys.readouterr()
         assert main(["status", "--project", root]) == 0
         out = capsys.readouterr().out
-        for marker in ("from an ontology", "from the documents", "from a file you own", "by interview"):
+        for marker in ("from an ontology", "from a specification or the documents", "from a file you own", "by interview"):
             assert marker in out
 
 

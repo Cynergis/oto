@@ -92,7 +92,7 @@ product ──satisfied by──► architecture & design ──built and run by
 | C1 | **Atlas owns the arc**: menu = the seven scenes; product type chosen first; the concierge's knowledge of stations folded into Atlas as what it consults, not a second voice | one persona |
 | C2 | **capture against a pack**: `prd-build`/`architecture-build` read `capture.json` (A1); the built-in section list and `data-schema.md` retired | one interview per product type, no skill edits |
 | C3 | **contribute as you go**: on every [C], the section is written as proposals (A2) and goes through `curate check`; Atlas reports the gate as `kg_questions` | the graph is the source of truth from the first gate |
-| C4 | **feature-flow reads the graph**: "validate idea vs goals" and "impact" are `kg_ask` and `kg_neighbors`, not re-reading `data.js` | gates with evidence |
+| C4 | **feature-flow reads the graph**: "validate idea vs goals" and "impact" are `kg_ask` and `kg_neighbors`, not re-reading `data.js`; scene 4's design half DONE 2026-10-07 (studio: `--empty`, design fixture, SA17 clean), its flow half and scene 5 wait for B5/A3 | gates with evidence |
 | C5 | **the site is a view** (A5); `prd-site` keeps preview/publish | no drift |
 | C6 | **"what must this product know?"** and **"publish"** as Atlas stages: `/oto:start` → interview; export → pack → publish → the install line | scenes 3 and 6 |
 | C7 | `knowledge-graph` skill and the mesh ontology retired; plugin depends on `oto`; studio README and GETTING-STARTED rewritten around the arc | one vocabulary |
@@ -118,7 +118,7 @@ Stage 5  B6 portfolio+work ── A4 ── A6 ── A7 ── B7 ── D4 Cow
 Later    A8 BigQuery Graph, once the graph is filled                          a target state, not on the path to the first release
 ```
 
-Stages 1 and 2 are done. What stage 2 found: a merged project (`oto init --ontology a,b`) must
+Stages 1 and 2 are done; stage 3's B4 and the design half of C4 too (0.9.0, 0.9.1). What they found: a product starts from an empty graph (`oto init --empty`), the packs' samples are exemplars, never the product's facts; a question reports at the gate, a policy refuses. What stage 2 found: a merged project (`oto init --ontology a,b`) must
 keep its parts' samples, not invent one; a sample must pass its own blocking policies; a
 document's ids are unique in the document, so a capture names its `scope`. Stage 3's B4 and
 B5 are independent of stage 2. Stage 4 needs C3 (facts in the graph) and B3 (the pack to publish).

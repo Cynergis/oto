@@ -38,6 +38,12 @@ def test_the_capture_schema_renders_the_questions_by_asker_and_the_classes_with_
     doc = schema["types"]["Document"]
     assert doc["x-term"] == "https://cynergis.ai/ont/oto-core#Document", "an inherited class keeps its IRI"
     assert any(s["kind"] == "min" and s["subject"] == "claims_under" for s in schema["shapes"])
+    assert schema["briefs"] == {}, "auto-claims declares no brief"
+    derived = dict(json.load(open(os.path.join(os.path.dirname(_capture.__file__), "..", "ontologies", "software-architecture", "ontology.config.json"), encoding="utf-8")))
+    derived["properties"]["depends_on"] = dict(derived["properties"]["depends_on"], derived=True)
+    arch = _capture.render(derived, {}, _capture.Terms(derived, {"slug": "a", "name": "a", "prefix": "a", "namespace": "https://a/"}), "a")
+    assert "depends_on" not in arch["types"]["Component"]["links"], "a derived relation is not captured"
+    assert "consumes" in arch["types"]["Component"]["links"]
 
 
 def test_the_build_writes_the_capture_schema_beside_the_questions():

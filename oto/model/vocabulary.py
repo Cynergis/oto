@@ -50,6 +50,7 @@ def _union(spec):
 #: relation may specialise one (`"subproperty_of": "depends_on"`).
 #:
 #: Shapes, the constraints a graph is held to (reason/shapes.py), are declared beside the terms:
+#: a relation's `derived` says the rules state it and nobody captures it (the capture schema leaves it out);
 #: a relation's `min` and `max` are how many of it one subject carries (`"max": 1`: a Payment is
 #: charged to at most one Coverage; `"min": 1`: every Claim claims under a Policy); an attribute's
 #: `"required": true` means every instance of the class carries it; a class's `requires` lists
@@ -68,7 +69,7 @@ KEYS = {"schemes": ("definition", "label", "alt_labels", "scope_note", "example"
         "concepts": ("definition", "label", "alt_labels", "scope_note", "example", "broader"),
         "classes": ("definition", "label", "alt_labels", "scope_note", "example", "subclass_of", "requires"),
         "properties": ("domain", "range", "inverse", "definition", "label", "inverse_label", "alt_labels",
-                       "scope_note", "example", "subproperty_of", "min", "max"),
+                       "scope_note", "example", "subproperty_of", "min", "max", "derived"),
         "attributes": ("type", "definition", "label", "alt_labels", "scope_note", "example", "required"),
         "temporal": ("type", "definition", "label")}
 TEMPORAL_TYPES = ("date", "string", "ref")
@@ -196,6 +197,9 @@ def _shape(section, label, spec):
         elif key == "requires":
             if not (isinstance(value, list) and all(isinstance(x, str) and x for x in value)):
                 return "%s: `requires` must be a list of attribute or relation names" % label
+        elif key == "derived":
+            if not isinstance(value, bool):
+                return "%s: `derived` is true or false: whether the rules state this relation and nobody captures it" % label
         elif key in ("min", "max"):
             if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                 return "%s: `%s` must be a whole number" % (label, key)

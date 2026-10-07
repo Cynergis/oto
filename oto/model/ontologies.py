@@ -372,8 +372,10 @@ def self_check(name, roots=None):
     if not problems:
         for item in _shapes.findings(config, sample.get("nodes") or [], sample.get("edges") or []):
             problems.append("the sample breaks a declared shape: %s" % item["message"])
-        # a sample that breaks the ontology's own blocking policy is not an example of it
+        # a sample that breaks the ontology's own blocking policy is not an example of it; the
+        # questions see the sample as a build does, with what the rules derive
         from ..reason import engine as _engine
+        derived_edges, derived_attributes = [], {}
         try:
             outcome = _engine.run(result["rules"], sample.get("nodes") or [], sample.get("edges") or [],
                                   covers=_vocab.covers(classes), declared=_questions.declared_names(config))
@@ -383,8 +385,11 @@ def self_check(name, roots=None):
             for finding in outcome["findings"]:
                 if finding["severity"] == "blocking":
                     problems.append("the sample breaks its own policy %s: %s (%s)" % (finding["rule"], finding["message"], finding.get("node") or "graph"))
-        for finding in _questions.findings(result["questions"], sample.get("nodes") or [], sample.get("edges") or [],
-                                           _vocab.covers(classes), declared=_questions.declared_names(config)):
+            derived_edges = [{"from": e["from"], "rel": e["rel"], "to": e["to"]} for e in outcome["edges"]]
+            for a in outcome["attributes"]:
+                derived_attributes.setdefault(a["node"], {})[a["name"]] = a["value"]
+        for finding in _questions.findings(result["questions"], sample.get("nodes") or [], (sample.get("edges") or []) + derived_edges,
+                                           _vocab.covers(classes), derived_attributes, declared=_questions.declared_names(config)):
             for item in finding["unanswered"] or [{"label": "(graph)", "status": finding["status"], "gaps": finding["gaps"]}]:
                 problems.append("the sample cannot answer %s as required: %s, %s%s"
                                 % (finding["id"], item["label"], item["status"],

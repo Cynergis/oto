@@ -4,6 +4,13 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.9.3 — 2026-10-07
+
+**A relation may be `derived`.** The rules state it and nobody captures it: the capture schema
+leaves it out, so a tool never asks a person for what the engine concludes (the flow's
+`dependsOn`, `requiresTest`). The capture schema also lists the pack's briefs. The self-check
+asks an ontology's questions of its sample as a build would, with what the rules derive.
+
 ## 0.9.2 — 2026-10-07
 
 **Briefs** (stage 3, A3). `briefs.json` beside the questions: a task type with its parameters,

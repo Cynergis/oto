@@ -71,6 +71,7 @@ product ──satisfied by──► architecture & design ──built and run by
 | A5 | **the site as a view**: the studio's site template mounted as an OTO view fed by the graph payload | the site shows what is believed, dated; `data.js` becomes a projection | `oto serve --view studio`; `oto build --target site`; the projection declared in the view's `app.json` | the explorer's view tests, on the studio template | M |
 | A6 | **survey cache** | `kg_questions` on a large graph | survey cached per build sequence, invalidated on reload | unit | S |
 | A7 | **marketplace from Atlas**: `oto registry types` lists product types (packs tagged `product-type`) | scene 1's first question | a pack manifest field `product_type`; `oto registry list --product-types` | unit | S |
+| A9 | **derived nodes**: a derive rule may create a node (`then: {node: ..., edges: [...]}`), as SPARQL CONSTRUCT did for the flow's test obligations; today a captured flow's obligations are `requiresTest` edges and only the port materialises `TestObligation` nodes | a thing the rules conclude, with an id code can cite | engine, derived.json, the stores, explain, the explorer | unit; the flow port's FL21 answered on a captured flow | M |
 | A8 | **BigQuery Graph store and target** (later; a target state once the graph is filled) | a third backend where the graph lives beside the data | `targets/bigquery.py` loads the rows into a dataset and `CREATE OR REPLACE PROPERTY GRAPH`; `BigQueryStore` answers the `Store` interface, GQL via `GRAPH_TABLE` for the graph-shaped reads; `bigquery` extra; ADC credentials | the store equivalence battery against a GCP project | L; last |
 
 ### WS-B — Ontologies and packs
@@ -92,7 +93,7 @@ product ──satisfied by──► architecture & design ──built and run by
 | C1 | **Atlas owns the arc**: menu = the seven scenes; product type chosen first; the concierge's knowledge of stations folded into Atlas as what it consults, not a second voice | one persona |
 | C2 | **capture against a pack**: `prd-build`/`architecture-build` read `capture.json` (A1); the built-in section list and `data-schema.md` retired | one interview per product type, no skill edits |
 | C3 | **contribute as you go**: on every [C], the section is written as proposals (A2) and goes through `curate check`; Atlas reports the gate as `kg_questions` | the graph is the source of truth from the first gate |
-| C4 | **feature-flow reads the graph**: "validate idea vs goals" and "impact" are `kg_ask` and `kg_neighbors`, not re-reading `data.js`; scene 4's design half DONE 2026-10-07 (studio: `--empty`, design fixture, SA17 clean), its flow half and scene 5 wait for B5/A3 | gates with evidence |
+| C4 | **feature-flow reads the graph** — DONE 2026-10-07: every phase asks the graph (`kg_ask`, `kg_neighbors`, `kg_brief`); scene 4 (design and flow captured, traced) and scene 5 (the agent's brief BLOCKED by name, the missing fact captured, READY) scripted and green; `flow` installed from the report-ontology checkout (`oto ontology add <checkout> --path oto/flow`) | gates with evidence |
 | C5 | **the site is a view** (A5); `prd-site` keeps preview/publish | no drift |
 | C6 | **"what must this product know?"** and **"publish"** as Atlas stages: `/oto:start` → interview; export → pack → publish → the install line | scenes 3 and 6 |
 | C7 | `knowledge-graph` skill and the mesh ontology retired; plugin depends on `oto`; studio README and GETTING-STARTED rewritten around the arc | one vocabulary |
@@ -112,7 +113,7 @@ product ──satisfied by──► architecture & design ──built and run by
 ```
 Stage 1  B1 product core ── B2 product-report ── B3 report from scratch   DONE 2026-10-07, see report-from-scratch.md
 Stage 2  A1 capture ── A2 propose ── C2 ── C3 ── C1 ── C7 ── C8 (scenes 1-3)  DONE 2026-10-07: OTO 0.8.2–0.8.3, studio b36397f; scenes 1–3 green
-Stage 3  B4 design (DONE) ── B5 flow (DONE) ── A3 briefs (DONE) ── C4 (scenes 4-5)   proves: the agent gets its brief from the graph; kgctl retires
+Stage 3  B4 ── B5 ── A3 ── C4 (scenes 4-5)   DONE 2026-10-07: the agent gets its brief from the graph (0.9.2-0.9.3, studio scenes 1-5); kgctl can retire
 Stage 4  A5 site view ── C5 ── C6 ── D1 ── D2 ── D3 (scenes 6-7)              proves: publish and read, end to end
 Stage 5  B6 portfolio+work ── A4 ── A6 ── A7 ── B7 ── D4 Cowork              proves: the levels link; the second host
 Later    A8 BigQuery Graph, once the graph is filled                          a target state, not on the path to the first release

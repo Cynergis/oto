@@ -10,7 +10,10 @@ a project's vocabulary:
   …"; a question with a `non_empty` gate must be answerable before the tool may continue.
 - **types**: one per class, with its term IRI, label and definition, its fields (the attributes,
   typed, enums as choices, `required`), its links (the relations whose domain covers the class,
-  with their targets and cardinality), and what it `requires`.
+  with their targets and cardinality; a relation declared `derived` is never a link to capture),
+  and what it `requires`.
+- **briefs**: the task types the pack's briefs declare (what an agent must be able to answer
+  before a task), so the tool can say which questions a build gates on.
 
 Every field and link carries `x-term`, the IRI of the term it captures, so what the tool collects
 is already in the ontology's words and `curate propose` (curate/propose.py) turns it into facts
@@ -26,8 +29,10 @@ from ..reason import questions as _questions, shapes as _shapes
 VERSION = 1
 
 
-def render(config, questions, terms, name, release=None, language=None, namespace=None):
-    """The capture schema as a dict. `namespace` is the pack's own; a project's is its `ont/`."""
+def render(config, questions, terms, name, release=None, language=None, namespace=None, rules=None, briefs=None):
+    """The capture schema as a dict. `namespace` is the pack's own; a project's is its `ont/`. A
+    relation declared `derived` (the rules state it, nobody does) is not a link to capture; the
+    briefs say what a task must know."""
     language = language or _vocab.languages(config)[0]
     classes = config.get("classes") or {}
     properties = config.get("properties") or {}
@@ -53,7 +58,7 @@ def render(config, questions, terms, name, release=None, language=None, namespac
             domain = [t.strip() for t in (rspec.get("domain") or "").split("|") if t.strip()]
             if domain and not any(kind in cover.get(d, {d}) for d in domain):
                 continue
-            if not domain:
+            if not domain or rspec.get("derived"):
                 continue
             link = {"x-term": terms.iri(relation), "label": _vocab.label(rspec, relation, language, language),
                     "definition": text(rspec, "definition"),
@@ -90,6 +95,9 @@ def render(config, questions, terms, name, release=None, language=None, namespac
                       "types are the classes with their fields and links, each carrying x-term. "
                       "`oto curate propose` turns a capture written against this into proposals." % name,
             "sections": sections, "types": types,
+            "briefs": {task: {"description": b.get("description", ""), "params": dict(b.get("params") or {}),
+                              "required": list(b.get("required") or []), "optional": list(b.get("optional") or [])}
+                       for task, b in (briefs or {}).items()},
             "shapes": _shapes.declared(config)}
 
 
@@ -105,7 +113,9 @@ def for_project(project):
     with open(project.ontology_config_path, encoding="utf-8") as f:
         config = json.load(f)
     identity = project.identity()
-    return render(config, _questions.load(project), Terms(config, identity), identity["slug"])
+    from ..reason import rules as _rules, briefs as _briefs
+    return render(config, _questions.load(project), Terms(config, identity), identity["slug"],
+                  rules=_rules.load(project), briefs=_briefs.load(project))
 
 
 def for_ontology(name, roots=None):
@@ -116,4 +126,4 @@ def for_ontology(name, roots=None):
     manifest = composed["manifest"]
     identity = {"slug": name, "name": name, "prefix": name, "namespace": manifest.get("namespace") or "https://cynergis.ai/ont/%s#" % name}
     return render(config, composed["questions"], Terms(config, identity), name, release=manifest.get("release"),
-                  namespace=manifest.get("namespace"))
+                  namespace=manifest.get("namespace"), rules=composed["rules"], briefs=composed["briefs"])

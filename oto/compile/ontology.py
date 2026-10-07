@@ -5,6 +5,7 @@ against the node and relationship types actually used in the compiled graph.
 Into `layout.ontology`:
   ontology.md              human-readable reference (terms, hierarchy, shapes, questions)
   questions.yaml           the competency questions rendered as SPARQL over graph.ttl
+  capture.json             what an elicitation tool asks for: the questions by asker, the classes with their fields and links
   <slug>.ttl               Turtle (OWL/RDFS)
   <slug>.context.jsonld    JSON-LD context
 
@@ -446,6 +447,9 @@ def run(project):
         open(yaml_path, "w", encoding="utf-8").write(_sparql.questions_yaml(QUESTIONS, _cfg, terms, NAME, LANG))
     elif os.path.exists(yaml_path):
         os.remove(yaml_path)
+    # ---------- capture.json: what an elicitation tool asks for, rendered from this vocabulary ----------
+    from . import capture as _capture
+    _capture.write(os.path.join(ONT, "capture.json"), _capture.render(_cfg, QUESTIONS, terms, SLUG, language=LANG))
 
     # ---------- JSON-LD context ----------
     def compact(curie):

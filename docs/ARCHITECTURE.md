@@ -525,6 +525,27 @@ requires the same rows. What SPARQL cannot read from the export is noted in the 
 (`contains` on a list attribute, `$today` rendered as the date of the rendering), and
 `graph.ttl` holds asserted facts only: derived facts stay in `derived.json`.
 
+## The capture schema, and proposals from a capture
+
+A tool that interviews people (the PRD & Architecture Studio, or any form) needs to know what to
+ask for. Instead of carrying a form of its own, it reads `capture.json`
+([compile/capture.py](../oto/compile/capture.py)), rendered from a pack (`oto ontology capture
+--from <name>`) or from a project's vocabulary (`oto ontology capture`, and beside
+`questions.yaml` on every build): the competency questions grouped by who asks them, each with
+its gate and the classes it needs, and one type per class with its fields (typed, enums as
+choices, `required`), its links (the relations whose domain covers it, with targets and
+cardinality) and what it `requires`. Every field and link carries `x-term`, the IRI it captures.
+
+What the tool collects comes back as a capture: items of a type with a stable id, a label,
+fields, links and where in the document it was said. `oto curate propose --from <capture>`
+([curate/propose.py](../oto/curate/propose.py)) checks it against the schema, naming an unknown
+type, field, link or choice, a missing required field or a link over its `max`, and writes an
+ordinary proposal: one node per item (`<class>.<id>`), cited to the document with the section
+and the quote as evidence; one edge per link, to another item of the capture or to a node of the
+graph. From there `oto curate add` and `oto curate check` apply as to any proposal: the tool
+contributes, the gates decide, and nothing is mapped by hand because the terms travelled with
+the schema.
+
 ## Shapes: the constraints a graph is held to
 
 A shape is declared beside the term it constrains ([reason/shapes.py](../oto/reason/shapes.py)):

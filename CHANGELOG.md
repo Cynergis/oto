@@ -4,6 +4,17 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.8.2 — 2026-10-07
+
+**The capture schema and proposals from a capture** (stage 2 of the programme). `oto ontology
+capture` renders `capture.json` from a pack or a project: the questions by asker with their gates,
+the classes with their fields, links and what they require, every field and link carrying `x-term`;
+the build writes it beside `questions.yaml`. `oto curate propose --from <capture>` checks what a
+tool captured against the schema and writes a proposal cited to the document, for the gates.
+
+**Also.** `oto ontology import --from` carries the ontology's rules and questions; a forced export
+is the next release of an ontology that exists; `oto-core` @5's sample carries its date as `as_of`.
+
 ## 0.8.1 — 2026-10-06
 
 **The start skill** (`/oto:start`): a new project from whatever the person has (a specification,

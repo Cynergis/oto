@@ -18,6 +18,20 @@ def cmd_ontology(args):
     if args.ontology_command in _catalog.VERBS:
         return _catalog.run(args)
 
+    if args.ontology_command == "capture" and args.from_name:
+        # the capture schema of a pack needs no project
+        from ..compile import capture as _capture
+        try:
+            schema = _capture.for_ontology(args.from_name)
+        except (KeyError, ValueError) as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        out = args.file or os.path.join(os.getcwd(), "capture.json")
+        _capture.write(out, schema)
+        print("capture schema of %s: %s  (%d section(s), %d question(s), %d type(s))" % (
+            args.from_name, out, len(schema["sections"]), sum(len(s["asks"]) for s in schema["sections"]), len(schema["types"])))
+        return 0
+
     from ..model import vocabulary as vocab
 
     project = _resolve(args)
@@ -108,6 +122,16 @@ def cmd_ontology(args):
             print("  no rationale came with it: every class now lacks a recorded reason. Run the "
                   "ontology-interview skill, then `oto ontology rationale --strict`.")
         print("  then: oto ontology check, and oto ontology accept")
+        return 0
+
+    if args.ontology_command == "capture":
+        from ..compile import capture as _capture
+        schema = _capture.for_project(project)
+        out = args.file or os.path.join(project.data, "capture.json")
+        _capture.write(out, schema)
+        print("capture schema: %s  (%d section(s), %d question(s), %d type(s))" % (
+            out, len(schema["sections"]), sum(len(s["asks"]) for s in schema["sections"]), len(schema["types"])))
+        print("  a tool fills it as items of a type with fields and links; `oto curate propose --from <capture>` turns them into a proposal")
         return 0
 
     if args.ontology_command == "rationale":
@@ -394,8 +418,8 @@ def cmd_ontology(args):
 def register(sub):
     ontology = sub.add_parser("ontology", help="the project's vocabulary, and the catalog of ontologies to start from")
     ontology.add_argument("ontology_command", nargs="?", default="check",
-                          choices=["check", "accept", "rationale", "widen", "import"] + list(_catalog.VERBS),
-                          help="on the project's own vocabulary: check (default) reports changes and conformance; "
+                          choices=["check", "accept", "rationale", "widen", "import", "capture"] + list(_catalog.VERBS),
+                          help="on the project's own vocabulary: check (default) reports changes and conformance; capture writes capture.json, what a tool asks for; "
                                "accept records it as the baseline; rationale reports whether each class has a "
                                "recorded reason and who confirmed it; widen proposes what the data uses; import "
                                "merges a file or a named ontology into it. On the catalog: list, show <name>, "

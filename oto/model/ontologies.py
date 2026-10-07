@@ -363,6 +363,17 @@ def self_check(name, roots=None):
     if not problems:
         for item in _shapes.findings(config, sample.get("nodes") or [], sample.get("edges") or []):
             problems.append("the sample breaks a declared shape: %s" % item["message"])
+        # a sample that breaks the ontology's own blocking policy is not an example of it
+        from ..reason import engine as _engine
+        try:
+            outcome = _engine.run(result["rules"], sample.get("nodes") or [], sample.get("edges") or [],
+                                  covers=_vocab.covers(classes), declared=_questions.declared_names(config))
+        except _engine.DoesNotConverge as exc:
+            problems.append(str(exc))
+        else:
+            for finding in outcome["findings"]:
+                if finding["severity"] == "blocking":
+                    problems.append("the sample breaks its own policy %s: %s (%s)" % (finding["rule"], finding["message"], finding.get("node") or "graph"))
         for finding in _questions.findings(result["questions"], sample.get("nodes") or [], sample.get("edges") or [],
                                            _vocab.covers(classes), declared=_questions.declared_names(config)):
             for item in finding["unanswered"] or [{"label": "(graph)", "status": finding["status"], "gaps": finding["gaps"]}]:
@@ -741,9 +752,19 @@ def merge(names):
     summaries, readmes, titles = [], [], []
 
     lexicon_entries, interviews, guides, gold, merged_actions = [], [], [], [], {}
+    sample_nodes, sample_edges, sample_keys = {}, [], set()
     for name in names:
         result = composed(name)
         config, readme, record = result["config"], result["readme"], result["rationale"]
+        # the samples merge by node id, as composition merges them: a merged project starts
+        # with the facts its parts ship, not an invented graph
+        for node in (result["sample"] or {}).get("nodes") or []:
+            sample_nodes.setdefault(node.get("id"), node)
+        for edge in (result["sample"] or {}).get("edges") or []:
+            key = (edge.get("from"), edge.get("rel"), edge.get("to"))
+            if key not in sample_keys:
+                sample_keys.add(key)
+                sample_edges.append(edge)
         titles.append(config.get("name", name))
         about = (result["manifest"].get("summary") or config.get("_summary") or "").strip()
         if about:
@@ -811,4 +832,5 @@ def merge(names):
               "%d classes and %d relations after the merge." % (len(classes), len(properties)), ""]
     for name, text in readmes:
         readme += ["", "---", "", "## From `%s`" % name, "", text.strip(), ""]
-    return config, synthetic_sample(config), "\n".join(readme), rationale, report
+    sample = {"nodes": list(sample_nodes.values()), "edges": sample_edges} if sample_nodes else synthetic_sample(config)
+    return config, sample, "\n".join(readme), rationale, report

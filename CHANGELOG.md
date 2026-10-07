@@ -4,6 +4,17 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.8.3 — 2026-10-07
+
+**A capture names its scope.** A document's ids (`FR1`, `P1`) are unique in the document, not in
+the graph: a capture may say which product it is about (`"scope": "fund-report"`) and its nodes
+are `requirement.fund-report.fr1`, so two products' `FR1` stay apart. Found by the studio's scene
+tests, whose fixture collided with the `product` pack's own sample.
+
+**A project composed of several packs keeps their samples.** `oto init --ontology a,b` merges
+the parts' samples by node id instead of inventing a synthetic one, and an ontology's self-check
+runs its blocking policies on its sample: a pack whose sample breaks its own policy is refused.
+
 ## 0.8.2 — 2026-10-07
 
 **The capture schema and proposals from a capture** (stage 2 of the programme). `oto ontology

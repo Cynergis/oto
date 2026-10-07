@@ -30,7 +30,11 @@ def test_merge_unions_classes_and_reports_clashes():
     shared = set(org["classes"]) & set(claims["classes"])
     for kind, first, _second in report["class_clashes"]:
         assert kind in shared and first == "organization-process", "first ontology wins"
-    assert {n["type"] for n in sample["nodes"]} == set(config["classes"])
+    # the merged sample is the parts' samples, by node id, not an invention
+    ids = {n["id"] for n in sample["nodes"]}
+    org_ids = {n["id"] for n in ontologies.composed("organization-process")["sample"]["nodes"]}
+    claims_ids = {n["id"] for n in ontologies.composed("auto-claims")["sample"]["nodes"]}
+    assert ids == org_ids | claims_ids
     assert "prune" in readme.lower()
     assert set(rationale["classes"]) >= set(config["classes"])
 

@@ -4,14 +4,15 @@
 A capture is what a tool wrote against a capture schema (compile/capture.py): items of a type,
 each with a stable id, a label, fields and links, and where in the source it was said:
 
-    {"doc": "fund-profile-prd", "as_of": "2026-10-07",
+    {"doc": "fund-profile-prd", "as_of": "2026-10-07", "scope": "fund-report",
      "items": [{"type": "Requirement", "id": "FR3", "label": "Read every value from a finished column",
                 "summary": "…", "fields": {"concerns": "data", "priority": "must"},
                 "links": {"governs": ["report.fund-profile-balanced"]},
                 "where": "§3.2", "quote": "The product reads finished columns; it never computes."}]}
 
 `propose` checks it against the schema (an unknown type, field, link or choice is refused, named)
-and writes an ordinary proposal: one node per item, id `<type>.<id>`, cited to the document with
+and writes an ordinary proposal: one node per item, id `<type>.<id>` (`<type>.<scope>.<id>` when
+the capture names the product it is about, so two products' `FR1` stay apart), cited to the document with
 the section and the quote as evidence; one edge per link, to another item of the capture by its
 id or to a node of the graph by its node id. The proposal then goes through `oto curate add`
 and `oto curate check` like any other: the tool contributes, the gates decide.
@@ -21,10 +22,13 @@ import re
 SLUG = re.compile(r"[^a-z0-9.-]+")
 
 
-def node_id(kind, item_id, prefix=None):
-    """`requirement.fr3`: the class as prefix, the capture's id as the local part, lowercase."""
+def node_id(kind, item_id, prefix=None, scope=None):
+    """`requirement.fr3`, or `requirement.fund-report.fr3` when the capture names a `scope`: the
+    class as prefix, the capture's id as the local part, lowercase. A PRD's ids (`FR1`) are unique
+    in their document, not in the graph; the scope is what keeps two products' FR1 apart."""
     local = SLUG.sub("-", str(item_id).lower()).strip("-.")
-    return "%s.%s" % (prefix or kind.lower(), local)
+    middle = SLUG.sub("-", str(scope).lower()).strip("-.") + "." if scope else ""
+    return "%s.%s%s" % (prefix or kind.lower(), middle, local)
 
 
 def problems(capture, schema):
@@ -51,7 +55,7 @@ def problems(capture, schema):
             continue
         if not (item.get("label") or "").strip():
             out.append("%s: no label" % label)
-        nid = node_id(kind, item_id, types[kind].get("id_prefix"))
+        nid = node_id(kind, item_id, types[kind].get("id_prefix"), capture.get("scope"))
         if nid in ids:
             out.append("%s: id %r is used twice" % (label, item_id))
         ids[nid] = kind
@@ -86,7 +90,7 @@ def propose(capture, schema, graph_ids=None):
     by_capture_id = {}
     for item in capture["items"]:
         kind = item["type"]
-        by_capture_id[str(item["id"])] = node_id(kind, item["id"], types[kind].get("id_prefix"))
+        by_capture_id[str(item["id"])] = node_id(kind, item["id"], types[kind].get("id_prefix"), capture.get("scope"))
     graph_ids = set(graph_ids or [])
     nodes, edges, unresolved = [], [], []
     for item in capture["items"]:

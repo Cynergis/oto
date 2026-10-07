@@ -50,7 +50,7 @@ def cmd_ontology(args):
                   file=sys.stderr)
             return 1
         rationale = None
-        carried_rules, carried_questions = [], {}
+        carried_rules, carried_questions, carried_briefs = [], {}, {}
         try:
             if args.from_name:
                 names = [t.strip() for t in args.from_name.split(",") if t.strip()]
@@ -63,13 +63,14 @@ def cmd_ontology(args):
                     config = composed["config"]
                     classes, properties = config["classes"], config["properties"]
                     rationale = composed["rationale"]
-                    carried_rules, carried_questions = composed["rules"], composed["questions"]
+                    carried_rules, carried_questions, carried_briefs = composed["rules"], composed["questions"], composed["briefs"]
                     notes = []
                 else:
                     config, _sample, _readme, rationale, report = _ontologies.merge(names)
                     classes, properties = config["classes"], config["properties"]
                     carried_rules = list(config.pop("_rules", None) or [])
                     carried_questions = dict(config.pop("_questions", None) or {})
+                    carried_briefs = dict(config.pop("_briefs", None) or {})
                     for key in ("_lexicon", "_interview", "_guide", "_actions", "_gold"):
                         config.pop(key, None)
                     notes = ["class %s: described differently in %s and %s; kept %s" % (k, a, b, a)
@@ -114,6 +115,13 @@ def cmd_ontology(args):
             if added or not own:
                 _questions.save(project, dict(own, **added))
             print("  questions: %d carried, %d added to %s" % (len(carried_questions), len(added), _questions.NAME))
+        if carried_briefs:
+            from ..reason import briefs as _briefs
+            own = _briefs.load(project)
+            added = {k: v for k, v in carried_briefs.items() if k not in own}
+            if added:
+                _briefs.save(project, dict(own, **added))
+            print("  briefs: %d carried, %d added to %s" % (len(carried_briefs), len(added), _briefs.NAME))
         for note in notes:
             print("  note: %s" % note)
         if rationale:

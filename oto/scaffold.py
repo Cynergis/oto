@@ -179,6 +179,7 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
     ontology_rationale = None
     ontology_rules = []
     ontology_questions = {}
+    ontology_briefs = {}
     ontology_lexicon = None
     ontology_interview = None
     ontology_guide = None
@@ -229,6 +230,7 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
             ontology_rationale = result["rationale"]
             ontology_rules = result["rules"]
             ontology_questions = result["questions"]
+            ontology_briefs = result["briefs"]
             ontology_lexicon, ontology_interview, ontology_gold = result["lexicon"], result["interview"], result["gold"]
             ontology_guide = result.get("guide")
             ontology_actions = list(result.get("actions") or [])
@@ -241,6 +243,7 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
             ontology_config, sample_graph, ontology_notes, ontology_rationale, report = _ontologies.merge(names)
             ontology_rules = list(ontology_config.pop("_rules", None) or [])   # carried by the merge, not config
             ontology_questions = dict(ontology_config.pop("_questions", None) or {})
+            ontology_briefs = dict(ontology_config.pop("_briefs", None) or {})
             ontology_lexicon = ontology_config.pop("_lexicon", None)
             ontology_interview = ontology_config.pop("_interview", None)
             ontology_guide = ontology_config.pop("_guide", None)
@@ -307,6 +310,15 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
             print("  wrote: %s" % _questions.NAME)
         else:
             print("  kept (exists): %s" % _questions.NAME)
+    if ontology and ontology_briefs:
+        import types
+        from .reason import briefs as _briefs
+        holder = types.SimpleNamespace(data=root)
+        if not os.path.exists(_briefs.path_for(holder)) or force:
+            _briefs.save(holder, ontology_briefs)
+            print("  wrote: %s" % _briefs.NAME)
+        else:
+            print("  kept (exists): %s" % _briefs.NAME)
 
     for action in ontology_actions:
         target = os.path.join(root, "actions", action["id"] + ".json")

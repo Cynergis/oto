@@ -39,7 +39,7 @@ ROUTES = {"entity": "kg_entity", "neighbors": "kg_neighbors", "search": "kg_sear
           "by-type": "kg_by_type", "count": "kg_count", "group": "kg_group_by", "explain": "kg_explain",
           "policy": "kg_policy", "overview": "kg_overview", "stale": "kg_stale", "resolve": "kg_resolve",
           "docs": "kg_docs", "pending": "kg_pending", "actions": "kg_actions", "define": "kg_define",
-          "questions": "kg_questions", "ask": "kg_ask"}
+          "questions": "kg_questions", "ask": "kg_ask", "brief": "kg_brief"}
 INTEGER_ARGS = {"n", "limit"}
 BOOLEAN_ARGS = {"history", "ready", "due"}
 LOOPBACK = ("127.0.0.1", "localhost", "::1")

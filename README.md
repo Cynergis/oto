@@ -33,6 +33,9 @@ shows why.
   in the engine's pattern language, and run: every term must be cited by one, every ontology's
   sample must answer them, `kg_ask` answers one with the rows or the gap, and the build renders
   each as SPARQL so a reader with standard tools asks the same thing.
+- **Briefs that block.** What an agent must know before a task is a brief: the questions it must
+  be able to answer. `kg_brief implement-step STEP=...` is READY with the facts, or BLOCKED by
+  name with the gaps, before a line is written.
 - **Shapes that gate.** Cardinality, required attributes and policy rules are declared beside the
   terms, evaluated by the engine before a change enters the graph, and written as SHACL that a
   test holds to the same verdicts.
@@ -128,7 +131,7 @@ oto curate check --project claims       # blocking problems, contradictions, gap
 oto curate apply --project claims && oto build --project claims
 oto bench add --project claims --from claims/proposals/handbook.questions.json   # evaluate skill
 oto ingest complete --project claims    # the graph holds the run: processing/ -> archive/
-oto serve --project claims              # seventeen kg_* tools over JSON-RPC 2.0, for an MCP host
+oto serve --project claims              # eighteen kg_* tools over JSON-RPC 2.0, for an MCP host
 oto serve --project claims --http 8765              # the same over HTTP, the graph explorer at /, the whole
      # graph at /api/graph; --view reader for the page-shaped reader; --view <name|dir> serves your own
      # web app instead, its data files generated from the graph as its app.json projections say

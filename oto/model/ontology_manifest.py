@@ -45,6 +45,7 @@ CARRIES = {
     "rationale": "ontology.rationale.json",
     "rules": "rules.json",
     "questions": "questions.json",
+    "briefs": "briefs.json",
     "sample": "sample.graph.json",
     "readme": "README.md",
     "lexicon": "lexicon.json",

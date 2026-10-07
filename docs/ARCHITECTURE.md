@@ -516,6 +516,19 @@ questions` and `oto query ask CQ1 SYSTEM="Payments platform"` are the CLI form; 
 `/api/ask?id=CQ1&SYSTEM=...` the HTTP one, with the rows beside the text. A question that cannot
 run against the vocabulary (an undeclared class or relation, a parameter nobody declared, a selected
 attribute the class does not declare) fails pre-flight and the build, with the reason.
+
+A fourth gate, `no_gaps`, is for a question whose answer may be empty but whose gaps always
+run: "which fields must this artifact have" is answered by none when the artifact is not JSON,
+and unanswered when it is JSON and names none.
+
+**Briefs** (`briefs.json`, beside the questions) say what an agent must know before a task: a
+task type with its parameters, the questions it must be able to answer and the ones it may also
+read. Run with the parameters bound (`oto query brief implement-step STEP=step.b10_verify`,
+`kg_brief`, `/api/brief`), a brief is READY with every required question's facts, or BLOCKED
+naming the questions the graph cannot answer and their gaps; without its parameters it is the
+table for every candidate (which steps are ready, which are blocked and on what). Briefs ride in
+the store beside the questions (`brief:<task>` rows of the same table), compose by task like the
+questions do, and are carried by an ontology (`carries`: `briefs`).
 Every shipped ontology ships its questions (`oto-core`'s compose into each extender), and the
 self-check holds every ontology to them: see "Ontologies" above.
 

@@ -26,7 +26,9 @@ variables (a parameter as `$NAME`), or `var.<field>` for a node's own field (`la
 A `$NAME` is a parameter, bound to an entity before the patterns run; its `type` may be a union
 `A|B`. The gate says what an empty answer means:
 `non_empty` (the graph must answer), `empty` (nothing must match; the shape of a policy), `any`
-(informational). `gaps` runs when the answer is empty and says why, in words. `terms` lists the
+(informational), `no_gaps` (the answer may be empty, but a gap makes it unanswered: "which fields
+must this artifact have" is answered by none when it is not JSON, unanswered when it is JSON and
+names none). `gaps` runs when the answer is empty, or always under `no_gaps`, and says why, in words. `terms` lists the
 vocabulary this question covers beyond what its patterns name, so every term can be required to
 be cited by a question that runs.
 """
@@ -37,11 +39,13 @@ import re
 from .match import Graph, matches, BELIEVED, BUILTIN_FIELDS
 
 NAME = "questions.json"
-GATES = ("non_empty", "empty", "any")
-#: The status a run ends in, by gate and whether rows came back.
+GATES = ("non_empty", "empty", "any", "no_gaps")
+#: The status a run ends in, by gate and whether rows came back. `no_gaps` may answer with no rows;
+#: its gaps run whether or not rows came back, and any gap makes it unanswered.
 STATUSES = {("non_empty", True): "answered", ("non_empty", False): "unanswered",
             ("empty", True): "violated", ("empty", False): "clean",
-            ("any", True): "answered", ("any", False): "empty"}
+            ("any", True): "answered", ("any", False): "empty",
+            ("no_gaps", True): "answered", ("no_gaps", False): "answered"}
 #: What a status means for a gate: a question with one of these statuses is a finding.
 FINDING_STATUSES = ("unanswered", "violated")
 PARAM = re.compile(r"\$([A-Za-z][A-Za-z0-9_]*)")
@@ -383,7 +387,7 @@ def run(qid, question, params, nodes, edges, covers=None, derived_attributes=Non
     rows = _rows(graph, found, ask.get("select") or [])
     status = STATUSES[(gate, bool(rows))]
     gaps = []
-    if not rows:
+    if not rows or gate == "no_gaps":
         for body in _gap_bodies(question):
             hits = matches(graph, _substituted(body.get("when") or [], declared), bindings)
             if not hits:
@@ -393,6 +397,8 @@ def run(qid, question, params, nodes, edges, covers=None, derived_attributes=Non
             say = _wording(body.get("say") or "", graph, bindings)
             gaps.append(say + (" (%s)" % ", ".join(graph.nodes[s].get("label") or s for s in subjects[:5] if s in graph.nodes)
                                if subjects and not declared else ""))
+    if gate == "no_gaps" and gaps:
+        status = "unanswered"
     return {"id": qid, "question": _wording(question.get("question"), graph, bindings),
             "who": question.get("who") or "", "status": status, "gate": gate,
             "params": {k: v for k, v in bindings.items() if k in declared}, "rows": rows, "gaps": gaps}
@@ -423,7 +429,7 @@ def survey(questions, nodes, edges, covers=None, derived_attributes=None, declar
         if not declared:
             result = run(qid, q, {}, nodes, edges, covers, derived_attributes, declared)
             entry["asked"] = 1
-            entry["answered"] = 1 if result["rows"] else 0
+            entry["answered"] = 1 if (result["rows"] or (gate == "no_gaps" and result["status"] == "answered")) else 0
             entry["status"] = result["status"]
             entry["gaps"] = result["gaps"]
             out.append(entry)
@@ -452,6 +458,8 @@ def survey(questions, nodes, edges, covers=None, derived_attributes=None, declar
             entry["status"] = "violated" if gate == "empty" else "unanswered"
         else:
             entry["status"] = STATUSES[(gate, entry["answered"] > 0)]
+            if gate == "no_gaps":
+                entry["answered"] = entry["asked"]
         out.append(entry)
     return out
 

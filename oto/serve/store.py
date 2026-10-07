@@ -218,7 +218,15 @@ class SqliteStore(Store):
         """The competency questions: {id: question}, in declaration order."""
         if "questions" not in self.features():
             return {}
-        return {r["id"]: json.loads(r["spec"] or "{}") for r in self._rows("SELECT id, spec FROM questions ORDER BY rowid")}
+        return {r["id"]: json.loads(r["spec"] or "{}") for r in self._rows("SELECT id, spec FROM questions ORDER BY rowid")
+                if not r["id"].startswith("brief:")}
+
+    def briefs(self):
+        """The briefs: {task: brief}, carried beside the questions."""
+        if "questions" not in self.features():
+            return {}
+        return {r["id"][6:]: json.loads(r["spec"] or "{}") for r in self._rows("SELECT id, spec FROM questions ORDER BY rowid")
+                if r["id"].startswith("brief:")}
 
     def documents(self, query=None, limit=200):
         q, a = "SELECT id,label,as_of,valid_from,attributes FROM nodes WHERE type='Document'", []
@@ -550,7 +558,11 @@ class Neo4jStore(Store):
 
     def questions(self):
         rows = self._run("MATCH (q:Question {project: $project}) RETURN q.id AS id, q.spec AS spec")
-        return {r["id"]: json.loads(r["spec"] or "{}") for r in rows}
+        return {r["id"]: json.loads(r["spec"] or "{}") for r in rows if not r["id"].startswith("brief:")}
+
+    def briefs(self):
+        rows = self._run("MATCH (q:Question {project: $project}) RETURN q.id AS id, q.spec AS spec")
+        return {r["id"][6:]: json.loads(r["spec"] or "{}") for r in rows if r["id"].startswith("brief:")}
 
     def documents(self, query=None, limit=200):
         rows = self._run("MATCH (n:Entity:Document {project: $project}) "

@@ -79,7 +79,7 @@ def render(config, questions, terms, name, release=None, language=None, namespac
             q = questions[qid]
             needed = sorted(t for t, qs in cited.items() if qid in qs and t in classes)
             asks.append({"id": qid, "question": q.get("question", ""), "why": q.get("why", ""),
-                         "gate": q.get("gate", "non_empty"), "may_continue": q.get("gate", "non_empty") != "non_empty",
+                         "gate": q.get("gate", "non_empty"), "may_continue": q.get("gate", "non_empty") not in ("non_empty", "no_gaps"),
                          "params": {k: v.get("type") for k, v in (q.get("params") or {}).items()},
                          "captures": needed, "validated_by": q.get("validated_by", "")})
         sections.append({"who": who, "asks": asks})

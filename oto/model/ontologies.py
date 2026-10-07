@@ -56,6 +56,7 @@ README_NAME = "README.md"
 RATIONALE_NAME = "ontology.rationale.json"
 RULES_NAME = "rules.json"
 QUESTIONS_NAME = "questions.json"
+BRIEFS_NAME = "briefs.json"
 LEXICON_NAME = "lexicon.json"
 INTERVIEW_NAME = "interview.md"
 GUIDE_NAME = "guide.md"
@@ -189,6 +190,7 @@ def load_raw(name, roots=None):
 def load_raw_dir(base):
     rules = _read_json(os.path.join(base, RULES_NAME), {"rules": []})
     questions = _read_json(os.path.join(base, QUESTIONS_NAME), {"questions": {}})
+    briefs = _read_json(os.path.join(base, BRIEFS_NAME), {"briefs": {}})
     rationale = _read_json(os.path.join(base, RATIONALE_NAME), {})
     return {"config": _read_json(os.path.join(base, CONFIG_NAME), {}),
             "sample": _read_json(os.path.join(base, SAMPLE_NAME), {"nodes": [], "edges": []}),
@@ -197,6 +199,7 @@ def load_raw_dir(base):
             "rules": list(rules.get("rules") or []) if isinstance(rules, dict) else list(rules),
             "questions": dict((questions.get("questions") if "questions" in questions else questions) or {})
             if isinstance(questions, dict) else {},
+            "briefs": dict((briefs.get("briefs") if "briefs" in briefs else briefs) or {}) if isinstance(briefs, dict) else {},
             "lexicon": _read_json(os.path.join(base, LEXICON_NAME), None),
             "interview": _read_text(os.path.join(base, INTERVIEW_NAME)) or None,
             "guide": _read_text(os.path.join(base, GUIDE_NAME)) or None,
@@ -233,6 +236,11 @@ def rules_for(name):
 def questions_for(name):
     """The competency questions an ontology ships, its bases included: {id: question}."""
     return composed(name)["questions"]
+
+
+def briefs_for(name):
+    """The briefs an ontology ships, its bases included: {task: brief}."""
+    return composed(name)["briefs"]
 
 
 def rationale_for(name):
@@ -337,8 +345,9 @@ def self_check(name, roots=None):
     problems += _vocab.declaration_problems(classes, config.get("attributes") or {}, config.get("schemes") or {})
     from ..reason import rules as _rules
     problems += _rules.problems(result["rules"], config)
-    from ..reason import questions as _questions, shapes as _shapes
+    from ..reason import questions as _questions, shapes as _shapes, briefs as _briefs
     question_problems = _questions.problems(result["questions"], config)
+    problems += _briefs.problems(result["briefs"], result["questions"])
     problems += question_problems
     problems += _shapes.problems(config)
     if not question_problems:
@@ -683,6 +692,8 @@ def export(project, name, to=None, from_graph=None, summary=None, force=False, i
     from ..reason import rules as _rules, questions as _questions
     shipped_rules = [dict(r, validated_by="") for r in _rules.load(project)]
     shipped_questions = {qid: dict(q, validated_by="") for qid, q in _questions.load(project).items()}
+    from ..reason import briefs as _briefs
+    shipped_briefs = _briefs.load(project)
     os.makedirs(target, exist_ok=True)
     from ..actions import model as _actions
     sample_by_type = {}
@@ -713,6 +724,8 @@ def export(project, name, to=None, from_graph=None, summary=None, force=False, i
             f.write("\n")
     if shipped_questions:
         _questions.save(types.SimpleNamespace(data=target), shipped_questions)
+    if shipped_briefs:
+        _briefs.save(types.SimpleNamespace(data=target), shipped_briefs)
     for filename, payload in ((CONFIG_NAME, exported), (RATIONALE_NAME, rationale), (SAMPLE_NAME, sample)):
         with open(os.path.join(target, filename), "w", encoding="utf-8", newline="\n") as f:
             json.dump(payload, f, indent=2, ensure_ascii=False)
@@ -756,7 +769,7 @@ def merge(names):
     """
     classes, properties, temporal, attributes, namespaces, schemes = {}, {}, {}, {}, {}, {}
     rationale = {"classes": {}, "properties": {}}
-    merged_rules, merged_questions = {}, {}
+    merged_rules, merged_questions, merged_briefs = {}, {}, {}
     owner = {}
     report = {"ontologies": list(names), "class_clashes": [], "relation_clashes": []}
     summaries, readmes, titles = [], [], []
@@ -814,6 +827,8 @@ def merge(names):
             merged_rules.setdefault(rule["id"], dict(rule))
         for qid, question in result["questions"].items():
             merged_questions.setdefault(qid, dict(question))
+        for task, brief in result["briefs"].items():
+            merged_briefs.setdefault(task, dict(brief))
         for action in result.get("actions") or []:
             merged_actions.setdefault(action["id"], dict(action))
         for section in ("classes", "properties"):
@@ -833,6 +848,7 @@ def merge(names):
         config[_namespaces.SECTION] = _namespaces.settled(namespaces)
     config["_rules"] = list(merged_rules.values())
     config["_questions"] = merged_questions
+    config["_briefs"] = merged_briefs
     config["_lexicon"] = {"entries": lexicon_entries} if lexicon_entries else None
     config["_interview"] = "\n\n".join(interviews) if interviews else None
     config["_guide"] = "\n\n".join(guides) if guides else None

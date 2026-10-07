@@ -825,6 +825,63 @@ def _declared_names():
     return {kind: set(declared_attributes(config, kind)) for kind in words.classes}
 
 
+def briefs():
+    """The briefs the store carries, read with the questions."""
+    return STORE.briefs() if STORE is not None and "questions" in STORE.features() else {}
+
+
+def _bind(declared_params, params):
+    """Resolve NAME -> entity (id, label or alias) for a brief or a question: (bound, error)."""
+    bound = {}
+    for name, given in (params or {}).items():
+        if name not in declared_params or given in (None, ""):
+            continue
+        nid, _alts = resolve(str(given))
+        if not nid:
+            return bound, "No entity matched %r for %s." % (given, name)
+        bound[name] = nid
+    return bound, None
+
+
+def brief_data(task, params=None):
+    """One brief, run: {task, status READY|BLOCKED, questions, blocking}, or an error; without
+    its parameters, the table: the brief run for every entity the first parameter binds to."""
+    from ..reason import briefs as _briefs
+    from ..model.vocabulary import covers as _covers
+    declared = briefs()
+    if not declared:
+        return {"error": "No briefs: the store carries none (briefs.json absent or empty at build).", "rows": []}
+    brief = declared.get(task)
+    if brief is None:
+        return {"error": "No brief %r; declared: %s" % (task, ", ".join(declared)), "rows": []}
+    if isinstance(params, str):
+        try:
+            params = json.loads(params)
+        except ValueError:
+            return {"error": "params must be an object NAME -> entity, not %r" % params, "rows": []}
+    bound, error = _bind(brief.get("params") or {}, params)
+    if error:
+        return {"error": error, "rows": []}
+    nodes, edges = _graph_from_store()
+    args = (questions(), nodes, edges, _covers(vocabulary().classes), _derived_attributes_from_store(), _declared_names())
+    if set(bound) < set(brief.get("params") or {}):
+        return {"task": task, "table": _briefs.table(task, brief, *args)}
+    result = _briefs.run(task, brief, bound, *args)
+    result["labels"] = {v: (label(v) or v) for v in bound.values()}
+    return result
+
+
+def brief_text(task, params=None):
+    """READY or BLOCKED by name: what an agent must know before a task, and what it cannot yet."""
+    from ..reason import briefs as _briefs
+    result = brief_data(task, params)
+    if result.get("error"):
+        return result["error"]
+    if "table" in result:
+        return "%s\n%s" % (result["task"], _briefs.table_text(result["table"]))
+    return _briefs.text(result, result.get("labels"))
+
+
 def ask_data(qid, params=None):
     """One competency question, run: {id, question, who, status, gate, params, rows, gaps}, or an
     error. `params` maps NAME -> an entity (id, label or alias), resolved the way kg_resolve does."""
@@ -1081,6 +1138,17 @@ TOOLS = [
          "params": {"type": "object", "description": "NAME -> entity, one per declared parameter, e.g. {\"CLAIM\": \"claim.c-5001\"}"}},
          "required": ["id"]},
      "fn": lambda a: ask_text(a["id"], a.get("params") if "params" in a else {k: v for k, v in a.items() if k != "id"})},
+    {"name": "kg_brief",
+     "description": "What an agent must know before a task, as the graph answers it: run a brief (a task type, see the "
+                    "store's briefs) with its parameters bound and get READY, with every required question's facts, or "
+                    "BLOCKED, naming the questions the graph cannot answer and their gaps. Use BEFORE implementing, "
+                    "testing or changing anything the graph describes; without its parameters, the table for every "
+                    "candidate (which steps are ready, which are blocked and on what).",
+     "inputSchema": {"type": "object", "properties": {
+         "task": {"type": "string", "description": "the brief's task, e.g. implement-step"},
+         "params": {"type": "object", "description": "NAME -> entity, one per declared parameter, e.g. {\"STEP\": \"step.b10_verify\"}"}},
+         "required": ["task"]},
+     "fn": lambda a: brief_text(a["task"], a.get("params") if "params" in a else {k: v for k, v in a.items() if k != "task"})},
 ]
 TOOL_BY_NAME = {t["name"]: t for t in TOOLS}
 
@@ -1145,9 +1213,9 @@ CLI_USAGE = """oto query — the same data as the server tools, one query per in
   count [--type T] [--tag G] [--attr A --value V]  group <by> [--type T] [--tag G] [--level top]
   stale   resolve <term>   docs [query] [limit]   overview [limit]   define <term>
   explain <term> [rel]   policy [limit]   pending [limit]   actions [--on <term>] [--action <id>] [--ready] [--due]
-  questions   ask <id> [NAME=<entity> ...]"""
+  questions   ask <id> [NAME=<entity> ...]   brief <task> [NAME=<entity> ...]"""
 
-CLI_COMMANDS = {"entity", "neighbors", "search", "by-type", "count", "group", "define", "questions", "ask",
+CLI_COMMANDS = {"entity", "neighbors", "search", "by-type", "count", "group", "define", "questions", "ask", "brief",
                 "stale", "resolve", "docs", "overview", "explain", "policy", "pending", "actions", "help", "--help", "-h"}
 
 def _flag(a, name):
@@ -1194,6 +1262,8 @@ def cli(argv):
             print(questions_text())
         elif cmd == "ask":
             print(ask_text(pos[0], dict(p.split("=", 1) for p in pos[1:] if "=" in p)))
+        elif cmd == "brief":
+            print(brief_text(pos[0], dict(p.split("=", 1) for p in pos[1:] if "=" in p)))
         elif cmd == "docs":
             print(docs_text(pos[0] if pos else None, int(pos[1]) if len(pos) > 1 else 200))
     except IndexError:

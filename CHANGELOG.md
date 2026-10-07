@@ -4,6 +4,19 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.9.2 — 2026-10-07
+
+**Briefs** (stage 3, A3). `briefs.json` beside the questions: a task type with its parameters,
+the questions it requires and the ones it may also read. `oto query brief <task> NAME=<entity>`
+and `kg_brief` are READY with every required question's facts or BLOCKED by name with the gaps;
+without the parameters, the table for every candidate. Briefs compose by task, ride in the store
+beside the questions, and are carried by an ontology (`carries`: `briefs`). Built for the port
+of the flow ontology (report-ontology `oto/flow`), whose five task types give `kgctl brief`'s
+verdicts for every step.
+
+**The `no_gaps` gate.** A question whose answer may be empty but whose gaps always run; the
+original's `gaps_only`. `may_continue` in the capture schema treats it as required.
+
 ## 0.9.1 — 2026-10-07
 
 **A product starts from what its people say.** `oto init --empty` installs the vocabulary and

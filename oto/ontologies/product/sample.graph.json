@@ -1,0 +1,656 @@
+{
+  "_about": "An invented payments product, one instance of each class, authored through the gates; the software-architecture and ddd samples are its estate and its model. Replace it.",
+  "nodes": [
+    {
+      "id": "product.payments",
+      "type": "Product",
+      "label": "Merchant payments",
+      "summary": "Merchant payments",
+      "attributes": {
+        "stage": "building",
+        "problem": "Merchants wait three days for their money and cannot tell which payment a settlement covers.",
+        "vision": "Every captured payment settled the same business day, each one traceable to its ledger entry.",
+        "domain": "payments",
+        "value_stream": "order to cash",
+        "background": "Two acquirers, one ledger kept in a spreadsheet."
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "role.r-owner",
+      "type": "Role",
+      "label": "Product owner",
+      "summary": "Product owner",
+      "attributes": {
+        "kind": "owner",
+        "holder": "the head of payments",
+        "mandate": "Decide scope and accept releases."
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "role.r-compliance",
+      "type": "Role",
+      "label": "Compliance officer",
+      "summary": "Compliance officer",
+      "attributes": {
+        "kind": "decider",
+        "holder": "compliance",
+        "mandate": "Enforce the evidence and audit policies."
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "persona.p-merchant",
+      "type": "Persona",
+      "label": "Merchant finance clerk",
+      "summary": "Merchant finance clerk",
+      "attributes": {
+        "relationship": "target",
+        "need": "see which payments a settlement covers before the day ends"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "persona.p-auditor",
+      "type": "Persona",
+      "label": "Card scheme auditor",
+      "summary": "Card scheme auditor",
+      "attributes": {
+        "relationship": "excluded",
+        "need": "reads the ledger, never uses the product"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "valueproposition.vp-settled",
+      "type": "ValueProposition",
+      "label": "Paid the same day, every payment accounted for",
+      "summary": "Paid the same day, every payment accounted for",
+      "attributes": {
+        "promise": "funds in the merchant's account the same business day",
+        "differentiator": "settlement you can trace, not just receive"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "objective.o-cash",
+      "type": "Objective",
+      "label": "Cash in the merchant's account by the next morning",
+      "summary": "Cash in the merchant's account by the next morning",
+      "attributes": {
+        "period": "FY2026",
+        "state": "active"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "successcriterion.sc-lag",
+      "type": "SuccessCriterion",
+      "label": "Settlement lag",
+      "summary": "Settlement lag",
+      "attributes": {
+        "metric": "hours from capture to settlement",
+        "target": "under 24",
+        "due_on": "2026-12-31"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "requirement.take-payment",
+      "type": "Requirement",
+      "label": "Accept a card payment at checkout and confirm it within two seconds",
+      "summary": "Accept a card payment at checkout and confirm it within two seconds",
+      "attributes": {
+        "kind": "functional",
+        "priority": "must"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "requirement.settle-same-day",
+      "type": "Requirement",
+      "label": "Settle within one business day",
+      "summary": "A captured payment must settle by the end of the next business day.",
+      "attributes": {
+        "kind": "functional",
+        "priority": "must"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "requirement.nfr-ledger",
+      "type": "Requirement",
+      "label": "Every payment traceable to exactly one ledger entry",
+      "summary": "Every payment traceable to exactly one ledger entry",
+      "attributes": {
+        "kind": "non-functional",
+        "priority": "should"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "release.rel1",
+      "type": "Release",
+      "label": "Release 1: card payments and settlement",
+      "summary": "Release 1: card payments and settlement",
+      "attributes": {
+        "target_date": "2026-11-30",
+        "state": "planned",
+        "horizon": "mvp"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "feature.f-checkout",
+      "type": "Feature",
+      "label": "Checkout payment",
+      "summary": "Checkout payment",
+      "attributes": {},
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "feature.f-settlement",
+      "type": "Feature",
+      "label": "Daily settlement",
+      "summary": "Daily settlement",
+      "attributes": {},
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "feature.f-refunds",
+      "type": "Feature",
+      "label": "Refunds",
+      "summary": "Refunds",
+      "attributes": {},
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "userjourney.j-end-of-day",
+      "type": "UserJourney",
+      "label": "The merchant's end of day",
+      "summary": "The merchant's end of day",
+      "attributes": {
+        "trigger": "the settlement batch finishes",
+        "outcome": "every payment of the day is in a settlement"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "journeystep.js-1",
+      "type": "JourneyStep",
+      "label": "Open the settlement report",
+      "summary": "Open the settlement report",
+      "attributes": {
+        "position": 1,
+        "action": "open the day's settlement",
+        "outcome": "sees each payment under its settlement"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "scenario.s-one-payment",
+      "type": "Scenario",
+      "label": "One payment, one settlement",
+      "summary": "One payment, one settlement",
+      "attributes": {
+        "given": "one captured payment",
+        "when": "the settlement batch runs",
+        "then": "the payment appears in that day's settlement with its ledger entry",
+        "kind": "happy-path"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "constraint.c-cutoff",
+      "type": "Constraint",
+      "label": "The acquirers' settlement cut-off is 17:00",
+      "summary": "The acquirers' settlement cut-off is 17:00",
+      "attributes": {
+        "kind": "timeline",
+        "imposed_by": "the acquirers"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "assumption.a-confirm",
+      "type": "Assumption",
+      "label": "Both acquirers confirm captures by 16:00",
+      "summary": "Both acquirers confirm captures by 16:00",
+      "attributes": {
+        "state": "unverified",
+        "checked_on": "2026-10-01"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "risk.rk-acquirer",
+      "type": "Risk",
+      "label": "An acquirer confirms captures late",
+      "summary": "An acquirer confirms captures late",
+      "attributes": {
+        "kind": "dependency",
+        "state": "mitigated"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "decision.d-batch",
+      "type": "Decision",
+      "label": "Settlement runs as a daily batch, not per payment",
+      "summary": "Settlement runs as a daily batch, not per payment",
+      "attributes": {
+        "rationale": "the acquirers settle in batches; a per-payment settlement would only pretend",
+        "decided_on": "2026-10-01"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "openquestion.q-evidence",
+      "type": "OpenQuestion",
+      "label": "How long must settlement evidence be kept?",
+      "summary": "How long must settlement evidence be kept?",
+      "attributes": {
+        "raised_on": "2026-10-02",
+        "state": "open"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "policy.pol-evidence",
+      "type": "Policy",
+      "label": "Payment evidence is kept seven years",
+      "summary": "Payment evidence is kept seven years",
+      "attributes": {
+        "kind": "compliance",
+        "authority": "the card schemes"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "term.t-settlement",
+      "type": "Term",
+      "label": "Settlement",
+      "summary": "Settlement",
+      "attributes": {
+        "definition": "The transfer of a day's captured funds to the merchant's account, net of fees."
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    },
+    {
+      "id": "document.payments-brief",
+      "type": "Document",
+      "label": "Payments brief",
+      "summary": "The brief the product was specified from.",
+      "attributes": {
+        "kind": "brief"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "product.payments",
+      "rel": "owned_by",
+      "to": "role.r-owner"
+    },
+    {
+      "from": "product.payments",
+      "rel": "offers",
+      "to": "valueproposition.vp-settled"
+    },
+    {
+      "from": "product.payments",
+      "rel": "pursues",
+      "to": "objective.o-cash"
+    },
+    {
+      "from": "valueproposition.vp-settled",
+      "rel": "intended_for",
+      "to": "persona.p-merchant"
+    },
+    {
+      "from": "successcriterion.sc-lag",
+      "rel": "measures",
+      "to": "valueproposition.vp-settled"
+    },
+    {
+      "from": "requirement.take-payment",
+      "rel": "serves",
+      "to": "valueproposition.vp-settled"
+    },
+    {
+      "from": "requirement.settle-same-day",
+      "rel": "serves",
+      "to": "valueproposition.vp-settled"
+    },
+    {
+      "from": "requirement.nfr-ledger",
+      "rel": "serves",
+      "to": "objective.o-cash"
+    },
+    {
+      "from": "feature.f-checkout",
+      "rel": "part_of",
+      "to": "product.payments"
+    },
+    {
+      "from": "feature.f-checkout",
+      "rel": "realises",
+      "to": "requirement.take-payment"
+    },
+    {
+      "from": "feature.f-checkout",
+      "rel": "in_scope_of",
+      "to": "release.rel1"
+    },
+    {
+      "from": "feature.f-settlement",
+      "rel": "part_of",
+      "to": "product.payments"
+    },
+    {
+      "from": "feature.f-settlement",
+      "rel": "realises",
+      "to": "requirement.settle-same-day"
+    },
+    {
+      "from": "feature.f-settlement",
+      "rel": "in_scope_of",
+      "to": "release.rel1"
+    },
+    {
+      "from": "feature.f-refunds",
+      "rel": "part_of",
+      "to": "product.payments"
+    },
+    {
+      "from": "feature.f-refunds",
+      "rel": "excluded_from",
+      "to": "release.rel1"
+    },
+    {
+      "from": "userjourney.j-end-of-day",
+      "rel": "intended_for",
+      "to": "persona.p-merchant"
+    },
+    {
+      "from": "journeystep.js-1",
+      "rel": "part_of",
+      "to": "userjourney.j-end-of-day"
+    },
+    {
+      "from": "scenario.s-one-payment",
+      "rel": "exercises",
+      "to": "requirement.settle-same-day"
+    },
+    {
+      "from": "constraint.c-cutoff",
+      "rel": "constrains",
+      "to": "product.payments"
+    },
+    {
+      "from": "risk.rk-acquirer",
+      "rel": "threatens",
+      "to": "release.rel1"
+    },
+    {
+      "from": "risk.rk-acquirer",
+      "rel": "mitigated_by",
+      "to": "requirement.settle-same-day"
+    },
+    {
+      "from": "decision.d-batch",
+      "rel": "about",
+      "to": "requirement.settle-same-day"
+    },
+    {
+      "from": "decision.d-batch",
+      "rel": "decided_by",
+      "to": "role.r-owner"
+    },
+    {
+      "from": "decision.d-batch",
+      "rel": "relies_on",
+      "to": "assumption.a-confirm"
+    },
+    {
+      "from": "openquestion.q-evidence",
+      "rel": "about",
+      "to": "requirement.settle-same-day"
+    },
+    {
+      "from": "policy.pol-evidence",
+      "rel": "applies_to",
+      "to": "product.payments"
+    },
+    {
+      "from": "policy.pol-evidence",
+      "rel": "enforced_by",
+      "to": "role.r-compliance"
+    },
+    {
+      "from": "term.t-settlement",
+      "rel": "defines",
+      "to": "requirement.settle-same-day"
+    },
+    {
+      "from": "decision.d-batch",
+      "rel": "documented_in",
+      "to": "document.payments-brief"
+    },
+    {
+      "from": "product.payments",
+      "rel": "documented_in",
+      "to": "document.payments-brief"
+    }
+  ]
+}

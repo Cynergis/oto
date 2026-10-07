@@ -249,7 +249,7 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
             for kind, first, second in report["class_clashes"]:
                 print("    class %-24s described differently in %s and %s; kept %s" % (kind, first, second, first))
             for relation, first, second in report["relation_clashes"]:
-                print("    relation %-21s domain or range differ in %s and %s; kept %s" % (relation, first, second, first))
+                print("    relation %-21s domain or range differ in %s and %s; widened to both" % (relation, first, second))
             ontology_record = {"name": ontology, "release": None, "source": "merge",
                                "commit": None, "installed_at": _today(),
                                "parts": [_ontology_record(one, _ontologies, _ontologies.parts(one)[:-1]) for one in names]}

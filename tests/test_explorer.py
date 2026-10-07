@@ -86,9 +86,9 @@ def test_the_adapter_and_the_defaults_under_node():
         assert out["search"][0] in ("datastore.ledger", "decision.single-ledger")
         assert out["assumed"] == 0, "every sample entity cites its sample source"
         assert out["assumedStripped"] is True and out["assumedDocument"] is False, "a document is never unsourced; an entity with no source is"
-        assert out["columns"][0] == ["Document"] and sum(len(c) for c in out["columns"]) == 15 and len(out["columns"]) <= 9
+        assert out["columns"][0] == ["Document"] and sum(len(c) for c in out["columns"]) == 31 and len(out["columns"]) <= 9
         assert "Document" not in out["evidenceable"] and "System" in out["evidenceable"] and out["threshold"] == 400
-        assert out["meta"]["DecisionRecord"] == ["Decision Record", "check", True] and out["meta"]["Risk"][1] == "warn"
+        assert out["meta"]["Decision"] == ["Decision", "check", True] and out["meta"]["Risk"][1] == "warn"
         assert out["overColumns"][:2] == [["Risk"], ["System", "Component"]] and len(out["overColumns"]) == 3, "forgotten classes still get a column"
         assert out["overRisk"]["colour"] == "red" and out["overEvidenceable"] == ["Risk"] and out["overThreshold"] == 5 and out["overTitle"] == "Custom"
         assert out["icons"] == ["doc", "check", "warn", "user", "metric", "journey", "graph", "policy", "usecase", "usecase"]

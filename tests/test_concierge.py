@@ -85,7 +85,7 @@ def test_rules_explain_prints_the_reason_the_pattern_and_the_last_build(capsys):
         capsys.readouterr()
         assert main(["rules", "explain", "--project", root]) == 0
         out = capsys.readouterr().out
-        assert "4 rule(s)" in out and "risk-reaches-system" in out and "A risk to a component" in out
+        assert "13 rule(s)" in out and "risk-reaches-system" in out and "A risk to a component" in out
         assert main(["rules", "explain", "risk-reaches-system", "--project", root]) == 0
         out = capsys.readouterr().out
         assert "why:        A risk to a component" in out and "confirmed:  by nobody yet" in out
@@ -95,8 +95,8 @@ def test_rules_explain_prints_the_reason_the_pattern_and_the_last_build(capsys):
         capsys.readouterr()
         assert main(["rules", "explain", "decision-is-documented", "--project", root]) == 0
         out = capsys.readouterr().out
-        assert "(policy, severity warn)" in out and 'flag "an architecture decision must cite' in out
-        assert "d is a DecisionRecord  and  no d -documented_in-> *" in out
+        assert "(policy, severity warn)" in out and 'flag "a decision must cite' in out
+        assert "d is a Decision  and  no d -documented_in-> *" in out
         assert "last build: 0 edge(s), 0 attribute(s) derived, 1 finding(s)" in out and "[warn] decision.single-ledger" in out
         assert main(["rules", "explain", "nope", "--project", root]) == 1
         assert "no rule 'nope'" in capsys.readouterr().err

@@ -16,7 +16,7 @@ RISK = {"id": "risk-reaches-system", "kind": "derive",
         "when": [{"edge": ["r", "threatens", "c"]}, {"edge": ["c", "part_of", "s"]}],
         "then": {"edge": ["r", "threatens", "s"]}, "why": "A risk to a component is a risk to its system."}
 DOCUMENTED = {"id": "decision-is-documented", "kind": "policy", "severity": "warn",
-              "when": [{"node": "d", "type": "DecisionRecord"}, {"not_edge": ["d", "documented_in", "*"]}],
+              "when": [{"node": "d", "type": "Decision"}, {"not_edge": ["d", "documented_in", "*"]}],
               "then": {"flag": "an architecture decision must cite the document that records it"},
               "why": "A decision nobody can open is a rumour."}
 

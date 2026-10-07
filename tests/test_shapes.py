@@ -223,8 +223,8 @@ def test_a_policy_rule_is_a_shacl_sparql_constraint_that_finds_what_the_engine_f
         project = Project.standard(root)
         build(project)
         ttl = open(os.path.join(project.layout.ontology, "arch.ttl"), encoding="utf-8").read()
-        assert "arch:decision_is_documentedPolicy a sh:NodeShape ; sh:targetClass software-architecture:DecisionRecord ; sh:severity sh:Warning ; sh:sparql [" in ttl
-        assert 'sh:message "an architecture decision must cite the document that records it (answers SA13)"@en' in ttl
+        assert "arch:decision_is_documentedPolicy a sh:NodeShape ; sh:targetClass product:Decision ; sh:severity sh:Warning ; sh:sparql [" in ttl
+        assert 'sh:message "a decision must cite the document that records it (answers PR19)"@en' in ttl
         assert "SELECT $this WHERE {" in ttl and 'FILTER(?this_status NOT IN ("current", "intended"))' in ttl, "a policy sees intended facts"
         config = json.load(open(project.ontology_config_path, encoding="utf-8"))
         graph = json.load(open(os.path.join(project.layout.graph, "knowledge-graph.json"), encoding="utf-8"))

@@ -1,0 +1,28 @@
+{
+  "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
+  "name": "ddd",
+  "release": 1,
+  "domain": "software",
+  "summary": "Domain-Driven Design of a product's solution: subdomains, bounded contexts and their map, use cases, events, commands, reactions, read models, external systems, aggregates, entities, value objects, business rules, domain services; what each satisfies, who owns it, and whether the builder may build it.",
+  "extends": [
+    "software-architecture"
+  ],
+  "namespace": "https://cynergis.ai/ont/ddd#",
+  "engine": ">=0.8",
+  "carries": [
+    "vocabulary",
+    "rationale",
+    "rules",
+    "questions",
+    "sample",
+    "readme"
+  ],
+  "maintainer": "OTO",
+  "changelog": [
+    {
+      "release": 1,
+      "at": "2026-10-07",
+      "note": "Generalised out of ddd-kyc @2 (decided with Chiheb Dkhil, 2026-10-07): sits on software-architecture and product, so the product's personas, roles, requirements, scenarios, policies, terms, decisions and open questions serve and the estate's team and component carry a context. The event-storming policy is Reaction. 24 questions, a sample on the payments platform."
+    }
+  ]
+}

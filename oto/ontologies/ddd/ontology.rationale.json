@@ -1,0 +1,121 @@
+{
+  "_about": "Why each class and relation exists, and who confirmed it. Generalised from `ddd-kyc` @2 on 2026-10-07; the product-level classes it carried are the product's now. `validated_by` is empty until a person who knows the domain has confirmed the entry.",
+  "classes": {
+    "UseCase": {
+      "question": "Q2, Q3, Q24. Which use cases exist, who performs each, which commands does each issue, and is it ready to build?",
+      "why": "The unit the builder plans from. It links an actor, a goal, the commands issued and the scenarios that prove it, and carries readiness.",
+      "alternatives": "User stories as the unit; rejected in favour of use case plus scenario, so acceptance cases are their own nodes and become tests.",
+      "validated_by": ""
+    },
+    "Subdomain": {
+      "question": "Q4. Which subdomains does the product have, which are core, supporting or generic, and which contexts implement each?",
+      "why": "The problem-space partition. Its kind is an enum attribute so a reclassification is a dated supersession rather than a change of class.",
+      "alternatives": "Three classes, one per kind; rejected because reclassifying would mean changing a node's class.",
+      "validated_by": ""
+    },
+    "BoundedContext": {
+      "question": "Q5, Q19, Q23. Which contexts exist, what is each responsible for, who owns it, what architecture does it use, and what must the builder produce for it?",
+      "why": "The central boundary of DDD: one model, one language, one team, one deployment unit. Everything the builder produces for a context is reachable from it through part_of.",
+      "alternatives": "Merging with Subdomain; rejected because one subdomain can be implemented by several contexts and the two are populated by different people.",
+      "validated_by": ""
+    },
+    "ContextRelationship": {
+      "question": "Q6. How do two contexts relate: which pattern, which side is upstream, what mechanism carries the integration?",
+      "why": "It carries a pattern, an upstream side and a mechanism. A Mex edge is only from, relation and to, so a relationship with data on it has to be a node.",
+      "alternatives": "A plain depends_on edge between contexts; rejected because the builder could not then know whether to generate an anti-corruption layer or a published language.",
+      "validated_by": ""
+    },
+    "DomainEvent": {
+      "question": "Q8, Q13, Q25. Which events occur, which command raises each, in what order, and who consumes them?",
+      "why": "The orange sticky of event storming. It carries a payload, is ordered by precedes, and its consumers are derived, which is how an event shape change is assessed.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "Command": {
+      "question": "Q8, Q9, Q25. Which command raises each event, what triggers it, and what is its shape?",
+      "why": "The blue sticky. It carries a payload and a trigger kind, and is handled by exactly one aggregate or domain service. A timer trigger is an attribute rather than a class because a timer has no other relationships.",
+      "alternatives": "A Timer class for scheduled triggers; rejected because no question asks about timers as things.",
+      "validated_by": ""
+    },
+    "Reaction": {
+      "question": "Whenever this happens, what must then be commanded?",
+      "why": "The event-storming policy: the automation between an event and the next command. Named Reaction because the product's Policy is a rule imposed from outside, and a project composes both.",
+      "alternatives": "Keeping the name Policy: rejected 2026-10-07 because it would shadow the product's Policy in every project that designs a product.",
+      "validated_by": ""
+    },
+    "ReadModel": {
+      "question": "Q11. Which read model does an actor consult before issuing a command?",
+      "why": "The green sticky. The builder generates a projection from the events it is projected from, and a query the actor reads.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "ExternalSystem": {
+      "question": "Q12. Which external systems send or receive events, and through which context?",
+      "why": "The pink sticky. The builder generates integration code from what it sends and receives, and the owning context is where that code lives.",
+      "alternatives": "Modelling an external system as a BoundedContext; rejected because it has no model, language, team or aggregates of ours.",
+      "validated_by": ""
+    },
+    "Aggregate": {
+      "question": "Q15, Q17, Q24. Which aggregates live in a context, which is the root, which rules does each enforce, and is it ready to build?",
+      "why": "The consistency boundary. It handles commands, emits events, enforces rules and has exactly one root entity. Its repository and factory are derived attributes, not classes.",
+      "alternatives": "Merging Aggregate into Entity with a root flag; rejected because the aggregate is a boundary and the entity is a thing, and two people would populate them differently.",
+      "validated_by": ""
+    },
+    "Entity": {
+      "question": "Q15, Q16. Which entities make up an aggregate, and which fields with types and constraints does each carry?",
+      "why": "A thing with identity. Fields are a typed list attribute, enough for the builder to generate a class without a node per field.",
+      "alternatives": "A Field class; rejected because no question needs a field's own history.",
+      "validated_by": ""
+    },
+    "ValueObject": {
+      "question": "Q15, Q16. Which value objects make up an aggregate, and which fields does each carry?",
+      "why": "Defined only by its values and immutable. Kept apart from Entity because the builder generates the two differently, with equality by value and no identity.",
+      "alternatives": "An Entity with an is_value flag; rejected because the builder's treatment differs in kind.",
+      "validated_by": ""
+    },
+    "BusinessRule": {
+      "question": "Q17. Which rules and invariants does an aggregate enforce, and which commands, policies or use cases depend on them?",
+      "why": "A rule is cited from several places and is superseded with a reason, so it needs identity and history.",
+      "alternatives": "A list attribute on Aggregate; rejected because a rule could not then be referenced from a command or a use case.",
+      "validated_by": ""
+    },
+    "DomainService": {
+      "question": "Q18. Which domain services exist in a context, and what does each operate on?",
+      "why": "Logic that belongs to no single aggregate. It can also handle a command, which is why handled_by ranges over it.",
+      "alternatives": "Application services, repositories and factories as classes; rejected by agreement, since they are one per command or per aggregate and are derived as attributes instead.",
+      "validated_by": ""
+    }
+  },
+  "properties": {
+    "performed_by": {
+      "validated_by": "",
+      "alternatives": "",
+      "question": "Who performs this use case?",
+      "why": "The product's personas and roles are the actors; a separate Actor would be the same people twice."
+    },
+    "realised_in": {
+      "validated_by": "",
+      "alternatives": "",
+      "question": "Which context carries this subdomain's model?",
+      "why": "Named realised_in, not implemented_by: the estate's implemented_by is a component to its repository."
+    },
+    "deployed_as": {
+      "validated_by": "",
+      "alternatives": "",
+      "question": "Which component of the estate runs this context?",
+      "why": "The one edge from the model to the estate: a context is a unit of ownership and deployment, and the component is where it runs."
+    },
+    "listens_to": {
+      "validated_by": "",
+      "alternatives": "",
+      "question": "Which contexts consume this event?",
+      "why": "Derived from reactions and read models; named listens_to because the estate's consumes is a component to an interface."
+    },
+    "names": {
+      "validated_by": "",
+      "alternatives": "",
+      "question": "What does this term of the ubiquitous language refer to?",
+      "why": "The product's Term, scoped to a context by part_of and pointed at the model element it names."
+    }
+  }
+}

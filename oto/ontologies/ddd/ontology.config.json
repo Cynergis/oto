@@ -1,0 +1,383 @@
+{
+  "_about": "Domain-Driven Design of a product's solution, for a builder agent: the subdomains and bounded contexts, the context map, the use cases, the event-storming elements (events, commands, reactions, read models, external systems) and the tactical model (aggregates, entities, value objects, rules, services). Sits on `software-architecture` and so on `product`: the product, its personas, roles, requirements, scenarios, policies, terms, decisions and open questions are the product's; the team and the component that carry a context are the estate's. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
+  "_summary": "Domain-Driven Design of a product's solution: subdomains, bounded contexts and their map, use cases, events, commands, reactions, read models, external systems, aggregates, entities, value objects, business rules, domain services; what each satisfies, who owns it, and whether the builder may build it.",
+  "name": "Domain-driven design",
+  "ontology_version": 1,
+  "strict_domains": false,
+  "languages": [
+    "en"
+  ],
+  "classes": {
+    "UseCase": {
+      "definition": "Something a persona or a role does with the product to reach a purpose. The unit the builder plans from; it issues commands, satisfies requirements and is proved by scenarios."
+    },
+    "Subdomain": {
+      "definition": "A part of the business problem: core, supporting or generic. Implemented by one or more bounded contexts."
+    },
+    "BoundedContext": {
+      "definition": "A boundary inside which one model and one language apply. The unit of ownership, architecture and deployment."
+    },
+    "ContextRelationship": {
+      "definition": "How two bounded contexts relate on the context map: the DDD pattern, which side is upstream, and the mechanism that carries the integration."
+    },
+    "DomainEvent": {
+      "definition": "Something that happened in the domain that the business cares about, past tense, with a payload. The orange sticky."
+    },
+    "Command": {
+      "definition": "An intent to change the domain, imperative, with a payload. Raised by an actor, a policy, a timer or an external system, and handled by an aggregate or a domain service. The blue sticky.",
+      "requires": [
+        "handled_by"
+      ]
+    },
+    "Reaction": {
+      "definition": "A reaction: whenever this event, then that command. The lilac sticky of event storming (its 'policy'); named Reaction because the product's Policy is a rule imposed from outside. Includes sagas and process managers."
+    },
+    "ReadModel": {
+      "definition": "The information an actor needs before issuing a command, projected from events. The green sticky."
+    },
+    "ExternalSystem": {
+      "definition": "A system outside the product that sends commands or events in, or receives events out. The pink sticky."
+    },
+    "Aggregate": {
+      "definition": "A cluster of entities and value objects with one root and one consistency boundary. Handles commands and emits events.",
+      "requires": [
+        "root"
+      ]
+    },
+    "Entity": {
+      "definition": "A thing with identity that persists through change, carrying typed fields."
+    },
+    "ValueObject": {
+      "definition": "A thing defined only by its values, immutable, carrying typed fields."
+    },
+    "BusinessRule": {
+      "definition": "An invariant, precondition, postcondition or constraint the domain enforces, cited by the aggregates, commands and use cases it binds. Distinct from the product's Policy, a rule imposed from outside; a policy may require a business rule."
+    },
+    "DomainService": {
+      "definition": "Domain logic that belongs to no single aggregate, stateless, operating on aggregates and values."
+    }
+  },
+  "properties": {
+    "performed_by": {
+      "domain": "UseCase",
+      "range": "Persona|Role",
+      "definition": "The persona or role that carries out the use case.",
+      "inverse": "performs"
+    },
+    "issues": {
+      "domain": "UseCase|Reaction",
+      "range": "Command",
+      "definition": "The command this use case or reaction sends into the domain.",
+      "inverse": "issued_by"
+    },
+    "satisfies": {
+      "domain": "System|Component|Interface|UseCase",
+      "range": "Requirement",
+      "definition": "The requirement of the product this asset meets. The trace from the design back to the specification: a requirement nothing satisfies is open design work. Widened to the design: a use case satisfies a requirement.",
+      "inverse": "satisfied_by"
+    },
+    "serves": {
+      "domain": "Requirement|UserJourney|Feature|ValueProposition|UseCase|BoundedContext|Subdomain",
+      "range": "ValueProposition|Objective",
+      "inverse": "served_by",
+      "definition": "The purpose this exists for: a requirement, journey or feature serves a value proposition; a value proposition serves an objective. The traceability spine an agent walks from a requirement up to the strategy. Widened to the design: the purpose that justifies a use case, a context or a subdomain."
+    },
+    "exercises": {
+      "domain": "Scenario",
+      "range": "Requirement|JourneyStep|UseCase",
+      "inverse": "exercised_by",
+      "definition": "The requirement or step a scenario is a concrete path through. Widened to the design: a scenario is an acceptance case of a use case."
+    },
+    "realised_in": {
+      "domain": "Subdomain",
+      "range": "BoundedContext",
+      "definition": "The bounded context that carries the model for this subdomain.",
+      "inverse": "realises_subdomain"
+    },
+    "owned_by": {
+      "domain": "Product|Objective|Feature|SuccessCriterion|Risk|Requirement|Release|System|Component|Interface|DataStore|Capability|BoundedContext",
+      "range": "Role|Team",
+      "inverse": "owns",
+      "definition": "The role accountable for this. Ownership sits on a role, not a person, so it survives people moving. Widened to the estate: an asset or a capability is owned by a team. Widened to the design: a bounded context is owned by a team."
+    },
+    "between": {
+      "domain": "ContextRelationship",
+      "range": "BoundedContext",
+      "definition": "One of the two contexts this relationship connects. Every relationship has exactly two.",
+      "inverse": "related_through",
+      "min": 2,
+      "max": 2
+    },
+    "upstream": {
+      "domain": "ContextRelationship",
+      "range": "BoundedContext",
+      "definition": "The context whose model the other side conforms to or translates from; absent for a partnership.",
+      "inverse": "upstream_in",
+      "max": 1
+    },
+    "part_of": {
+      "domain": "Feature|JourneyStep|Component|Interface|DataStore|UseCase|DomainEvent|Command|Reaction|ReadModel|Aggregate|DomainService|BusinessRule|Term",
+      "range": "Product|Feature|UserJourney|System|BoundedContext",
+      "inverse": "contains",
+      "definition": "This belongs to that: a feature to its product or parent feature, a step to its journey. Widened to the estate: a component, interface or store belongs to one system. Widened to the design: everything the builder produces for a context is part of it; a term's meaning holds in one context.",
+      "max": 1
+    },
+    "names": {
+      "domain": "Term",
+      "range": "Entity|ValueObject|Aggregate|DomainEvent|Command|Reaction|ReadModel|BusinessRule|BoundedContext|Subdomain|UseCase",
+      "definition": "The model element this term of the ubiquitous language refers to.",
+      "inverse": "named_by"
+    },
+    "raises": {
+      "domain": "Command",
+      "range": "DomainEvent",
+      "definition": "The event that results when this command succeeds.",
+      "inverse": "raised_by"
+    },
+    "handled_by": {
+      "domain": "Command",
+      "range": "Aggregate|DomainService",
+      "definition": "The aggregate or domain service that executes this command.",
+      "inverse": "handles"
+    },
+    "triggered_by": {
+      "domain": "Command",
+      "range": "Persona|Role|Reaction|ExternalSystem",
+      "definition": "What starts this command. A timer is recorded as trigger_kind with a schedule, not as a node.",
+      "inverse": "triggers"
+    },
+    "reacts_to": {
+      "domain": "Reaction",
+      "range": "DomainEvent",
+      "definition": "The event that fires this reaction.",
+      "inverse": "fires"
+    },
+    "projected_from": {
+      "domain": "ReadModel",
+      "range": "DomainEvent",
+      "definition": "An event whose payload this read model is built from.",
+      "inverse": "projected_into"
+    },
+    "consulted_by": {
+      "domain": "ReadModel",
+      "range": "Persona|Role",
+      "definition": "The persona or role that reads this model to decide.",
+      "inverse": "consults"
+    },
+    "informs": {
+      "domain": "ReadModel",
+      "range": "Command",
+      "definition": "The command issued after reading this model.",
+      "inverse": "informed_by"
+    },
+    "sends": {
+      "domain": "ExternalSystem",
+      "range": "Command|DomainEvent",
+      "definition": "A command or event that enters the product from this external system.",
+      "inverse": "sent_by"
+    },
+    "receives": {
+      "domain": "ExternalSystem",
+      "range": "DomainEvent",
+      "definition": "An event the product publishes to this external system.",
+      "inverse": "received_by"
+    },
+    "integrated_by": {
+      "domain": "ExternalSystem",
+      "range": "BoundedContext",
+      "definition": "The context that owns the integration with this external system.",
+      "inverse": "integrates"
+    },
+    "precedes": {
+      "domain": "DomainEvent",
+      "range": "DomainEvent",
+      "definition": "This event comes before that one in the big-picture flow.",
+      "inverse": "follows"
+    },
+    "about": {
+      "domain": "Decision|OpenQuestion",
+      "range": "Product|ValueProposition|Objective|SuccessCriterion|Requirement|Release|Feature|UserJourney|JourneyStep|Scenario|Constraint|Policy|Risk|Persona|System|Component|Interface|DataStore|UseCase|Subdomain|BoundedContext|ContextRelationship|DomainEvent|Command|Reaction|ReadModel|ExternalSystem|Aggregate|Entity|ValueObject|BusinessRule|DomainService",
+      "inverse": "subject_of",
+      "definition": "What a decision settles, or what an open question concerns. Widened to the estate: a decision that shaped an asset, an open question on one. Widened to the design: a decision that shaped an element, an open question (a hotspot) raised on one."
+    },
+    "root": {
+      "domain": "Aggregate",
+      "range": "Entity",
+      "definition": "The entity through which every change to the aggregate goes.",
+      "inverse": "root_of",
+      "max": 1
+    },
+    "composed_of": {
+      "domain": "Aggregate|Entity",
+      "range": "Entity|ValueObject",
+      "definition": "A part held inside this aggregate or entity.",
+      "inverse": "component_of"
+    },
+    "references": {
+      "domain": "Aggregate",
+      "range": "Aggregate",
+      "definition": "This aggregate holds the identity of that one, never the object.",
+      "inverse": "referenced_by"
+    },
+    "constrained_by": {
+      "domain": "Aggregate|Command|Reaction|UseCase|DomainService",
+      "range": "BusinessRule",
+      "definition": "A rule this element must respect. The builder enforces it where the element lives.",
+      "inverse": "constrains_element"
+    },
+    "operates_on": {
+      "domain": "DomainService",
+      "range": "Aggregate|Entity|ValueObject",
+      "definition": "What this domain service works with.",
+      "inverse": "operated_on_by"
+    },
+    "emitted_by": {
+      "domain": "DomainEvent",
+      "range": "Aggregate",
+      "definition": "The aggregate that publishes this event. Derived from the command that raises it.",
+      "inverse": "emits"
+    },
+    "listens_to": {
+      "domain": "BoundedContext",
+      "range": "DomainEvent",
+      "definition": "A context that reacts to or projects this event. Derived from its reactions and read models.",
+      "inverse": "heard_by"
+    },
+    "applies_to": {
+      "domain": "Policy",
+      "range": "Product|Requirement|Release|Feature|Decision|BoundedContext|BusinessRule|UseCase",
+      "inverse": "governed_by",
+      "definition": "What a policy prescribes behaviour for. The governance edge: from here, enforced_by says who enforces it. Widened to the design: a policy from outside applies to a context, requires a business rule, binds a use case."
+    },
+    "deployed_as": {
+      "domain": "BoundedContext",
+      "range": "System|Component",
+      "definition": "The system or component of the estate that carries this context at runtime.",
+      "inverse": "carries"
+    },
+    "documented_in": {
+      "domain": "Product|Role|Persona|ValueProposition|Objective|SuccessCriterion|Requirement|Release|Feature|UserJourney|JourneyStep|Scenario|Constraint|Policy|Assumption|Risk|Decision|OpenQuestion|Term|System|Component|Interface|DataStore|Runbook|UseCase|Subdomain|BoundedContext|ContextRelationship|DomainEvent|Command|Reaction|ReadModel|ExternalSystem|Aggregate|Entity|ValueObject|BusinessRule|DomainService",
+      "range": "Document",
+      "inverse": "documents",
+      "definition": "The artifact that formally specifies this: a brief, a PRD, a UX spec. Distinct from source_doc, which is provenance: the document that introduced the fact into the graph, possibly a transcript. Widened to the estate: a design, a review, a standard. Widened to the design: a storming session, a model, a design note."
+    }
+  },
+  "attributes": {
+    "UseCase": {
+      "readiness": {
+        "type": "enum:draft|ready|built",
+        "definition": "Whether the builder may implement this yet."
+      }
+    },
+    "Subdomain": {
+      "kind": {
+        "type": "enum:core|supporting|generic",
+        "definition": "Core is where the product competes; supporting is needed but not differentiating; generic can be bought."
+      }
+    },
+    "BoundedContext": {
+      "architecture_style": {
+        "type": "list",
+        "definition": "Styles the context follows: hexagonal, layered, cqrs, event_sourcing, modular_monolith, and so on."
+      },
+      "stack": {
+        "type": "list",
+        "definition": "Languages, frameworks and infrastructure the builder must use."
+      },
+      "deployment_unit": {
+        "type": "string",
+        "definition": "How the context is deployed: a service name, a module in a monolith, a function group."
+      },
+      "readiness": {
+        "type": "enum:draft|ready|built",
+        "definition": "Whether the builder may implement this context yet."
+      }
+    },
+    "ContextRelationship": {
+      "pattern": {
+        "type": "enum:partnership|shared_kernel|customer_supplier|conformist|anticorruption_layer|open_host_service|published_language|separate_ways",
+        "definition": "The DDD context-map pattern."
+      },
+      "mechanism": {
+        "type": "enum:rest|messaging|grpc|graphql|shared_database|file_transfer|library|other",
+        "definition": "What carries the integration at runtime."
+      }
+    },
+    "DomainEvent": {
+      "payload": {
+        "type": "list",
+        "definition": "Fields the event carries, each as name, type and meaning."
+      }
+    },
+    "Command": {
+      "payload": {
+        "type": "list",
+        "definition": "Fields the command carries, each as name, type and meaning."
+      },
+      "trigger_kind": {
+        "type": "enum:actor|policy|timer|external_system",
+        "definition": "What kind of thing starts this command."
+      },
+      "schedule": {
+        "type": "string",
+        "definition": "For a timer trigger: when it fires, as a cron expression or in words."
+      },
+      "handler": {
+        "type": "enum:application_service|none|custom",
+        "definition": "How the command reaches its aggregate. Derived as application_service for every command; state a value to override."
+      },
+      "readiness": {
+        "type": "enum:draft|ready|built",
+        "definition": "Whether the builder may implement this command yet."
+      }
+    },
+    "Reaction": {
+      "condition": {
+        "type": "string",
+        "definition": "When the reaction fires, beyond the event itself: a guard in words."
+      }
+    },
+    "ReadModel": {
+      "fields": {
+        "type": "list",
+        "definition": "Fields the model exposes, each as name, type and meaning."
+      }
+    },
+    "Aggregate": {
+      "readiness": {
+        "type": "enum:draft|ready|built",
+        "definition": "Whether the builder may implement this aggregate yet."
+      },
+      "persistence": {
+        "type": "enum:repository|none|custom",
+        "definition": "How the aggregate is stored and loaded. Derived as repository for every aggregate; state a value to override."
+      },
+      "construction": {
+        "type": "enum:factory|constructor|custom",
+        "definition": "How the aggregate is created. Derived as factory for every aggregate; state a value to override."
+      }
+    },
+    "Entity": {
+      "fields": {
+        "type": "list",
+        "definition": "Fields the entity carries, each as name, type and constraints."
+      }
+    },
+    "ValueObject": {
+      "fields": {
+        "type": "list",
+        "definition": "Fields the value object carries, each as name, type and constraints."
+      }
+    },
+    "BusinessRule": {
+      "kind": {
+        "type": "enum:invariant|precondition|postcondition|constraint",
+        "definition": "Invariant always holds; precondition before a command; postcondition after; constraint on a value."
+      },
+      "expression": {
+        "type": "string",
+        "definition": "The rule in a form the builder can implement, if one exists."
+      }
+    }
+  }
+}

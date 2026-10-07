@@ -39,6 +39,17 @@ def test_merge_unions_classes_and_reports_clashes():
     assert set(rationale["classes"]) >= set(config["classes"])
 
 
+def test_merge_widens_a_relation_two_parts_declare_differently():
+    """product-report and ddd both widen the product's `part_of` and `owned_by`; a merge keeps the union
+    of both signatures, as composition widens, so neither pack's facts are refused."""
+    config, _s, _r, _rat, report = ontologies.merge(["software-architecture", "ddd"])
+    assert ("part_of", "software-architecture", "ddd") in report["relation_clashes"]
+    domain = set(config["properties"]["part_of"]["domain"].split("|"))
+    assert {"Component", "Feature", "Aggregate", "Term"} <= domain
+    assert {"System", "BoundedContext", "Product"} <= set(config["properties"]["part_of"]["range"].split("|"))
+    assert config["properties"]["part_of"]["inverse"] == "contains", "the first part's inverse and definition are kept"
+
+
 def test_init_with_two_ontologies_builds(capsys):
     with tempfile.TemporaryDirectory() as root:
         init(root, name="Two", ontology="organization-process,auto-claims")

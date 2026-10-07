@@ -383,23 +383,25 @@ def test_init_records_a_built_in_ontology_and_a_merge(ontologies_dir):
         init(root, slug="a", name="A", ontology="software-architecture")
         record = json.load(open(os.path.join(root, "project.config.json"), encoding="utf-8"))["ontology"]
         assert record["name"] == "software-architecture" and record["origin"] == ontologies.BUILTIN
-        assert record["extends"] == ["oto-core"] and record["release"] >= 1
+        assert record["extends"] == ["oto-core", "product"] and record["release"] >= 1
     with tempfile.TemporaryDirectory() as root:
         init(root, slug="b", name="B", ontology="software-architecture,organization-process")
         record = json.load(open(os.path.join(root, "project.config.json"), encoding="utf-8"))["ontology"]
         assert record["source"] == "merge" and [p["name"] for p in record["parts"]] == ["software-architecture", "organization-process"]
-        assert all(p["extends"] == ["oto-core"] for p in record["parts"])
+        assert [p["extends"] for p in record["parts"]] == [["oto-core", "product"], ["oto-core"]]
 
 
 def test_the_shipped_ontologies_extend_oto_core_and_keep_their_vocabulary():
     """The split must not change what a project gets: every shipped ontology still declares
-    Document and the temporal fields, now inherited."""
+    Document and the temporal fields, now inherited. software-architecture sits on product,
+    which sits on the core."""
     assert "oto-core" in ontologies.available()
     core = ontologies.load_raw("oto-core")["config"]
     assert set(core["classes"]) == {"Document", "Action"} and "temporal" in core
-    for name in ("auto-claims", "organization-process", "professional-services", "software-architecture"):
+    for name in ("auto-claims", "organization-process", "professional-services", "product", "software-architecture"):
         raw = ontologies.load_raw(name)
-        assert raw["manifest"]["extends"] == ["oto-core"] and "temporal" not in raw["config"], name
+        assert raw["manifest"]["extends"] == (["product"] if name == "software-architecture" else ["oto-core"]), name
+        assert "temporal" not in raw["config"], name
         config, sample, _ = ontologies.load(name)
         assert "Document" in config["classes"] and config["temporal"] == core["temporal"], name
         assert "cites" in config["properties"]

@@ -1,1 +1,1 @@
-{"findings":[{"rule":"decision-is-documented","severity":"warn","node":"decision.single-ledger","message":"an architecture decision must cite the document that records it"}],"ledger":[]}
+{"findings":[{"rule":"decision-is-documented","severity":"warn","node":"decision.single-ledger","message":"a decision must cite the document that records it"}],"ledger":[]}

@@ -615,12 +615,18 @@ def _readme(name, config, rationale, source_name, confirmed):
     return "\n".join(lines)
 
 
-def export(project, name, to=None, from_graph=0, summary=None, force=False):
+def export(project, name, to=None, from_graph=None, summary=None, force=False, invented=False):
     """Write an ontology from a project's vocabulary. Returns (path, problems).
 
     Refuses when the rationale is incomplete: an ontology is the exemplar, and shipping one whose
-    classes have no recorded reason teaches that the reasoning is optional. Refuses a real-data
-    sample that the privacy scan blocks.
+    classes have no recorded reason teaches that the reasoning is optional.
+
+    The sample is the project's graph: every current node of a class the vocabulary declares and
+    the edges among them, privacy-scanned and refused when the scan blocks it; `from_graph` caps
+    it at N nodes, round-robin across classes. A project started from a pack therefore exports the
+    pack's sample it still holds. `invented`, or an empty graph, gives the synthetic sample: one
+    node per class and one edge per declared pair, which answers the questions but respects no
+    policy, so an ontology with shapes or policies should ship a real one.
     """
     from ..validate import privacy as _privacy
     from . import rationale as _rationale
@@ -658,17 +664,19 @@ def export(project, name, to=None, from_graph=0, summary=None, force=False):
             rationale[section][key] = copied
     confirmed = len(coverage["classes_validated"])
 
-    if from_graph:
+    graph = {}
+    if not invented and os.path.exists(project.graph_path):
         with open(project.graph_path, encoding="utf-8") as f:
             graph = json.load(f)
-        sample = sample_from_graph(graph, config, from_graph)
+    if any(n.get("status", "current") == "current" for n in graph.get("nodes") or []):
+        sample = sample_from_graph(graph, config, from_graph if from_graph else len(graph.get("nodes") or []))
         text = "\n".join(" ".join([str(n.get("label") or ""), str(n.get("summary") or ""),
                                     " ".join(n.get("aliases") or []), json.dumps(n.get("attributes") or {})])
                           for n in sample["nodes"])
         findings = _privacy.scan(text)
         if _privacy.blocking(findings):
             raise ValueError("the real-data sample contains personal data or a credential:\n%s\n"
-                             "Use the invented sample (omit --from-graph)." % _privacy.summarize(findings))
+                             "Use the invented sample (--invented)." % _privacy.summarize(findings))
     else:
         sample = synthetic_sample(config)
 
@@ -740,9 +748,11 @@ def _today():
 def merge(names):
     """Combine ontologies into one vocabulary. Returns (config, sample, readme, rationale, report).
 
-    The union of classes and relations, first ontology winning a name clash. The report lists
-    every clash so a person can see what was silently kept, and the totals, because two glued
-    ontologies are the fastest way to the forty-class model nobody owns. Prune before accepting.
+    The union of classes and relations, first ontology winning a class described twice; a relation
+    declared twice with different signatures is widened to the union of both, as composition
+    widens, so no part's facts are refused. The report lists every clash so a person can see what
+    was kept or widened, and the totals, because two glued ontologies are the fastest way to the
+    forty-class model nobody owns. Prune before accepting.
     """
     classes, properties, temporal, attributes, namespaces, schemes = {}, {}, {}, {}, {}, {}
     rationale = {"classes": {}, "properties": {}}
@@ -784,7 +794,12 @@ def merge(names):
         for relation, spec in (config.get("properties") or {}).items():
             if relation in properties and [properties[relation].get(k) for k in ("domain", "range")] \
                     != [spec.get(k) for k in ("domain", "range")]:
+                # two parts widened one relation (both sit on `product`, say): the merged relation is the
+                # union, as composition widens, so neither part's facts are refused; reported
                 report["relation_clashes"].append((relation, owner[relation], name))
+                for label in ("domain", "range"):
+                    declared = _compose._declared(properties[relation].get(label))
+                    properties[relation][label] = "|".join(declared + [c for c in _compose._declared(spec.get(label)) if c not in declared])
             properties.setdefault(relation, dict(spec))
             owner.setdefault(relation, name)
         for field, spec in (config.get("temporal") or {}).items():

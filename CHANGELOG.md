@@ -4,6 +4,32 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.9.0 — 2026-10-07
+
+**The design level** (stage 3 of the programme, B4). Three shipped ontologies now form one chain:
+`product` @8 ships with the engine (it was a user pack); `software-architecture` @9 sits on it,
+dropping its own Requirement, Risk, Document and DecisionRecord for the product's and widening
+`part_of`, `owned_by`, `about`, `threatens`, `mitigated_by` and `documented_in` to the estate
+(`supports` is `enables`; SA17 asks which requirements nothing satisfies yet); `ddd` @1,
+generalised out of `ddd-kyc`, sits on `software-architecture`: subdomains, bounded contexts and
+their map, use cases, events, commands, reactions, read models, external systems, aggregates,
+entities, value objects, business rules, domain services, with `deployed_as` from a context to a
+component and `satisfies` from a use case to a requirement. The event-storming policy is
+`Reaction`, because the product's `Policy` is a rule from outside. Decided with Chiheb Dkhil.
+
+**A merge widens.** Two packs that widen the same relation of a shared base (`product-report` and
+`ddd` both widen `part_of`) merge to the union of both signatures, as composition widens, and the
+clash is reported; before, the first declaration won and the second pack's facts were refused.
+
+**An export ships the graph.** `oto ontology export` and `publish` take the project's graph as the
+sample (privacy-scanned, `--from-graph N` to cap it); `--invented` gives the synthetic one, which
+answers the questions but respects no policy. A project started from a pack therefore exports
+the pack's sample it still holds.
+
+**Also.** A shipped ontology may carry a confirmation that names the person and the day; the
+product's `risk-reaches-product` is typed to the feature and the product, so the estate's
+`risk-reaches-system` derives its own hop; the `product` domain is known to the engine.
+
 ## 0.8.3 — 2026-10-07
 
 **A capture names its scope.** A document's ids (`FR1`, `P1`) are unique in the document, not in

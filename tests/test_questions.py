@@ -34,7 +34,7 @@ QUESTIONS = {
     "CQ2": {"who": "an architect",
             "question": "Which data stores have no recorded decision behind them?",
             "why": "A store nobody decided on is a store nobody can retire.",
-            "ask": {"when": [{"node": "d", "type": "DataStore"}, {"not_edge": ["d", "decided_by", "*"]}],
+            "ask": {"when": [{"node": "d", "type": "DataStore"}, {"not_edge": ["*", "about", "d"]}],
                     "select": ["d"]},
             "gate": "empty"},
     "CQ3": {"who": "a risk owner",
@@ -122,7 +122,7 @@ def test_an_empty_answer_is_explained_by_the_gaps_query_and_the_gate_decides_wha
     # an `empty` gate: nothing matching is the good outcome, a row is a violation
     clean = Q.run("CQ2", QUESTIONS["CQ2"], {}, graph["nodes"], graph["edges"], cov)
     assert clean["status"] == "clean" and clean["rows"] == []
-    edges = [e for e in graph["edges"] if e["rel"] != "decided_by"]
+    edges = [e for e in graph["edges"] if e["rel"] != "about"]
     violated = Q.run("CQ2", QUESTIONS["CQ2"], {}, graph["nodes"], edges, cov)
     assert violated["status"] == "violated" and violated["rows"] == [{"d": "datastore.ledger"}]
     # a class pattern covers the kinds of it, so Asset finds the DataStore the risk threatens

@@ -1,0 +1,1103 @@
+{
+  "_about": "What this ontology exists to answer. Each question runs over the graph in the pattern language of rules.json; `gate` says what an empty answer means; `gaps` says why it is empty; `terms` names the vocabulary the question covers. Reasoned about in `why`, confirmed in `validated_by`.",
+  "questions": {
+    "DD1": {
+      "who": "an architect",
+      "question": "Which subdomains does the product have, of what kind, and which contexts realise each?",
+      "why": "The strategic map: core, supporting and generic, each carried by one or more contexts. The first thing a builder needs.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "s",
+            "type": "Subdomain"
+          },
+          {
+            "edge": [
+              "s",
+              "realised_in",
+              "bc"
+            ]
+          },
+          {
+            "node": "bc",
+            "type": "BoundedContext"
+          }
+        ],
+        "select": [
+          "s.label",
+          "s.kind",
+          "bc.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": [
+        {
+          "when": [
+            {
+              "node": "s",
+              "type": "Subdomain"
+            },
+            {
+              "not_edge": [
+                "s",
+                "realised_in",
+                "*"
+              ]
+            }
+          ],
+          "say": "a subdomain no context realises"
+        }
+      ]
+    },
+    "DD2": {
+      "who": "an architect",
+      "question": "What is context $CONTEXT: which team owns it, which component carries it, its architecture style, stack, deployment unit and readiness?",
+      "why": "A context is the unit of ownership, architecture and delivery; the team and the component are the estate's.",
+      "validated_by": "",
+      "params": {
+        "CONTEXT": {
+          "type": "BoundedContext"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$CONTEXT",
+              "owned_by",
+              "t"
+            ]
+          },
+          {
+            "node": "t",
+            "type": "Team"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$CONTEXT",
+                  "deployed_as",
+                  "c"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "t.label",
+          "c.label",
+          "$CONTEXT.architecture_style",
+          "$CONTEXT.stack",
+          "$CONTEXT.deployment_unit",
+          "$CONTEXT.readiness"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$CONTEXT",
+              "owned_by",
+              "*"
+            ]
+          }
+        ],
+        "say": "no team owns the context"
+      }
+    },
+    "DD3": {
+      "who": "an architect",
+      "question": "How do the contexts relate on the map: each relationship, between which contexts, which side is upstream, by what pattern and mechanism?",
+      "why": "The context map is where integration cost lives; the pattern says who conforms to whom.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "r",
+            "type": "ContextRelationship"
+          },
+          {
+            "edge": [
+              "r",
+              "between",
+              "bc"
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "r",
+                  "upstream",
+                  "up"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "r.label",
+          "r.pattern",
+          "r.mechanism",
+          "bc.label",
+          "up.label"
+        ]
+      },
+      "gate": "non_empty"
+    },
+    "DD4": {
+      "who": "a builder",
+      "question": "What is use case $USECASE: who performs it, which commands does it issue, in which context does it live, which requirement does it satisfy, and is it ready?",
+      "why": "The use case is the unit the builder plans from; its requirement is the trace back to the specification.",
+      "validated_by": "",
+      "params": {
+        "USECASE": {
+          "type": "UseCase"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$USECASE",
+              "performed_by",
+              "a"
+            ]
+          },
+          {
+            "edge": [
+              "$USECASE",
+              "part_of",
+              "bc"
+            ]
+          },
+          {
+            "node": "bc",
+            "type": "BoundedContext"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$USECASE",
+                  "issues",
+                  "c"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$USECASE",
+                  "satisfies",
+                  "r"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "a.label",
+          "a.type",
+          "c.label",
+          "bc.label",
+          "r.label",
+          "$USECASE.readiness"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": [
+        {
+          "when": [
+            {
+              "not_edge": [
+                "$USECASE",
+                "performed_by",
+                "*"
+              ]
+            }
+          ],
+          "say": "nobody performs it"
+        },
+        {
+          "when": [
+            {
+              "not_edge": [
+                "$USECASE",
+                "part_of",
+                "*"
+              ]
+            }
+          ],
+          "say": "it lives in no context"
+        }
+      ]
+    },
+    "DD5": {
+      "who": "a builder",
+      "question": "What are the acceptance scenarios of $USECASE: given, when, then?",
+      "why": "A scenario becomes a test; a use case without one is built against nobody's expectation.",
+      "validated_by": "",
+      "params": {
+        "USECASE": {
+          "type": "UseCase"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "s",
+              "exercises",
+              "$USECASE"
+            ]
+          },
+          {
+            "node": "s",
+            "type": "Scenario"
+          }
+        ],
+        "select": [
+          "s.label",
+          "s.given",
+          "s.when",
+          "s.then"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "exercises",
+              "$USECASE"
+            ]
+          }
+        ],
+        "say": "no scenario exercises it"
+      }
+    },
+    "DD6": {
+      "who": "anyone",
+      "question": "Which purpose justifies $THING: which value proposition or objective does it serve?",
+      "why": "A use case, context or subdomain nobody can justify is scope creep with a name.",
+      "validated_by": "",
+      "params": {
+        "THING": {
+          "type": "UseCase|BoundedContext|Subdomain"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$THING",
+              "serves",
+              "g"
+            ]
+          }
+        ],
+        "select": [
+          "g.label",
+          "g.type"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$THING",
+              "serves",
+              "*"
+            ]
+          }
+        ],
+        "say": "nothing justifies it"
+      }
+    },
+    "DD7": {
+      "who": "a builder",
+      "question": "What does term $TERM mean, in which context, and what does it name?",
+      "why": "The ubiquitous language: one word, one meaning, inside one context.",
+      "validated_by": "",
+      "params": {
+        "TERM": {
+          "type": "Term"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$TERM",
+              "part_of",
+              "bc"
+            ]
+          },
+          {
+            "node": "bc",
+            "type": "BoundedContext"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$TERM",
+                  "names",
+                  "x"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "$TERM.definition",
+          "bc.label",
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$TERM",
+              "part_of",
+              "*"
+            ]
+          }
+        ],
+        "say": "the term belongs to no context: a product-level word, or not yet scoped"
+      }
+    },
+    "DD8": {
+      "who": "a builder",
+      "question": "Which command raises event $EVENT, which aggregate emits it, and what is its payload?",
+      "why": "The event is the contract between contexts; the builder needs its origin and its shape.",
+      "validated_by": "",
+      "params": {
+        "EVENT": {
+          "type": "DomainEvent"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "c",
+              "raises",
+              "$EVENT"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "Command"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$EVENT",
+                  "emitted_by",
+                  "agg"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "c.label",
+          "agg.label",
+          "$EVENT.payload"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "raises",
+              "$EVENT"
+            ]
+          }
+        ],
+        "say": "no command raises it: an external event, or a gap"
+      }
+    },
+    "DD9": {
+      "who": "a builder",
+      "question": "Which event follows $EVENT in the big-picture flow?",
+      "why": "The storming timeline, kept so the flow stays readable after the stickies are gone.",
+      "validated_by": "",
+      "params": {
+        "EVENT": {
+          "type": "DomainEvent"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$EVENT",
+              "precedes",
+              "next"
+            ]
+          }
+        ],
+        "select": [
+          "next.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "DD10": {
+      "who": "an architect",
+      "question": "Which contexts listen to event $EVENT?",
+      "why": "Who is coupled to an event is who breaks when its payload changes.",
+      "validated_by": "",
+      "params": {
+        "EVENT": {
+          "type": "DomainEvent"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "ctx",
+              "listens_to",
+              "$EVENT"
+            ]
+          },
+          {
+            "node": "ctx",
+            "type": "BoundedContext"
+          }
+        ],
+        "select": [
+          "ctx.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "DD11": {
+      "who": "a builder",
+      "question": "What is command $COMMAND: what triggers it and how, its schedule, payload and handler, which aggregate or service handles it, and is it ready?",
+      "why": "A command's shape and handler are what the builder implements.",
+      "validated_by": "",
+      "params": {
+        "COMMAND": {
+          "type": "Command"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$COMMAND",
+              "handled_by",
+              "h"
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$COMMAND",
+                  "triggered_by",
+                  "t"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "t.label",
+          "t.type",
+          "$COMMAND.trigger_kind",
+          "$COMMAND.schedule",
+          "$COMMAND.payload",
+          "$COMMAND.handler",
+          "h.label",
+          "h.type",
+          "$COMMAND.readiness"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$COMMAND",
+              "handled_by",
+              "*"
+            ]
+          }
+        ],
+        "say": "nothing handles the command"
+      }
+    },
+    "DD12": {
+      "who": "a builder",
+      "question": "Which reactions fire on which events, under what condition, and which command does each issue?",
+      "why": "The automation of the domain: whenever this, then that. The lilac stickies, as facts.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "p",
+            "type": "Reaction"
+          },
+          {
+            "edge": [
+              "p",
+              "reacts_to",
+              "e"
+            ]
+          },
+          {
+            "edge": [
+              "p",
+              "issues",
+              "c"
+            ]
+          }
+        ],
+        "select": [
+          "p.label",
+          "p.condition",
+          "e.label",
+          "c.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "DD13": {
+      "who": "a builder",
+      "question": "Which read models does $ACTOR consult, with what fields, built from which events, before issuing which command?",
+      "why": "The green stickies: what a person needs to see before deciding.",
+      "validated_by": "",
+      "params": {
+        "ACTOR": {
+          "type": "Persona|Role"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "rm",
+              "consulted_by",
+              "$ACTOR"
+            ]
+          },
+          {
+            "node": "rm",
+            "type": "ReadModel"
+          },
+          {
+            "edge": [
+              "rm",
+              "projected_from",
+              "e"
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "rm",
+                  "informs",
+                  "c"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "rm.label",
+          "rm.fields",
+          "e.label",
+          "c.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "DD14": {
+      "who": "an architect",
+      "question": "Which external systems are integrated, through which context, and what does each send in or receive?",
+      "why": "The pink stickies: every boundary with the outside, owned by one context.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "x",
+            "type": "ExternalSystem"
+          },
+          {
+            "edge": [
+              "x",
+              "integrated_by",
+              "bc"
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "x",
+                  "sends",
+                  "sent"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "x",
+                  "receives",
+                  "got"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "x.label",
+          "bc.label",
+          "sent.label",
+          "got.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": [
+        {
+          "when": [
+            {
+              "node": "x",
+              "type": "ExternalSystem"
+            },
+            {
+              "not_edge": [
+                "x",
+                "integrated_by",
+                "*"
+              ]
+            }
+          ],
+          "say": "an external system no context owns the integration with"
+        }
+      ]
+    },
+    "DD15": {
+      "who": "a builder",
+      "question": "What is aggregate $AGGREGATE: its root entity, its parts, what it references, its persistence and construction, and its readiness?",
+      "why": "One root, one consistency boundary; the builder needs the parts and how it is persisted.",
+      "validated_by": "",
+      "params": {
+        "AGGREGATE": {
+          "type": "Aggregate"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$AGGREGATE",
+              "root",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Entity"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$AGGREGATE",
+                  "composed_of",
+                  "part"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$AGGREGATE",
+                  "references",
+                  "other"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "r.label",
+          "part.label",
+          "part.type",
+          "other.label",
+          "$AGGREGATE.persistence",
+          "$AGGREGATE.construction",
+          "$AGGREGATE.readiness"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$AGGREGATE",
+              "root",
+              "*"
+            ]
+          }
+        ],
+        "say": "no root entity: not an aggregate yet"
+      }
+    },
+    "DD16": {
+      "who": "a builder",
+      "question": "Which fields does $THING carry?",
+      "why": "Entities and value objects are typed fields; the builder writes them down.",
+      "validated_by": "",
+      "params": {
+        "THING": {
+          "type": "Entity|ValueObject"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "node": "$THING",
+            "type": "Entity|ValueObject"
+          }
+        ],
+        "select": [
+          "$THING.label",
+          "$THING.type",
+          "$THING.fields"
+        ]
+      },
+      "gate": "any"
+    },
+    "DD17": {
+      "who": "a builder",
+      "question": "Which business rules constrain $THING: of what kind, with what expression, and which policy from outside requires each?",
+      "why": "The invariants the builder enforces, traced to the policy that imposes them when there is one.",
+      "validated_by": "",
+      "params": {
+        "THING": {
+          "type": "Aggregate|Command|Reaction|UseCase|DomainService"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$THING",
+              "constrained_by",
+              "rule"
+            ]
+          },
+          {
+            "node": "rule",
+            "type": "BusinessRule"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "pol",
+                  "applies_to",
+                  "rule"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "rule.label",
+          "rule.kind",
+          "rule.expression",
+          "pol.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "DD18": {
+      "who": "an architect",
+      "question": "Which open questions are still open on which elements of the design?",
+      "why": "A hotspot is an open question raised on an element; open until a decision resolves it.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "h",
+            "type": "OpenQuestion",
+            "where": {
+              "state": "open"
+            }
+          },
+          {
+            "edge": [
+              "h",
+              "about",
+              "x"
+            ]
+          },
+          {
+            "node": "x",
+            "type": "UseCase|Subdomain|BoundedContext|ContextRelationship|DomainEvent|Command|Reaction|ReadModel|ExternalSystem|Aggregate|Entity|ValueObject|BusinessRule|DomainService"
+          }
+        ],
+        "select": [
+          "h.label",
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "any"
+    },
+    "DD19": {
+      "who": "anyone",
+      "question": "Why was $THING designed this way: which decision, its rationale, when?",
+      "why": "A design decision nobody can find is re-litigated; the product's Decision records it.",
+      "validated_by": "",
+      "params": {
+        "THING": {
+          "type": "UseCase|Subdomain|BoundedContext|ContextRelationship|DomainEvent|Command|Reaction|ReadModel|ExternalSystem|Aggregate|Entity|ValueObject|BusinessRule|DomainService"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "d",
+              "about",
+              "$THING"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Decision"
+          }
+        ],
+        "select": [
+          "d.label",
+          "d.rationale",
+          "d.decided_on"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "about",
+              "$THING"
+            ]
+          }
+        ],
+        "say": "no decision is recorded about it"
+      }
+    },
+    "DD20": {
+      "who": "a builder",
+      "question": "Which domain services live in context $CONTEXT, and what does each operate on?",
+      "why": "Logic that belongs to no aggregate still has to be written somewhere.",
+      "validated_by": "",
+      "params": {
+        "CONTEXT": {
+          "type": "BoundedContext"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "s",
+              "part_of",
+              "$CONTEXT"
+            ]
+          },
+          {
+            "node": "s",
+            "type": "DomainService"
+          },
+          {
+            "edge": [
+              "s",
+              "operates_on",
+              "x"
+            ]
+          }
+        ],
+        "select": [
+          "s.label",
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "any"
+    },
+    "DD21": {
+      "who": "compliance",
+      "question": "Which policies from outside apply to context $CONTEXT, and which use cases and rules do they bind?",
+      "why": "Regulation reaches the design through the product's policies; the builder must see them where they land.",
+      "validated_by": "",
+      "params": {
+        "CONTEXT": {
+          "type": "BoundedContext"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "pol",
+              "applies_to",
+              "$CONTEXT"
+            ]
+          },
+          {
+            "node": "pol",
+            "type": "Policy"
+          }
+        ],
+        "select": [
+          "pol.label",
+          "pol.kind",
+          "pol.authority"
+        ]
+      },
+      "gate": "any"
+    },
+    "DD22": {
+      "who": "a builder",
+      "question": "What must the builder produce for context $CONTEXT: everything that is part of it?",
+      "why": "The context's contents are the build order.",
+      "validated_by": "",
+      "params": {
+        "CONTEXT": {
+          "type": "BoundedContext"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "x",
+              "part_of",
+              "$CONTEXT"
+            ]
+          },
+          {
+            "node": "x",
+            "type": "UseCase|DomainEvent|Command|Reaction|ReadModel|Aggregate|DomainService|BusinessRule|Term"
+          }
+        ],
+        "select": [
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "part_of",
+              "$CONTEXT"
+            ]
+          }
+        ],
+        "say": "the context holds nothing yet"
+      }
+    },
+    "DD23": {
+      "who": "an architect",
+      "question": "Which contexts marked ready hold an aggregate or a command still in draft?",
+      "why": "A context is only as ready as its parts.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "bc",
+            "type": "BoundedContext",
+            "where": {
+              "readiness": {
+                "in": [
+                  "ready",
+                  "built"
+                ]
+              }
+            }
+          },
+          {
+            "edge": [
+              "a",
+              "part_of",
+              "bc"
+            ]
+          },
+          {
+            "node": "a",
+            "type": "Aggregate|Command",
+            "where": {
+              "readiness": "draft"
+            }
+          }
+        ],
+        "select": [
+          "bc.label",
+          "a.label",
+          "a.type"
+        ]
+      },
+      "gate": "empty"
+    },
+    "DD24": {
+      "who": "an architect",
+      "question": "Which use cases satisfy no requirement of the product?",
+      "why": "A use case without a requirement is behaviour nobody asked for; the trace from the design back to the specification (SA17 reads it the other way).",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "u",
+            "type": "UseCase"
+          },
+          {
+            "not_edge": [
+              "u",
+              "satisfies",
+              "*"
+            ]
+          }
+        ],
+        "select": [
+          "u.label",
+          "u.readiness"
+        ]
+      },
+      "gate": "empty"
+    }
+  }
+}

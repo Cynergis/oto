@@ -15,4 +15,4 @@ The package follows the life of a project, and so does docs/ARCHITECTURE.md:
     cli/           one module per command
     ontologies/     the starter vocabularies `oto init --ontology` installs
 """
-__version__ = "0.8.3"
+__version__ = "0.9.0"

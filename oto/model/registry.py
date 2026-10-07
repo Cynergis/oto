@@ -456,8 +456,8 @@ def _refresh_cached(to):
     return cached
 
 
-def publish(to, project=None, ontology=None, name=None, summary=None, from_graph=0, note=None, ref=None,
-            registry_name=None, engine=None):
+def publish(to, project=None, ontology=None, name=None, summary=None, from_graph=None, note=None, ref=None,
+            registry_name=None, engine=None, invented=False):
     """Publish an ontology into a registry: from a project (exported) or from an ontology on this
     machine. Bumps the release, appends the changelog, regenerates the index, tags and pushes.
     Refuses on any self-check or publishability problem, and pushes nothing then."""
@@ -487,7 +487,8 @@ def publish(to, project=None, ontology=None, name=None, summary=None, from_graph
         else:
             if not name:
                 raise ProjectError("publish needs --name <ontology-name> when exporting a project")
-            dest, _problems = _ontologies.export(project, name, to=work, from_graph=from_graph, summary=summary, force=True)
+            dest, _problems = _ontologies.export(project, name, to=work, from_graph=from_graph, summary=summary, force=True,
+                                                 invented=invented)
 
         manifest = _strip_provenance(_ontologies.manifest_dir(dest))
         manifest["name"] = name

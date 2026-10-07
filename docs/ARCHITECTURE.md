@@ -380,8 +380,14 @@ A term no part claims is the project's own and lives under the project's namespa
 `<namespace>ont/`, beside its instances under `<namespace>id/`. `oto ontology export` gives the
 new ontology that same namespace, so a term keeps the IRI it already had.
 
-The four shipped ontologies extend `oto-core`, which holds the temporal fields and `Document`,
-the class every fact cites. `oto ontology show <name>` prints an ontology's manifest, its
+The shipped ontologies extend `oto-core`, which holds the temporal fields and `Document`, the
+class every fact cites. Three of them form one chain, the levels of a product's knowledge:
+`product` (what it must do, for whom, why) → `software-architecture` (the estate that satisfies
+it) → `ddd` (the model the builder works from). A pack sits on the level below it and widens
+its relations (`part_of`, `owned_by`, `about`, `satisfies`, `serves`) rather than redeclaring
+its classes, so a project composing `product-report` and `ddd` has one `Requirement`, one
+`Decision`, one `Team`; where two sibling packs widen the same relation, a merge keeps the
+union of both signatures and reports it. `oto ontology show <name>` prints an ontology's manifest, its
 composition and what the composition changed, and the self-check, which now covers the manifest,
 the optional files, and publishability: deny terms from `OTO_DENY_TERMS` found in any part, or
 personal data in the sample, make an ontology unusable. `oto init` records in `project.config.json`

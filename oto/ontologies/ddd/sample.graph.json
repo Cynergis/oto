@@ -1,0 +1,743 @@
+{
+  "_about": "The design of the product sample's payments platform, stormed: one core subdomain, two contexts and their map, the capture-then-settle flow, the Payment and Settlement aggregates. Invented, on top of the product and estate samples.",
+  "nodes": [
+    {
+      "id": "subdomain.payments",
+      "type": "Subdomain",
+      "label": "Payments",
+      "summary": "Taking and settling payments: the core of the product.",
+      "attributes": {
+        "kind": "core"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "bc.checkout",
+      "type": "BoundedContext",
+      "label": "Checkout",
+      "summary": "Where a payment is captured; one model of a payment.",
+      "attributes": {
+        "architecture_style": [
+          "hexagonal"
+        ],
+        "stack": [
+          "python",
+          "postgres"
+        ],
+        "deployment_unit": "payment-api",
+        "readiness": "ready"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "bc.settlement",
+      "type": "BoundedContext",
+      "label": "Settlement",
+      "summary": "Where captured payments are settled to merchants; its own model of a payment as a settled line.",
+      "attributes": {
+        "architecture_style": [
+          "hexagonal",
+          "cqrs"
+        ],
+        "stack": [
+          "python",
+          "postgres"
+        ],
+        "deployment_unit": "settlement-job",
+        "readiness": "draft"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "rel.settlement-checkout",
+      "type": "ContextRelationship",
+      "label": "Settlement follows Checkout",
+      "summary": "Settlement conforms to Checkout's captured-payment event.",
+      "attributes": {
+        "pattern": "customer_supplier",
+        "mechanism": "messaging"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "uc.take-payment",
+      "type": "UseCase",
+      "label": "Take a card payment",
+      "summary": "The merchant's clerk takes a card payment at the till.",
+      "attributes": {
+        "readiness": "ready"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "cmd.capture-payment",
+      "type": "Command",
+      "label": "Capture payment",
+      "summary": "Capture an authorised card payment.",
+      "attributes": {
+        "payload": [
+          "payment_id: id",
+          "amount: money",
+          "card_token: string"
+        ],
+        "trigger_kind": "actor",
+        "readiness": "ready"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "evt.payment-captured",
+      "type": "DomainEvent",
+      "label": "Payment captured",
+      "summary": "A payment was captured and will be settled.",
+      "attributes": {
+        "payload": [
+          "payment_id: id",
+          "amount: money",
+          "captured_at: datetime"
+        ]
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "reaction.settle-on-capture",
+      "type": "Reaction",
+      "label": "Whenever a payment is captured, schedule its settlement",
+      "summary": "The settlement context queues every captured payment for the day's batch.",
+      "attributes": {
+        "condition": "the payment is not a test payment"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "cmd.settle-payment",
+      "type": "Command",
+      "label": "Settle payment",
+      "summary": "Add a captured payment to the day's settlement.",
+      "attributes": {
+        "payload": [
+          "payment_id: id",
+          "amount: money"
+        ],
+        "trigger_kind": "policy",
+        "readiness": "draft"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "evt.payment-settled",
+      "type": "DomainEvent",
+      "label": "Payment settled",
+      "summary": "A payment was included in a settlement sent to the acquirer.",
+      "attributes": {
+        "payload": [
+          "payment_id: id",
+          "settlement_id: id",
+          "settled_at: datetime"
+        ]
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "rm.settlement-statement",
+      "type": "ReadModel",
+      "label": "Settlement statement",
+      "summary": "The day's settlement with each payment under it.",
+      "attributes": {
+        "fields": [
+          "settlement_id",
+          "day",
+          "payments[]",
+          "total"
+        ]
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "ext.acquirer",
+      "type": "ExternalSystem",
+      "label": "Acquirer",
+      "summary": "The bank that settles card payments.",
+      "attributes": {},
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "agg.payment",
+      "type": "Aggregate",
+      "label": "Payment",
+      "summary": "A captured payment, from authorisation to settlement.",
+      "attributes": {
+        "readiness": "ready"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "ent.payment",
+      "type": "Entity",
+      "label": "Payment",
+      "summary": "The payment's identity and state.",
+      "attributes": {
+        "fields": [
+          "id: id",
+          "state: enum",
+          "amount: money"
+        ]
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "vo.money",
+      "type": "ValueObject",
+      "label": "Money",
+      "summary": "An amount in a currency.",
+      "attributes": {
+        "fields": [
+          "amount: decimal",
+          "currency: iso4217"
+        ]
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "agg.settlement",
+      "type": "Aggregate",
+      "label": "Settlement",
+      "summary": "A day's settled payments, sent to the acquirer once.",
+      "attributes": {
+        "readiness": "draft"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "ent.settlement",
+      "type": "Entity",
+      "label": "Settlement",
+      "summary": "The settlement's identity, day and state.",
+      "attributes": {
+        "fields": [
+          "id: id",
+          "day: date",
+          "state: enum"
+        ]
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "rule.capture-once",
+      "type": "BusinessRule",
+      "label": "A payment is captured at most once",
+      "summary": "Capturing a captured payment is refused.",
+      "attributes": {
+        "kind": "invariant",
+        "expression": "payment.state != captured before capture"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "rule.evidence-kept",
+      "type": "BusinessRule",
+      "label": "A settlement keeps its evidence seven years",
+      "summary": "Settlement lines are never deleted.",
+      "attributes": {
+        "kind": "constraint",
+        "expression": "settlement.lines are append-only"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    },
+    {
+      "id": "svc.fee-calculator",
+      "type": "DomainService",
+      "label": "Fee calculator",
+      "summary": "Computes the acquirer's fee for a settlement.",
+      "attributes": {},
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "payments-storming",
+      "status": "current",
+      "sources": [
+        "payments-storming"
+      ],
+      "aliases": [],
+      "tags": [
+        "sample"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "subdomain.payments",
+      "rel": "realised_in",
+      "to": "bc.checkout"
+    },
+    {
+      "from": "subdomain.payments",
+      "rel": "realised_in",
+      "to": "bc.settlement"
+    },
+    {
+      "from": "subdomain.payments",
+      "rel": "serves",
+      "to": "valueproposition.vp-settled"
+    },
+    {
+      "from": "bc.checkout",
+      "rel": "owned_by",
+      "to": "team.payments"
+    },
+    {
+      "from": "bc.settlement",
+      "rel": "owned_by",
+      "to": "team.payments"
+    },
+    {
+      "from": "bc.checkout",
+      "rel": "deployed_as",
+      "to": "component.payment-api"
+    },
+    {
+      "from": "bc.settlement",
+      "rel": "deployed_as",
+      "to": "component.settlement-job"
+    },
+    {
+      "from": "bc.settlement",
+      "rel": "serves",
+      "to": "objective.o-cash"
+    },
+    {
+      "from": "rel.settlement-checkout",
+      "rel": "between",
+      "to": "bc.checkout"
+    },
+    {
+      "from": "rel.settlement-checkout",
+      "rel": "between",
+      "to": "bc.settlement"
+    },
+    {
+      "from": "rel.settlement-checkout",
+      "rel": "upstream",
+      "to": "bc.checkout"
+    },
+    {
+      "from": "uc.take-payment",
+      "rel": "performed_by",
+      "to": "persona.p-merchant"
+    },
+    {
+      "from": "uc.take-payment",
+      "rel": "issues",
+      "to": "cmd.capture-payment"
+    },
+    {
+      "from": "uc.take-payment",
+      "rel": "part_of",
+      "to": "bc.checkout"
+    },
+    {
+      "from": "uc.take-payment",
+      "rel": "satisfies",
+      "to": "requirement.take-payment"
+    },
+    {
+      "from": "uc.take-payment",
+      "rel": "serves",
+      "to": "valueproposition.vp-settled"
+    },
+    {
+      "from": "uc.take-payment",
+      "rel": "constrained_by",
+      "to": "rule.capture-once"
+    },
+    {
+      "from": "scenario.s-one-payment",
+      "rel": "exercises",
+      "to": "uc.take-payment"
+    },
+    {
+      "from": "cmd.capture-payment",
+      "rel": "part_of",
+      "to": "bc.checkout"
+    },
+    {
+      "from": "cmd.capture-payment",
+      "rel": "triggered_by",
+      "to": "persona.p-merchant"
+    },
+    {
+      "from": "cmd.capture-payment",
+      "rel": "handled_by",
+      "to": "agg.payment"
+    },
+    {
+      "from": "cmd.capture-payment",
+      "rel": "raises",
+      "to": "evt.payment-captured"
+    },
+    {
+      "from": "evt.payment-captured",
+      "rel": "part_of",
+      "to": "bc.checkout"
+    },
+    {
+      "from": "evt.payment-captured",
+      "rel": "precedes",
+      "to": "evt.payment-settled"
+    },
+    {
+      "from": "reaction.settle-on-capture",
+      "rel": "part_of",
+      "to": "bc.settlement"
+    },
+    {
+      "from": "reaction.settle-on-capture",
+      "rel": "reacts_to",
+      "to": "evt.payment-captured"
+    },
+    {
+      "from": "reaction.settle-on-capture",
+      "rel": "issues",
+      "to": "cmd.settle-payment"
+    },
+    {
+      "from": "cmd.settle-payment",
+      "rel": "part_of",
+      "to": "bc.settlement"
+    },
+    {
+      "from": "cmd.settle-payment",
+      "rel": "triggered_by",
+      "to": "reaction.settle-on-capture"
+    },
+    {
+      "from": "cmd.settle-payment",
+      "rel": "handled_by",
+      "to": "agg.settlement"
+    },
+    {
+      "from": "cmd.settle-payment",
+      "rel": "raises",
+      "to": "evt.payment-settled"
+    },
+    {
+      "from": "evt.payment-settled",
+      "rel": "part_of",
+      "to": "bc.settlement"
+    },
+    {
+      "from": "rm.settlement-statement",
+      "rel": "part_of",
+      "to": "bc.settlement"
+    },
+    {
+      "from": "rm.settlement-statement",
+      "rel": "projected_from",
+      "to": "evt.payment-settled"
+    },
+    {
+      "from": "rm.settlement-statement",
+      "rel": "consulted_by",
+      "to": "persona.p-merchant"
+    },
+    {
+      "from": "ext.acquirer",
+      "rel": "integrated_by",
+      "to": "bc.settlement"
+    },
+    {
+      "from": "ext.acquirer",
+      "rel": "receives",
+      "to": "evt.payment-settled"
+    },
+    {
+      "from": "ext.acquirer",
+      "rel": "sends",
+      "to": "cmd.settle-payment"
+    },
+    {
+      "from": "agg.payment",
+      "rel": "part_of",
+      "to": "bc.checkout"
+    },
+    {
+      "from": "agg.payment",
+      "rel": "root",
+      "to": "ent.payment"
+    },
+    {
+      "from": "agg.payment",
+      "rel": "composed_of",
+      "to": "vo.money"
+    },
+    {
+      "from": "agg.payment",
+      "rel": "constrained_by",
+      "to": "rule.capture-once"
+    },
+    {
+      "from": "agg.settlement",
+      "rel": "part_of",
+      "to": "bc.settlement"
+    },
+    {
+      "from": "agg.settlement",
+      "rel": "root",
+      "to": "ent.settlement"
+    },
+    {
+      "from": "ent.settlement",
+      "rel": "composed_of",
+      "to": "vo.money"
+    },
+    {
+      "from": "agg.settlement",
+      "rel": "references",
+      "to": "agg.payment"
+    },
+    {
+      "from": "agg.settlement",
+      "rel": "constrained_by",
+      "to": "rule.evidence-kept"
+    },
+    {
+      "from": "rule.capture-once",
+      "rel": "part_of",
+      "to": "bc.checkout"
+    },
+    {
+      "from": "rule.evidence-kept",
+      "rel": "part_of",
+      "to": "bc.settlement"
+    },
+    {
+      "from": "svc.fee-calculator",
+      "rel": "part_of",
+      "to": "bc.settlement"
+    },
+    {
+      "from": "svc.fee-calculator",
+      "rel": "operates_on",
+      "to": "vo.money"
+    },
+    {
+      "from": "term.t-settlement",
+      "rel": "part_of",
+      "to": "bc.settlement"
+    },
+    {
+      "from": "term.t-settlement",
+      "rel": "names",
+      "to": "agg.settlement"
+    },
+    {
+      "from": "policy.pol-evidence",
+      "rel": "applies_to",
+      "to": "bc.settlement"
+    },
+    {
+      "from": "policy.pol-evidence",
+      "rel": "applies_to",
+      "to": "rule.evidence-kept"
+    },
+    {
+      "from": "decision.d-batch",
+      "rel": "about",
+      "to": "bc.settlement"
+    },
+    {
+      "from": "openquestion.q-evidence",
+      "rel": "about",
+      "to": "agg.settlement"
+    }
+  ]
+}

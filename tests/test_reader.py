@@ -34,7 +34,7 @@ def _project(root):
         json.dump(graph, f)
     os.makedirs(os.path.join(root, "notes"), exist_ok=True)
     with open(os.path.join(root, "notes", "ledger.md"), "w", encoding="utf-8") as f:
-        f.write("# The ledger note\n\nThe payments ledger records every transfer.\n")
+        f.write("# The ledger note\n\nThe payments ledger records every settled transfer.\n")
     build(project)
     return project
 
@@ -64,7 +64,7 @@ def test_the_pages_render_the_graph_under_node():
         assert r.returncode == 0, r.stderr
         out = json.loads(r.stdout)
         assert "System" in out["classes"] and "Document" in out["classes"]
-        assert out["routes"]["#/search?q=payments+ledger"] == {"page": "search", "arg": "", "params": {"q": "payments ledger"}}
+        assert out["routes"]["#/search?q=settled+ledger"] == {"page": "search", "arg": "", "params": {"q": "settled ledger"}}
         assert out["routes"]["#/entity/system.payments"]["arg"] == "system.payments"
         home = out["pages"]["#/"]
         assert "Acme Platform" in home and "derived by rules" in home and "#/type/System" in home and "Most connected" in home
@@ -78,8 +78,8 @@ def test_the_pages_render_the_graph_under_node():
         doc = out["pages"]["#/doc/handbook"]
         assert "Operations handbook" in doc and "Cited by" in doc and "Bulletin 2026-01" in doc, "the bulletin cites the handbook"
         note = out["pages"]["#/doc/notes/ledger"]
-        assert "The ledger note" in note and "records every transfer" in note and out["passage"] == "The ledger note"
-        srch = out["pages"]["#/search?q=payments+ledger"]
+        assert "The ledger note" in note and "records every settled transfer" in note and out["passage"] == "The ledger note"
+        srch = out["pages"]["#/search?q=settled+ledger"]
         assert "Ledger database" in srch and "notes/ledger.md" in srch
         assert "datastore.ledger" in out["search"]["ledger"]["entities"][:3] and "notes/ledger.md" in out["search"]["ledger"]["passages"]
         assert out["search"]["empty"] == {"entities": [], "passages": []} and out["search"]["nothing"]["entities"] == []

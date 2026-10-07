@@ -1,0 +1,66 @@
+{
+  "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
+  "name": "product",
+  "release": 8,
+  "domain": "product",
+  "summary": "What a product must do, for whom, under what rules, why: personas, journeys, requirements, releases, constraints, assumptions, risks, decisions, open questions, objectives, policies, terms. The core every product type extends.",
+  "extends": [
+    "oto-core"
+  ],
+  "namespace": "https://cynergis.ai/ont/product#",
+  "engine": ">=0.8",
+  "carries": [
+    "vocabulary",
+    "rationale",
+    "rules",
+    "questions",
+    "sample",
+    "readme",
+    "lexicon",
+    "guide",
+    "gold"
+  ],
+  "maintainer": "OTO",
+  "changelog": [
+    {
+      "release": 8,
+      "at": "2026-10-07",
+      "note": "Ships with the engine: the generic core software-architecture and ddd sit on (decided with Chiheb Dkhil, 2026-10-07). Extends oto-core like every shipped ontology."
+    },
+    {
+      "release": 7,
+      "at": "2026-10-07",
+      "note": "The sample is an invented product authored through the gates (a nightly ledger reconciliation), one instance of each class; it breaks no policy of the core. Confirmations kept."
+    },
+    {
+      "release": 6,
+      "at": "2026-10-06",
+      "note": "The product core, confirmed: its 17 Gate 1 questions confirmed by Chiheb Dkhil on 2026-10-06, the 20 classes derived from them (none pruned), policies naming the question they protect. Exported from the project Product core."
+    },
+    {
+      "release": 5,
+      "at": "2026-10-06",
+      "note": "Ships its competency questions (questions.json): 25 questions covering every class, relation and attribute."
+    },
+    {
+      "release": 4,
+      "at": "2026-10-06",
+      "note": "Rewritten in the engine's form (every declaration an object) and given its namespace."
+    },
+    {
+      "release": 1,
+      "at": "2026-09-27",
+      "note": "Exported from the project IGM Document Automation."
+    },
+    {
+      "release": 2,
+      "at": "2026-09-27",
+      "note": "Seed lexicon, reader's guide and gold question patterns."
+    },
+    {
+      "release": 3,
+      "at": "2026-09-27",
+      "note": "Domain expert confirmation carried into the rationale and rules (same domain, same reviewer)."
+    }
+  ]
+}

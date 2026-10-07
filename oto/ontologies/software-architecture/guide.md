@@ -14,18 +14,18 @@ document that states it and the date it was true.
   be asked directly: `oto query neighbors "<component>" depends_on`.
 - **Ownership.** "Who do I call about the ledger?" follows `owned_by` to a `Team`. If the answer
   is a person, the graph is recording the wrong thing.
-- **Reasons.** "Why one ledger?" follows `decided_by` to a `DecisionRecord` and quotes its reason.
+- **Reasons.** "Why one ledger?" follows `about` from the product's `Decision` and quotes its rationale.
   A decision without a recorded document is flagged by `decision-is-documented`.
 - **Fragility.** "What threatens production?" follows `threatens` and `mitigated_by` from `Risk`.
   The rule `risk-reaches-system` lifts a risk to a component up to its system.
-- **Business exposure.** "What can customers not do if payments is down?" follows `supports` to
+- **Business exposure.** "What can customers not do if payments is down?" follows `enables` to
   `Capability`, the one class written in the business's words.
 
 ## Where to start reading
 
 Open the explorer (`oto serve --http 8765`) and read the `System` column first: each system is a
 unit of ownership. Then one system's components and the interfaces between them. Read
-`DecisionRecord` entries last: they explain what the rest shows. A dashed edge was derived by a
+`Decision` entries last: they explain what the rest shows. A dashed edge was derived by a
 rule; `oto rules explain <rule>` says why the rule exists and what it derived.
 
 ## What can be done

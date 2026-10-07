@@ -34,7 +34,7 @@ def run(args):
         project = _resolve(args)
         try:
             path, problems = ontologies.export(project, args.name, to=args.to, from_graph=args.from_graph,
-                                               summary=args.summary, force=args.force)
+                                               summary=args.summary, force=args.force, invented=args.invented)
         except FileExistsError as exc:
             print("oto: %s already exists; pass --force to replace it" % exc, file=sys.stderr)
             return 1
@@ -49,7 +49,7 @@ def run(args):
             return 1
         print("  self-check clean. Use it with: oto init --ontology %s" % (args.name if not args.to else path))
         print("  The sample is %s. validated_by is empty: confirmation does not carry to a new domain."
-              % ("taken from the graph" if args.from_graph else "invented, one node per class"))
+              % ("invented, one node per class" if args.invented else "taken from the graph"))
         return 0
     if verb == "show":
         return _show(args.which[0] if args.which else None)
@@ -151,7 +151,7 @@ def _remote(args):
                 project = _resolve(args)
             result = _registry.publish(args.to, project=project, ontology=args.from_name, name=args.name,
                                        summary=args.summary, from_graph=args.from_graph, note=args.note,
-                                       ref=args.ref, registry_name=args.registry_name, engine=args.engine)
+                                       ref=args.ref, registry_name=args.registry_name, engine=args.engine, invented=args.invented)
             print("published %s @%d to %s (registry %s) as %s, tagged %s"
                   % (result["name"], result["release"], args.to, result["registry"], result["commit"], result["tag"]))
             if result["created"]:
@@ -269,7 +269,9 @@ def options(parser):
     parser.add_argument("--to", default=None, help="for export: the directory to write under (default: your "
                                                     "ontology directory); for publish: the registry's git URL")
     parser.add_argument("--summary", default=None, help="one line saying what the vocabulary covers")
-    parser.add_argument("--from-graph", dest="from_graph", type=int, default=0,
-                        help="for export and publish: take up to N real nodes from the graph as the sample instead "
-                             "of inventing one; refused if the privacy scan blocks it")
+    parser.add_argument("--from-graph", dest="from_graph", type=int, default=None,
+                        help="for export and publish: cap the sample at N nodes of the graph, round-robin across "
+                             "classes (default: the whole graph); refused if the privacy scan blocks it")
+    parser.add_argument("--invented", action="store_true",
+                        help="for export and publish: ship the synthetic sample (one node per class) instead of the graph")
     parser.add_argument("--force", action="store_true", help="for export and add: replace an existing ontology of that name")

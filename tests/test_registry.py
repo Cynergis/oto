@@ -299,7 +299,7 @@ def test_publish_a_ontology_from_this_machine_and_refuse_an_unpublishable_one(ho
     assert "published software-architecture @1" in capsys.readouterr().out
     registry.add_registry(bare)
     _reg, entry = registry.find("software-architecture")
-    assert entry["extends"] == ["oto-core"]
+    assert entry["extends"] == ["product"]
     with tempfile.TemporaryDirectory() as root:
         init(root, slug="leak", name="Leak", ontology="organization-process")
         cfg = json.load(open(os.path.join(root, "ontology.config.json"), encoding="utf-8"))

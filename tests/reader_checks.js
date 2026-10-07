@@ -7,7 +7,7 @@ const payload = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
 const ix = reader.index(payload);
 const out = {classes: ix.classes, routes: {}, pages: {}, search: {}};
 
-for (const h of ["#/", "#/type/System", "#/entity/system.payments", "#/doc/handbook", "#/doc/notes/ledger", "#/search?q=payments+ledger", "#/findings", "#/changes", "#/docs", "#/nope"]) {
+for (const h of ["#/", "#/type/System", "#/entity/system.payments", "#/doc/handbook", "#/doc/notes/ledger", "#/search?q=settled+ledger", "#/findings", "#/changes", "#/docs", "#/nope"]) {
   const r = reader.parseRoute(h);
   out.routes[h] = r;
   out.pages[h] = reader.renderPage(ix, r);

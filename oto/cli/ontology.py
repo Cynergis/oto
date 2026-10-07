@@ -74,7 +74,7 @@ def cmd_ontology(args):
                         config.pop(key, None)
                     notes = ["class %s: described differently in %s and %s; kept %s" % (k, a, b, a)
                              for k, a, b in report["class_clashes"]]
-                    notes += ["relation %s: domain or range differ in %s and %s; kept %s" % (r, a, b, a)
+                    notes += ["relation %s: domain or range differ in %s and %s; widened to both" % (r, a, b)
                               for r, a, b in report["relation_clashes"]]
                     notes.append("merged %d ontologies; prune before accepting" % len(names))
                 attributes = config.get("attributes") or {}

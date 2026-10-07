@@ -1,0 +1,1015 @@
+{
+  "_about": "What this ontology exists to answer. Each question runs over the graph in the pattern language of rules.json; `gate` says what an empty answer means; `gaps` says why it is empty; `terms` names the vocabulary the question covers. Reasoned about in `why`, confirmed in `validated_by`.",
+  "questions": {
+    "PR1": {
+      "who": "anyone",
+      "question": "What is $PRODUCT and why does it exist: its problem, vision, stage, domain and value stream, and the promises it offers?",
+      "why": "The product is the root every other fact hangs off; a reader must get its reason for being in one answer.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "PRODUCT": {
+          "type": "Product"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$PRODUCT",
+              "offers",
+              "vp"
+            ]
+          },
+          {
+            "node": "vp",
+            "type": "ValueProposition"
+          }
+        ],
+        "select": [
+          "$PRODUCT.problem",
+          "$PRODUCT.vision",
+          "$PRODUCT.stage",
+          "$PRODUCT.domain",
+          "$PRODUCT.value_stream",
+          "$PRODUCT.background",
+          "vp.label",
+          "vp.promise",
+          "vp.differentiator"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$PRODUCT",
+              "offers",
+              "*"
+            ]
+          }
+        ],
+        "say": "the product offers no value proposition: nobody has said why it exists"
+      }
+    },
+    "PR2": {
+      "who": "anyone",
+      "question": "Who owns $THING: which role, held by whom, with what mandate?",
+      "why": "Ownership sits on a role, not a person, so it survives staff changes; a thing with no owner drifts.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "THING": {
+          "type": "Product|Objective|Feature|SuccessCriterion|Risk|Requirement|Release"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$THING",
+              "owned_by",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Role"
+          }
+        ],
+        "select": [
+          "r.label",
+          "r.kind",
+          "r.holder",
+          "r.mandate"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$THING",
+              "owned_by",
+              "*"
+            ]
+          }
+        ],
+        "say": "no role owns it"
+      }
+    },
+    "PR3": {
+      "who": "a product owner",
+      "question": "Who is $PRODUCT for, and who is it explicitly not for: which personas, with what need, wanting which promise?",
+      "why": "Journeys, requirements and value propositions all hang off a persona; an unnamed audience is a product for nobody.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "PRODUCT": {
+          "type": "Product"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$PRODUCT",
+              "offers",
+              "vp"
+            ]
+          },
+          {
+            "edge": [
+              "vp",
+              "intended_for",
+              "p"
+            ]
+          },
+          {
+            "node": "p",
+            "type": "Persona"
+          }
+        ],
+        "select": [
+          "p.label",
+          "p.relationship",
+          "p.need",
+          "vp.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$PRODUCT",
+              "offers",
+              "*"
+            ]
+          }
+        ],
+        "say": "no persona is recorded for the product"
+      }
+    },
+    "PR4": {
+      "who": "a builder",
+      "question": "Which requirements serve which value proposition or objective, and what kind and priority is each?",
+      "why": "A requirement that serves no purpose is scope creep; the link is what lets a builder say why.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "r",
+              "serves",
+              "x"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Requirement"
+          },
+          {
+            "node": "x",
+            "type": "ValueProposition|Objective"
+          }
+        ],
+        "select": [
+          "r.label",
+          "r.kind",
+          "r.priority",
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "non_empty"
+    },
+    "PR5": {
+      "who": "a sponsor",
+      "question": "How do we know $GOAL succeeded: which criteria measure it, with what metric, target and due date?",
+      "why": "Success must be measurable before the work starts, or it is declared afterwards by whoever shouts loudest.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "GOAL": {
+          "type": "Objective|ValueProposition"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "c",
+              "measures",
+              "$GOAL"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "SuccessCriterion"
+          }
+        ],
+        "select": [
+          "c.label",
+          "c.metric",
+          "c.target",
+          "c.due_on"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "measures",
+              "$GOAL"
+            ]
+          }
+        ],
+        "say": "nothing measures it: success cannot be told from failure"
+      }
+    },
+    "PR6": {
+      "who": "a builder",
+      "question": "What is in scope for release $RELEASE, and what is the release's date, state and horizon?",
+      "why": "Scope is dated, so what was in the next release as of a past date stays readable.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "RELEASE": {
+          "type": "Release"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "x",
+              "in_scope_of",
+              "$RELEASE"
+            ]
+          },
+          {
+            "node": "x",
+            "type": "Requirement|Feature"
+          }
+        ],
+        "select": [
+          "x.label",
+          "x.type",
+          "$RELEASE.target_date",
+          "$RELEASE.state",
+          "$RELEASE.horizon"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "in_scope_of",
+              "$RELEASE"
+            ]
+          }
+        ],
+        "say": "nothing is in scope yet"
+      }
+    },
+    "PR7": {
+      "who": "a builder",
+      "question": "What was explicitly excluded from release $RELEASE?",
+      "why": "An exclusion is recorded, not silently absent, so a builder does not build it and a reader does not expect it.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "RELEASE": {
+          "type": "Release"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "x",
+              "excluded_from",
+              "$RELEASE"
+            ]
+          },
+          {
+            "node": "x",
+            "type": "Requirement|Feature"
+          }
+        ],
+        "select": [
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR8": {
+      "who": "anyone",
+      "question": "What is $PRODUCT made of: which features, realising which requirements?",
+      "why": "Features nest through part_of, so an epic and a sub-feature are the same class; the map is read from the product down.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "PRODUCT": {
+          "type": "Product"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "f",
+              "part_of",
+              "$PRODUCT"
+            ]
+          },
+          {
+            "node": "f",
+            "type": "Feature"
+          },
+          {
+            "edge": [
+              "f",
+              "realises",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Requirement"
+          }
+        ],
+        "select": [
+          "f.label",
+          "r.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "part_of",
+              "$PRODUCT"
+            ]
+          }
+        ],
+        "say": "no feature is recorded as part of the product"
+      }
+    },
+    "PR9": {
+      "who": "a designer",
+      "question": "How does a user get value with $JOURNEY: its trigger, its steps in order with their action and outcome, and its outcome?",
+      "why": "A journey is how a persona gets value end to end; a step has its own identity so a decision or a test can point at it.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "JOURNEY": {
+          "type": "UserJourney"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "s",
+              "part_of",
+              "$JOURNEY"
+            ]
+          },
+          {
+            "node": "s",
+            "type": "JourneyStep"
+          }
+        ],
+        "select": [
+          "$JOURNEY.trigger",
+          "s.position",
+          "s.action",
+          "s.outcome",
+          "$JOURNEY.outcome"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "part_of",
+              "$JOURNEY"
+            ]
+          }
+        ],
+        "say": "the journey has no steps"
+      }
+    },
+    "PR10": {
+      "who": "a designer",
+      "question": "Which journeys exist for $PERSONA?",
+      "why": "A persona with no journey gets no value the product can show.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "PERSONA": {
+          "type": "Persona"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "j",
+              "intended_for",
+              "$PERSONA"
+            ]
+          },
+          {
+            "node": "j",
+            "type": "UserJourney"
+          }
+        ],
+        "select": [
+          "j.label",
+          "j.trigger",
+          "j.outcome"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR11": {
+      "who": "anyone",
+      "question": "What constraints is $THING built under, of what kind, imposed by whom?",
+      "why": "A constraint is imposed from outside; forgetting one is how a plan becomes impossible late.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "THING": {
+          "type": "Product|Requirement|Release|Feature"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "c",
+              "constrains",
+              "$THING"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "Constraint"
+          }
+        ],
+        "select": [
+          "c.label",
+          "c.kind",
+          "c.imposed_by"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR12": {
+      "who": "anyone",
+      "question": "What assumptions does $THING rest on, and in what state is each: unverified, validated or invalidated?",
+      "why": "An invalidated assumption means what rests on it must be revisited; the link is what finds it.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "THING": {
+          "type": "Decision|Requirement|Release"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$THING",
+              "relies_on",
+              "a"
+            ]
+          },
+          {
+            "node": "a",
+            "type": "Assumption"
+          }
+        ],
+        "select": [
+          "a.label",
+          "a.state",
+          "a.checked_on"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR13": {
+      "who": "a sponsor",
+      "question": "What are the risks and external dependencies: which risk threatens what, of what kind, in what state, mitigated by what?",
+      "why": "The risk register must be readable from the graph alone.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "r",
+              "threatens",
+              "x"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Risk"
+          },
+          {
+            "edge": [
+              "r",
+              "mitigated_by",
+              "m"
+            ]
+          }
+        ],
+        "select": [
+          "r.label",
+          "r.kind",
+          "r.state",
+          "x.label",
+          "x.type",
+          "m.label",
+          "m.type"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR14": {
+      "who": "a sponsor",
+      "question": "Which open risks have nothing mitigating them?",
+      "why": "An open risk with no mitigation is a decision nobody has made yet.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "ask": {
+        "when": [
+          {
+            "node": "r",
+            "type": "Risk",
+            "where": {
+              "state": "open"
+            }
+          },
+          {
+            "not_edge": [
+              "r",
+              "mitigated_by",
+              "*"
+            ]
+          }
+        ],
+        "select": [
+          "r.label",
+          "r.kind"
+        ]
+      },
+      "gate": "empty"
+    },
+    "PR15": {
+      "who": "anyone",
+      "question": "What did we decide about $THING, when, why, and whose call was it?",
+      "why": "A decision settles what it is about, so nobody reopens it by accident; without the record it is reopened every month.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "THING": {
+          "type": "Product|ValueProposition|Objective|SuccessCriterion|Requirement|Release|Feature|UserJourney|JourneyStep|Scenario|Constraint|Policy|Risk|Persona"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "d",
+              "about",
+              "$THING"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Decision"
+          },
+          {
+            "edge": [
+              "d",
+              "decided_by",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Role"
+          }
+        ],
+        "select": [
+          "d.label",
+          "d.decided_on",
+          "d.rationale",
+          "r.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "about",
+              "$THING"
+            ]
+          }
+        ],
+        "say": "nothing has been decided about it"
+      }
+    },
+    "PR16": {
+      "who": "anyone",
+      "question": "What is still open: which questions are unresolved, since when, and what are they about?",
+      "why": "An open question is work somebody owes; the list must be readable without a search.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "ask": {
+        "when": [
+          {
+            "node": "qn",
+            "type": "OpenQuestion",
+            "where": {
+              "state": "open"
+            }
+          },
+          {
+            "edge": [
+              "qn",
+              "about",
+              "x"
+            ]
+          }
+        ],
+        "select": [
+          "qn.label",
+          "qn.raised_on",
+          "x.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR17": {
+      "who": "anyone",
+      "question": "Which decision resolved $QUESTION?",
+      "why": "A question is closed by a decision, or dropped; never by silence.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "QUESTION": {
+          "type": "OpenQuestion"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "d",
+              "resolves",
+              "$QUESTION"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Decision"
+          }
+        ],
+        "select": [
+          "d.label",
+          "d.decided_on"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "node": "$QUESTION",
+            "type": "OpenQuestion",
+            "where": {
+              "state": "resolved"
+            }
+          }
+        ],
+        "say": "marked resolved with no decision on record"
+      }
+    },
+    "PR18": {
+      "who": "a release manager",
+      "question": "Which open questions block a release that has shipped?",
+      "why": "A release should not ship with an unresolved question blocking it; one that did was shipped by accident.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "ask": {
+        "when": [
+          {
+            "node": "qn",
+            "type": "OpenQuestion",
+            "where": {
+              "state": "open"
+            }
+          },
+          {
+            "edge": [
+              "qn",
+              "blocks",
+              "rel"
+            ]
+          },
+          {
+            "node": "rel",
+            "type": "Release",
+            "where": {
+              "state": "shipped"
+            }
+          }
+        ],
+        "select": [
+          "qn.label",
+          "rel.label"
+        ]
+      },
+      "gate": "empty"
+    },
+    "PR19": {
+      "who": "anyone",
+      "question": "Which document says so: where is $THING written down, in what kind of document, dated when?",
+      "why": "Every answer must lead to a document a reader can open and judge for currency.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "THING": {
+          "type": "Product|Role|Persona|ValueProposition|Objective|SuccessCriterion|Requirement|Release|Feature|UserJourney|JourneyStep|Scenario|Constraint|Policy|Assumption|Risk|Decision|OpenQuestion|Term"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$THING",
+              "documented_in",
+              "d"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Document"
+          }
+        ],
+        "select": [
+          "d.label",
+          "d.kind",
+          "d.as_of"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$THING",
+              "documented_in",
+              "*"
+            ]
+          }
+        ],
+        "say": "no document is recorded for it"
+      }
+    },
+    "PR20": {
+      "who": "a sponsor",
+      "question": "What are we trying to achieve: which objectives does $PRODUCT pursue, for what period, in what state?",
+      "why": "Objectives are where a product sits in the strategy; without them every feature is equally urgent.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "PRODUCT": {
+          "type": "Product"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$PRODUCT",
+              "pursues",
+              "o"
+            ]
+          },
+          {
+            "node": "o",
+            "type": "Objective"
+          }
+        ],
+        "select": [
+          "o.label",
+          "o.period",
+          "o.state"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$PRODUCT",
+              "pursues",
+              "*"
+            ]
+          }
+        ],
+        "say": "the product pursues no recorded objective"
+      }
+    },
+    "PR21": {
+      "who": "a sponsor",
+      "question": "Which lower objectives support $OBJECTIVE?",
+      "why": "Strategy is the tree of objectives supporting objectives.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "OBJECTIVE": {
+          "type": "Objective"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "lower",
+              "supports",
+              "$OBJECTIVE"
+            ]
+          },
+          {
+            "node": "lower",
+            "type": "Objective"
+          }
+        ],
+        "select": [
+          "lower.label",
+          "lower.state"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR22": {
+      "who": "anyone",
+      "question": "Which roles must be consulted or informed about $THING?",
+      "why": "A stakeholder left out of a decision relitigates it.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "THING": {
+          "type": "Objective|Requirement|Release|Feature|Decision"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "r",
+              "interested_in",
+              "$THING"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Role"
+          }
+        ],
+        "select": [
+          "r.label",
+          "r.kind"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR23": {
+      "who": "a builder",
+      "question": "What exactly must $THING do in each situation: which scenarios exercise it, given what, when what, then what?",
+      "why": "A scenario is what a test verifies and what a builder implements; a requirement without one is a wish.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "THING": {
+          "type": "Requirement|JourneyStep"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "s",
+              "exercises",
+              "$THING"
+            ]
+          },
+          {
+            "node": "s",
+            "type": "Scenario"
+          }
+        ],
+        "select": [
+          "s.label",
+          "s.kind",
+          "s.given",
+          "s.when",
+          "s.then"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "exercises",
+              "$THING"
+            ]
+          }
+        ],
+        "say": "no scenario exercises it: nothing says how to test it"
+      }
+    },
+    "PR24": {
+      "who": "compliance",
+      "question": "Which rules must $THING obey: which policies apply, of what kind, under whose authority, enforced by which role?",
+      "why": "The governance edge: from here, a policy is enforced and a breach is attributable.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "THING": {
+          "type": "Product|Requirement|Release|Feature|Decision"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "p",
+              "applies_to",
+              "$THING"
+            ]
+          },
+          {
+            "node": "p",
+            "type": "Policy"
+          },
+          {
+            "edge": [
+              "p",
+              "enforced_by",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Role"
+          }
+        ],
+        "select": [
+          "p.label",
+          "p.kind",
+          "p.authority",
+          "r.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR25": {
+      "who": "anyone",
+      "question": "What does $TERM mean here, and what does it name?",
+      "why": "A word with a definition, cited and dated, so a changed meaning is a supersession and not a surprise.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "TERM": {
+          "type": "Term"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$TERM",
+              "defines",
+              "x"
+            ]
+          }
+        ],
+        "select": [
+          "$TERM.definition",
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$TERM",
+              "defines",
+              "*"
+            ]
+          }
+        ],
+        "say": "the term names no entity; it is a definition only"
+      }
+    }
+  }
+}

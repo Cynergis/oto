@@ -111,15 +111,16 @@ product ──satisfied by──► architecture & design ──built and run by
 
 ```
 Stage 1  B1 product core ── B2 product-report ── B3 report from scratch   DONE 2026-10-07, see report-from-scratch.md
-Stage 2  A1 capture ── A2 propose ── C2 ── C3 ── C1 ── C7 ── C8 (scenes 1-3)  proves: the studio captures against packs, contributes as it goes
+Stage 2  A1 capture ── A2 propose ── C2 ── C3 ── C1 ── C7 ── C8 (scenes 1-3)  DONE 2026-10-07: OTO 0.8.2–0.8.3, studio b36397f; scenes 1–3 green
 Stage 3  B4 design ── B5 flow ── A3 briefs ── C4 (scenes 4-5)                 proves: the agent gets its brief from the graph; kgctl retires
 Stage 4  A5 site view ── C5 ── C6 ── D1 ── D2 ── D3 (scenes 6-7)              proves: publish and read, end to end
 Stage 5  B6 portfolio+work ── A4 ── A6 ── A7 ── B7 ── D4 Cowork              proves: the levels link; the second host
 Later    A8 BigQuery Graph, once the graph is filled                          a target state, not on the path to the first release
 ```
 
-Stage 1 is running now (the from-scratch test). Stage 2 cannot start before B2 exists to capture
-against, but A1 and A2 can be built on the shipped packs in parallel with B1–B3. Stage 3's B4 and
+Stages 1 and 2 are done. What stage 2 found: a merged project (`oto init --ontology a,b`) must
+keep its parts' samples, not invent one; a sample must pass its own blocking policies; a
+document's ids are unique in the document, so a capture names its `scope`. Stage 3's B4 and
 B5 are independent of stage 2. Stage 4 needs C3 (facts in the graph) and B3 (the pack to publish).
 
 Rough sizes, one person: stage 1 three to five sessions with Chiheb as the expert; stage 2 four

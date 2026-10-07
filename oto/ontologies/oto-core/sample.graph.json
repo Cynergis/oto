@@ -9,9 +9,7 @@
         "the handbook"
       ],
       "summary": "The handbook every other sample document refers back to.",
-      "attributes": {
-        "date": "2025-12-01"
-      },
+      "attributes": {},
       "tags": [
         "sample"
       ],
@@ -29,9 +27,7 @@
       "label": "Bulletin 2026-01",
       "aliases": [],
       "summary": "A monthly bulletin that cites the handbook.",
-      "attributes": {
-        "date": "2026-01-01"
-      },
+      "attributes": {},
       "tags": [
         "sample"
       ],

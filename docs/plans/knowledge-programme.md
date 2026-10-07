@@ -68,7 +68,7 @@ product ──satisfied by──► architecture & design ──built and run by
 | A2 | **proposals from a capture**: `oto curate propose --from <data.json> --capture capture.json --doc <slug>` | the studio's output becomes facts through the gates | each item a node of its term with stable id from the capture id; each cross-link an edge; `source_doc`, `as_of`, evidence = the PRD section; refuses an unknown field | unit on the sample; `curate check` clean on the result; a second capture with a changed value yields a supersession | S |
 | A3 | **briefs** — DONE 2026-10-07 (0.9.2): `briefs.json` beside the questions, `kg_brief`, `oto query brief`, `/api/brief`; the `no_gaps` gate | an agent knows what it must know before a task, and is BLOCKED by name | a brief = task type + required and optional question ids + params; READY / BLOCKED with the unanswered required questions and their gaps; the table without params; composed by task, stored with the questions, carried by packs (not yet in the lock/diff) | `tests/test_briefs.py`; `test_flow_port.py` gives `kgctl`'s verdicts | M |
 | A4 | **value constraints**: `pattern`, `min_value`, `max_value`, `min_length` on an attribute | the report shapes the port could not hold | evaluated in `curate check` and the self-check; rendered as `sh:pattern`, `sh:minInclusive`, `sh:maxInclusive`, `sh:minLength`; read back by the importer | unit; pyshacl equivalence extended | S |
-| A5 | **the site as a view**: the studio's site template mounted as an OTO view fed by the graph payload | the site shows what is believed, dated; `data.js` becomes a projection | `oto serve --view studio`; `oto build --target site`; the projection declared in the view's `app.json` | the explorer's view tests, on the studio template | M |
+| A5 | **the site as a view** — DONE 2026-10-07 (studio `views/prd-site`, no engine change needed) | the site shows what is believed, dated; `data.js` is written by the engine | `oto serve --view <plugin>/views/prd-site`; `oto build --target site --view ...`; `app.json` + `projections/prd.json`, `arch.json` | scene test 6: the globals read from `data.js` are the graph's facts; a section no pack covers is empty | M |
 | A6 | **survey cache** | `kg_questions` on a large graph | survey cached per build sequence, invalidated on reload | unit | S |
 | A7 | **marketplace from Atlas**: `oto registry types` lists product types (packs tagged `product-type`) | scene 1's first question | a pack manifest field `product_type`; `oto registry list --product-types` | unit | S |
 | A9 | **derived nodes**: a derive rule may create a node (`then: {node: ..., edges: [...]}`), as SPARQL CONSTRUCT did for the flow's test obligations; today a captured flow's obligations are `requiresTest` edges and only the port materialises `TestObligation` nodes | a thing the rules conclude, with an id code can cite | engine, derived.json, the stores, explain, the explorer | unit; the flow port's FL21 answered on a captured flow | M |
@@ -94,8 +94,8 @@ product ──satisfied by──► architecture & design ──built and run by
 | C2 | **capture against a pack**: `prd-build`/`architecture-build` read `capture.json` (A1); the built-in section list and `data-schema.md` retired | one interview per product type, no skill edits |
 | C3 | **contribute as you go**: on every [C], the section is written as proposals (A2) and goes through `curate check`; Atlas reports the gate as `kg_questions` | the graph is the source of truth from the first gate |
 | C4 | **feature-flow reads the graph** — DONE 2026-10-07: every phase asks the graph (`kg_ask`, `kg_neighbors`, `kg_brief`); scene 4 (design and flow captured, traced) and scene 5 (the agent's brief BLOCKED by name, the missing fact captured, READY) scripted and green; `flow` installed from the report-ontology checkout (`oto ontology add <checkout> --path oto/flow`) | gates with evidence |
-| C5 | **the site is a view** (A5); `prd-site` keeps preview/publish | no drift |
-| C6 | **"what must this product know?"** and **"publish"** as Atlas stages: `/oto:start` → interview; export → pack → publish → the install line | scenes 3 and 6 |
+| C5 | **the site is a view** (A5); `prd-site` serves or builds it; the template's `data.js`, generator and data schema are gone — DONE 2026-10-07 | no drift |
+| C6 | **"what must this product know?"** and **"publish"** as Atlas stages — DONE 2026-10-07: scene 3 `/oto:start` → interview; scene 6 the site, the domain pack to the marketplace, the product's store with the site beside it, the two lines readers need; a product's facts are a store, never an ontology (an ontology must answer every question it must) | scenes 3 and 6 |
 | C7 | `knowledge-graph` skill and the mesh ontology retired; plugin depends on `oto`; studio README and GETTING-STARTED rewritten around the arc | one vocabulary |
 | C8 | **scene tests**: a scripted run of scenes 1–7 on the report application, in the studio's CI, against a pinned OTO release | the experience is tested, not assumed |
 
@@ -103,9 +103,9 @@ product ──satisfied by──► architecture & design ──built and run by
 
 | # | Deliverable | Purpose |
 |---|---|---|
-| D1 | the registry on GitHub with the packs of B1–B6, `oto registry check` in its CI | scene 7's install line works |
-| D2 | the report project as a repository (`oto init --repo`), with the author and checks workflows live | a correction from a reader comes back as a pull request |
-| D3 | a published query store (`oto publish --repo`) and a static site for the report catalogue | readers without the documents |
+| D1 | the registry on GitHub with the packs of B1–B6, `oto registry check` in its CI — proven on a bare registry in scene test 6–7; the push to github.com/Cynergis/oto-registry is Chiheb's: `oto pack new <p> --ontology <p>` then `oto pack publish --from <p> --to <registry url>` for product-report, report, ddd, flow (product, software-architecture ship with the engine) | scene 7's install line works |
+| D2 | the report project as a repository (`oto init --repo`), with the author and checks workflows live — Chiheb's: `oto init --repo` on the fund report project, push, enable Actions | a correction from a reader comes back as a pull request |
+| D3 | a published query store (`oto publish --repo`) and a static site — proven locally in scene test 6–7 (`oto publish --repo <bare> --site`, `oto sync`); the GitHub repository is Chiheb's | readers without the documents |
 | D4 | the plugin installed in Cowork, scene 7 run there | the second host |
 
 ## 4. Order, dependencies, and what each stage proves
@@ -114,7 +114,7 @@ product ──satisfied by──► architecture & design ──built and run by
 Stage 1  B1 product core ── B2 product-report ── B3 report from scratch   DONE 2026-10-07, see report-from-scratch.md
 Stage 2  A1 capture ── A2 propose ── C2 ── C3 ── C1 ── C7 ── C8 (scenes 1-3)  DONE 2026-10-07: OTO 0.8.2–0.8.3, studio b36397f; scenes 1–3 green
 Stage 3  B4 ── B5 ── A3 ── C4 (scenes 4-5)   DONE 2026-10-07: the agent gets its brief from the graph (0.9.2-0.9.3, studio scenes 1-5); kgctl can retire
-Stage 4  A5 site view ── C5 ── C6 ── D1 ── D2 ── D3 (scenes 6-7)              proves: publish and read, end to end
+Stage 4  A5 ── C5 ── C6 (DONE 2026-10-07) ── D1 ── D2 ── D3 (proven locally; the GitHub pushes are Chiheb's)   proves: publish and read, end to end
 Stage 5  B6 portfolio+work ── A4 ── A6 ── A7 ── B7 ── D4 Cowork              proves: the levels link; the second host
 Later    A8 BigQuery Graph, once the graph is filled                          a target state, not on the path to the first release
 ```

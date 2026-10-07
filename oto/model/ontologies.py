@@ -704,11 +704,18 @@ def export(project, name, to=None, from_graph=0, summary=None, force=False):
     engine = ">=%s" % ".".join(str(x) for x in _manifest._version_tuple(__version__)[:2])
     # The terms the project declared itself keep the IRIs its own export gave them; what it took
     # from other ontologies is in the vocabulary's `namespaces` section and keeps theirs.
-    _manifest.write(target, {"name": name, "release": 1, "summary": exported["_summary"], "extends": [],
-                             "namespace": _namespaces.Terms(config, identity).project,
+    # Exporting over an ontology that exists (--force) is its next release: the namespace it
+    # published, its maintainer and its changelog are kept, and the release number rises.
+    previous = _manifest.read(target) if os.path.exists(os.path.join(target, _manifest.MANIFEST_NAME)) else None
+    release = int(previous.get("release") or 0) + 1 if previous and previous.get("_declared") else 1
+    _manifest.write(target, {"name": name, "release": release, "summary": exported["_summary"],
+                             "extends": list(previous.get("extends") or []) if previous else [],
+                             "namespace": (previous or {}).get("namespace") or _namespaces.Terms(config, identity).project,
                              "engine": engine, "carries": _manifest.detect_carries(target),
-                             "maintainer": "", "changelog": [{"release": 1, "at": _today(),
-                                                              "note": "Exported from the project %s." % identity["name"]}]})
+                             "maintainer": (previous or {}).get("maintainer") or "",
+                             "changelog": [{"release": release, "at": _today(),
+                                            "note": "Exported from the project %s." % identity["name"]}]
+                             + list((previous or {}).get("changelog") or [])})
     return target, self_check(target)
 
 

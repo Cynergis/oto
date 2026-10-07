@@ -416,9 +416,14 @@ def test_export_writes_a_manifest_and_the_ontology_shows(ontologies_dir, capsys)
         assert m["name"] == "my-org" and m["release"] == 1 and m["summary"] == "mine" and m["engine"].startswith(">=")
         assert m["carries"] == ["vocabulary", "rationale", "rules", "questions", "sample", "readme"] and m["changelog"][0]["release"] == 1, \
             "the core's rule is inherited, so the export carries rules"
+        # exporting over it again is its next release, with the changelog kept
+        path, problems = ontologies.export(project, "my-org", summary="mine again", force=True)
+        assert problems == [], problems
+        m = json.load(open(os.path.join(path, "manifest.json"), encoding="utf-8"))
+        assert m["release"] == 2 and [e["release"] for e in m["changelog"]] == [2, 1]
         assert main(["ontology", "show", "my-org"]) == 0
         out = capsys.readouterr().out
-        assert "my-org @1  (user)" in out and "self-check: clean" in out and "carries:  vocabulary, rationale, rules, questions, sample, readme" in out
+        assert "my-org @2  (user)" in out and "self-check: clean" in out and "carries:  vocabulary, rationale, rules, questions, sample, readme" in out
         assert main(["ontology", "show", "no-such"]) == 1
         assert main(["ontology", "list"]) == 0
         assert "extends oto-core" in capsys.readouterr().out

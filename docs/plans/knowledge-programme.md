@@ -110,7 +110,7 @@ product ──satisfied by──► architecture & design ──built and run by
 ## 4. Order, dependencies, and what each stage proves
 
 ```
-Stage 1  B1 product core ── B2 product-report ── B3 report from scratch            proves: OTO produces an ontology
+Stage 1  B1 product core ── B2 product-report ── B3 report from scratch   DONE 2026-10-07, see report-from-scratch.md
 Stage 2  A1 capture ── A2 propose ── C2 ── C3 ── C1 ── C7 ── C8 (scenes 1-3)  proves: the studio captures against packs, contributes as it goes
 Stage 3  B4 design ── B5 flow ── A3 briefs ── C4 (scenes 4-5)                 proves: the agent gets its brief from the graph; kgctl retires
 Stage 4  A5 site view ── C5 ── C6 ── D1 ── D2 ── D3 (scenes 6-7)              proves: publish and read, end to end

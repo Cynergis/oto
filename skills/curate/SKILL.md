@@ -115,13 +115,13 @@ Read all four sections:
 
 - **blocking** — undeclared types or relations, edges pointing nowhere, bad dates, duplicate ids,
   a supersession chain that does not point both ways or retires nothing, a node that breaks a
-  declared shape (`shape min: Claim claim.c-9 has 0 claims_under; at least 1 declared`), and a
-  required competency question the candidate would leave unanswered (`question AC1 unanswered`,
-  with the gap). Fix every one: the shapes and the questions are the vocabulary's contract, and
-  what cannot answer them does not enter the graph.
+  declared shape (`shape min: Claim claim.c-9 has 0 claims_under; at least 1 declared`). Fix every
+  one: the shapes are the vocabulary's contract, and what breaks them does not enter the graph.
 - **contradiction** — a value changed with no supersession record. Fix it, or explain why it is a
   correction rather than a change.
-- **gap** — a node with no date, no source, no citation or no evidence locator; a date handoff
+- **gap** — a required competency question the candidate leaves unanswered (`question AC1
+  unanswered`, with the gap): open work, told to the person, never a reason to refuse the facts
+  that arrived first — what must refuse is a policy; a node with no date, no source, no citation or no evidence locator; a date handoff
   that does not match; an edge whose endpoints do not fit the declared domain or range; a fact
   pending re-attestation; a `warn` policy rule the candidate would violate (a `blocking` one is
   blocking). Fix these too. They are not blocking because a build must not fail on

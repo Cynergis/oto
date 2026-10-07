@@ -261,7 +261,9 @@ def cmd_curate(args):
                                               "policy %s: %s%s" % (item["rule"], item["message"],
                                                                     (" (answers %s)" % answers[item["rule"]]) if answers.get(item["rule"]) else "")))
     # Shapes and questions: the vocabulary's contract with the graph. A node that breaks a declared
-    # constraint, or a required question the candidate cannot answer, is blocking.
+    # constraint is blocking. A required question the candidate cannot answer is open work, reported
+    # as a gap: facts arrive section by section, and a question answered later must not refuse the
+    # fact that arrives first. What must refuse is a policy (blocking), never a question.
     from ..model.vocabulary import covers as _covers
     from ..reason import shapes as _shapes, questions as _questions
     for item in _shapes.findings(vocabulary, proposed.get("nodes") or [], proposed.get("edges") or []):
@@ -271,7 +273,7 @@ def cmd_curate(args):
         for entry in _questions.findings(declared_questions, proposed.get("nodes") or [], proposed.get("edges") or [],
                                          _covers(vocabulary.get("classes") or {}), declared=_questions.declared_names(vocabulary)):
             for item in entry["unanswered"] or [{"node": "(graph)", "label": "(graph)", "status": entry["status"], "gaps": entry["gaps"]}]:
-                findings.append(_diff.Finding(_diff.Finding.BLOCKING, item["node"],
+                findings.append(_diff.Finding(_diff.Finding.GAP, item["node"],
                                               "question %s %s: %s%s" % (entry["id"], item["status"], entry["question"],
                                                                         ("; " + "; ".join(item["gaps"])) if item["gaps"] else "")))
     from ..curate import reattest as _reattest

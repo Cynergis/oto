@@ -4,6 +4,19 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.9.1 — 2026-10-07
+
+**A product starts from what its people say.** `oto init --empty` installs the vocabulary and
+leaves the graph empty (no sample, no lexicon seed): the studio's Atlas starts every product this
+way, so the pack's example never answers a question about the person's product. An empty graph
+builds, and `oto query questions` says what is open. Found by scene 4 of the studio: the fund
+report product's design was being checked against a payments platform.
+
+**A question reports; a policy refuses.** `oto curate check` lists a required question the
+candidate leaves unanswered under gaps, not blocking: facts arrive section by section, and the
+question answered later must not refuse the fact that arrives first. A malformed capture item
+(`fields` not an object) is refused by name.
+
 ## 0.9.0 — 2026-10-07
 
 **The design level** (stage 3 of the programme, B4). Three shipped ontologies now form one chain:

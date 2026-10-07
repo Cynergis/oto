@@ -152,13 +152,15 @@ def _ontology_record(name, ontologies, bases, pack=None):
 
 
 def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, ontology=None,
-         repo=False, engine=None, pack=None):
+         repo=False, engine=None, pack=None, empty=False):
     """Create or top up a project. Never overwrites authored data unless force is set.
 
     One of `slug` and `name` is enough: the other derives from it. With an ontology, the vocabulary
     and a small sample graph are installed so `oto build` works immediately. A team that sees the
     whole loop on day one understands what it is building; a team facing an empty config often does
-    not.
+    not. `empty` installs the vocabulary and leaves the graph empty: a real product's graph holds
+    what its people said, not the pack's example, and its lexicon seed (which names the example)
+    is left out too.
     """
     if not slug and not name:
         raise ValueError("a project needs a name: pass --name (the slug derives from it) or --slug")
@@ -320,6 +322,8 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
             "properties": ontology_rationale.get("properties") or {},
         }, force, _rationale.RATIONALE_NAME)
 
+    if empty:
+        ontology_lexicon = None
     if ontology_lexicon and (ontology_lexicon.get("entries") or []):
         _write(os.path.join(root, "lexicon.json"), {
             "_about": ("Jargon, acronyms and synonyms mapped to entities, so a question in the reader's "
@@ -358,6 +362,9 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
                % (ontology_notes.rstrip(), ontology),
                force, "ONTOLOGY-NOTES.md")
 
+    if empty:
+        sample_graph, ontology_lexicon = None, None
+        print("  graph: empty (--empty); the ontology's sample stays in the ontology")
     _write(os.path.join(root, "graph.json"), sample_graph or {
         "_about": "The curated knowledge graph. Hand-authored, or authored by an agent under review. "
                   "This is the source of truth; everything under build/ is compiled from it.",

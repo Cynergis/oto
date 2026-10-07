@@ -564,7 +564,8 @@ its finding names what it would leave unanswerable. Tightening a shape is a brea
 the lock; loosening one is additive.
 
 The engine evaluates the declared shapes itself, over current facts: `oto curate check` reports
-every violation as blocking, beside the required questions the candidate cannot answer, so what
+every violation as blocking, and the required questions the candidate cannot answer as gaps
+(open work: facts arrive section by section, and what must refuse is a policy), so what
 reaches `graph.json` satisfies the vocabulary's contract; `oto ontology check` prints the
 declared shapes and the live graph's violations (errors under `--strict`); the self-check holds
 an ontology's sample to them, and the synthetic sample an export invents respects every `max`.

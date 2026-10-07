@@ -60,6 +60,9 @@ def problems(capture, schema):
             out.append("%s: id %r is used twice" % (label, item_id))
         ids[nid] = kind
         fields = types[kind].get("fields") or {}
+        if not isinstance(item.get("fields") or {}, dict) or not isinstance(item.get("links") or {}, dict):
+            out.append("%s: `fields` and `links` are objects (name to value, link to targets)" % label)
+            continue
         for name, value in (item.get("fields") or {}).items():
             spec = fields.get(name)
             if spec is None:

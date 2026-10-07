@@ -391,6 +391,20 @@ def test_init_records_a_built_in_ontology_and_a_merge(ontologies_dir):
         assert [p["extends"] for p in record["parts"]] == [["oto-core", "product"], ["oto-core"]]
 
 
+def test_init_empty_installs_the_vocabulary_and_no_sample(ontologies_dir):
+    """A real product's graph holds what its people said, not the pack's example; it still builds."""
+    from oto.builder import build
+    from oto.project import Project
+    with tempfile.TemporaryDirectory() as root:
+        init(root, slug="e", name="E", ontology="software-architecture", empty=True)
+        graph = json.load(open(os.path.join(root, "graph.json"), encoding="utf-8"))
+        assert graph["nodes"] == [] and graph["edges"] == []
+        assert not os.path.exists(os.path.join(root, "lexicon.json")), "the seed names the sample"
+        config = json.load(open(os.path.join(root, "ontology.config.json"), encoding="utf-8"))
+        assert "Component" in config["classes"] and "Requirement" in config["classes"]
+        build(Project.standard(root))
+
+
 def test_the_shipped_ontologies_extend_oto_core_and_keep_their_vocabulary():
     """The split must not change what a project gets: every shipped ontology still declares
     Document and the temporal fields, now inherited. software-architecture sits on product,

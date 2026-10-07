@@ -37,12 +37,6 @@
       "validated_by": "Chiheb Dkhil, 2026-09-27",
       "why": "A step has identity of its own: a design decision, a requirement or a test points at one step, which a list attribute on the journey cannot support."
     },
-    "Objective": {
-      "alternatives": "SuccessCriterion only: rejected, a criterion cannot say what it is for beyond the promise. Objective as text on each criterion: rejected, repeats and cannot group. StrategicTheme class: rejected, only if themes are managed outside the product.",
-      "question": "What are we trying to achieve this period, and are we on track? Where does this product sit in the strategy? (G1, G2; Gate 3 review)",
-      "validated_by": "Chiheb Dkhil, 2026-09-27",
-      "why": "An objective is dated, owned and superseded, and criteria hang off it; strategic alignment is an objective supporting a higher one, which no attribute can express."
-    },
     "OpenQuestion": {
       "alternatives": "Decisions with state = open: rejected, populated differently. Hotspot class: deferred until the method runs gates on contested areas.",
       "question": "What is still open or unresolved? (C2)",
@@ -62,7 +56,7 @@
       "why": "A policy prescribes behaviour and has an authority and an enforcing role, which a budget or timeline constraint does not; two people would populate a shared class differently."
     },
     "Product": {
-      "alternatives": "A specific software-product class with releases and environments baked in; rejected because the user chose a generic vocabulary reused per project.",
+      "alternatives": "A specific software-product class with releases and environments baked in; rejected because the user chose a generic vocabulary reused per project. Stage, domain and value stream moved to the portfolio on 2026-10-07: where a product stands is the executive's question.",
       "question": "Why does this product exist, and what is it? (A1)",
       "validated_by": "Chiheb Dkhil, 2026-09-27",
       "why": "The root the whole vocabulary hangs off. Generic on purpose: one vocabulary every project starts from, a product being whatever the project sets out to build."
@@ -84,12 +78,6 @@
       "question": "What are the risks and external dependencies? (E1)",
       "validated_by": "Chiheb Dkhil, 2026-09-27",
       "why": "A risk threatens something, is mitigated by something, and can block a release; an external dependency is modelled as a risk kind because what matters is what happens if it fails."
-    },
-    "Role": {
-      "alternatives": "Role plus Person: rejected, no question needs a named individual's decisions traced. Stakeholder as one class: rejected, two people would populate it differently.",
-      "question": "Who owns it and who decides? (A4)",
-      "validated_by": "Chiheb Dkhil, 2026-09-27",
-      "why": "Ownership questions are answered better by a role than a person, because roles are stable while people move; the holder is an attribute with history by supersession."
     },
     "Scenario": {
       "alternatives": "UseCase class: rejected for now, a use case is a functional Requirement with its flow. Workflow class: rejected, a workflow is a UserJourney whose persona is a role.",
@@ -176,12 +164,6 @@
       "question": "Which requirement or journey serves which purpose? (D2)",
       "validated_by": "Chiheb Dkhil, 2026-09-27",
       "why": "This is the edge the orphan-requirement policy runs on; without it F3 cannot be detected."
-    },
-    "supports": {
-      "alternatives": "",
-      "question": "What strategy does this product serve? (G2)",
-      "validated_by": "Chiheb Dkhil, 2026-09-27",
-      "why": "Alignment is recorded as one objective supporting another, so no theme or strategy class is needed."
     }
   }
 }

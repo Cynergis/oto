@@ -12,6 +12,7 @@ restriction, a cardinality, a property chain, a name two namespaces both declare
     classes, properties, notes = read(paths)
     read.attributes, read.schemes, read.namespaces, read.rationale
 """
+import decimal
 import os
 import re
 
@@ -288,10 +289,10 @@ def read(paths):
                 if found is None:
                     continue
                 value = found.toPython()
+                if isinstance(value, decimal.Decimal):
+                    value = int(value) if value == int(value) else float(value)
                 if key == "pattern":
                     value = str(found)
-                    if value.startswith("^(?:") and value.endswith(")$"):
-                        value = value[4:-2]
                 elif key == "min_length":
                     value = int(value)
                 elif hasattr(value, "isoformat"):

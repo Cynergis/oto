@@ -1,11 +1,11 @@
 {
   "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
   "name": "product",
-  "release": 8,
+  "release": 9,
   "domain": "product",
   "summary": "What a product must do, for whom, under what rules, why: personas, journeys, requirements, releases, constraints, assumptions, risks, decisions, open questions, objectives, policies, terms. The core every product type extends.",
   "extends": [
-    "oto-core"
+    "portfolio"
   ],
   "namespace": "https://cynergis.ai/ont/product#",
   "engine": ">=0.8",
@@ -22,6 +22,11 @@
   ],
   "maintainer": "OTO",
   "changelog": [
+    {
+      "release": 9,
+      "at": "2026-10-07",
+      "note": "Sits on portfolio (decided with Chiheb Dkhil, 2026-10-07): Role, Objective, pursues and supports are the portfolio's, as are a product's stage, domain and value stream; owned_by is widened to what a product specifies and may name a team."
+    },
     {
       "release": 8,
       "at": "2026-10-07",

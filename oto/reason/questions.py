@@ -354,6 +354,8 @@ def _rows(graph, found, select):
             var, _dot, field = item.lstrip("$").partition(".")
             nid = bindings.get(var)
             row[item] = None if nid is None else (_value(graph, nid, field) if field else nid)
+        if row and all(v is None for v in row.values()):
+            continue                                   # a row that says nothing is no answer, as in SPARQL
         key = json.dumps(row, sort_keys=True, ensure_ascii=False, default=str)
         if key not in seen:
             seen.add(key)

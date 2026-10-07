@@ -9,7 +9,8 @@ Three declarations in `ontology.config.json` are shapes (model/vocabulary.py):
 
 A relation's `min` and `max` count what one subject of its domain carries; an attribute's
 `required` means every instance of the class carries a value, and its `pattern`, `min_value`,
-`max_value` and `min_length` constrain the value it carries (a list, each of its values); a
+`max_value` and `min_length` constrain the value it carries (a list, each of its values; a pattern
+matches anywhere in the value, as `sh:pattern` does: anchor it to constrain the whole); a
 class's `requires` names the attributes and relations every instance must carry. A constraint on a class applies to the kinds
 of it, as everywhere else. Policy rules (`rules.json`, kind `policy`) are the fourth source of
 shape, and may say which question they protect (`"answers": "CQ3"`).
@@ -63,7 +64,7 @@ def value_problem(spec, value):
         if one is None or one == "":
             continue
         text = str(one)
-        if spec.get("pattern") is not None and not re.fullmatch(spec["pattern"], text):
+        if spec.get("pattern") is not None and not re.search(spec["pattern"], text):
             return "%r does not match the pattern %s" % (one, spec["pattern"])
         if spec.get("min_length") is not None and len(text) < spec["min_length"]:
             return "%r is shorter than %d" % (one, spec["min_length"])

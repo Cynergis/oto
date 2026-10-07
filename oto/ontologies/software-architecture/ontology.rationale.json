@@ -7,12 +7,6 @@
       "validated_by": "",
       "why": "Ownership, risk and environment questions are asked about anything the estate runs or stores, not about one class at a time; the parent is what lets one question or one rule cover all of them."
     },
-    "Capability": {
-      "alternatives": "",
-      "question": "What does the business lose if this is down?",
-      "validated_by": "",
-      "why": "This is the only class a non-engineer will use, so it must exist in their words rather than being inferred from component names."
-    },
     "Component": {
       "alternatives": "Considered only having System; rejected because it cannot answer what breaks if this is redeployed.",
       "question": "What actually gets deployed, and what does it touch?",
@@ -54,12 +48,6 @@
       "question": "What is this thing, and who owns it?",
       "validated_by": "",
       "why": "A system is the unit people name in conversation and the unit ownership attaches to, so it has to exist even though it is coarse."
-    },
-    "Team": {
-      "question": "Who do I call about this asset?",
-      "why": "The estate is owned by teams; the product is owned by roles. Both exist: a team runs the matching job, the product owner decides its scope.",
-      "alternatives": "Reusing the product's Role: rejected because a role is a function (owner, decider) and a team is a group with a rota and a pager.",
-      "validated_by": ""
     }
   },
   "properties": {

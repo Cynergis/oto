@@ -85,7 +85,7 @@ def test_rules_explain_prints_the_reason_the_pattern_and_the_last_build(capsys):
         capsys.readouterr()
         assert main(["rules", "explain", "--project", root]) == 0
         out = capsys.readouterr().out
-        assert "13 rule(s)" in out and "risk-reaches-system" in out and "A risk to a component" in out
+        assert "14 rule(s)" in out and "risk-reaches-system" in out and "A risk to a component" in out
         assert main(["rules", "explain", "risk-reaches-system", "--project", root]) == 0
         out = capsys.readouterr().out
         assert "why:        A risk to a component" in out and "confirmed:  by nobody yet" in out

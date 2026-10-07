@@ -41,12 +41,6 @@
     "Environment": {
       "definition": "A place components run: production, staging, a region, a tenant."
     },
-    "Team": {
-      "definition": "The group accountable for an asset. Ownership of the estate attaches to a team, not a person; the product's roles (owner, decider) are `Role`."
-    },
-    "Capability": {
-      "definition": "A business capability the estate supports. This is what the business asks about."
-    },
     "Runbook": {
       "definition": "The documented way to operate or recover something."
     },
@@ -63,10 +57,10 @@
       "max": 1
     },
     "owned_by": {
-      "domain": "Product|Objective|Feature|SuccessCriterion|Risk|Requirement|Release|System|Component|Interface|DataStore|Capability",
+      "domain": "Product|Objective|Capability|Feature|SuccessCriterion|Risk|Requirement|Release|System|Component|Interface|DataStore",
       "range": "Role|Team",
       "inverse": "owns",
-      "definition": "The role accountable for this. Ownership sits on a role, not a person, so it survives people moving. Widened to the estate: an asset or a capability is owned by a team."
+      "definition": "The role or team accountable for this. Ownership sits on a role, not a person, so it survives people moving. Widened from the portfolio to what a product specifies. Widened to the estate: an asset is owned by a team or a role."
     },
     "exposes": {
       "domain": "System|Component",
@@ -81,9 +75,10 @@
       "inverse": "consumed_by"
     },
     "depends_on": {
-      "domain": "System|Component",
-      "range": "System|Component",
-      "definition": "The consumer needs the provider to work. Usually derived from consumes and exposes, and stated only when a document says so."
+      "domain": "Product|System|Component",
+      "range": "Product|System|Component",
+      "inverse": "depended_on_by",
+      "definition": "This product needs that one to deliver: data, a service, a decision. Upstream is the product depended on. The estate widens it to systems and components. Widened to the estate: the consumer needs the provider to work; usually derived from consumes and exposes, and stated only when a document says so."
     },
     "reads_from": {
       "domain": "Component",

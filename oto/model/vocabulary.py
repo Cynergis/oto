@@ -200,7 +200,7 @@ def _shape(section, label, spec):
                 return "%s: `requires` must be a list of attribute or relation names" % label
         elif key == "pattern":
             if not isinstance(value, str) or not value:
-                return "%s: `pattern` is a regular expression the whole value must match" % label
+                return "%s: `pattern` is a regular expression the value must match (anywhere, as sh:pattern; anchor it with ^ and $ for the whole value)" % label
             try:
                 re.compile(value)
             except re.error as exc:

@@ -4,6 +4,24 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.0 — 2026-10-07
+
+**The portfolio and the work** (stage 5, B6; decided and confirmed with Chiheb Dkhil). `portfolio`
+@1 is the base of the chain: Product (its stage, domain, value stream, and where its knowledge
+lives), Role, Team, Objective and Capability are declared once; `product` @9 sits on it,
+`software-architecture` @10 on that, `ddd` unchanged. The executive's questions PF1–PF10: what we
+build, what we pursue, what depends on what, which capability has no product, what has no owner,
+where a product's store and packs are. `work` @1 on `software-architecture`: work items and
+milestones that deliver requirements, features and components, assigned, scheduled, blocked; the
+delivery lead's questions WK1–WK10, among them *which requirements slip if this component is
+late*, and a derived `blocked` state.
+
+**A row that says nothing is no answer.** A question's row whose selected values are all absent
+is dropped, as SPARQL drops it; a question that selects only absent attributes is unanswered.
+
+**Patterns are `sh:pattern`.** An attribute's `pattern` matches anywhere in the value; anchor it
+for the whole. The importer reads SHACL decimals as numbers.
+
 ## 0.10.0 — 2026-10-07
 
 **Value constraints** (stage 5, A4). An attribute may declare `pattern`, `min_value`, `max_value`

@@ -1,0 +1,503 @@
+{
+  "_about": "What this ontology exists to answer. Each question runs over the graph in the pattern language of rules.json; `gate` says what an empty answer means; `gaps` says why it is empty; `terms` names the vocabulary the question covers. Reasoned about in `why`, confirmed in `validated_by`.",
+  "questions": {
+    "WK1": {
+      "who": "a delivery lead",
+      "question": "What is planned for $MILESTONE: which items, delivering which requirements and features, assigned to whom, in what state?",
+      "why": "The plan for one date, with what each item makes true.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "params": {
+        "MILESTONE": {
+          "type": "Milestone|Release"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "w",
+              "scheduled_in",
+              "$MILESTONE"
+            ]
+          },
+          {
+            "node": "w",
+            "type": "WorkItem"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "w",
+                  "delivers",
+                  "d"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "w",
+                  "assigned_to",
+                  "t"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "w.label",
+          "w.kind",
+          "w.state",
+          "w.due",
+          "d.label",
+          "d.type",
+          "t.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "scheduled_in",
+              "$MILESTONE"
+            ]
+          }
+        ],
+        "say": "nothing is scheduled in it"
+      }
+    },
+    "WK2": {
+      "who": "a delivery lead",
+      "question": "What is $TEAM working on, and what of it is blocked?",
+      "why": "A team's load and its blockers, in one answer.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "params": {
+        "TEAM": {
+          "type": "Team|Role"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "w",
+              "assigned_to",
+              "$TEAM"
+            ]
+          },
+          {
+            "node": "w",
+            "type": "WorkItem",
+            "where": {
+              "state": {
+                "in": [
+                  "planned",
+                  "in-progress",
+                  "blocked"
+                ]
+              }
+            }
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "w",
+                  "blocked_by",
+                  "b"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "w.label",
+          "w.state",
+          "w.due",
+          "b.label",
+          "b.type"
+        ]
+      },
+      "gate": "any"
+    },
+    "WK3": {
+      "who": "a delivery lead",
+      "question": "What blocks $ITEM: which items, risks, open questions or decisions, and who owns each?",
+      "why": "A blocker is a thing in the graph with an owner; the lead asks the owner, not the team.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "params": {
+        "ITEM": {
+          "type": "WorkItem"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ITEM",
+              "blocked_by",
+              "b"
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "b",
+                  "owned_by",
+                  "o"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "b",
+                  "decided_by",
+                  "o"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "b.label",
+          "b.type",
+          "o.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "WK4": {
+      "who": "a delivery lead",
+      "question": "Which requirements in scope of $RELEASE has no work item delivering?",
+      "why": "A requirement in scope that nobody is working on will not ship.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "params": {
+        "RELEASE": {
+          "type": "Release"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "r",
+              "in_scope_of",
+              "$RELEASE"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Requirement"
+          },
+          {
+            "not_edge": [
+              "*",
+              "delivers",
+              "r"
+            ]
+          }
+        ],
+        "select": [
+          "r.label",
+          "r.priority"
+        ]
+      },
+      "gate": "empty"
+    },
+    "WK5": {
+      "who": "a delivery lead",
+      "question": "Which requirements slip if $COMPONENT is late: the items that build it, the requirements it satisfies, the releases they are in scope of?",
+      "why": "The question that crosses every level: the plan, the estate, the specification, the release.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "params": {
+        "COMPONENT": {
+          "type": "Component|System|Interface"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$COMPONENT",
+              "satisfies",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Requirement"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "r",
+                  "in_scope_of",
+                  "rel"
+                ]
+              },
+              {
+                "node": "rel",
+                "type": "Release"
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "w",
+                  "delivers",
+                  "$COMPONENT"
+                ]
+              },
+              {
+                "node": "w",
+                "type": "WorkItem"
+              }
+            ]
+          }
+        ],
+        "select": [
+          "r.label",
+          "r.priority",
+          "rel.label",
+          "rel.target_date",
+          "w.label",
+          "w.state",
+          "w.due"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$COMPONENT",
+              "satisfies",
+              "*"
+            ]
+          }
+        ],
+        "say": "the component satisfies no requirement on record, so nothing slips that anyone can name"
+      }
+    },
+    "WK6": {
+      "who": "a delivery lead",
+      "question": "Which items are overdue: due date passed, not done?",
+      "why": "The plan's honesty check.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "w",
+            "type": "WorkItem",
+            "where": {
+              "due": {
+                "<": "$today"
+              },
+              "state": {
+                "in": [
+                  "planned",
+                  "in-progress",
+                  "blocked"
+                ]
+              }
+            }
+          }
+        ],
+        "select": [
+          "w.label",
+          "w.state",
+          "w.due"
+        ]
+      },
+      "gate": "empty"
+    },
+    "WK7": {
+      "who": "a delivery lead",
+      "question": "Which decisions is work waiting on, and whose call are they?",
+      "why": "An open question or an untaken decision that blocks work has a deciding role; name it.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "w",
+              "blocked_by",
+              "b"
+            ]
+          },
+          {
+            "node": "b",
+            "type": "OpenQuestion|Decision"
+          },
+          {
+            "node": "w",
+            "type": "WorkItem",
+            "where": {
+              "state": {
+                "in": [
+                  "planned",
+                  "in-progress",
+                  "blocked"
+                ]
+              }
+            }
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "b",
+                  "decided_by",
+                  "o"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "d",
+                  "resolves",
+                  "b"
+                ]
+              },
+              {
+                "edge": [
+                  "d",
+                  "decided_by",
+                  "o"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "w.label",
+          "b.label",
+          "b.type",
+          "o.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "WK8": {
+      "who": "a delivery lead",
+      "question": "Which done items deliver a requirement nothing in the design satisfies yet?",
+      "why": "Trace closure: done means the requirement is satisfied by something in the design, or the item was not what it claimed.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "w",
+            "type": "WorkItem",
+            "where": {
+              "state": "done"
+            }
+          },
+          {
+            "edge": [
+              "w",
+              "delivers",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Requirement"
+          },
+          {
+            "not_edge": [
+              "*",
+              "satisfies",
+              "r"
+            ]
+          }
+        ],
+        "select": [
+          "w.label",
+          "r.label"
+        ]
+      },
+      "gate": "empty"
+    },
+    "WK9": {
+      "who": "a delivery lead",
+      "question": "Which milestones are planned, when, owned by whom, and were they reached?",
+      "why": "The calendar of the plan.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "m",
+            "type": "Milestone"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "m",
+                  "owned_by",
+                  "o"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "m.label",
+          "m.date",
+          "m.state",
+          "o.label"
+        ]
+      },
+      "gate": "non_empty"
+    },
+    "WK10": {
+      "who": "a delivery lead",
+      "question": "Which items must be done before $ITEM, and what is their state?",
+      "why": "An item's own prerequisites: the critical path, one hop at a time.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "params": {
+        "ITEM": {
+          "type": "WorkItem"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ITEM",
+              "depends_on",
+              "before"
+            ]
+          },
+          {
+            "node": "before",
+            "type": "WorkItem"
+          }
+        ],
+        "select": [
+          "before.label",
+          "before.state",
+          "before.due",
+          "$ITEM.estimate",
+          "$ITEM.priority"
+        ]
+      },
+      "gate": "any"
+    }
+  }
+}

@@ -494,6 +494,25 @@
       ],
       "tags": [],
       "aliases": []
+    },
+    {
+      "id": "valueproposition.vp-documents",
+      "type": "ValueProposition",
+      "label": "Every fund document right and on time",
+      "summary": "The second product of the portfolio sample, as far as the product level knows it.",
+      "attributes": {
+        "promise": "documents produced from a verified definition, every month",
+        "differentiator": "the definition is the product, not the template"
+      },
+      "source_doc": "payments-brief",
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "status": "current",
+      "sources": [
+        "payments-brief"
+      ],
+      "tags": [],
+      "aliases": []
     }
   ],
   "edges": [
@@ -651,6 +670,11 @@
       "from": "product.payments",
       "rel": "documented_in",
       "to": "document.payments-brief"
+    },
+    {
+      "from": "product.fund-reports",
+      "rel": "offers",
+      "to": "valueproposition.vp-documents"
     }
   ]
 }

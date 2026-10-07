@@ -1,0 +1,43 @@
+{
+  "_about": "Why each term exists and who confirmed it: the delivery lead's questions, confirmed by Chiheb Dkhil on 2026-10-07 (B6).",
+  "classes": {
+    "WorkItem": {
+      "question": "What is planned, by whom, and what is blocked? (WK1-WK3)",
+      "why": "The unit the delivery lead plans and the one thing that links the plan to what the product specifies and the estate holds.",
+      "alternatives": "Epic, Story and Task as classes: rejected, one class with a kind answers the same questions and a story that becomes an epic is a changed attribute, not a changed class.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)"
+    },
+    "Milestone": {
+      "question": "What is planned for this milestone? (WK1)",
+      "why": "A release ships; a milestone is reached. Both schedule work, and a demo is not a release.",
+      "alternatives": "Milestone as a kind of Release: rejected, a release is the product's scope boundary and carries what shipped.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)"
+    }
+  },
+  "properties": {
+    "delivers": {
+      "question": "Which requirements slip if this component is late? (WK5)",
+      "why": "The one edge from the plan to the other levels: an item delivers a requirement, a feature, a component. Without it the plan is a list.",
+      "alternatives": "Separate relations per target class: rejected, one question walks them all.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)"
+    },
+    "blocked_by": {
+      "question": "What blocks this item, and whose call is it? (WK3, WK7)",
+      "why": "A blocker is a thing in the graph (a risk, an open question, a decision, another item), so the question answers who owns it.",
+      "alternatives": "",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)"
+    },
+    "scheduled_in": {
+      "question": "What is planned for this milestone or release? (WK1, WK4)",
+      "why": "The plan is work placed in time: without the milestone or release an item is scheduled in, no question about a date can run.",
+      "alternatives": "",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)"
+    },
+    "assigned_to": {
+      "question": "What is this team working on? (WK2)",
+      "why": "Work is done by teams; a role when one function is the point.",
+      "alternatives": "",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)"
+    }
+  }
+}

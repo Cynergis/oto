@@ -27,18 +27,18 @@ def home(monkeypatch):
 
 
 def test_new_embeds_the_ontology_and_its_bases_and_generates_the_plugin_files(home, capsys):
-    assert main(["pack", "new", "arch", "--ontology", "software-architecture@9", "--maintainer", "Cynergis"]) == 0
+    assert main(["pack", "new", "arch", "--ontology", "software-architecture@10", "--maintainer", "Cynergis"]) == 0
     out = capsys.readouterr().out
-    assert "embeds the ontology software-architecture@9 (built-in)" in out and "check clean" in out
+    assert "embeds the ontology software-architecture@10 (built-in)" in out and "check clean" in out
     directory = packs.dir_for("arch")
     assert directory == os.path.join(home, "packs", "arch")
     # the ontology and what it extends, under their own names, so the pack composes on its own
-    assert sorted(os.listdir(packs.embedded_root(directory))) == ["oto-core", "product", "software-architecture"]
+    assert sorted(os.listdir(packs.embedded_root(directory))) == ["oto-core", "portfolio", "product", "software-architecture"]
     assert packs.embedded_name(directory) == "software-architecture"
     assert not os.path.exists(os.path.join(packs.embedded_dir(directory), ".claude-plugin"))
     manifest = packs.read(directory)
     assert manifest["release"] == 1 and manifest["domain"] == "software" and manifest["maintainer"] == "Cynergis"
-    assert manifest["ontology"]["name"] == "software-architecture" and manifest["ontology"]["release"] == 9
+    assert manifest["ontology"]["name"] == "software-architecture" and manifest["ontology"]["release"] == 10
     assert manifest["ontology"]["source"] == "built-in" and manifest["ontology"]["embedded_at"]
     assert manifest["engine"].startswith(">=")
     plugin = json.load(open(os.path.join(directory, ".claude-plugin", "plugin.json"), encoding="utf-8"))
@@ -103,8 +103,8 @@ def test_check_names_what_is_wrong(home, capsys):
     manifest = packs.read(directory); manifest["release"] = 4; packs.write(directory, manifest)
     assert any("plugin.json version '1.0.0' is not release 4" in p for p in packs.check(directory))
     # the manifest and the embedded copy disagree
-    manifest["ontology"]["release"] = 10; packs.write(directory, manifest)
-    assert any("says ontology release 10 but ontology/ is at release 9" in p for p in packs.check(directory))
+    manifest["ontology"]["release"] = 11; packs.write(directory, manifest)
+    assert any("says ontology release 11 but ontology/ is at release 10" in p for p in packs.check(directory))
     assert main(["pack", "check", directory]) == 1
     out = capsys.readouterr().out
     assert "problem(s):" in out and "view globals-site" in out
@@ -185,7 +185,8 @@ def test_the_shipped_ontologies_declare_a_domain_and_the_listing_groups_by_it(ca
     assert ontologies.summary("oto-core")["domain"] is None
     assert main(["ontology", "list"]) == 0
     out = capsys.readouterr().out
-    assert out.index("insurance:") < out.index("auto-claims") < out.index("software:") < out.index("software-architecture")
+    out = out[out.index("ontologies (start"):]
+    assert out.index("\ninsurance:") < out.index("auto-claims") < out.index("\nproduct:") < out.index("portfolio") < out.index("\nsoftware:") < out.index("\n  software-architecture ")
     assert out.index("no domain:") > out.index("software:") and "oto-core" in out.split("no domain:")[1]
     assert main(["ontology", "show", "auto-claims"]) == 0
     assert "domain:   insurance" in capsys.readouterr().out
@@ -210,7 +211,7 @@ def test_publish_a_pack_creates_the_registry_with_the_engine_first_in_the_market
     index = json.load(open(os.path.join(work, "registry.json"), encoding="utf-8"))
     assert index["ontologies"] == [] and index["engine"] == "https://github.com/Cynergis/oto"
     assert index["packs"] == [{"name": "arch", "release": 1, "summary": index["packs"][0]["summary"], "path": "packs/arch",
-                               "ontology": {"name": "software-architecture", "release": 9}, "domain": "software"}]
+                               "ontology": {"name": "software-architecture", "release": 10}, "domain": "software"}]
     published = packs.read(os.path.join(work, "packs", "arch"))
     assert published["release"] == 1 and published["changelog"][0]["note"] == "first" and "fetched_at" not in published
     plugin = json.load(open(os.path.join(work, "packs", "arch", ".claude-plugin", "plugin.json"), encoding="utf-8"))
@@ -272,7 +273,7 @@ def test_add_update_list_and_show_from_a_registry(home, capsys):
     # fetched with provenance
     assert main(["pack", "add", "arch"]) == 0
     out = capsys.readouterr().out
-    assert "added pack arch @1" in out and "embeds the ontology software-architecture@9" in out and "registry market" in out
+    assert "added pack arch @1" in out and "embeds the ontology software-architecture@10" in out and "registry market" in out
     manifest = packs.read(packs.dir_for("arch"))
     assert manifest["registry"] == "market" and manifest["source"] == bare and manifest["path"] == "packs/arch" and manifest["commit"]
     assert packs.origin("arch") == packs.FETCHED and packs.check(packs.dir_for("arch")) == []
@@ -281,7 +282,7 @@ def test_add_update_list_and_show_from_a_registry(home, capsys):
     assert "software:" in out and "arch" in out and "(fetched)" in out and "in a registry, not on this machine" not in out
     assert main(["pack", "show", "arch"]) == 0
     out = capsys.readouterr().out
-    assert "arch @1  (fetched)" in out and "ontology: software-architecture@9" in out and "skills:   start" in out \
+    assert "arch @1  (fetched)" in out and "ontology: software-architecture@10" in out and "skills:   start" in out \
         and "check: clean" in out and "fetched:  from market" in out
     # a pinned older release comes from its tag; a wrong pin is refused
     assert main(["pack", "publish", "--from", "arch", "--to", bare, "--note", "second"]) == 0
@@ -315,18 +316,18 @@ def test_init_from_a_pack_installs_its_ontology_and_views_and_records_the_pack(h
     with tempfile.TemporaryDirectory() as root:
         assert main(["init", "--name", "KB", "--slug", "kb", "--project", root, "--pack", "arch"]) == 0
         out = capsys.readouterr().out
-        assert "pack: arch @1" in out and "ontology: software-architecture @9 (extends oto-core, product)" in out
+        assert "pack: arch @1" in out and "ontology: software-architecture @10 (extends oto-core, portfolio, product)" in out
         assert "wrote: views/globals-site" in out and "wrote: GUIDE.md" in out and "actions/action.check-repository.json" in out
         config = json.load(open(os.path.join(root, "project.config.json"), encoding="utf-8"))
         record = config["ontology"]
-        assert record["name"] == "software-architecture" and record["release"] == 9 and record["origin"] == "built-in"
+        assert record["name"] == "software-architecture" and record["release"] == 10 and record["origin"] == "built-in"
         assert record["pack"] == {"name": "arch", "release": 1, "registry": None, "source": None}
-        assert record["extends"] == ["oto-core", "product"]
+        assert record["extends"] == ["oto-core", "portfolio", "product"]
         assert os.path.exists(os.path.join(root, "views", "globals-site", "app.json"))
         assert apps.resolve("globals-site", root) == os.path.join(root, "views", "globals-site")
         build(Project.standard(root))
         assert main(["status", "--project", root]) == 0
-        assert "ontology    software-architecture @9 (built-in) via pack arch @1" in capsys.readouterr().out
+        assert "ontology    software-architecture @10 (built-in) via pack arch @1" in capsys.readouterr().out
         assert main(["ontology", "diff", "--project", root]) == 0
         assert "the engine holds the same release" in capsys.readouterr().out
         assert main(["build", "--project", root, "--target", "site", "--view", "globals-site"]) == 0

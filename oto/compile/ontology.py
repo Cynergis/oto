@@ -411,7 +411,7 @@ def run(project):
                 if isinstance(message, dict):                   # a value constraint: {pattern, min_value, ...}
                     bounds = message
                     if "pattern" in bounds:
-                        parts.append("sh:pattern %s" % json.dumps("^(?:%s)$" % bounds["pattern"]))
+                        parts.append("sh:pattern %s" % json.dumps(bounds["pattern"]))
                     for key, pred in (("min_value", "sh:minInclusive"), ("max_value", "sh:maxInclusive")):
                         if key in bounds:
                             parts.append("%s %s" % (pred, json.dumps(bounds[key]) if not isinstance(bounds[key], str) else '"%s"^^xsd:date' % bounds[key]))

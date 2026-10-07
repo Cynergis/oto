@@ -1,14 +1,14 @@
 {
   "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
   "name": "software-architecture",
-  "release": 9,
+  "release": 10,
   "domain": "software",
   "summary": "Software estate on a product: systems, components, interfaces, data, environments; what satisfies which requirement, who owns and operates it, what threatens it, which decision shaped it.",
   "extends": [
     "product"
   ],
   "namespace": "https://cynergis.ai/ont/software-architecture#",
-  "engine": ">=0.8",
+  "engine": ">=0.10",
   "carries": [
     "vocabulary",
     "rationale",
@@ -21,6 +21,16 @@
   ],
   "maintainer": "OTO",
   "changelog": [
+    {
+      "release": 10,
+      "at": "2026-10-07",
+      "note": "Team and Capability are the portfolio's (the base of the chain, decided with Chiheb Dkhil, 2026-10-07); owned_by and depends_on widen the portfolio's."
+    },
+    {
+      "release": 9,
+      "at": "2026-10-07",
+      "note": "Sits on `product` (decided with Chiheb Dkhil, 2026-10-07: product -> software-architecture -> ddd). Its own Requirement, Risk, Document and DecisionRecord are gone: the product's Requirement, Risk, Document and Decision serve, with part_of, owned_by, about, threatens, mitigated_by and documented_in widened to the estate. SA17 asks which requirements nothing satisfies yet. `supports` is `enables` (the product's `supports` is objective to objective). The sample is the estate of the product sample's payments platform."
+    },
     {
       "release": 9,
       "at": "2026-10-07",

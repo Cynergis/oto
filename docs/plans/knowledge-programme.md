@@ -83,8 +83,8 @@ product ──satisfied by──► architecture & design ──built and run by
 | B3 | `report` from scratch | scene 3 on the spec graph; the interview from Phase 2; the fixture's facts authored through proposals | the 21 questions answer on the fixture; a written comparison with the port: which questions, which classes differ, and whether each difference is OTO's discipline or its limit |
 | B4 | `ddd` generalised; `software-architecture` settled — DONE 2026-10-07 (0.9.0) | one chain, `product` → `software-architecture` → `ddd`: the product's classes serve, the design packs widen `part_of`, `owned_by`, `about`, `satisfies`, `serves`; `Reaction` for the storming policy; a merge widens a relation two parts declare | `architecture-build` captures against `ddd` (one name: it brings the estate); `report-product-builder` (the pre-v2 mesh) no longer composes and is B7's to retire or rebase; `report` @4 renamed its `Component` to `Macro` |
 | B5 | `flow` — DONE 2026-10-07 (report-ontology `oto/flow`, `tools/flow_port.py`) | port of `ontology.ttl` and `competency_questions.yaml` by the same script pattern as `oto_port.py`; task types became briefs; the flow instance is a project graph (`fixtures/pdf-to-template/graph.json`), not a pack's sample; no `flow-report` pack: the `dt:` concepts wait for run data | `tests/test_flow_port.py`: the briefs give `kgctl`'s readiness and brief verdicts for every step and task |
-| B6 | `portfolio`, `work` | interview; Role and Team declared once in `portfolio`; every other pack extends it | a project composing four packs has one Role and one Team; "which requirements slip if this component is late" runs |
-| B7 | the five user ontologies reviewed | the 139 drafted questions' gates and wording confirmed by Chiheb; shapes declared | `validated_by` filled where confirmed |
+| B6 | `portfolio`, `work` — DONE 2026-10-07 (0.11.0) | the questions drafted and confirmed by Chiheb the same day; portfolio is the base of the chain, Role, Team, Objective and Capability declared once; work on software-architecture | a project composing five packs has one Role and one Team; WK5 "which requirements slip if this component is late" runs on the sample |
+| B7 | the user ontologies reviewed — DONE 2026-10-07: report-product-builder and ddd-kyc retired (~/.oto/ontologies-retired); report-generation's lineage and quality terms folded into `report` @5 (Transformation, QualityCheck, Finding, Q23–Q26), then it and report-technical retired; the delivered-instance and delivery-level terms were not wanted | `validated_by` filled where confirmed |
 
 ### WS-C — PRD & Architecture Studio v2 (ours)
 
@@ -115,7 +115,7 @@ Stage 1  B1 product core ── B2 product-report ── B3 report from scratch 
 Stage 2  A1 capture ── A2 propose ── C2 ── C3 ── C1 ── C7 ── C8 (scenes 1-3)  DONE 2026-10-07: OTO 0.8.2–0.8.3, studio b36397f; scenes 1–3 green
 Stage 3  B4 ── B5 ── A3 ── C4 (scenes 4-5)   DONE 2026-10-07: the agent gets its brief from the graph (0.9.2-0.9.3, studio scenes 1-5); kgctl can retire
 Stage 4  A5 ── C5 ── C6 (DONE 2026-10-07) ── D1 ── D2 ── D3 (proven locally; the GitHub pushes are Chiheb's)   proves: publish and read, end to end
-Stage 5  B6 portfolio+work ── A4 ── A6 ── A7 ── B7 ── D4 Cowork              proves: the levels link; the second host
+Stage 5  B6 ── A4 ── A6 ── A7 ── B7 (DONE 2026-10-07, 0.10.0–0.11.0) ── D4 Cowork (Chiheb's)   proves: the levels link; the second host
 Later    A8 BigQuery Graph, once the graph is filled                          a target state, not on the path to the first release
 ```
 

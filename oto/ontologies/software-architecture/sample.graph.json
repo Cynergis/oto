@@ -118,42 +118,6 @@
       ]
     },
     {
-      "id": "team.payments",
-      "type": "Team",
-      "label": "Payments team",
-      "aliases": [],
-      "summary": "Owns the payments platform end to end.",
-      "attributes": {},
-      "tags": [
-        "team"
-      ],
-      "as_of": "2026-01-01",
-      "valid_from": "2026-01-01",
-      "source_doc": "sample",
-      "status": "current",
-      "sources": [
-        "sample"
-      ]
-    },
-    {
-      "id": "capability.take-payment",
-      "type": "Capability",
-      "label": "Take a customer payment",
-      "aliases": [],
-      "summary": "The business capability the platform exists for.",
-      "attributes": {},
-      "tags": [
-        "capability"
-      ],
-      "as_of": "2026-01-01",
-      "valid_from": "2026-01-01",
-      "source_doc": "sample",
-      "status": "current",
-      "sources": [
-        "sample"
-      ]
-    },
-    {
       "id": "decision.single-ledger",
       "type": "Decision",
       "label": "One ledger, written only by the settlement job",

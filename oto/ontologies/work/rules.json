@@ -1,0 +1,81 @@
+{
+  "_about": "The plan's honesty: an overdue item is flagged (answers WK6); an item waiting on an unfinished item is derived blocked.",
+  "rules": [
+    {
+      "id": "item-is-overdue",
+      "kind": "policy",
+      "severity": "warn",
+      "when": [
+        {
+          "node": "w",
+          "type": "WorkItem",
+          "where": {
+            "due": {
+              "<": "$today"
+            },
+            "state": {
+              "in": [
+                "planned",
+                "in-progress",
+                "blocked"
+              ]
+            }
+          }
+        }
+      ],
+      "then": {
+        "flag": "a work item is past its due date and not done"
+      },
+      "why": "The plan must say when it slipped, not hide it.",
+      "validated_by": "",
+      "answers": "WK6"
+    },
+    {
+      "id": "blocked-item-is-marked-blocked",
+      "kind": "derive",
+      "when": [
+        {
+          "node": "w",
+          "type": "WorkItem",
+          "where": {
+            "state": {
+              "in": [
+                "planned",
+                "in-progress"
+              ]
+            }
+          }
+        },
+        {
+          "edge": [
+            "w",
+            "blocked_by",
+            "b"
+          ]
+        },
+        {
+          "node": "b",
+          "type": "WorkItem",
+          "where": {
+            "state": {
+              "in": [
+                "planned",
+                "in-progress",
+                "blocked"
+              ]
+            }
+          }
+        }
+      ],
+      "then": {
+        "attribute": [
+          "w",
+          "state",
+          "blocked"
+        ]
+      },
+      "why": "An item blocked by an unfinished item is blocked, whatever its ticket says; derived so the plan reads true.",
+      "validated_by": ""
+    }
+  ]
+}

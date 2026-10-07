@@ -1,0 +1,32 @@
+{
+  "_about": "One policy: a needed capability nobody provides stays visible (answers PF4).",
+  "rules": [
+    {
+      "id": "needed-capability-has-a-provider",
+      "kind": "policy",
+      "severity": "warn",
+      "when": [
+        {
+          "node": "c",
+          "type": "Capability",
+          "where": {
+            "state": "needed"
+          }
+        },
+        {
+          "not_edge": [
+            "*",
+            "provides",
+            "c"
+          ]
+        }
+      ],
+      "then": {
+        "flag": "a capability the portfolio needs has no product providing it"
+      },
+      "why": "The gap is the finding; it must stay visible until a product provides it or the need is dropped.",
+      "validated_by": "",
+      "answers": "PF4"
+    }
+  ]
+}

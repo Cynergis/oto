@@ -66,7 +66,7 @@ def test_a_usable_question_set_has_no_problems_and_cites_its_terms():
     assert cited["System"] == ["CQ1"] and cited["part_of"] == ["CQ1"] and cited["Environment"] == ["CQ1"]
     assert cited["DataStore"] == ["CQ2"] and cited["Asset"] == ["CQ3"] and "mitigated_by" in cited
     left = Q.uncovered(QUESTIONS, vocabulary)
-    assert "Team" in left and "owned_by" in left and "Repository.url" in left
+    assert "Runbook" in left and "owned_by" in left and "Repository.url" in left
     assert "System" not in left and "Asset" not in left
 
 

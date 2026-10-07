@@ -435,6 +435,8 @@ def register(sub):
                                "this project started from, publish --to <registry>")
     project_arguments(ontology)
     ontology.add_argument("--show", type=int, default=8, help="how many mismatch patterns to list")
+    ontology.add_argument("--product-types", dest="product_types", action="store_true",
+                          help="for list: the kinds of product the ontologies and packs specify (manifest `product_type`)")
     ontology.add_argument("--file", default=None,
                           help="for import: an ontology (.ttl, .rdf, .owl, .jsonld, .nt; any OWL/RDFS/SKOS, with the rdf extra), or a .csv or .json vocabulary")
     ontology.add_argument("--from", dest="from_name", default=None,

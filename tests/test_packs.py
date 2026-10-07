@@ -375,3 +375,40 @@ def test_a_pack_installed_by_claude_code_sits_under_a_version_directory(home, tm
     renamed = os.path.join(str(tmp_path), "renamed")
     shutil.copytree(packs.dir_for("arch"), renamed)
     assert any("names 'arch' but the directory is 'renamed'" in p for p in packs.check(renamed))
+
+
+def test_a_pack_declares_its_product_type_and_the_registry_lists_it(home, capsys):
+    """A studio's first question, which kind of product, is read from the marketplace."""
+    from oto.model import registry
+    from oto.project import Project
+    from oto.scaffold import init
+    bare = _empty_registry(home, name="market")
+    with tempfile.TemporaryDirectory() as root:
+        init(root, slug="r", name="R", ontology="auto-claims")
+        project = Project.standard(root)
+        _path, problems = ontologies.export(project, "product-claims")
+        assert problems == [], problems
+        manifest = ontologies.manifest_for("product-claims")
+        manifest["product_type"] = "claims"
+        from oto.model import ontology_manifest as _om
+        _om.write(ontologies.dir_for("product-claims"), manifest)
+        assert ontologies.self_check("product-claims") == []
+        bad = dict(manifest, product_type="Not Slug")
+        _om.write(ontologies.dir_for("product-claims"), bad)
+        assert any("product_type" in p for p in ontologies.self_check("product-claims"))
+        _om.write(ontologies.dir_for("product-claims"), manifest)
+    assert main(["pack", "new", "product-claims", "--ontology", "product-claims"]) == 0
+    assert packs.read(packs.dir_for("product-claims"))["product_type"] == "claims", "the pack carries the ontology's product type"
+    capsys.readouterr()
+    assert main(["ontology", "list", "--product-types"]) == 0
+    out = capsys.readouterr().out
+    assert "claims         product-claims" in out
+    assert main(["pack", "publish", "--from", "product-claims", "--to", bare, "--registry-name", "market", "--note", "first"]) == 0
+    shutil.rmtree(packs.dir_for("product-claims"))
+    shutil.rmtree(ontologies.dir_for("product-claims"))
+    assert main(["registry", "add", bare]) == 0
+    capsys.readouterr()
+    assert main(["registry", "list", "--product-types"]) == 0
+    out = capsys.readouterr().out
+    assert "claims         product-claims         @1   registry market" in out, out
+    assert [(t, n) for t, n, _r, _w, _s in registry.product_types()] == [("claims", "product-claims")]

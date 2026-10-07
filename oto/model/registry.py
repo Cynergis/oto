@@ -251,6 +251,30 @@ def find(name, kind="ontology"):
     return None, None
 
 
+def product_types(local=True):
+    """What kinds of product can be specified: [(product type, name, release, where, summary)], the
+    ontologies and packs on this machine (`local`) and in every registry, each name once."""
+    from . import ontologies as _ontologies, packs as _packs
+    out, seen = [], set()
+    if local:
+        for name in _ontologies.available():
+            manifest = _ontologies.manifest_for(name)
+            if manifest.get("product_type") and name not in seen:
+                seen.add(name)
+                out.append((manifest["product_type"], name, manifest.get("release"), "this machine", manifest.get("summary") or ""))
+        for name in _packs.available():
+            manifest = _packs.read(_packs.dir_for(name))
+            if manifest.get("product_type") and name not in seen:
+                seen.add(name)
+                out.append((manifest["product_type"], name, manifest.get("release"), "this machine (pack)", manifest.get("summary") or ""))
+    for kind in ("pack", "ontology"):
+        for where, entry in remote_entries(kind):
+            if entry.get("product_type") and entry["name"] not in seen:
+                seen.add(entry["name"])
+                out.append((entry["product_type"], entry["name"], entry.get("release"), "registry %s" % where, entry.get("summary") or ""))
+    return sorted(out)
+
+
 def remote_entries(kind="ontology"):
     """Every index entry with the registry it comes from, in resolution order, first listing wins."""
     seen, out = set(), []
@@ -515,6 +539,8 @@ def publish(to, project=None, ontology=None, name=None, summary=None, from_graph
                          "path": name, "extends": list(manifest.get("extends") or [])}
         if manifest.get("domain"):
             entries[name]["domain"] = manifest["domain"]
+        if manifest.get("product_type"):
+            entries[name]["product_type"] = manifest["product_type"]
         index["ontologies"] = [entries[k] for k in sorted(entries)]
         _write_index(work, index)
         _path, plugins = write_marketplace(work, index)
@@ -567,6 +593,8 @@ def publish_pack(to, pack, note=None, summary=None, ref=None, registry_name=None
                          "path": KINDS["pack"]["prefix"] + name, "ontology": {"name": onto.get("name"), "release": onto.get("release")}}
         if manifest.get("domain"):
             entries[name]["domain"] = manifest["domain"]
+        if manifest.get("product_type"):
+            entries[name]["product_type"] = manifest["product_type"]
         index["packs"] = [entries[k] for k in sorted(entries)]
         _write_index(work, index)
         _path, plugins = write_marketplace(work, index)

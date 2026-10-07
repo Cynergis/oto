@@ -70,7 +70,8 @@ KEYS = {"schemes": ("definition", "label", "alt_labels", "scope_note", "example"
         "classes": ("definition", "label", "alt_labels", "scope_note", "example", "subclass_of", "requires"),
         "properties": ("domain", "range", "inverse", "definition", "label", "inverse_label", "alt_labels",
                        "scope_note", "example", "subproperty_of", "min", "max", "derived"),
-        "attributes": ("type", "definition", "label", "alt_labels", "scope_note", "example", "required"),
+        "attributes": ("type", "definition", "label", "alt_labels", "scope_note", "example", "required",
+                       "pattern", "min_value", "max_value", "min_length"),
         "temporal": ("type", "definition", "label")}
 TEMPORAL_TYPES = ("date", "string", "ref")
 DEFAULT_LANGUAGE = "en"
@@ -197,6 +198,23 @@ def _shape(section, label, spec):
         elif key == "requires":
             if not (isinstance(value, list) and all(isinstance(x, str) and x for x in value)):
                 return "%s: `requires` must be a list of attribute or relation names" % label
+        elif key == "pattern":
+            if not isinstance(value, str) or not value:
+                return "%s: `pattern` is a regular expression the whole value must match" % label
+            try:
+                re.compile(value)
+            except re.error as exc:
+                return "%s: `pattern` %r is not a regular expression (%s)" % (label, value, exc)
+        elif key in ("min_value", "max_value"):
+            if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+                return "%s: `%s` is a number, or an ISO date for a date attribute" % (label, key)
+            if isinstance(value, str) and not ISO_DATE.match(value):
+                return "%s: `%s` %r is neither a number nor an ISO date" % (label, key, value)
+            if key == "max_value" and spec.get("min_value") is not None and type(value) is type(spec["min_value"]) and value < spec["min_value"]:
+                return "%s: `max_value` %r is below `min_value` %r" % (label, value, spec["min_value"])
+        elif key == "min_length":
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                return "%s: `min_length` is a non-negative integer" % label
         elif key == "derived":
             if not isinstance(value, bool):
                 return "%s: `derived` is true or false: whether the rules state this relation and nobody captures it" % label

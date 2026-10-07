@@ -4,6 +4,21 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.10.0 — 2026-10-07
+
+**Value constraints** (stage 5, A4). An attribute may declare `pattern`, `min_value`, `max_value`
+(a number, or an ISO date for a date) and `min_length`; the engine holds every value to them
+(`oto curate check`, `oto ontology check`, the self-check on a sample), the Turtle carries them as
+`sh:pattern`, `sh:minInclusive`, `sh:maxInclusive`, `sh:minLength`, the importer reads them back,
+and pyshacl agrees with the engine. The report shapes the port could not hold can be held now.
+
+**Product types** (A7). An ontology's manifest may declare `product_type` (`product-report`
+declares `report`); the pack and the registry index carry it; `oto ontology list --product-types`
+and `oto registry list --product-types` list the kinds of product a studio can start, so its first
+question is read from the marketplace.
+
+**The survey is cached** (A6): `kg_questions` runs every question once per loaded build.
+
 ## 0.9.3 — 2026-10-07
 
 **A relation may be `derived`.** The rules state it and nobody captures it: the capture schema

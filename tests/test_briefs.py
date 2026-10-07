@@ -131,3 +131,31 @@ def test_a_brief_naming_an_unknown_question_refuses_the_build_and_an_ontology_sh
     with tempfile.TemporaryDirectory() as root:
         init(root, slug="b", name="B", ontology="arch-briefs")
         assert B.load(Project.standard(root)) == BRIEFS, "a project started from the ontology gets its briefs"
+
+
+def test_the_survey_is_computed_once_per_loaded_build():
+    from oto.serve import engine
+    with tempfile.TemporaryDirectory() as root:
+        project = _project(root)
+        build(project)
+        os.environ["OTO_DB"] = project.layout.database
+        os.environ["OTO_PROJECT_CONFIG"] = project.config_path
+        try:
+            engine.STORE = None
+            engine._survey = (None, None, None)
+            engine.ensure_fresh()
+            first = engine.questions_data()["rows"]
+            assert engine._survey[2] is not None and engine._survey[1] == engine.STORE.meta("build_seq")
+            cached = engine._survey[2]
+            again = engine.questions_data()["rows"]
+            assert again == first and engine._survey[2] is cached, "the same build answers from the cache"
+            # a new build invalidates it
+            build(project)
+            engine.ensure_fresh()
+            engine.questions_data()
+            assert engine._survey[2] is not cached and engine._survey[1] == engine.STORE.meta("build_seq")
+        finally:
+            os.environ.pop("OTO_DB", None)
+            os.environ.pop("OTO_PROJECT_CONFIG", None)
+            engine.STORE = None
+            engine._survey = (None, None, None)

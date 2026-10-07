@@ -927,16 +927,27 @@ def ask_text(qid, params=None):
     return _questions_model.result_text(result, result.get("labels"))
 
 
+_survey = (None, None, None)       # (the store, its build_seq, the rows): a survey runs every question
+                                   # over the whole graph, so it is computed once per loaded build
+
+
 def questions_data():
-    """Every competency question and whether the live graph answers it."""
+    """Every competency question and whether the live graph answers it. Cached per loaded build:
+    the survey is the costly call on a large graph and the graph does not change under a build."""
+    global _survey
     from ..reason import questions as _questions_model
     from ..model.vocabulary import covers as _covers
     declared = questions()
     if not declared:
         return {"rows": []}
+    build_seq = STORE.meta("build_seq") if STORE is not None else None
+    if _survey[0] is STORE and _survey[1] == build_seq and _survey[2] is not None:
+        return {"rows": [dict(r) for r in _survey[2]]}
     nodes, edges = _graph_from_store()
-    return {"rows": _questions_model.survey(declared, nodes, edges, _covers(vocabulary().classes),
-                                            _derived_attributes_from_store(), _declared_names())}
+    rows = _questions_model.survey(declared, nodes, edges, _covers(vocabulary().classes),
+                                   _derived_attributes_from_store(), _declared_names())
+    _survey = (STORE, build_seq, rows)
+    return {"rows": [dict(r) for r in rows]}
 
 
 def questions_text():

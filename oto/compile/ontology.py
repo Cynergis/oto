@@ -194,6 +194,8 @@ def run(project):
                 says = "at most %d" % row["count"]
             elif row["kind"] == "required":
                 says = "every instance carries a value"
+            elif row["kind"] in _shapes.VALUE_KEYS:
+                says = "%s %s" % (row["kind"].replace("_", " "), row["value"])
             else:
                 says = "every instance carries it"
             md.append(f"| `{row['class'] or 'any'}` | {row['kind']} | `{row['subject']}` | {says} |")
@@ -371,6 +373,7 @@ def run(project):
                     line += f" ; skos:topConceptOf {terms.curie(name)}"
                 ttl.append(line + " .")
     # ---- shapes: the declared constraints as SHACL, one node shape per constrained class ----
+    from ..reason import shapes as _shapes
     by_class = {}
     for c, spec in CLASSES.items():
         for item in spec.get("requires") or []:
@@ -386,6 +389,8 @@ def run(project):
         for a, spec in attrs.items():
             if spec.get("required"):
                 by_class.setdefault(c, []).append((a, 1, None, f"every {c} has {a}"))
+            if any(spec.get(k) is not None for k in _shapes.VALUE_KEYS):
+                by_class.setdefault(c, []).append((a, None, None, {k: spec[k] for k in _shapes.VALUE_KEYS if spec.get(k) is not None}))
     from ..reason import rules as _rules
     from . import sparql as _sparql
     policies = [r for r in _rules.load(project) if isinstance(r, dict) and r.get("kind") == "policy"]
@@ -403,6 +408,16 @@ def run(project):
                     parts.append(f"sh:minCount {low}")
                 if high is not None:
                     parts.append(f"sh:maxCount {high}")
+                if isinstance(message, dict):                   # a value constraint: {pattern, min_value, ...}
+                    bounds = message
+                    if "pattern" in bounds:
+                        parts.append("sh:pattern %s" % json.dumps("^(?:%s)$" % bounds["pattern"]))
+                    for key, pred in (("min_value", "sh:minInclusive"), ("max_value", "sh:maxInclusive")):
+                        if key in bounds:
+                            parts.append("%s %s" % (pred, json.dumps(bounds[key]) if not isinstance(bounds[key], str) else '"%s"^^xsd:date' % bounds[key]))
+                    if "min_length" in bounds:
+                        parts.append("sh:minLength %d" % bounds["min_length"])
+                    message = "%s of a %s %s" % (path, c, ", ".join("%s %s" % (k.replace("_", " "), v) for k, v in bounds.items()))
                 parts.append(f"sh:message {q(message, LANG)}")
                 props.append("sh:property [ %s ]" % " ; ".join(parts))
             ttl.append(f"{terms.curie(c + 'Shape')} a sh:NodeShape ; sh:targetClass {terms.curie(c)} ; " + " ; ".join(props) + " .")

@@ -576,6 +576,10 @@ is the fourth source of shape and may say which question it protects (`"answers"
 its finding names what it would leave unanswerable. Tightening a shape is a breaking change in
 the lock; loosening one is additive.
 
+An attribute may also constrain the value it carries: `pattern`, `min_value`, `max_value` and
+`min_length`, held value by value (a list, each of its values), written as `sh:pattern`,
+`sh:minInclusive`, `sh:maxInclusive` and `sh:minLength`, read back by the importer.
+
 The engine evaluates the declared shapes itself, over current facts: `oto curate check` reports
 every violation as blocking, and the required questions the candidate cannot answer as gaps
 (open work: facts arrive section by section, and what must refuse is a policy), so what

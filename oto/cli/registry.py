@@ -16,6 +16,19 @@ import os
 import sys
 
 
+def _print_product_types(rows, where):
+    """What kinds of product can be specified: the ontologies and packs that declare a product type."""
+    if not rows:
+        print("no product type %s: a pack declares one with `product_type` in its manifest" % where)
+        return 0
+    print("product types (the first question of a product: which kind?):\n")
+    for product_type, name, release, found, summary in rows:
+        print("  %-14s %-22s @%-3d %s" % (product_type, name, int(release or 1), found))
+        if summary:
+            print("  %-14s %-22s %s" % ("", "", summary.strip()))
+    return 0
+
+
 def _counts(index):
     o = len(index.get("ontologies") or [])
     p = len(index.get("packs") or [])
@@ -39,6 +52,8 @@ def cmd_registry(args):
                 for entry in record["index"].get(key) or []:
                     print("  %-9s %-22s @%-3d %s" % (kind, entry["name"], int(entry.get("release") or 1), (entry.get("summary") or "").strip()))
             return 0
+        if verb == "list" and args.product_types:
+            return _print_product_types(_registry.product_types(local=False), "in a registry")
         if verb == "list":
             registries = _registry.load_registries()
             if not registries:
@@ -96,6 +111,8 @@ def register(sub):
                                "site [<dir>] generates the catalog, a static site, from a registry checkout")
     registry.add_argument("which", nargs="*", default=None,
                           help="add: a git URL; remove and refresh: a registry name; check: the checkout (default .)")
+    registry.add_argument("--product-types", dest="product_types", action="store_true",
+                          help="for list: the kinds of product the registries' packs specify (manifest `product_type`)")
     registry.add_argument("--as", dest="as_name", default=None,
                           help="for add: register it under this name instead of the name its index declares")
     registry.add_argument("--ref", default=None, help="for add: a branch or tag to read the index from")

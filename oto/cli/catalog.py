@@ -23,6 +23,10 @@ def run(args):
     from ..model import ontologies
 
     verb = args.ontology_command
+    if verb == "list" and getattr(args, "product_types", False):
+        from ..model import registry as _registry
+        from .registry import _print_product_types
+        return _print_product_types(_registry.product_types(local=True), "on this machine or in a registry")
     if verb in ("add", "update", "publish", "diff"):
         return _remote(args)
     if verb == "export":

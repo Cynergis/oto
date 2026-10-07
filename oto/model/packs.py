@@ -46,7 +46,7 @@ START_SKILL = "start"
 ENGINE_PLUGIN = "oto"
 NAME_OK = re.compile(r"^[a-z][a-z0-9-]*$")
 DATE_OK = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-FIELDS = ("name", "release", "domain", "summary", "ontology", "engine", "maintainer", "license", "changelog")
+FIELDS = ("name", "release", "domain", "product_type", "summary", "ontology", "engine", "maintainer", "license", "changelog")
 ONTOLOGY_FIELDS = ("name", "release", "registry", "source", "ref", "path", "commit", "embedded_at")
 #: Written by `oto pack add`, never by an author: where a fetched pack came from.
 PROVENANCE = ("registry", "source", "ref", "path", "commit", "fetched_at")
@@ -358,7 +358,7 @@ def new(name, ontology, domain=None, summary=None, view_dirs=(), to=None, force=
         shutil.copytree(src, os.path.join(target, VIEWS_DIR, os.path.basename(os.path.normpath(src))),
                         ignore=shutil.ignore_patterns(".git", "__pycache__", ".DS_Store"))
     engine = ">=%s" % ".".join(str(x) for x in _om._version_tuple(__version__)[:2])
-    write(target, {"name": name, "release": 1, "domain": domain or onto_manifest.get("domain"),
+    write(target, {"name": name, "release": 1, "domain": domain or onto_manifest.get("domain"), "product_type": onto_manifest.get("product_type"),
                    "summary": (summary or onto_manifest.get("summary") or "").strip(), "ontology": record,
                    "engine": engine, "maintainer": maintainer or "", "license": None,
                    "changelog": [{"release": 1, "at": _today(), "note": "Made from the ontology %s@%s."
@@ -424,6 +424,7 @@ def _manifest_problems(directory):
     if not isinstance(release, int) or isinstance(release, bool) or release < 1:
         out.append("%s release must be a positive integer, not %r" % (MANIFEST_NAME, release))
     out += _om.domain_problems(declared.get("domain"), MANIFEST_NAME)
+    out += _om.product_type_problems(declared.get("product_type"), MANIFEST_NAME)
     onto = declared.get("ontology")
     if not isinstance(onto, dict) or not isinstance(onto.get("name"), str) or not isinstance(onto.get("release"), int):
         out.append("%s needs `ontology` with the embedded ontology's `name` and `release`" % MANIFEST_NAME)

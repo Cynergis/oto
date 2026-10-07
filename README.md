@@ -65,6 +65,10 @@ uvx --from "oto-kg @ git+https://github.com/Cynergis/oto" oto --help
 uvx --from "oto-kg[all] @ git+https://github.com/Cynergis/oto" oto --help          # every extra
 alias oto='uvx --from "oto-kg[all] @ git+https://github.com/Cynergis/oto" oto'     # and keep it
 
+The Claude Code plugin starts the engine the same way. To run it from a checkout instead (a branch
+not yet merged), set `OTO_SOURCE` before starting Claude Code: `export OTO_SOURCE=~/Downloads/oto`;
+the plugin's MCP server and session hook read it.
+
 # Or into an environment of your own.
 pip install "oto-kg[all] @ git+https://github.com/Cynergis/oto"        # everything below at once
 pip install "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto"   # or pick: extras combine

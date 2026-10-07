@@ -60,7 +60,7 @@ FIELDS = ("name", "release", "domain", "product_type", "summary", "extends", "na
 #: The domains the engine has seen: the category an ontology or a pack belongs to. A new one is
 #: allowed and noted, never refused; add it here once it is deliberate. Never the same word as a
 #: relation's domain and range, which live inside the vocabulary.
-DOMAINS = ("insurance", "organization", "product", "professional-services", "software")
+DOMAINS = ("insurance", "organization", "product", "professional-services", "reporting", "software")
 #: Written by `oto ontology add`, never by an author: where a fetched ontology came from.
 PROVENANCE = ("registry", "source", "ref", "path", "commit", "fetched_at")
 

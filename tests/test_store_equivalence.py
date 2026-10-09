@@ -73,7 +73,7 @@ QUERIES = [
     ("ask_text", {"qid": "CQ2"}),
     ("ask_text", {"qid": "CQ9"}),
 ]
-SEARCHES = ["payments ledger", "runbook", "risk"]
+SEARCHES = ["payments ledger", "halt", "risk"]
 
 
 def _project(root):

@@ -21,7 +21,7 @@
     },
     "ContextRelationship": {
       "question": "Q6. How do two contexts relate: which pattern, which side is upstream, what mechanism carries the integration?",
-      "why": "It carries a pattern, an upstream side and a mechanism. A Mex edge is only from, relation and to, so a relationship with data on it has to be a node.",
+      "why": "It carries a pattern, an upstream side and a mechanism. An edge in the graph is only from, relation and to, so a relationship that carries data of its own has to be a node.",
       "alternatives": "A plain depends_on edge between contexts; rejected because the builder could not then know whether to generate an anti-corruption layer or a published language.",
       "validated_by": ""
     },

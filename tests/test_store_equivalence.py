@@ -128,7 +128,7 @@ def _answers(engine, store, root=None):
         out = {}
         for name, kwargs in QUERIES:
             out[(name, json.dumps(kwargs, sort_keys=True))] = getattr(engine, name)(**kwargs)
-        searches = {q: set(re.findall(r"\S+$", line)[0] for line in engine.search_text(q, 20).splitlines()[1:])
+        searches = {q: set(re.findall(r"\S+$", line)[0] for line in engine.search_text(q, 50).splitlines()[1:])
                     for q in SEARCHES}
         return out, searches
     finally:

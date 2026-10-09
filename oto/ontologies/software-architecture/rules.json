@@ -1,5 +1,5 @@
 {
-  "_about": "Rules over the graph. `derive` adds facts marked as derived, with the rule and the premises; `policy` flags what a policy forbids. A FIRST DRAFT to edit: keep the rules your questions need, and never fill validated_by yourself.",
+  "_about": "Rules over the estate. `derive` adds facts marked as derived, with the rule and the premises. The policy on documented decisions is the product's.",
   "rules": [
     {
       "id": "risk-reaches-system",
@@ -58,30 +58,6 @@
       },
       "why": "Change-impact questions need the dependency between components; documents state the interface each side touches, not the dependency.",
       "validated_by": ""
-    },
-    {
-      "id": "decision-is-documented",
-      "kind": "policy",
-      "severity": "warn",
-      "when": [
-        {
-          "node": "d",
-          "type": "DecisionRecord"
-        },
-        {
-          "not_edge": [
-            "d",
-            "documented_in",
-            "*"
-          ]
-        }
-      ],
-      "then": {
-        "flag": "an architecture decision must cite the document that records it"
-      },
-      "why": "A decision nobody can open is a rumour, and the graph would carry it as fact.",
-      "validated_by": "",
-      "answers": "SA13"
     }
   ]
 }

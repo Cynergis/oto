@@ -4,7 +4,138 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.1 — 2026-10-09
+
+**Plugins in their own repositories, in the marketplace.** A plugin that depends on `oto` (a
+studio, a tool) resolves that dependency inside its own marketplace, so it must be listed beside
+the engine: `oto registry plugin <name> --to <registry> --repo owner/name [--plugin-ref, --path,
+--version, --description, --category]` lists it in the registry's index and marketplace
+(`--remove` delists); named `oto`, it says where the engine comes from, a branch under test
+included. **A checkout as the engine**: the plugin's MCP server and session hook run
+`OTO_SOURCE` when it is set, the published engine otherwise.
+
+## 0.11.0 — 2026-10-07
+
+**The portfolio and the work** (stage 5, B6; decided and confirmed with Chiheb Dkhil). `portfolio`
+@1 is the base of the chain: Product (its stage, domain, value stream, and where its knowledge
+lives), Role, Team, Objective and Capability are declared once; `product` @9 sits on it,
+`software-architecture` @10 on that, `ddd` unchanged. The executive's questions PF1–PF10: what we
+build, what we pursue, what depends on what, which capability has no product, what has no owner,
+where a product's store and packs are. `work` @1 on `software-architecture`: work items and
+milestones that deliver requirements, features and components, assigned, scheduled, blocked; the
+delivery lead's questions WK1–WK10, among them *which requirements slip if this component is
+late*, and a derived `blocked` state.
+
+**A row that says nothing is no answer.** A question's row whose selected values are all absent
+is dropped, as SPARQL drops it; a question that selects only absent attributes is unanswered.
+
+**Patterns are `sh:pattern`.** An attribute's `pattern` matches anywhere in the value; anchor it
+for the whole. The importer reads SHACL decimals as numbers.
+
+## 0.10.0 — 2026-10-07
+
+**Value constraints** (stage 5, A4). An attribute may declare `pattern`, `min_value`, `max_value`
+(a number, or an ISO date for a date) and `min_length`; the engine holds every value to them
+(`oto curate check`, `oto ontology check`, the self-check on a sample), the Turtle carries them as
+`sh:pattern`, `sh:minInclusive`, `sh:maxInclusive`, `sh:minLength`, the importer reads them back,
+and pyshacl agrees with the engine. The report shapes the port could not hold can be held now.
+
+**Product types** (A7). An ontology's manifest may declare `product_type` (`product-report`
+declares `report`); the pack and the registry index carry it; `oto ontology list --product-types`
+and `oto registry list --product-types` list the kinds of product a studio can start, so its first
+question is read from the marketplace.
+
+**The survey is cached** (A6): `kg_questions` runs every question once per loaded build.
+
+## 0.9.3 — 2026-10-07
+
+**A relation may be `derived`.** The rules state it and nobody captures it: the capture schema
+leaves it out, so a tool never asks a person for what the engine concludes (the flow's
+`dependsOn`, `requiresTest`). The capture schema also lists the pack's briefs. The self-check
+asks an ontology's questions of its sample as a build would, with what the rules derive.
+
+## 0.9.2 — 2026-10-07
+
+**Briefs** (stage 3, A3). `briefs.json` beside the questions: a task type with its parameters,
+the questions it requires and the ones it may also read. `oto query brief <task> NAME=<entity>`
+and `kg_brief` are READY with every required question's facts or BLOCKED by name with the gaps;
+without the parameters, the table for every candidate. Briefs compose by task, ride in the store
+beside the questions, and are carried by an ontology (`carries`: `briefs`). Built for the port
+of the flow ontology (report-ontology `oto/flow`), whose five task types give `kgctl brief`'s
+verdicts for every step.
+
+**The `no_gaps` gate.** A question whose answer may be empty but whose gaps always run; the
+original's `gaps_only`. `may_continue` in the capture schema treats it as required.
+
+## 0.9.1 — 2026-10-07
+
+**A product starts from what its people say.** `oto init --empty` installs the vocabulary and
+leaves the graph empty (no sample, no lexicon seed): the studio's Atlas starts every product this
+way, so the pack's example never answers a question about the person's product. An empty graph
+builds, and `oto query questions` says what is open. Found by scene 4 of the studio: the fund
+report product's design was being checked against a payments platform.
+
+**A question reports; a policy refuses.** `oto curate check` lists a required question the
+candidate leaves unanswered under gaps, not blocking: facts arrive section by section, and the
+question answered later must not refuse the fact that arrives first. A malformed capture item
+(`fields` not an object) is refused by name.
+
+## 0.9.0 — 2026-10-07
+
+**The design level** (stage 3 of the programme, B4). Three shipped ontologies now form one chain:
+`product` @8 ships with the engine (it was a user pack); `software-architecture` @9 sits on it,
+dropping its own Requirement, Risk, Document and DecisionRecord for the product's and widening
+`part_of`, `owned_by`, `about`, `threatens`, `mitigated_by` and `documented_in` to the estate
+(`supports` is `enables`; SA17 asks which requirements nothing satisfies yet); `ddd` @1,
+generalised out of `ddd-kyc`, sits on `software-architecture`: subdomains, bounded contexts and
+their map, use cases, events, commands, reactions, read models, external systems, aggregates,
+entities, value objects, business rules, domain services, with `deployed_as` from a context to a
+component and `satisfies` from a use case to a requirement. The event-storming policy is
+`Reaction`, because the product's `Policy` is a rule from outside. Decided with Chiheb Dkhil.
+
+**A merge widens.** Two packs that widen the same relation of a shared base (`product-report` and
+`ddd` both widen `part_of`) merge to the union of both signatures, as composition widens, and the
+clash is reported; before, the first declaration won and the second pack's facts were refused.
+
+**An export ships the graph.** `oto ontology export` and `publish` take the project's graph as the
+sample (privacy-scanned, `--from-graph N` to cap it); `--invented` gives the synthetic one, which
+answers the questions but respects no policy. A project started from a pack therefore exports
+the pack's sample it still holds.
+
+**Also.** A shipped ontology may carry a confirmation that names the person and the day; the
+product's `risk-reaches-product` is typed to the feature and the product, so the estate's
+`risk-reaches-system` derives its own hop; the `product` domain is known to the engine.
+
+## 0.8.3 — 2026-10-07
+
+**A capture names its scope.** A document's ids (`FR1`, `P1`) are unique in the document, not in
+the graph: a capture may say which product it is about (`"scope": "fund-report"`) and its nodes
+are `requirement.fund-report.fr1`, so two products' `FR1` stay apart. Found by the studio's scene
+tests, whose fixture collided with the `product` pack's own sample.
+
+**A project composed of several packs keeps their samples.** `oto init --ontology a,b` merges
+the parts' samples by node id instead of inventing a synthetic one, and an ontology's self-check
+runs its blocking policies on its sample: a pack whose sample breaks its own policy is refused.
+
+## 0.8.2 — 2026-10-07
+
+**The capture schema and proposals from a capture** (stage 2 of the programme). `oto ontology
+capture` renders `capture.json` from a pack or a project: the questions by asker with their gates,
+the classes with their fields, links and what they require, every field and link carrying `x-term`;
+the build writes it beside `questions.yaml`. `oto curate propose --from <capture>` checks what a
+tool captured against the schema and writes a proposal cited to the document, for the gates.
+
+**Also.** `oto ontology import --from` carries the ontology's rules and questions; a forced export
+is the next release of an ontology that exists; `oto-core` @5's sample carries its date as `as_of`.
+
 ## 0.8.1 — 2026-10-06
+
+**The start skill** (`/oto:start`): a new project from whatever the person has (a specification,
+a folder of documents, a domain expert, an ontology or pack that is close), to the first
+confirmed questions and a hand-off to the interview. Found by starting the report ontology
+from scratch: the path from a specification existed inside the interview skill and nobody
+looking for it could find it. The concierge, `oto status` and the README point at it.
+
 
 What porting the report ontology (github.com/Cynergis/report-ontology, `oto/report`) as an OTO
 unit needed of the pattern language, so its 21 SPARQL questions could be written once in the

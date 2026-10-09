@@ -383,23 +383,40 @@ def test_init_records_a_built_in_ontology_and_a_merge(ontologies_dir):
         init(root, slug="a", name="A", ontology="software-architecture")
         record = json.load(open(os.path.join(root, "project.config.json"), encoding="utf-8"))["ontology"]
         assert record["name"] == "software-architecture" and record["origin"] == ontologies.BUILTIN
-        assert record["extends"] == ["oto-core"] and record["release"] >= 1
+        assert record["extends"] == ["oto-core", "portfolio", "product"] and record["release"] >= 1
     with tempfile.TemporaryDirectory() as root:
         init(root, slug="b", name="B", ontology="software-architecture,organization-process")
         record = json.load(open(os.path.join(root, "project.config.json"), encoding="utf-8"))["ontology"]
         assert record["source"] == "merge" and [p["name"] for p in record["parts"]] == ["software-architecture", "organization-process"]
-        assert all(p["extends"] == ["oto-core"] for p in record["parts"])
+        assert [p["extends"] for p in record["parts"]] == [["oto-core", "portfolio", "product"], ["oto-core"]]
+
+
+def test_init_empty_installs_the_vocabulary_and_no_sample(ontologies_dir):
+    """A real product's graph holds what its people said, not the pack's example; it still builds."""
+    from oto.builder import build
+    from oto.project import Project
+    with tempfile.TemporaryDirectory() as root:
+        init(root, slug="e", name="E", ontology="software-architecture", empty=True)
+        graph = json.load(open(os.path.join(root, "graph.json"), encoding="utf-8"))
+        assert graph["nodes"] == [] and graph["edges"] == []
+        assert not os.path.exists(os.path.join(root, "lexicon.json")), "the seed names the sample"
+        config = json.load(open(os.path.join(root, "ontology.config.json"), encoding="utf-8"))
+        assert "Component" in config["classes"] and "Requirement" in config["classes"]
+        build(Project.standard(root))
 
 
 def test_the_shipped_ontologies_extend_oto_core_and_keep_their_vocabulary():
     """The split must not change what a project gets: every shipped ontology still declares
-    Document and the temporal fields, now inherited."""
+    Document and the temporal fields, now inherited. software-architecture sits on product,
+    which sits on the core."""
     assert "oto-core" in ontologies.available()
     core = ontologies.load_raw("oto-core")["config"]
     assert set(core["classes"]) == {"Document", "Action"} and "temporal" in core
-    for name in ("auto-claims", "organization-process", "professional-services", "software-architecture"):
+    chain = {"portfolio": ["oto-core"], "product": ["portfolio"], "software-architecture": ["product"], "ddd": ["software-architecture"], "work": ["software-architecture"]}
+    for name in ("auto-claims", "organization-process", "professional-services", "portfolio", "product", "software-architecture", "ddd", "work"):
         raw = ontologies.load_raw(name)
-        assert raw["manifest"]["extends"] == ["oto-core"] and "temporal" not in raw["config"], name
+        assert raw["manifest"]["extends"] == chain.get(name, ["oto-core"]), name
+        assert "temporal" not in raw["config"], name
         config, sample, _ = ontologies.load(name)
         assert "Document" in config["classes"] and config["temporal"] == core["temporal"], name
         assert "cites" in config["properties"]
@@ -416,9 +433,14 @@ def test_export_writes_a_manifest_and_the_ontology_shows(ontologies_dir, capsys)
         assert m["name"] == "my-org" and m["release"] == 1 and m["summary"] == "mine" and m["engine"].startswith(">=")
         assert m["carries"] == ["vocabulary", "rationale", "rules", "questions", "sample", "readme"] and m["changelog"][0]["release"] == 1, \
             "the core's rule is inherited, so the export carries rules"
+        # exporting over it again is its next release, with the changelog kept
+        path, problems = ontologies.export(project, "my-org", summary="mine again", force=True)
+        assert problems == [], problems
+        m = json.load(open(os.path.join(path, "manifest.json"), encoding="utf-8"))
+        assert m["release"] == 2 and [e["release"] for e in m["changelog"]] == [2, 1]
         assert main(["ontology", "show", "my-org"]) == 0
         out = capsys.readouterr().out
-        assert "my-org @1  (user)" in out and "self-check: clean" in out and "carries:  vocabulary, rationale, rules, questions, sample, readme" in out
+        assert "my-org @2  (user)" in out and "self-check: clean" in out and "carries:  vocabulary, rationale, rules, questions, sample, readme" in out
         assert main(["ontology", "show", "no-such"]) == 1
         assert main(["ontology", "list"]) == 0
         assert "extends oto-core" in capsys.readouterr().out

@@ -1,5 +1,6 @@
 """Recorded reasoning: required for classes, honest about validation, and checkable."""
 import json
+import re
 import os
 import tempfile
 
@@ -91,10 +92,14 @@ def test_every_ontology_class_has_a_recorded_reason(name):
 
 @pytest.mark.parametrize("name", ontologies.available())
 def test_no_ontology_claims_to_be_validated(name):
-    """Nobody has reviewed these. Claiming otherwise would be the worst possible default."""
-    report = rationale.report(*(lambda c: (c, ontologies.rationale_for(name)))(
-        ontologies.load(name)[0]))
-    assert report["classes_validated"] == [], "an ontology must not assert its own validation"
+    """A shipped draft is unreviewed, and claiming otherwise would be the worst possible default.
+    A confirmation names the person and the day (`product` was confirmed by its domain owner);
+    a bare claim is refused."""
+    config, record = ontologies.load(name)[0], ontologies.rationale_for(name)
+    report = rationale.report(config, record)
+    for kind in report["classes_validated"]:
+        assert re.match(r"^[A-Z][^,]+, \d{4}-\d{2}-\d{2}", record["classes"][kind]["validated_by"]), \
+            "an ontology must not assert its own validation: %s.%s" % (name, kind)
 
 
 def test_init_with_a_ontology_installs_the_rationale():

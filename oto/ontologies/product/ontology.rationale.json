@@ -1,0 +1,169 @@
+{
+  "_about": "Why each class and relation exists. `validated_by` is empty on purpose: confirmation in the source project does not carry to a new domain.",
+  "classes": {
+    "Assumption": {
+      "alternatives": "Merged into Constraint or Risk: rejected, an assumption is a belief to check, not a limit or a threat.",
+      "question": "What assumptions is it built under, and which could invalidate the plan? (B4)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "An assumption is validated or invalidated over time and decisions rest on it, so its state change must propagate; that needs a node with history."
+    },
+    "Constraint": {
+      "alternatives": "One Concern class with a kind attribute: rejected, constraints, assumptions and risks have different lifecycles and owners.",
+      "question": "What constraints is it built under? (B4)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "A constraint is imposed from outside and limits requirements and releases; it has a source and a lifecycle distinct from an assumption or a risk."
+    },
+    "Decision": {
+      "alternatives": "Decision as a status on the thing decided: rejected, no reason and no history.",
+      "question": "What did we decide about X, when, and why? (C1, failure F1)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "A decision has a date, a reason, evidence and a role that made it; a status field has none of those, and an agent needs to see a settled decision before reopening it."
+    },
+    "Document": {
+      "alternatives": "One class per artifact kind: rejected, union ranges everywhere and a vocabulary change per new kind. A Stage class: deferred to the workflow-vocabulary interview.",
+      "question": "Which document says so, and is it still current? Which artifacts describe the product, at which stage? (C4, D3, failure F2)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Every fact cites a document, and a newer document supersedes an older one through the temporal vocabulary; kind and stage as attributes keep one class for all artifacts."
+    },
+    "Feature": {
+      "alternatives": "Epic and Story: rejected, Story is a delivery unit and ties the product model to one method. Capability: same thing, the user kept the name Feature.",
+      "question": "What is the product made of? (D4)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Builders decompose the product into user-visible capabilities, each traced to a requirement; nesting through part_of lets epics and sub-features share one class."
+    },
+    "JourneyStep": {
+      "alternatives": "Steps as an ordered list attribute: rejected, nothing can point at a step. Adding Screen: deferred to the design-vocabulary interview.",
+      "question": "How does a user get value, step by step? (D1)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "A step has identity of its own: a design decision, a requirement or a test points at one step, which a list attribute on the journey cannot support."
+    },
+    "OpenQuestion": {
+      "alternatives": "Decisions with state = open: rejected, populated differently. Hotspot class: deferred until the method runs gates on contested areas.",
+      "question": "What is still open or unresolved? (C2)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "An open question is raised before any reason or evidence exists and is later resolved by a decision; keeping it separate lets an agent list what is open before building."
+    },
+    "Persona": {
+      "alternatives": "Separate AntiPersona class: rejected, nothing points at it so it stays thin. Audience as a text attribute of Product: rejected, D1 and D2 lose their anchor.",
+      "question": "Who is it for, and who is it not for? (A2)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Journeys, requirements and value propositions need something to point at, and the excluded audience must be a dated first-class fact, not a footnote."
+    },
+    "Policy": {
+      "alternatives": "Policy as a Constraint kind: rejected, authority and scope differ. GovernanceBody class: deferred to the workflow vocabulary.",
+      "question": "Which rules must the product obey, who enforces them, and what is affected? (G6; Gate 3 review)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "A policy prescribes behaviour and has an authority and an enforcing role, which a budget or timeline constraint does not; two people would populate a shared class differently."
+    },
+    "Product": {
+      "alternatives": "A specific software-product class with releases and environments baked in; rejected because the user chose a generic vocabulary reused per project. Stage, domain and value stream moved to the portfolio on 2026-10-07: where a product stands is the executive's question.",
+      "question": "Why does this product exist, and what is it? (A1)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "The root the whole vocabulary hangs off. Generic on purpose: one vocabulary every project starts from, a product being whatever the project sets out to build."
+    },
+    "Release": {
+      "alternatives": "Requirement.scope attribute: rejected, nothing to be in scope of, B1 and C3 unanswerable. A Scope node per release: rejected, the edges already carry it.",
+      "question": "What is in and out of scope for the next release, and what was the scope as of a past date? (B1, C3)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Scope has to be scope OF something dated; edges to a release carry validFrom and validTo, so the boundary at any past date is readable."
+    },
+    "Requirement": {
+      "alternatives": "Folding requirements into Feature: rejected, a need and the capability that satisfies it have different owners and dates.",
+      "question": "What must the product do? What is in scope for the next release? (B3, B1)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "The unit a builder agent works from and a release scopes; it carries priority and kind, traces to a value proposition, and is what decisions are about."
+    },
+    "Risk": {
+      "alternatives": "A fourth Dependency class: rejected, no question yet traverses to external systems or partners. Add it when one does.",
+      "question": "What are the risks and external dependencies? (E1)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "A risk threatens something, is mitigated by something, and can block a release; an external dependency is modelled as a risk kind because what matters is what happens if it fails."
+    },
+    "Scenario": {
+      "alternatives": "UseCase class: rejected for now, a use case is a functional Requirement with its flow. Workflow class: rejected, a workflow is a UserJourney whose persona is a role.",
+      "question": "What exactly must this do in this situation, and how do we test it? (G5; Gate 3 review)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "A scenario is the concrete path tests and acceptance run on, with its own preconditions and expected result; it must be pointable from a test and a requirement."
+    },
+    "SuccessCriterion": {
+      "alternatives": "List attribute on ValueProposition: rejected, no history, no owner, which is exactly F4. Measurement class for observed readings: deferred until a question asks for readings.",
+      "question": "How do we know the product succeeded? (B2, failure F4)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "A target that changes needs history and an owner, and a product with none must be flaggable; an attribute list gives neither."
+    },
+    "Term": {
+      "alternatives": "Lexicon only: rejected, no citable definition. Term with a Domain grouping class: rejected, only if one word means two things in two contexts of one product.",
+      "question": "What does this word mean here, who said so, and has the meaning changed? (G7; Gate 3 review)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "A definition needs a citation and a date so a changed meaning is superseded, which the search lexicon cannot hold; the lexicon is generated from terms instead."
+    },
+    "UserJourney": {
+      "alternatives": "Journey as text on Persona: rejected, nothing could reference it.",
+      "question": "How does a user get value, step by step? (D1)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Design and tests must follow the same path; the journey is the path, owned by a persona and delivering a value proposition."
+    },
+    "ValueProposition": {
+      "alternatives": "Separate Problem class: rejected, no question traverses from problem to several propositions. Attributes on Product: rejected, nothing could trace to a purpose.",
+      "question": "Why does it exist, and what is the value proposition in one sentence? Which requirement serves which purpose? (A1, A3, D2)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "It is the traceability anchor: requirements, journeys and criteria trace to it, so an orphan requirement (failure F3) becomes a rule violation instead of folklore."
+    }
+  },
+  "properties": {
+    "about": {
+      "alternatives": "",
+      "question": "What did we decide about X? (C1)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "One wide relation rather than one per subject class, so a decision about anything is found the same way."
+    },
+    "applies_to": {
+      "alternatives": "One constrains relation for both: rejected in the duplicate audit of 2026-09-27.",
+      "question": "Which rules must the product obey, and what is affected? (G6)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Split from constrains so an agent never confuses a resource limit with a prescribed behaviour that has an authority."
+    },
+    "blocks": {
+      "alternatives": "",
+      "question": "What is still open, and does it stop the release? (C2)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Turns an open question into a release-level fact a gate can check; risks reach a release through threatens, so they were removed from this relation in the duplicate audit."
+    },
+    "documented_in": {
+      "alternatives": "",
+      "question": "Which document says so? (C4)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Every class except Document is in the domain, because every fact must be citable."
+    },
+    "excluded_from": {
+      "alternatives": "",
+      "question": "What is explicitly out of scope? (B1, failure F1)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "An explicit exclusion is a fact a builder must see; silence would be read as permission."
+    },
+    "exercises": {
+      "alternatives": "",
+      "question": "How do we test this requirement? (G5)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "The edge a test-coverage question runs on: a must requirement with no scenario exercising it is untestable."
+    },
+    "in_scope_of": {
+      "alternatives": "",
+      "question": "What is in scope for the next release? (B1)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Kept separate from excluded_from so absence of an edge means unknown, not out of scope."
+    },
+    "interested_in": {
+      "alternatives": "",
+      "question": "Who must be consulted or informed, and about what? (G3)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Lets a stakeholder role say what it cares about without a separate Stakeholder class, which decision 1 rejected."
+    },
+    "serves": {
+      "alternatives": "",
+      "question": "Which requirement or journey serves which purpose? (D2)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "This is the edge the orphan-requirement policy runs on; without it F3 cannot be detected."
+    }
+  }
+}

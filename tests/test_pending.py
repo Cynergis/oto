@@ -144,7 +144,7 @@ def test_preview_builds_the_graph_as_it_would_be_and_leaves_the_live_store_alone
         db = _preview.database(project)
         assert os.path.exists(db) and os.stat(live_db).st_mtime_ns == before, "the live store is untouched"
         meta = _preview.read_meta(project)
-        assert meta["differs"] == 3 and meta["counts"]["proposal"] == 3 and meta["nodes"] == 16
+        assert meta["differs"] == 3 and meta["counts"]["proposal"] == 3 and meta["nodes"] == 49
         store = SqliteStore(db)
         try:
             assert store.node("system.billing")["label"] == "Billing platform"

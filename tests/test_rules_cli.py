@@ -11,15 +11,21 @@ from oto.reason import rules as _rules
 from oto.scaffold import init
 
 
+PRODUCT_RULES = ["feature-serves-its-requirements-purpose", "requirement-in-scope-through-feature", "risk-reaches-product",
+                 "open-question-blocks-release", "product-pursues-objective", "requirement-serves-a-purpose",
+                 "value-proposition-has-success-criterion", "decision-is-documented", "scope-is-not-contradictory",
+                 "shipped-release-is-not-blocked"]
+ARCH_RULES = ["intended-fact-overdue", "needed-capability-has-a-provider"] + PRODUCT_RULES + ["risk-reaches-system", "consumer-depends-on-provider"]
+
+
 def _arch(root):
     init(root, name="Arch", ontology="software-architecture")
     return Project.standard(root)
 
 
 def test_the_ontology_ships_rules_that_install_and_validate(capsys):
-    assert [r["id"] for r in ontologies.rules_for("software-architecture")] == \
-        ["intended-fact-overdue", "risk-reaches-system", "consumer-depends-on-provider", "decision-is-documented"], \
-        "the core's rule first, then the ontology's own"
+    assert [r["id"] for r in ontologies.rules_for("software-architecture")] == ARCH_RULES, \
+        "the core's rule first, then the portfolio's, the product's, then the ontology's own"
     assert ontologies.self_check("software-architecture") == []
     with tempfile.TemporaryDirectory() as root:
         project = _arch(root)
@@ -27,7 +33,7 @@ def test_the_ontology_ships_rules_that_install_and_validate(capsys):
         capsys.readouterr()
         assert main(["rules", "check", "--project", root]) == 0
         out = capsys.readouterr().out
-        assert "4 rule(s)" in out and "risk-reaches-system" in out and "not yet confirmed" in out
+        assert "14 rule(s)" in out and "risk-reaches-system" in out and "not yet confirmed" in out
         assert "have no `validated_by`" in out
 
 
@@ -48,12 +54,12 @@ def test_accept_and_diff_track_the_rules_in_the_lock(capsys):
         assert main(["rules", "diff", "--project", root]) == 0
         assert "no accepted vocabulary" in capsys.readouterr().out
         assert main(["ontology", "accept", "--project", root]) == 0
-        assert "4 rules" in capsys.readouterr().out
-        assert len(_rules.read_lock(project)) == 4
+        assert "14 rules" in capsys.readouterr().out
+        assert len(_rules.read_lock(project)) == 14
         by_id = {r["id"]: r for r in _rules.load(project)}
         by_id["risk-reaches-system"]["then"] = {"edge": ["r", "threatens", "c"]}
-        _rules.save(project, [by_id["intended-fact-overdue"], by_id["risk-reaches-system"], by_id["consumer-depends-on-provider"],
-                              dict(by_id["decision-is-documented"], id="new-policy")])
+        _rules.save(project, [r for r in by_id.values() if r["id"] != "decision-is-documented"]
+                    + [dict(by_id["decision-is-documented"], id="new-policy")])
         assert main(["rules", "diff", "--project", root, "--strict"]) == 1
         out = capsys.readouterr().out
         assert "removed   decision-is-documented" in out and "changed   risk-reaches-system" in out and "added     new-policy" in out
@@ -70,7 +76,7 @@ def test_curate_check_applies_policy_rules_to_the_candidate(capsys):
         _rules.save(project, declared)
         assert main(["curate", "start", "--project", root]) == 0
         candidate = session.candidate(project)
-        candidate["nodes"].append({"id": "decision.no-doc", "type": "DecisionRecord", "label": "Undocumented",
+        candidate["nodes"].append({"id": "decision.no-doc", "type": "Decision", "label": "Undocumented",
                                    "aliases": [], "summary": "s", "attributes": {}, "tags": [], "as_of": "2026-01-01",
                                    "valid_from": "2026-01-01", "source_doc": "sample", "status": "current",
                                    "sources": ["sample"], "evidence": [{"doc": "sample", "where": "p.1"}]})
@@ -97,9 +103,9 @@ def test_ontology_check_reports_standing_findings_and_status_counts_rules(capsys
         capsys.readouterr()
         assert main(["ontology", "check", "--project", root]) == 0
         out = capsys.readouterr().out
-        assert "rules: 4 declared" in out and "policy finding(s)" in out and "decision-is-documented" in out
+        assert "rules: 14 declared" in out and "policy finding(s)" in out and "decision-is-documented" in out
         assert main(["status", "--project", root]) == 0
-        assert "4 rule(s)" in capsys.readouterr().out
+        assert "14 rule(s)" in capsys.readouterr().out
 
 
 def test_export_and_merge_carry_rules(tmp_path, monkeypatch):
@@ -112,11 +118,11 @@ def test_export_and_merge_carry_rules(tmp_path, monkeypatch):
         _path, problems = ontologies.export(project, "arch-copy")
         assert problems == []
         shipped = ontologies.rules_for("arch-copy")
-        assert len(shipped) == 4 and all(r["validated_by"] == "" for r in shipped), "confirmation does not carry over"
+        assert len(shipped) == 14 and all(r["validated_by"] == "" for r in shipped), "confirmation does not carry over"
     config, _s, _r, _rat, _rep = ontologies.merge(["software-architecture", "organization-process"])
-    assert [r["id"] for r in config["_rules"]] == ["intended-fact-overdue", "risk-reaches-system", "consumer-depends-on-provider", "decision-is-documented"]
+    assert [r["id"] for r in config["_rules"]] == ARCH_RULES
     with tempfile.TemporaryDirectory() as root:
         init(root, name="Both", ontology="software-architecture,organization-process")
-        assert len(_rules.load(Project.standard(root))) == 4
+        assert len(_rules.load(Project.standard(root))) == 14
         config = json.load(open(os.path.join(root, "ontology.config.json"), encoding="utf-8"))
         assert "_rules" not in config, "the merge's carrier key must not leak into the config"

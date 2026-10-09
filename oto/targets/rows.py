@@ -108,7 +108,17 @@ def question_rows(project):
         problems = _questions.problems(declared, vocabulary)
         if problems:
             raise ProjectError("questions.json is not usable:\n  - " + "\n  - ".join(problems))
-    return [{"id": qid, "spec": json.dumps(q, ensure_ascii=False)} for qid, q in declared.items()]
+    rows = [{"id": qid, "spec": json.dumps(q, ensure_ascii=False)} for qid, q in declared.items()]
+    # the briefs ride in the same table, one row per task under `brief:<task>`, so kg_brief runs
+    # them from the store alone and the schema stays what it is
+    from ..reason import briefs as _briefs
+    briefs = _briefs.load(project)
+    if briefs:
+        problems = _briefs.problems(briefs, declared)
+        if problems:
+            raise ProjectError("briefs.json is not usable:\n  - " + "\n  - ".join(problems))
+        rows += [{"id": "brief:" + task, "spec": json.dumps(b, ensure_ascii=False)} for task, b in briefs.items()]
+    return rows
 
 
 def changelog_rows(project, tail=LEDGER_TAIL):

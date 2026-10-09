@@ -1,0 +1,219 @@
+{
+  "_about": "The plan of the payments product sample: a milestone, the items that deliver its requirements and build its components, what blocks them. Invented, on top of the portfolio, product and estate samples.",
+  "nodes": [
+    {
+      "id": "milestone.m-demo",
+      "type": "Milestone",
+      "label": "Settlement demo to the merchants",
+      "summary": "Show a day settled end to end.",
+      "attributes": {
+        "date": "2026-11-15",
+        "state": "planned"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "delivery-plan",
+      "status": "current",
+      "sources": [
+        "delivery-plan"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "workitem.e-checkout",
+      "type": "WorkItem",
+      "label": "Checkout payment, end to end",
+      "summary": "Accept a card payment and confirm it.",
+      "attributes": {
+        "kind": "epic",
+        "state": "done",
+        "priority": "must",
+        "due": "2026-10-01",
+        "estimate": "20 points"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "delivery-plan",
+      "status": "current",
+      "sources": [
+        "delivery-plan"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "workitem.s-settlement-batch",
+      "type": "WorkItem",
+      "label": "Daily settlement batch",
+      "summary": "Settle the day's captured payments.",
+      "attributes": {
+        "kind": "story",
+        "state": "in-progress",
+        "priority": "must",
+        "due": "2026-11-01",
+        "estimate": "8 points"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "delivery-plan",
+      "status": "current",
+      "sources": [
+        "delivery-plan"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "workitem.t-ledger-replica",
+      "type": "WorkItem",
+      "label": "Ledger read replica",
+      "summary": "Remove the ledger's single point of failure.",
+      "attributes": {
+        "kind": "task",
+        "state": "planned",
+        "priority": "should",
+        "due": "2026-11-10",
+        "estimate": "5 points"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "delivery-plan",
+      "status": "current",
+      "sources": [
+        "delivery-plan"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "workitem.s-evidence-retention",
+      "type": "WorkItem",
+      "label": "Settlement evidence retention",
+      "summary": "Keep the evidence as long as compliance says.",
+      "attributes": {
+        "kind": "story",
+        "state": "planned",
+        "priority": "should",
+        "due": "2026-11-12",
+        "estimate": "3 points"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "delivery-plan",
+      "status": "current",
+      "sources": [
+        "delivery-plan"
+      ],
+      "aliases": [],
+      "tags": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "milestone.m-demo",
+      "rel": "owned_by",
+      "to": "role.r-owner"
+    },
+    {
+      "from": "workitem.e-checkout",
+      "rel": "delivers",
+      "to": "requirement.take-payment"
+    },
+    {
+      "from": "workitem.e-checkout",
+      "rel": "delivers",
+      "to": "feature.f-checkout"
+    },
+    {
+      "from": "workitem.e-checkout",
+      "rel": "delivers",
+      "to": "component.payment-api"
+    },
+    {
+      "from": "workitem.e-checkout",
+      "rel": "scheduled_in",
+      "to": "release.rel1"
+    },
+    {
+      "from": "workitem.e-checkout",
+      "rel": "assigned_to",
+      "to": "team.payments"
+    },
+    {
+      "from": "workitem.s-settlement-batch",
+      "rel": "delivers",
+      "to": "requirement.settle-same-day"
+    },
+    {
+      "from": "workitem.s-settlement-batch",
+      "rel": "delivers",
+      "to": "component.settlement-job"
+    },
+    {
+      "from": "workitem.s-settlement-batch",
+      "rel": "scheduled_in",
+      "to": "milestone.m-demo"
+    },
+    {
+      "from": "workitem.s-settlement-batch",
+      "rel": "scheduled_in",
+      "to": "release.rel1"
+    },
+    {
+      "from": "workitem.s-settlement-batch",
+      "rel": "assigned_to",
+      "to": "team.payments"
+    },
+    {
+      "from": "workitem.s-settlement-batch",
+      "rel": "depends_on",
+      "to": "workitem.e-checkout"
+    },
+    {
+      "from": "workitem.t-ledger-replica",
+      "rel": "delivers",
+      "to": "component.payment-api"
+    },
+    {
+      "from": "workitem.t-ledger-replica",
+      "rel": "scheduled_in",
+      "to": "milestone.m-demo"
+    },
+    {
+      "from": "workitem.t-ledger-replica",
+      "rel": "assigned_to",
+      "to": "team.payments"
+    },
+    {
+      "from": "workitem.t-ledger-replica",
+      "rel": "blocked_by",
+      "to": "risk.ledger-single-point"
+    },
+    {
+      "from": "workitem.s-evidence-retention",
+      "rel": "delivers",
+      "to": "requirement.nfr-ledger"
+    },
+    {
+      "from": "workitem.s-evidence-retention",
+      "rel": "scheduled_in",
+      "to": "release.rel1"
+    },
+    {
+      "from": "workitem.s-evidence-retention",
+      "rel": "assigned_to",
+      "to": "role.r-compliance"
+    },
+    {
+      "from": "workitem.s-evidence-retention",
+      "rel": "blocked_by",
+      "to": "openquestion.q-evidence"
+    },
+    {
+      "from": "workitem.s-evidence-retention",
+      "rel": "depends_on",
+      "to": "workitem.s-settlement-batch"
+    }
+  ]
+}

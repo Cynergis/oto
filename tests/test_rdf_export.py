@@ -96,8 +96,10 @@ def test_a_union_domain_is_written_as_a_union():
         domain = ontology.value(URIRef(terms.iri("part_of")), RDFS.domain)
         assert isinstance(domain, BNode) and (domain, RDF.type, OWL.Class) in ontology
         assert list(Collection(ontology, ontology.value(domain, OWL.unionOf))) == [
-            URIRef(terms.iri(kind)) for kind in ("Component", "Interface", "DataStore")]
-        assert ontology.value(URIRef(terms.iri("part_of")), RDFS.range) == URIRef(terms.iri("System"))
+            URIRef(terms.iri(kind)) for kind in ("Feature", "JourneyStep", "Component", "Interface", "DataStore")]
+        range_ = ontology.value(URIRef(terms.iri("part_of")), RDFS.range)
+        assert list(Collection(ontology, ontology.value(range_, OWL.unionOf))) == [
+            URIRef(terms.iri(kind)) for kind in ("Product", "Feature", "UserJourney", "System")]
 
 
 # ---- one IRI per term ----

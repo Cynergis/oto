@@ -4,7 +4,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "oto-kg @ git+https://github.com/Cynergis/oto",
+        "${OTO_SOURCE:-oto-kg @ git+https://github.com/Cynergis/oto}",
         "oto",
         "serve",
         "--project",

@@ -9,7 +9,7 @@ def cmd_init(args):
     try:
         init(args.project, slug=args.slug, name=args.name, namespace=args.namespace,
              prefix=args.prefix, force=args.force, ontology=args.ontology,
-             repo=args.repo, engine=args.engine, pack=args.pack)
+             repo=args.repo, engine=args.engine, pack=args.pack, empty=args.empty)
     except ValueError as exc:
         print("oto: %s" % exc, file=sys.stderr)
         return 1
@@ -34,6 +34,9 @@ def register(sub):
     init.add_argument("--pack", default=None,
                       help="start from a pack: its ontology, with where it came from kept, and its views; a name "
                            "from `oto pack list` or a directory (inside Claude Code, the installed plugin's root)")
+    init.add_argument("--empty", action="store_true",
+                      help="install the vocabulary and leave the graph empty: a real product's graph holds what "
+                           "its people said, not the ontology's example")
     init.add_argument("--repo", action="store_true",
                       help="lay the project out to live in a GitHub repository: workflows for ingest, "
                            "checks and deploy, a CLAUDE.md, an .mcp.json, and a corpus that is committed")

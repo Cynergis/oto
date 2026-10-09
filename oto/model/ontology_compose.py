@@ -13,6 +13,7 @@ report says what it overrode, and a few overrides are refused rather than report
     schemes                  merged by name; the extender's replaces one it redeclares, reported
     rules                    merged by id; the same id with a different body is refused
     questions                merged by id, the same way
+    briefs                   merged by task, the same way
     actions                  merged by id; the extender's wins (an action is a binding, not a claim)
     rationale                the extender's entries apply only to names it declares itself
     sample graph             merged by node id, extender wins; edges united
@@ -83,6 +84,7 @@ def compose(name, parts, loader):
     rationale = {"classes": {}, "properties": {}}
     rules, rule_owner = {}, {}
     questions, question_owner = {}, {}
+    briefs, brief_owner = {}, {}
     sample_nodes, sample_edges = {}, []
     lexicon, interview, guides, gold = [], [], [], []
     actions, action_owner = {}, {}
@@ -181,6 +183,15 @@ def compose(name, parts, loader):
                 questions[qid] = dict(question)
                 question_owner[qid] = part
 
+        for task, brief in (raw.get("briefs") or {}).items():
+            if task in briefs:
+                if json.dumps(briefs[task], sort_keys=True) != json.dumps(brief, sort_keys=True):
+                    raise OntologyError("ontology %r declares brief %r differently from %r; briefs merge by task "
+                                        "and a task means one brief" % (part, task, brief_owner[task]))
+            else:
+                briefs[task] = dict(brief)
+                brief_owner[task] = part
+
         for node in (raw["sample"] or {}).get("nodes") or []:
             nid = node.get("id")
             if nid in sample_nodes:
@@ -232,7 +243,7 @@ def compose(name, parts, loader):
             readme += "\n---\n\n## Inherited from `%s`\n\n%s\n" % (part, text.strip())
 
     return {"config": config, "sample": {"nodes": list(sample_nodes.values()), "edges": sample_edges},
-            "readme": readme, "rationale": rationale, "rules": list(rules.values()), "questions": questions,
+            "readme": readme, "rationale": rationale, "rules": list(rules.values()), "questions": questions, "briefs": briefs,
             "lexicon": {"entries": lexicon} if lexicon else None,
             "interview": "\n\n".join(text for _part, text in interview) if interview else None,
             "guide": _guide(guides) if guides else None,

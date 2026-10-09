@@ -1,17 +1,11 @@
 {
-  "_about": "Why each class and relation exists, and who confirmed it. Written by the ontology interview and edited by hand. `validated_by` is empty until a person who knows the domain has actually confirmed the entry; leave it empty rather than guessing.",
+  "_about": "Why each class and relation exists, and who confirmed it. Release 9 (2026-10-07) sits the estate on `product`: the requirement, risk, decision and document are the product's. `validated_by` is empty until a person who knows the domain has confirmed the entry; leave it empty rather than guessing.",
   "classes": {
     "Asset": {
       "alternatives": "Naming the four classes in every question and rule; rejected because a question such as \"what does the payments team own\" has to be asked four times, and a rule about ownership written four times.",
       "question": "What do we run, and who is accountable for it?",
       "validated_by": "",
       "why": "Ownership, risk and environment questions are asked about anything the estate runs or stores, not about one class at a time; the parent is what lets one question or one rule cover all of them."
-    },
-    "Capability": {
-      "alternatives": "",
-      "question": "What does the business lose if this is down?",
-      "validated_by": "",
-      "why": "This is the only class a non-engineer will use, so it must exist in their words rather than being inferred from component names."
     },
     "Component": {
       "alternatives": "Considered only having System; rejected because it cannot answer what breaks if this is redeployed.",
@@ -24,18 +18,6 @@
       "question": "Where does this data live, and who writes it?",
       "validated_by": "",
       "why": "Two writers to one store is the commonest quiet cause of inconsistency, and it is only visible if the store is a node."
-    },
-    "DecisionRecord": {
-      "alternatives": "Considered a comment in the design document; rejected because it cannot be linked from the thing it shaped.",
-      "question": "Why is it like this?",
-      "validated_by": "",
-      "why": "Architecture without recorded reasons is re-litigated every year, and the reason has its own date and author."
-    },
-    "Document": {
-      "alternatives": "",
-      "question": "Where is this written down?",
-      "validated_by": "",
-      "why": "Every fact needs a checkable source, and the source is a file with its own date."
     },
     "Environment": {
       "alternatives": "",
@@ -55,18 +37,6 @@
       "validated_by": "",
       "why": "A component without a repository cannot be changed, and an architecture graph that cannot say where the code lives cannot be acted on. Recorded as intended before the repository exists, it is the fact an action realises."
     },
-    "Requirement": {
-      "alternatives": "",
-      "question": "What must this satisfy, and does it?",
-      "validated_by": "",
-      "why": "A stated need outlives the component that meets it, and a replacement must satisfy the same thing."
-    },
-    "Risk": {
-      "alternatives": "",
-      "question": "What is fragile, and what are we doing about it?",
-      "validated_by": "",
-      "why": "A risk nobody can trace to a component is not actionable, so it must point at what it threatens."
-    },
     "Runbook": {
       "alternatives": "",
       "question": "How do I operate or recover this at three in the morning?",
@@ -78,12 +48,6 @@
       "question": "What is this thing, and who owns it?",
       "validated_by": "",
       "why": "A system is the unit people name in conversation and the unit ownership attaches to, so it has to exist even though it is coarse."
-    },
-    "Team": {
-      "alternatives": "Considered a Person class; rejected because it goes stale immediately and adds personal data for no gain.",
-      "question": "Who do I call?",
-      "validated_by": "",
-      "why": "Accountability must point at a group rather than a person, because people move and the question does not."
     }
   },
   "properties": {
@@ -110,6 +74,18 @@
       "question": "Who writes this store?",
       "validated_by": "",
       "why": "Kept separate from reading so more than one writer is visible as a query rather than as folklore."
+    },
+    "satisfies": {
+      "question": "Which requirement does this asset meet, and which requirement does nothing meet?",
+      "why": "The one edge from the design to the specification. With it, the gap between what the product must do and what is built is a query (SA17), not a review meeting.",
+      "alternatives": "A `realises` from Feature (the product's): kept for features; an asset satisfies a requirement directly because a component is not a feature.",
+      "validated_by": ""
+    },
+    "about": {
+      "question": "Why is this asset the way it is?",
+      "why": "The product's Decision, widened to the estate, replaces the estate's own DecisionRecord: one record of why, whether it settles scope or a store.",
+      "alternatives": "A separate DecisionRecord with decided_by: rejected on 2026-10-07 because two decision classes in one project is two places to look.",
+      "validated_by": ""
     }
   }
 }

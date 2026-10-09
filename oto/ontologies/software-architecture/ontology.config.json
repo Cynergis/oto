@@ -1,7 +1,7 @@
 {
-  "_about": "Starter vocabulary for a software estate: what exists, what it depends on, and why it is the way it is. A FIRST DRAFT to edit.",
-  "_summary": "Software estate: systems, components, interfaces, data, environments, decisions and risks.",
-  "name": "Architecture Knowledge Base",
+  "_about": "How a product's solution is shaped: the systems, components, interfaces, stores and environments that satisfy its requirements, who runs them, what threatens them, and why they are the way they are. Sits on `product`: a requirement, a risk, a decision or a document is the product's, never a second copy. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
+  "_summary": "Software estate on a product: systems, components, interfaces, data, environments; what satisfies which requirement, who owns and operates it, what threatens it, which decision shaped it.",
+  "name": "Software architecture",
   "ontology_version": 1,
   "strict_domains": false,
   "languages": [
@@ -41,26 +41,8 @@
     "Environment": {
       "definition": "A place components run: production, staging, a region, a tenant."
     },
-    "Team": {
-      "definition": "The group accountable for something. Attach ownership to a team, not to a person."
-    },
-    "Capability": {
-      "definition": "A business capability the estate supports. This is what the business asks about."
-    },
-    "Requirement": {
-      "definition": "A stated need, functional or otherwise, that something must satisfy."
-    },
-    "DecisionRecord": {
-      "definition": "A recorded architecture decision: the choice, the alternatives, the reason, the consequences."
-    },
-    "Risk": {
-      "definition": "A known way this can hurt: a single point of failure, an end of support, a concentration."
-    },
     "Runbook": {
       "definition": "The documented way to operate or recover something."
-    },
-    "Document": {
-      "definition": "A source document in the corpus: a design, a review, a standard, a transcript."
     },
     "Repository": {
       "definition": "Where a component's code lives: a source repository, recorded before it exists (intended) and observed once it does."
@@ -68,108 +50,108 @@
   },
   "properties": {
     "part_of": {
-      "domain": "Component|Interface|DataStore",
-      "range": "System",
+      "domain": "Feature|JourneyStep|Component|Interface|DataStore",
+      "range": "Product|Feature|UserJourney|System",
       "inverse": "contains",
-      "definition": "This belongs to that system.",
+      "definition": "This belongs to that: a feature to its product or parent feature, a step to its journey. Widened to the estate: a component, interface or store belongs to one system.",
       "max": 1
     },
     "owned_by": {
-      "domain": "System|Component|Interface|DataStore|Capability",
-      "range": "Team",
+      "domain": "Product|Objective|Capability|Feature|SuccessCriterion|Risk|Requirement|Release|System|Component|Interface|DataStore",
+      "range": "Role|Team",
       "inverse": "owns",
-      "definition": "The team accountable.",
-      "max": 1
+      "definition": "The role or team accountable for this. Ownership sits on a role, not a person, so it survives people moving. Widened from the portfolio to what a product specifies. Widened to the estate: an asset is owned by a team or a role."
     },
     "exposes": {
       "domain": "System|Component",
       "range": "Interface",
-      "inverse": "exposed_by",
-      "definition": "The contract something publishes."
+      "definition": "The contract something publishes.",
+      "inverse": "exposed_by"
     },
     "consumes": {
       "domain": "System|Component",
       "range": "Interface",
-      "inverse": "consumed_by",
-      "definition": "A contract something depends on. This is where coupling lives."
+      "definition": "A contract something depends on. This is where coupling lives.",
+      "inverse": "consumed_by"
     },
     "depends_on": {
-      "domain": "System|Component",
-      "range": "System|Component",
-      "definition": "The consumer needs the provider to work. Usually derived from consumes and exposes, and stated only when a document says so."
+      "domain": "Product|System|Component",
+      "range": "Product|System|Component",
+      "inverse": "depended_on_by",
+      "definition": "This product needs that one to deliver: data, a service, a decision. Upstream is the product depended on. The estate widens it to systems and components. Widened to the estate: the consumer needs the provider to work; usually derived from consumes and exposes, and stated only when a document says so."
     },
     "reads_from": {
       "domain": "Component",
       "range": "DataStore",
-      "inverse": "read_by",
-      "definition": "A component reading this store."
+      "definition": "A component reading this store.",
+      "inverse": "read_by"
     },
     "writes_to": {
       "domain": "Component",
       "range": "DataStore",
-      "inverse": "written_by",
-      "definition": "A component writing this store. Two writers to one store is worth knowing about."
+      "definition": "A component writing this store. Two writers to one store is worth knowing about.",
+      "inverse": "written_by"
     },
     "runs_in": {
       "domain": "Component|DataStore",
       "range": "Environment",
-      "inverse": "hosts",
       "definition": "Where something runs.",
+      "inverse": "hosts",
       "min": 1
     },
-    "supports": {
+    "enables": {
       "domain": "System|Component|Capability",
       "range": "Capability",
-      "inverse": "supported_by",
-      "definition": "What business capability this serves."
+      "definition": "The business capability this makes possible; a capability enables the broader one it is part of. Named `enables` because the product's `supports` is objective to objective.",
+      "inverse": "enabled_by"
     },
     "satisfies": {
       "domain": "System|Component|Interface",
       "range": "Requirement",
-      "inverse": "satisfied_by",
-      "definition": "The requirement something meets."
+      "definition": "The requirement of the product this asset meets. The trace from the design back to the specification: a requirement nothing satisfies is open design work.",
+      "inverse": "satisfied_by"
     },
-    "decided_by": {
-      "domain": "System|Component|Interface|DataStore",
-      "range": "DecisionRecord",
-      "inverse": "decides",
-      "definition": "The recorded decision that shaped this."
+    "about": {
+      "domain": "Decision|OpenQuestion",
+      "range": "Product|ValueProposition|Objective|SuccessCriterion|Requirement|Release|Feature|UserJourney|JourneyStep|Scenario|Constraint|Policy|Risk|Persona|System|Component|Interface|DataStore",
+      "inverse": "subject_of",
+      "definition": "What a decision settles, or what an open question concerns. Widened to the estate: a decision that shaped an asset, an open question on one."
     },
     "supersedes": {
-      "domain": "DecisionRecord|Interface|Component|System",
-      "range": "DecisionRecord|Interface|Component|System",
-      "inverse": "superseded_by",
-      "definition": "This replaced that. Use with the temporal fields, never by overwriting."
+      "domain": "Interface|Component|System",
+      "range": "Interface|Component|System",
+      "definition": "This replaced that. Use with the temporal fields, never by overwriting.",
+      "inverse": "superseded_by"
     },
     "threatens": {
       "domain": "Risk",
-      "range": "System|Component|Interface|DataStore|Capability",
+      "range": "Product|Release|Requirement|Feature|SuccessCriterion|System|Component|Interface|DataStore|Capability",
       "inverse": "at_risk_from",
-      "definition": "What a risk applies to."
+      "definition": "What a risk applies to. Widened to the estate: what a risk applies to."
     },
     "mitigated_by": {
       "domain": "Risk",
-      "range": "DecisionRecord|Runbook|Component",
+      "range": "Decision|Requirement|Feature|Runbook|Component",
       "inverse": "mitigates",
-      "definition": "What reduces a risk."
+      "definition": "What reduces a risk. Widened to the estate: a runbook or a component may mitigate."
     },
     "operated_by": {
       "domain": "System|Component",
       "range": "Runbook",
-      "inverse": "operates",
-      "definition": "The runbook for something."
+      "definition": "The runbook for something.",
+      "inverse": "operates"
     },
     "documented_in": {
-      "domain": "System|Component|Interface|DataStore|DecisionRecord|Requirement",
+      "domain": "Product|Role|Persona|ValueProposition|Objective|SuccessCriterion|Requirement|Release|Feature|UserJourney|JourneyStep|Scenario|Constraint|Policy|Assumption|Risk|Decision|OpenQuestion|Term|System|Component|Interface|DataStore|Runbook",
       "range": "Document",
       "inverse": "documents",
-      "definition": "Where this is written down."
+      "definition": "The artifact that formally specifies this: a brief, a PRD, a UX spec. Distinct from source_doc, which is provenance: the document that introduced the fact into the graph, possibly a transcript. Widened to the estate: a design, a review, a standard."
     },
     "implemented_by": {
       "domain": "Component",
       "range": "Repository",
-      "inverse": "implements",
-      "definition": "The repository that holds this component's code."
+      "definition": "The repository that holds this component's code.",
+      "inverse": "implements"
     }
   },
   "attributes": {

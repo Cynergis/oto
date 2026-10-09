@@ -1,0 +1,219 @@
+{
+  "_about": "Rules over the design. `derive` adds facts marked as derived, with the rule and the premises; `policy` flags what a policy forbids, naming the question it protects.",
+  "rules": [
+    {
+      "id": "event-emitted-by-aggregate",
+      "kind": "derive",
+      "when": [
+        {
+          "edge": [
+            "c",
+            "raises",
+            "e"
+          ]
+        },
+        {
+          "edge": [
+            "c",
+            "handled_by",
+            "a"
+          ]
+        },
+        {
+          "node": "a",
+          "type": "Aggregate"
+        }
+      ],
+      "then": {
+        "edge": [
+          "e",
+          "emitted_by",
+          "a"
+        ]
+      },
+      "why": "An event is published by the aggregate that handled the command raising it; storming states the command.",
+      "validated_by": ""
+    },
+    {
+      "id": "context-listens-via-reaction",
+      "kind": "derive",
+      "when": [
+        {
+          "node": "p",
+          "type": "Reaction"
+        },
+        {
+          "edge": [
+            "p",
+            "part_of",
+            "ctx"
+          ]
+        },
+        {
+          "edge": [
+            "p",
+            "reacts_to",
+            "e"
+          ]
+        }
+      ],
+      "then": {
+        "edge": [
+          "ctx",
+          "listens_to",
+          "e"
+        ]
+      },
+      "why": "A context whose reaction fires on an event consumes it; the map needs the context, not the sticky.",
+      "validated_by": ""
+    },
+    {
+      "id": "context-listens-via-read-model",
+      "kind": "derive",
+      "when": [
+        {
+          "node": "rm",
+          "type": "ReadModel"
+        },
+        {
+          "edge": [
+            "rm",
+            "part_of",
+            "ctx"
+          ]
+        },
+        {
+          "edge": [
+            "rm",
+            "projected_from",
+            "e"
+          ]
+        }
+      ],
+      "then": {
+        "edge": [
+          "ctx",
+          "listens_to",
+          "e"
+        ]
+      },
+      "why": "A context whose read model is built from an event consumes it.",
+      "validated_by": ""
+    },
+    {
+      "id": "aggregate-has-repository",
+      "kind": "derive",
+      "when": [
+        {
+          "node": "a",
+          "type": "Aggregate"
+        }
+      ],
+      "then": {
+        "attribute": [
+          "a",
+          "persistence",
+          "repository"
+        ]
+      },
+      "why": "Every aggregate is loaded and stored through a repository unless the design says otherwise; the builder needs the default, not a question.",
+      "validated_by": ""
+    },
+    {
+      "id": "aggregate-has-factory",
+      "kind": "derive",
+      "when": [
+        {
+          "node": "a",
+          "type": "Aggregate"
+        }
+      ],
+      "then": {
+        "attribute": [
+          "a",
+          "construction",
+          "factory"
+        ]
+      },
+      "why": "Every aggregate is created through a factory unless the design says otherwise.",
+      "validated_by": ""
+    },
+    {
+      "id": "command-has-application-service",
+      "kind": "derive",
+      "when": [
+        {
+          "node": "c",
+          "type": "Command"
+        }
+      ],
+      "then": {
+        "attribute": [
+          "c",
+          "handler",
+          "application_service"
+        ]
+      },
+      "why": "Every command reaches its aggregate through an application service unless the design says otherwise.",
+      "validated_by": ""
+    },
+    {
+      "id": "use-case-has-scenario",
+      "kind": "policy",
+      "when": [
+        {
+          "node": "u",
+          "type": "UseCase"
+        },
+        {
+          "not_edge": [
+            "*",
+            "exercises",
+            "u"
+          ]
+        }
+      ],
+      "then": {
+        "flag": "a use case has no acceptance scenario, so the builder has no test to write"
+      },
+      "why": "A use case without a scenario is built against nobody's expectation.",
+      "validated_by": "",
+      "severity": "warn",
+      "answers": "DD4"
+    },
+    {
+      "id": "ready-element-has-open-question",
+      "kind": "policy",
+      "when": [
+        {
+          "node": "h",
+          "type": "OpenQuestion",
+          "where": {
+            "state": "open"
+          }
+        },
+        {
+          "edge": [
+            "h",
+            "about",
+            "x"
+          ]
+        },
+        {
+          "node": "x",
+          "type": "UseCase|BoundedContext|Aggregate|Command",
+          "where": {
+            "readiness": "ready"
+          }
+        }
+      ],
+      "then": {
+        "flag": "an element marked ready still has an open question on it"
+      },
+      "why": "Ready means the builder may start; an open hotspot means somebody disagrees.",
+      "validated_by": "",
+      "severity": "warn",
+      "answers": "DD18"
+    }
+  ]
+}

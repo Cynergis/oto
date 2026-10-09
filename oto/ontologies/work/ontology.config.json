@@ -1,0 +1,92 @@
+{
+  "_about": "What is planned, by whom, blocked by what: work items that deliver requirements, features and components, scheduled in milestones and releases, assigned to teams and roles, blocked by other items, risks, open questions and decisions. On software-architecture, so the one question that crosses every level runs: which requirements slip if this component is late. A relation is {domain, range, inverse, definition}.",
+  "_summary": "What is planned, by whom, blocked by what: work items and milestones over the product's requirements, features and components; what slips when a component is late, what is overdue, what waits on a decision.",
+  "name": "Work",
+  "ontology_version": 1,
+  "strict_domains": false,
+  "languages": [
+    "en"
+  ],
+  "classes": {
+    "WorkItem": {
+      "definition": "A unit of planned work: an epic, a story, a task or a bug, with a state and a due date. It delivers something the product specifies or the estate holds; it is assigned to a team or a role; it may be blocked."
+    },
+    "Milestone": {
+      "definition": "A dated point the plan aims at: a demo, a cut-off, a go-live. Work is scheduled in milestones as it is in releases; a release ships, a milestone is reached."
+    }
+  },
+  "properties": {
+    "delivers": {
+      "domain": "WorkItem",
+      "range": "Requirement|Feature|Component|System|Interface",
+      "inverse": "delivered_by",
+      "definition": "What the work item makes true when done: a requirement satisfied, a feature built, a component running. The trace from the plan to the specification and the estate."
+    },
+    "scheduled_in": {
+      "domain": "WorkItem",
+      "range": "Milestone|Release",
+      "inverse": "schedules",
+      "definition": "The milestone or release the item is planned for."
+    },
+    "assigned_to": {
+      "domain": "WorkItem",
+      "range": "Team|Role",
+      "inverse": "assigned",
+      "definition": "Who does the work: a team, or a role when one person's function is the point."
+    },
+    "blocked_by": {
+      "domain": "WorkItem",
+      "range": "WorkItem|Risk|OpenQuestion|Decision",
+      "inverse": "blocks_work",
+      "definition": "What stops the item: another item not done, a risk realised, an open question unanswered, a decision not taken."
+    },
+    "depends_on": {
+      "domain": "Product|System|Component|WorkItem",
+      "range": "Product|System|Component|WorkItem",
+      "inverse": "depended_on_by",
+      "definition": "This product needs that one to deliver: data, a service, a decision. Upstream is the product depended on. The estate widens it to systems and components. Widened to the estate: the consumer needs the provider to work; usually derived from consumes and exposes, and stated only when a document says so. Widened to work: an item that must be done first."
+    },
+    "owned_by": {
+      "domain": "Product|Objective|Capability|Feature|SuccessCriterion|Risk|Requirement|Release|System|Component|Interface|DataStore|Milestone",
+      "range": "Role|Team",
+      "inverse": "owns",
+      "definition": "The role or team accountable for this. Ownership sits on a role, not a person, so it survives people moving. Widened from the portfolio to what a product specifies. Widened to the estate: an asset is owned by a team or a role. Widened to work: a milestone has an owner."
+    }
+  },
+  "attributes": {
+    "WorkItem": {
+      "kind": {
+        "type": "enum:epic|story|task|bug",
+        "definition": "The size and nature of the item."
+      },
+      "state": {
+        "type": "enum:planned|in-progress|blocked|done|dropped",
+        "definition": "Where the item is.",
+        "required": true
+      },
+      "priority": {
+        "type": "enum:must|should|could",
+        "definition": "How much it matters this period."
+      },
+      "due": {
+        "type": "date",
+        "definition": "When it must be done."
+      },
+      "estimate": {
+        "type": "string",
+        "definition": "Size in the team's unit: points, days, a t-shirt size."
+      }
+    },
+    "Milestone": {
+      "date": {
+        "type": "date",
+        "definition": "When the milestone is reached or aimed at.",
+        "required": true
+      },
+      "state": {
+        "type": "enum:planned|reached|missed",
+        "definition": "Whether it was reached."
+      }
+    }
+  }
+}

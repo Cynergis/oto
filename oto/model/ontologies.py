@@ -56,6 +56,7 @@ README_NAME = "README.md"
 RATIONALE_NAME = "ontology.rationale.json"
 RULES_NAME = "rules.json"
 QUESTIONS_NAME = "questions.json"
+BRIEFS_NAME = "briefs.json"
 LEXICON_NAME = "lexicon.json"
 INTERVIEW_NAME = "interview.md"
 GUIDE_NAME = "guide.md"
@@ -189,6 +190,7 @@ def load_raw(name, roots=None):
 def load_raw_dir(base):
     rules = _read_json(os.path.join(base, RULES_NAME), {"rules": []})
     questions = _read_json(os.path.join(base, QUESTIONS_NAME), {"questions": {}})
+    briefs = _read_json(os.path.join(base, BRIEFS_NAME), {"briefs": {}})
     rationale = _read_json(os.path.join(base, RATIONALE_NAME), {})
     return {"config": _read_json(os.path.join(base, CONFIG_NAME), {}),
             "sample": _read_json(os.path.join(base, SAMPLE_NAME), {"nodes": [], "edges": []}),
@@ -197,6 +199,7 @@ def load_raw_dir(base):
             "rules": list(rules.get("rules") or []) if isinstance(rules, dict) else list(rules),
             "questions": dict((questions.get("questions") if "questions" in questions else questions) or {})
             if isinstance(questions, dict) else {},
+            "briefs": dict((briefs.get("briefs") if "briefs" in briefs else briefs) or {}) if isinstance(briefs, dict) else {},
             "lexicon": _read_json(os.path.join(base, LEXICON_NAME), None),
             "interview": _read_text(os.path.join(base, INTERVIEW_NAME)) or None,
             "guide": _read_text(os.path.join(base, GUIDE_NAME)) or None,
@@ -233,6 +236,11 @@ def rules_for(name):
 def questions_for(name):
     """The competency questions an ontology ships, its bases included: {id: question}."""
     return composed(name)["questions"]
+
+
+def briefs_for(name):
+    """The briefs an ontology ships, its bases included: {task: brief}."""
+    return composed(name)["briefs"]
 
 
 def rationale_for(name):
@@ -337,8 +345,9 @@ def self_check(name, roots=None):
     problems += _vocab.declaration_problems(classes, config.get("attributes") or {}, config.get("schemes") or {})
     from ..reason import rules as _rules
     problems += _rules.problems(result["rules"], config)
-    from ..reason import questions as _questions, shapes as _shapes
+    from ..reason import questions as _questions, shapes as _shapes, briefs as _briefs
     question_problems = _questions.problems(result["questions"], config)
+    problems += _briefs.problems(result["briefs"], result["questions"])
     problems += question_problems
     problems += _shapes.problems(config)
     if not question_problems:
@@ -363,8 +372,24 @@ def self_check(name, roots=None):
     if not problems:
         for item in _shapes.findings(config, sample.get("nodes") or [], sample.get("edges") or []):
             problems.append("the sample breaks a declared shape: %s" % item["message"])
-        for finding in _questions.findings(result["questions"], sample.get("nodes") or [], sample.get("edges") or [],
-                                           _vocab.covers(classes), declared=_questions.declared_names(config)):
+        # a sample that breaks the ontology's own blocking policy is not an example of it; the
+        # questions see the sample as a build does, with what the rules derive
+        from ..reason import engine as _engine
+        derived_edges, derived_attributes = [], {}
+        try:
+            outcome = _engine.run(result["rules"], sample.get("nodes") or [], sample.get("edges") or [],
+                                  covers=_vocab.covers(classes), declared=_questions.declared_names(config))
+        except _engine.DoesNotConverge as exc:
+            problems.append(str(exc))
+        else:
+            for finding in outcome["findings"]:
+                if finding["severity"] == "blocking":
+                    problems.append("the sample breaks its own policy %s: %s (%s)" % (finding["rule"], finding["message"], finding.get("node") or "graph"))
+            derived_edges = [{"from": e["from"], "rel": e["rel"], "to": e["to"]} for e in outcome["edges"]]
+            for a in outcome["attributes"]:
+                derived_attributes.setdefault(a["node"], {})[a["name"]] = a["value"]
+        for finding in _questions.findings(result["questions"], sample.get("nodes") or [], (sample.get("edges") or []) + derived_edges,
+                                           _vocab.covers(classes), derived_attributes, declared=_questions.declared_names(config)):
             for item in finding["unanswered"] or [{"label": "(graph)", "status": finding["status"], "gaps": finding["gaps"]}]:
                 problems.append("the sample cannot answer %s as required: %s, %s%s"
                                 % (finding["id"], item["label"], item["status"],
@@ -604,12 +629,18 @@ def _readme(name, config, rationale, source_name, confirmed):
     return "\n".join(lines)
 
 
-def export(project, name, to=None, from_graph=0, summary=None, force=False):
+def export(project, name, to=None, from_graph=None, summary=None, force=False, invented=False):
     """Write an ontology from a project's vocabulary. Returns (path, problems).
 
     Refuses when the rationale is incomplete: an ontology is the exemplar, and shipping one whose
-    classes have no recorded reason teaches that the reasoning is optional. Refuses a real-data
-    sample that the privacy scan blocks.
+    classes have no recorded reason teaches that the reasoning is optional.
+
+    The sample is the project's graph: every current node of a class the vocabulary declares and
+    the edges among them, privacy-scanned and refused when the scan blocks it; `from_graph` caps
+    it at N nodes, round-robin across classes. A project started from a pack therefore exports the
+    pack's sample it still holds. `invented`, or an empty graph, gives the synthetic sample: one
+    node per class and one edge per declared pair, which answers the questions but respects no
+    policy, so an ontology with shapes or policies should ship a real one.
     """
     from ..validate import privacy as _privacy
     from . import rationale as _rationale
@@ -647,23 +678,27 @@ def export(project, name, to=None, from_graph=0, summary=None, force=False):
             rationale[section][key] = copied
     confirmed = len(coverage["classes_validated"])
 
-    if from_graph:
+    graph = {}
+    if not invented and os.path.exists(project.graph_path):
         with open(project.graph_path, encoding="utf-8") as f:
             graph = json.load(f)
-        sample = sample_from_graph(graph, config, from_graph)
+    if any(n.get("status", "current") == "current" for n in graph.get("nodes") or []):
+        sample = sample_from_graph(graph, config, from_graph if from_graph else len(graph.get("nodes") or []))
         text = "\n".join(" ".join([str(n.get("label") or ""), str(n.get("summary") or ""),
                                     " ".join(n.get("aliases") or []), json.dumps(n.get("attributes") or {})])
                           for n in sample["nodes"])
         findings = _privacy.scan(text)
         if _privacy.blocking(findings):
             raise ValueError("the real-data sample contains personal data or a credential:\n%s\n"
-                             "Use the invented sample (omit --from-graph)." % _privacy.summarize(findings))
+                             "Use the invented sample (--invented)." % _privacy.summarize(findings))
     else:
         sample = synthetic_sample(config)
 
     from ..reason import rules as _rules, questions as _questions
     shipped_rules = [dict(r, validated_by="") for r in _rules.load(project)]
     shipped_questions = {qid: dict(q, validated_by="") for qid, q in _questions.load(project).items()}
+    from ..reason import briefs as _briefs
+    shipped_briefs = _briefs.load(project)
     os.makedirs(target, exist_ok=True)
     from ..actions import model as _actions
     sample_by_type = {}
@@ -694,6 +729,8 @@ def export(project, name, to=None, from_graph=0, summary=None, force=False):
             f.write("\n")
     if shipped_questions:
         _questions.save(types.SimpleNamespace(data=target), shipped_questions)
+    if shipped_briefs:
+        _briefs.save(types.SimpleNamespace(data=target), shipped_briefs)
     for filename, payload in ((CONFIG_NAME, exported), (RATIONALE_NAME, rationale), (SAMPLE_NAME, sample)):
         with open(os.path.join(target, filename), "w", encoding="utf-8", newline="\n") as f:
             json.dump(payload, f, indent=2, ensure_ascii=False)
@@ -704,11 +741,18 @@ def export(project, name, to=None, from_graph=0, summary=None, force=False):
     engine = ">=%s" % ".".join(str(x) for x in _manifest._version_tuple(__version__)[:2])
     # The terms the project declared itself keep the IRIs its own export gave them; what it took
     # from other ontologies is in the vocabulary's `namespaces` section and keeps theirs.
-    _manifest.write(target, {"name": name, "release": 1, "summary": exported["_summary"], "extends": [],
-                             "namespace": _namespaces.Terms(config, identity).project,
+    # Exporting over an ontology that exists (--force) is its next release: the namespace it
+    # published, its maintainer and its changelog are kept, and the release number rises.
+    previous = _manifest.read(target) if os.path.exists(os.path.join(target, _manifest.MANIFEST_NAME)) else None
+    release = int(previous.get("release") or 0) + 1 if previous and previous.get("_declared") else 1
+    _manifest.write(target, {"name": name, "release": release, "summary": exported["_summary"],
+                             "extends": list(previous.get("extends") or []) if previous else [],
+                             "namespace": (previous or {}).get("namespace") or _namespaces.Terms(config, identity).project,
                              "engine": engine, "carries": _manifest.detect_carries(target),
-                             "maintainer": "", "changelog": [{"release": 1, "at": _today(),
-                                                              "note": "Exported from the project %s." % identity["name"]}]})
+                             "maintainer": (previous or {}).get("maintainer") or "",
+                             "changelog": [{"release": release, "at": _today(),
+                                            "note": "Exported from the project %s." % identity["name"]}]
+                             + list((previous or {}).get("changelog") or [])})
     return target, self_check(target)
 
 
@@ -722,21 +766,33 @@ def _today():
 def merge(names):
     """Combine ontologies into one vocabulary. Returns (config, sample, readme, rationale, report).
 
-    The union of classes and relations, first ontology winning a name clash. The report lists
-    every clash so a person can see what was silently kept, and the totals, because two glued
-    ontologies are the fastest way to the forty-class model nobody owns. Prune before accepting.
+    The union of classes and relations, first ontology winning a class described twice; a relation
+    declared twice with different signatures is widened to the union of both, as composition
+    widens, so no part's facts are refused. The report lists every clash so a person can see what
+    was kept or widened, and the totals, because two glued ontologies are the fastest way to the
+    forty-class model nobody owns. Prune before accepting.
     """
     classes, properties, temporal, attributes, namespaces, schemes = {}, {}, {}, {}, {}, {}
     rationale = {"classes": {}, "properties": {}}
-    merged_rules, merged_questions = {}, {}
+    merged_rules, merged_questions, merged_briefs = {}, {}, {}
     owner = {}
     report = {"ontologies": list(names), "class_clashes": [], "relation_clashes": []}
     summaries, readmes, titles = [], [], []
 
     lexicon_entries, interviews, guides, gold, merged_actions = [], [], [], [], {}
+    sample_nodes, sample_edges, sample_keys = {}, [], set()
     for name in names:
         result = composed(name)
         config, readme, record = result["config"], result["readme"], result["rationale"]
+        # the samples merge by node id, as composition merges them: a merged project starts
+        # with the facts its parts ship, not an invented graph
+        for node in (result["sample"] or {}).get("nodes") or []:
+            sample_nodes.setdefault(node.get("id"), node)
+        for edge in (result["sample"] or {}).get("edges") or []:
+            key = (edge.get("from"), edge.get("rel"), edge.get("to"))
+            if key not in sample_keys:
+                sample_keys.add(key)
+                sample_edges.append(edge)
         titles.append(config.get("name", name))
         about = (result["manifest"].get("summary") or config.get("_summary") or "").strip()
         if about:
@@ -756,7 +812,12 @@ def merge(names):
         for relation, spec in (config.get("properties") or {}).items():
             if relation in properties and [properties[relation].get(k) for k in ("domain", "range")] \
                     != [spec.get(k) for k in ("domain", "range")]:
+                # two parts widened one relation (both sit on `product`, say): the merged relation is the
+                # union, as composition widens, so neither part's facts are refused; reported
                 report["relation_clashes"].append((relation, owner[relation], name))
+                for label in ("domain", "range"):
+                    declared = _compose._declared(properties[relation].get(label))
+                    properties[relation][label] = "|".join(declared + [c for c in _compose._declared(spec.get(label)) if c not in declared])
             properties.setdefault(relation, dict(spec))
             owner.setdefault(relation, name)
         for field, spec in (config.get("temporal") or {}).items():
@@ -771,6 +832,8 @@ def merge(names):
             merged_rules.setdefault(rule["id"], dict(rule))
         for qid, question in result["questions"].items():
             merged_questions.setdefault(qid, dict(question))
+        for task, brief in result["briefs"].items():
+            merged_briefs.setdefault(task, dict(brief))
         for action in result.get("actions") or []:
             merged_actions.setdefault(action["id"], dict(action))
         for section in ("classes", "properties"):
@@ -790,6 +853,7 @@ def merge(names):
         config[_namespaces.SECTION] = _namespaces.settled(namespaces)
     config["_rules"] = list(merged_rules.values())
     config["_questions"] = merged_questions
+    config["_briefs"] = merged_briefs
     config["_lexicon"] = {"entries": lexicon_entries} if lexicon_entries else None
     config["_interview"] = "\n\n".join(interviews) if interviews else None
     config["_guide"] = "\n\n".join(guides) if guides else None
@@ -804,4 +868,5 @@ def merge(names):
               "%d classes and %d relations after the merge." % (len(classes), len(properties)), ""]
     for name, text in readmes:
         readme += ["", "---", "", "## From `%s`" % name, "", text.strip(), ""]
-    return config, synthetic_sample(config), "\n".join(readme), rationale, report
+    sample = {"nodes": list(sample_nodes.values()), "edges": sample_edges} if sample_nodes else synthetic_sample(config)
+    return config, sample, "\n".join(readme), rationale, report

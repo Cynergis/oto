@@ -18,6 +18,20 @@ def cmd_ontology(args):
     if args.ontology_command in _catalog.VERBS:
         return _catalog.run(args)
 
+    if args.ontology_command == "capture" and args.from_name:
+        # the capture schema of a pack needs no project
+        from ..compile import capture as _capture
+        try:
+            schema = _capture.for_ontology(args.from_name)
+        except (KeyError, ValueError) as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        out = args.file or os.path.join(os.getcwd(), "capture.json")
+        _capture.write(out, schema)
+        print("capture schema of %s: %s  (%d section(s), %d question(s), %d type(s))" % (
+            args.from_name, out, len(schema["sections"]), sum(len(s["asks"]) for s in schema["sections"]), len(schema["types"])))
+        return 0
+
     from ..model import vocabulary as vocab
 
     project = _resolve(args)
@@ -36,6 +50,7 @@ def cmd_ontology(args):
                   file=sys.stderr)
             return 1
         rationale = None
+        carried_rules, carried_questions, carried_briefs = [], {}, {}
         try:
             if args.from_name:
                 names = [t.strip() for t in args.from_name.split(",") if t.strip()]
@@ -44,16 +59,23 @@ def cmd_ontology(args):
                         raise ValueError("unknown ontology %r. Available: %s"
                                          % (one, ", ".join(_ontologies.available()) or "none"))
                 if len(names) == 1:
-                    config, _sample, _readme = _ontologies.load(names[0])
+                    composed = _ontologies.composed(names[0])
+                    config = composed["config"]
                     classes, properties = config["classes"], config["properties"]
-                    rationale = _ontologies.rationale_for(names[0])
+                    rationale = composed["rationale"]
+                    carried_rules, carried_questions, carried_briefs = composed["rules"], composed["questions"], composed["briefs"]
                     notes = []
                 else:
                     config, _sample, _readme, rationale, report = _ontologies.merge(names)
                     classes, properties = config["classes"], config["properties"]
+                    carried_rules = list(config.pop("_rules", None) or [])
+                    carried_questions = dict(config.pop("_questions", None) or {})
+                    carried_briefs = dict(config.pop("_briefs", None) or {})
+                    for key in ("_lexicon", "_interview", "_guide", "_actions", "_gold"):
+                        config.pop(key, None)
                     notes = ["class %s: described differently in %s and %s; kept %s" % (k, a, b, a)
                              for k, a, b in report["class_clashes"]]
-                    notes += ["relation %s: domain or range differ in %s and %s; kept %s" % (r, a, b, a)
+                    notes += ["relation %s: domain or range differ in %s and %s; widened to both" % (r, a, b)
                               for r, a, b in report["relation_clashes"]]
                     notes.append("merged %d ontologies; prune before accepting" % len(names))
                 attributes = config.get("attributes") or {}
@@ -77,6 +99,29 @@ def cmd_ontology(args):
             return 1
         print("wrote %d class(es), %d relation(s) and %d attribute declaration(s) to %s"
               % (len(classes), len(properties), sum(len(v) for v in attributes.values()), os.path.basename(path)))
+        # The rules and the questions an ontology ships come with its vocabulary: merged by id into
+        # what the project already declares, so a project's own stay and the ontology's are added.
+        from ..reason import rules as _rules, questions as _questions
+        if carried_rules:
+            own = _rules.load(project)
+            have = {r.get("id") for r in own if isinstance(r, dict)}
+            added = [r for r in carried_rules if r.get("id") not in have]
+            if added or not own:
+                _rules.save(project, own + added)
+            print("  rules: %d carried, %d added to %s" % (len(carried_rules), len(added), _rules.NAME))
+        if carried_questions:
+            own = _questions.load(project)
+            added = {k: v for k, v in carried_questions.items() if k not in own}
+            if added or not own:
+                _questions.save(project, dict(own, **added))
+            print("  questions: %d carried, %d added to %s" % (len(carried_questions), len(added), _questions.NAME))
+        if carried_briefs:
+            from ..reason import briefs as _briefs
+            own = _briefs.load(project)
+            added = {k: v for k, v in carried_briefs.items() if k not in own}
+            if added:
+                _briefs.save(project, dict(own, **added))
+            print("  briefs: %d carried, %d added to %s" % (len(carried_briefs), len(added), _briefs.NAME))
         for note in notes:
             print("  note: %s" % note)
         if rationale:
@@ -85,6 +130,16 @@ def cmd_ontology(args):
             print("  no rationale came with it: every class now lacks a recorded reason. Run the "
                   "ontology-interview skill, then `oto ontology rationale --strict`.")
         print("  then: oto ontology check, and oto ontology accept")
+        return 0
+
+    if args.ontology_command == "capture":
+        from ..compile import capture as _capture
+        schema = _capture.for_project(project)
+        out = args.file or os.path.join(project.data, "capture.json")
+        _capture.write(out, schema)
+        print("capture schema: %s  (%d section(s), %d question(s), %d type(s))" % (
+            out, len(schema["sections"]), sum(len(s["asks"]) for s in schema["sections"]), len(schema["types"])))
+        print("  a tool fills it as items of a type with fields and links; `oto curate propose --from <capture>` turns them into a proposal")
         return 0
 
     if args.ontology_command == "rationale":
@@ -371,8 +426,8 @@ def cmd_ontology(args):
 def register(sub):
     ontology = sub.add_parser("ontology", help="the project's vocabulary, and the catalog of ontologies to start from")
     ontology.add_argument("ontology_command", nargs="?", default="check",
-                          choices=["check", "accept", "rationale", "widen", "import"] + list(_catalog.VERBS),
-                          help="on the project's own vocabulary: check (default) reports changes and conformance; "
+                          choices=["check", "accept", "rationale", "widen", "import", "capture"] + list(_catalog.VERBS),
+                          help="on the project's own vocabulary: check (default) reports changes and conformance; capture writes capture.json, what a tool asks for; "
                                "accept records it as the baseline; rationale reports whether each class has a "
                                "recorded reason and who confirmed it; widen proposes what the data uses; import "
                                "merges a file or a named ontology into it. On the catalog: list, show <name>, "
@@ -380,6 +435,8 @@ def register(sub):
                                "this project started from, publish --to <registry>")
     project_arguments(ontology)
     ontology.add_argument("--show", type=int, default=8, help="how many mismatch patterns to list")
+    ontology.add_argument("--product-types", dest="product_types", action="store_true",
+                          help="for list: the kinds of product the ontologies and packs specify (manifest `product_type`)")
     ontology.add_argument("--file", default=None,
                           help="for import: an ontology (.ttl, .rdf, .owl, .jsonld, .nt; any OWL/RDFS/SKOS, with the rdf extra), or a .csv or .json vocabulary")
     ontology.add_argument("--from", dest="from_name", default=None,

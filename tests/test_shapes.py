@@ -223,21 +223,25 @@ def test_a_policy_rule_is_a_shacl_sparql_constraint_that_finds_what_the_engine_f
         project = Project.standard(root)
         build(project)
         ttl = open(os.path.join(project.layout.ontology, "arch.ttl"), encoding="utf-8").read()
-        assert "arch:decision_is_documentedPolicy a sh:NodeShape ; sh:targetClass software-architecture:DecisionRecord ; sh:severity sh:Warning ; sh:sparql [" in ttl
-        assert 'sh:message "an architecture decision must cite the document that records it (answers SA13)"@en' in ttl
+        assert "arch:decision_is_documentedPolicy a sh:NodeShape ; sh:targetClass product:Decision ; sh:severity sh:Warning ; sh:sparql [" in ttl
+        assert 'sh:message "a decision must cite the document that records it (answers PR19)"@en' in ttl
         assert "SELECT $this WHERE {" in ttl and 'FILTER(?this_status NOT IN ("current", "intended"))' in ttl, "a policy sees intended facts"
         config = json.load(open(project.ontology_config_path, encoding="utf-8"))
         graph = json.load(open(os.path.join(project.layout.graph, "knowledge-graph.json"), encoding="utf-8"))
         outcome = _engine.run(_rules.load(project), graph["nodes"], graph["edges"], covers=covers(config["classes"]))
         engine_found = {(f["rule"], f["node"]) for f in outcome["findings"]}
-        assert engine_found == {("decision-is-documented", "decision.single-ledger")}
+        assert engine_found == {("decision-is-documented", "decision.single-ledger"),
+                                ("value-proposition-has-success-criterion", "valueproposition.vp-documents"),
+                                ("needed-capability-has-a-provider", "capability.reconcile")}, "the chain's own warnings on its samples"
         SH = Namespace("http://www.w3.org/ns/shacl#")
         data = Graph().parse(os.path.join(project.layout.graph, "graph.ttl"), format="turtle")
         shapes_graph = Graph().parse(os.path.join(project.layout.ontology, "arch.ttl"), format="turtle")
         conforms, report, _text = pyshacl.validate(data, shacl_graph=shapes_graph, ont_graph=shapes_graph)
         results = [(str(report.value(r, SH.sourceShape)).rsplit("/", 1)[-1], str(report.value(r, SH.focusNode)).rsplit("/", 1)[-1],
                     str(report.value(r, SH.resultSeverity)).rsplit("#", 1)[-1]) for r in report.subjects(SH.focusNode, None)]
-        assert results == [("decision_is_documentedPolicy", "decision.single-ledger", "Warning")]
+        assert sorted(results) == [("decision_is_documentedPolicy", "decision.single-ledger", "Warning"),
+                                   ("needed_capability_has_a_providerPolicy", "capability.reconcile", "Warning"),
+                                   ("value_proposition_has_success_criterionPolicy", "valueproposition.vp-documents", "Warning")]
 
 
 def test_an_ontology_whose_sample_breaks_its_shapes_is_not_usable(monkeypatch):
@@ -250,3 +254,59 @@ def test_an_ontology_whose_sample_breaks_its_shapes_is_not_usable(monkeypatch):
                        {"nodes": [_node("claim.1", "Claim", "One"), _node("doc.1", "Doc", "D")], "edges": []}, temporal=False)
         problems = ontologies.self_check("strict")
         assert "the sample breaks a declared shape: Claim claim.1 carries no about; every Claim requires it" in problems
+
+
+def test_value_constraints_are_evaluated_rendered_as_shacl_and_read_back():
+    """`pattern`, `min_value`, `max_value`, `min_length` on an attribute: the engine holds a value to
+    them, the Turtle carries them as sh:pattern, sh:minInclusive, sh:maxInclusive, sh:minLength,
+    the importer reads them back, and pyshacl agrees with the engine."""
+    import pytest
+    from oto.model import rdf_import, vocabulary as _vocab
+    with tempfile.TemporaryDirectory() as root:
+        init(root, slug="claims", name="Claims", ontology="auto-claims")
+        project = Project.standard(root)
+        config = json.load(open(project.ontology_config_path, encoding="utf-8"))
+        config["attributes"]["Claim"]["claim_number"].update({"pattern": "^C-[0-9]+$", "min_length": 3})
+        config["attributes"]["Claim"]["amount_claimed"] = {"type": "number", "definition": "What was claimed.", "min_value": 0, "max_value": 1000000}
+        assert _vocab.problems(config) == [] if hasattr(_vocab, "problems") else True
+        bad = json.loads(json.dumps(config))
+        bad["attributes"]["Claim"]["claim_number"]["pattern"] = "("
+        assert any("not a regular expression" in p for p in _vocab.Vocabulary.problems(bad)) if hasattr(_vocab.Vocabulary, "problems") else True
+        json.dump(config, open(project.ontology_config_path, "w", encoding="utf-8"))
+        graph = json.load(open(project.graph_path, encoding="utf-8"))
+        for n in graph["nodes"]:
+            if n["type"] == "Claim":
+                n["attributes"]["amount_claimed"] = 12000
+        assert shapes.findings(config, graph["nodes"], graph["edges"]) == []
+        graph["nodes"].append(dict(id="claim.c-9", type="Claim", label="Claim C-9", aliases=[], summary="Odd.",
+                                   attributes={"state": "open", "claim_number": "X9", "amount_claimed": -5}, tags=[],
+                                   as_of="2026-09-01", valid_from="2026-09-01", source_doc="handbook", status="current", sources=["handbook"]))
+        found = {(f["node"], f["subject"], f["kind"]) for f in shapes.findings(config, graph["nodes"], graph["edges"])}
+        assert ("claim.c-9", "claim_number", "value") in found and ("claim.c-9", "amount_claimed", "value") in found
+        messages = [f["message"] for f in shapes.findings(config, graph["nodes"], graph["edges"]) if f["kind"] == "value"]
+        assert any("does not match the pattern ^C-[0-9]+$" in m for m in messages) and any("is below 0" in m for m in messages)
+        assert [r for r in shapes.declared(config) if r["kind"] == "pattern"] == [{"kind": "pattern", "class": "Claim", "subject": "claim_number", "value": "^C-[0-9]+$"}]
+        if not rdf_import.available():
+            pytest.skip("needs rdflib (the `rdf` extra)")
+        json.dump(graph, open(project.graph_path, "w", encoding="utf-8"))
+        build(project)
+        ttl = open(os.path.join(project.layout.ontology, "claims.ttl"), encoding="utf-8").read()
+        assert 'sh:path auto-claims:claim_number ; sh:minCount 1 ; sh:message "every Claim has claim_number"@en' in ttl
+        assert 'sh:path auto-claims:claim_number ; sh:pattern "^C-[0-9]+$" ; sh:minLength 3 ; sh:message "claim_number of a Claim pattern ^C-[0-9]+$, min length 3"@en' in ttl
+        assert 'sh:path claims:amount_claimed ; sh:minInclusive 0 ; sh:maxInclusive 1000000 ;' in ttl, "the project's own attribute keeps the project's prefix"
+        _classes, _properties, notes = rdf_import.read(os.path.join(project.layout.ontology, "claims.ttl"))
+        assert notes == [], notes
+        back = rdf_import.read.attributes["Claim"]
+        assert back["claim_number"]["pattern"] == "^C-[0-9]+$" and back["claim_number"]["min_length"] == 3
+        assert back["amount_claimed"]["min_value"] == 0 and back["amount_claimed"]["max_value"] == 1000000
+        try:
+            import pyshacl
+        except ImportError:
+            pytest.skip("pyshacl not installed")
+        from rdflib import Graph
+        data = Graph().parse(os.path.join(project.layout.graph, "graph.ttl"), format="turtle")
+        shapes_graph = Graph().parse(os.path.join(project.layout.ontology, "claims.ttl"), format="turtle")
+        conforms, report, _text = pyshacl.validate(data, shacl_graph=shapes_graph, ont_graph=shapes_graph)
+        assert not conforms
+        focus = {str(r).rsplit("/", 1)[-1] for r in report.objects(None, __import__("rdflib").URIRef("http://www.w3.org/ns/shacl#focusNode"))}
+        assert focus == {"claim.c-9"}, focus

@@ -380,8 +380,15 @@ A term no part claims is the project's own and lives under the project's namespa
 `<namespace>ont/`, beside its instances under `<namespace>id/`. `oto ontology export` gives the
 new ontology that same namespace, so a term keeps the IRI it already had.
 
-The four shipped ontologies extend `oto-core`, which holds the temporal fields and `Document`,
-the class every fact cites. `oto ontology show <name>` prints an ontology's manifest, its
+The shipped ontologies extend `oto-core`, which holds the temporal fields and `Document`, the
+class every fact cites. Five of them form one chain, the levels of a product's knowledge:
+`portfolio` (what we build, who owns it, what we pursue) → `product` (what it must do, for whom,
+why) → `software-architecture` (the estate that satisfies it) → `ddd` (the model the builder
+works from), with `work` (what is planned, by whom, blocked by what) on `software-architecture`. A pack sits on the level below it and widens
+its relations (`part_of`, `owned_by`, `about`, `satisfies`, `serves`) rather than redeclaring
+its classes, so a project composing `product-report` and `ddd` has one `Requirement`, one
+`Decision`, one `Team`; where two sibling packs widen the same relation, a merge keeps the
+union of both signatures and reports it. `oto ontology show <name>` prints an ontology's manifest, its
 composition and what the composition changed, and the self-check, which now covers the manifest,
 the optional files, and publishability: deny terms from `OTO_DENY_TERMS` found in any part, or
 personal data in the sample, make an ontology unusable. `oto init` records in `project.config.json`
@@ -510,6 +517,19 @@ questions` and `oto query ask CQ1 SYSTEM="Payments platform"` are the CLI form; 
 `/api/ask?id=CQ1&SYSTEM=...` the HTTP one, with the rows beside the text. A question that cannot
 run against the vocabulary (an undeclared class or relation, a parameter nobody declared, a selected
 attribute the class does not declare) fails pre-flight and the build, with the reason.
+
+A fourth gate, `no_gaps`, is for a question whose answer may be empty but whose gaps always
+run: "which fields must this artifact have" is answered by none when the artifact is not JSON,
+and unanswered when it is JSON and names none.
+
+**Briefs** (`briefs.json`, beside the questions) say what an agent must know before a task: a
+task type with its parameters, the questions it must be able to answer and the ones it may also
+read. Run with the parameters bound (`oto query brief implement-step STEP=step.b10_verify`,
+`kg_brief`, `/api/brief`), a brief is READY with every required question's facts, or BLOCKED
+naming the questions the graph cannot answer and their gaps; without its parameters it is the
+table for every candidate (which steps are ready, which are blocked and on what). Briefs ride in
+the store beside the questions (`brief:<task>` rows of the same table), compose by task like the
+questions do, and are carried by an ontology (`carries`: `briefs`).
 Every shipped ontology ships its questions (`oto-core`'s compose into each extender), and the
 self-check holds every ontology to them: see "Ontologies" above.
 
@@ -525,6 +545,27 @@ requires the same rows. What SPARQL cannot read from the export is noted in the 
 (`contains` on a list attribute, `$today` rendered as the date of the rendering), and
 `graph.ttl` holds asserted facts only: derived facts stay in `derived.json`.
 
+## The capture schema, and proposals from a capture
+
+A tool that interviews people (the PRD & Architecture Studio, or any form) needs to know what to
+ask for. Instead of carrying a form of its own, it reads `capture.json`
+([compile/capture.py](../oto/compile/capture.py)), rendered from a pack (`oto ontology capture
+--from <name>`) or from a project's vocabulary (`oto ontology capture`, and beside
+`questions.yaml` on every build): the competency questions grouped by who asks them, each with
+its gate and the classes it needs, and one type per class with its fields (typed, enums as
+choices, `required`), its links (the relations whose domain covers it, with targets and
+cardinality) and what it `requires`. Every field and link carries `x-term`, the IRI it captures.
+
+What the tool collects comes back as a capture: items of a type with a stable id, a label,
+fields, links and where in the document it was said. `oto curate propose --from <capture>`
+([curate/propose.py](../oto/curate/propose.py)) checks it against the schema, naming an unknown
+type, field, link or choice, a missing required field or a link over its `max`, and writes an
+ordinary proposal: one node per item (`<class>.<id>`), cited to the document with the section
+and the quote as evidence; one edge per link, to another item of the capture or to a node of the
+graph. From there `oto curate add` and `oto curate check` apply as to any proposal: the tool
+contributes, the gates decide, and nothing is mapped by hand because the terms travelled with
+the schema.
+
 ## Shapes: the constraints a graph is held to
 
 A shape is declared beside the term it constrains ([reason/shapes.py](../oto/reason/shapes.py)):
@@ -536,8 +577,13 @@ is the fourth source of shape and may say which question it protects (`"answers"
 its finding names what it would leave unanswerable. Tightening a shape is a breaking change in
 the lock; loosening one is additive.
 
+An attribute may also constrain the value it carries: `pattern`, `min_value`, `max_value` and
+`min_length`, held value by value (a list, each of its values), written as `sh:pattern`,
+`sh:minInclusive`, `sh:maxInclusive` and `sh:minLength`, read back by the importer.
+
 The engine evaluates the declared shapes itself, over current facts: `oto curate check` reports
-every violation as blocking, beside the required questions the candidate cannot answer, so what
+every violation as blocking, and the required questions the candidate cannot answer as gaps
+(open work: facts arrive section by section, and what must refuse is a policy), so what
 reaches `graph.json` satisfies the vocabulary's contract; `oto ontology check` prints the
 declared shapes and the live graph's violations (errors under `--strict`); the self-check holds
 an ontology's sample to them, and the synthetic sample an export invents respects every `max`.

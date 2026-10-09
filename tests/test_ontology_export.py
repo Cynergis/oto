@@ -43,7 +43,7 @@ def test_export_writes_a_usable_ontology_that_builds(user_ontologies):
 def test_the_invented_sample_covers_every_class_and_relation(user_ontologies):
     with tempfile.TemporaryDirectory() as root:
         project = _claims_project(root)
-        ontologies.export(project, "t")
+        ontologies.export(project, "t", invented=True)
         config, sample, readme = ontologies.load("t")
         assert {n["type"] for n in sample["nodes"]} == set(config["classes"])
         assert {e["rel"] for e in sample["edges"]} == set(config["properties"])

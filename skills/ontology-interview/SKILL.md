@@ -48,9 +48,10 @@ pressure, not the tidy ones. Useful prompts:
 Write them down verbatim. **Show the list and confirm it before designing anything.** If a question
 is vague, ask what answer would look like. Stop when new questions stop producing new nouns.
 
-If nobody is available to interview, derive the questions from the documents: what does each exist
-to tell a reader, what would a reader need to look up, what in it changes over time. Label them as
-yours, and still show and confirm the list. The **build-knowledge-base** skill runs this path.
+If nobody is available to interview, or the person brought a specification, derive the questions
+from the material: what does each document exist to tell a reader, what would a reader need to
+look up, what in it changes over time. Label them as yours, and still show and confirm the list.
+The **start** skill runs this path from a specification; **build-knowledge-base** from a corpus.
 
 ## Phase 2 — Pick a starting point
 

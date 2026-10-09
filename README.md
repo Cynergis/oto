@@ -33,6 +33,9 @@ shows why.
   in the engine's pattern language, and run: every term must be cited by one, every ontology's
   sample must answer them, `kg_ask` answers one with the rows or the gap, and the build renders
   each as SPARQL so a reader with standard tools asks the same thing.
+- **Briefs that block.** What an agent must know before a task is a brief: the questions it must
+  be able to answer. `kg_brief implement-step STEP=...` is READY with the facts, or BLOCKED by
+  name with the gaps, before a line is written.
 - **Shapes that gate.** Cardinality, required attributes and policy rules are declared beside the
   terms, evaluated by the engine before a change enters the graph, and written as SHACL that a
   test holds to the same verdicts.
@@ -62,6 +65,10 @@ uvx --from "oto-kg @ git+https://github.com/Cynergis/oto" oto --help
 uvx --from "oto-kg[all] @ git+https://github.com/Cynergis/oto" oto --help          # every extra
 alias oto='uvx --from "oto-kg[all] @ git+https://github.com/Cynergis/oto" oto'     # and keep it
 
+The Claude Code plugin starts the engine the same way. To run it from a checkout instead (a branch
+not yet merged), set `OTO_SOURCE` before starting Claude Code: `export OTO_SOURCE=~/Downloads/oto`;
+the plugin's MCP server and session hook read it.
+
 # Or into an environment of your own.
 pip install "oto-kg[all] @ git+https://github.com/Cynergis/oto"        # everything below at once
 pip install "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto"   # or pick: extras combine
@@ -83,6 +90,13 @@ To test everything end to end, in the order a real project goes through it, foll
 In Claude Code, install the plugin and the engine comes with it: `/plugin marketplace add Cynergis/oto`
 then `/plugin install oto@oto`, or `claude --plugin-dir <a clone of this repository>`. The plugin's
 server and hook run the engine through `uvx`, so uv is the only prerequisite.
+
+## Getting started
+
+In Claude Code with the plugin, `/oto:start`: it asks what you have (a specification, a folder of
+documents, a domain expert, an ontology or pack that is close), gets it in, derives the first
+questions for you to confirm, and hands off to the interview. The rest of this section is the
+same path by hand.
 
 ## From a folder of documents to a served graph
 
@@ -121,7 +135,7 @@ oto curate check --project claims       # blocking problems, contradictions, gap
 oto curate apply --project claims && oto build --project claims
 oto bench add --project claims --from claims/proposals/handbook.questions.json   # evaluate skill
 oto ingest complete --project claims    # the graph holds the run: processing/ -> archive/
-oto serve --project claims              # seventeen kg_* tools over JSON-RPC 2.0, for an MCP host
+oto serve --project claims              # eighteen kg_* tools over JSON-RPC 2.0, for an MCP host
 oto serve --project claims --http 8765              # the same over HTTP, the graph explorer at /, the whole
      # graph at /api/graph; --view reader for the page-shaped reader; --view <name|dir> serves your own
      # web app instead, its data files generated from the graph as its app.json projections say

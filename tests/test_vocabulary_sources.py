@@ -30,9 +30,24 @@ def test_merge_unions_classes_and_reports_clashes():
     shared = set(org["classes"]) & set(claims["classes"])
     for kind, first, _second in report["class_clashes"]:
         assert kind in shared and first == "organization-process", "first ontology wins"
-    assert {n["type"] for n in sample["nodes"]} == set(config["classes"])
+    # the merged sample is the parts' samples, by node id, not an invention
+    ids = {n["id"] for n in sample["nodes"]}
+    org_ids = {n["id"] for n in ontologies.composed("organization-process")["sample"]["nodes"]}
+    claims_ids = {n["id"] for n in ontologies.composed("auto-claims")["sample"]["nodes"]}
+    assert ids == org_ids | claims_ids
     assert "prune" in readme.lower()
     assert set(rationale["classes"]) >= set(config["classes"])
+
+
+def test_merge_widens_a_relation_two_parts_declare_differently():
+    """product-report and ddd both widen the product's `part_of` and `owned_by`; a merge keeps the union
+    of both signatures, as composition widens, so neither pack's facts are refused."""
+    config, _s, _r, _rat, report = ontologies.merge(["software-architecture", "ddd"])
+    assert ("part_of", "software-architecture", "ddd") in report["relation_clashes"]
+    domain = set(config["properties"]["part_of"]["domain"].split("|"))
+    assert {"Component", "Feature", "Aggregate", "Term"} <= domain
+    assert {"System", "BoundedContext", "Product"} <= set(config["properties"]["part_of"]["range"].split("|"))
+    assert config["properties"]["part_of"]["inverse"] == "contains", "the first part's inverse and definition are kept"
 
 
 def test_init_with_two_ontologies_builds(capsys):
@@ -99,9 +114,21 @@ def test_import_from_ontologies_carries_the_rationale(capsys):
         assert "rationale carried over" in capsys.readouterr().out
         assert _config(root)["classes"]
         assert main(["ontology", "rationale", "--project", root, "--strict"]) == 0
+        # the rules and the questions the ontology ships come with it, merged by id into the project's own
+        from oto.project import Project
+        from oto.reason import questions as Q, rules as R
+        project = Project.standard(root)
+        assert "OP1" in Q.load(project) and "CORE1" in Q.load(project), "the questions, the core's included"
+        assert any(r["id"] == "intended-fact-overdue" for r in R.load(project)), "the core's rule"
+        Q.save(project, dict(Q.load(project), MINE={"who": "me", "question": "Mine?", "why": "because the documents keep raising it",
+                                                    "ask": {"when": [{"node": "u", "type": "Unit"}], "select": ["u"]}, "gate": "any"}))
         assert main(["ontology", "import", "--project", root, "--from",
                      "organization-process,auto-claims", "--replace"]) == 0
-        assert "merged 2 ontologies" in capsys.readouterr().out
+        out = capsys.readouterr().out
+        assert "merged 2 ontologies" in out and "questions:" in out
+        merged = Q.load(project)
+        assert "MINE" in merged and "AC1" in merged and "OP1" in merged, "the project's own question stays; the merge's are added"
+        assert "_questions" not in _config(root) and "_rules" not in _config(root), "the merge's carriers do not leak into the config"
 
 
 def test_unsupported_vocabulary_file_is_refused():
@@ -117,7 +144,7 @@ def test_status_lists_the_four_ways_when_nothing_is_declared(capsys):
         capsys.readouterr()
         assert main(["status", "--project", root]) == 0
         out = capsys.readouterr().out
-        for marker in ("from an ontology", "from the documents", "from a file you own", "by interview"):
+        for marker in ("from an ontology", "from a specification or the documents", "from a file you own", "by interview"):
             assert marker in out
 
 

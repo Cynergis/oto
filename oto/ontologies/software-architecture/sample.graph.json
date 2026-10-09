@@ -1,5 +1,5 @@
 {
-  "_about": "A tiny, fictional example so `oto build` works immediately. Replace it.",
+  "_about": "The estate of the product sample's payments platform: what satisfies its requirements, who runs it, what threatens it, why the ledger is one. Invented, on top of `product`'s sample.",
   "nodes": [
     {
       "id": "system.payments",
@@ -118,49 +118,14 @@
       ]
     },
     {
-      "id": "team.payments",
-      "type": "Team",
-      "label": "Payments team",
-      "aliases": [],
-      "summary": "Owns the payments platform end to end.",
-      "attributes": {},
-      "tags": [
-        "team"
-      ],
-      "as_of": "2026-01-01",
-      "valid_from": "2026-01-01",
-      "source_doc": "sample",
-      "status": "current",
-      "sources": [
-        "sample"
-      ]
-    },
-    {
-      "id": "capability.take-payment",
-      "type": "Capability",
-      "label": "Take a customer payment",
-      "aliases": [],
-      "summary": "The business capability the platform exists for.",
-      "attributes": {},
-      "tags": [
-        "capability"
-      ],
-      "as_of": "2026-01-01",
-      "valid_from": "2026-01-01",
-      "source_doc": "sample",
-      "status": "current",
-      "sources": [
-        "sample"
-      ]
-    },
-    {
       "id": "decision.single-ledger",
-      "type": "DecisionRecord",
+      "type": "Decision",
       "label": "One ledger, written only by the settlement job",
       "aliases": [],
       "summary": "Chosen so the ledger has a single writer. The alternative, letting the API write directly, was rejected as a source of inconsistency.",
       "attributes": {
-        "reason": "single writer keeps the ledger consistent"
+        "rationale": "single writer keeps the ledger consistent",
+        "decided_on": "2026-01-15"
       },
       "tags": [
         "decision"
@@ -180,7 +145,8 @@
       "aliases": [],
       "summary": "Every settlement depends on one database with no read replica.",
       "attributes": {
-        "severity": "high"
+        "kind": "technical",
+        "state": "mitigated"
       },
       "tags": [
         "risk"
@@ -205,24 +171,6 @@
       ],
       "as_of": "2026-01-15",
       "valid_from": "2026-01-15",
-      "source_doc": "sample",
-      "status": "current",
-      "sources": [
-        "sample"
-      ]
-    },
-    {
-      "id": "requirement.settle-same-day",
-      "type": "Requirement",
-      "label": "Settle within one business day",
-      "aliases": [],
-      "summary": "A captured payment must settle by the end of the next business day.",
-      "attributes": {},
-      "tags": [
-        "requirement"
-      ],
-      "as_of": "2026-01-01",
-      "valid_from": "2026-01-01",
       "source_doc": "sample",
       "status": "current",
       "sources": [
@@ -303,7 +251,7 @@
     },
     {
       "from": "system.payments",
-      "rel": "supports",
+      "rel": "enables",
       "to": "capability.take-payment"
     },
     {
@@ -312,9 +260,9 @@
       "to": "requirement.settle-same-day"
     },
     {
-      "from": "datastore.ledger",
-      "rel": "decided_by",
-      "to": "decision.single-ledger"
+      "from": "decision.single-ledger",
+      "rel": "about",
+      "to": "datastore.ledger"
     },
     {
       "from": "risk.ledger-single-point",
@@ -340,6 +288,21 @@
       "from": "datastore.ledger",
       "rel": "runs_in",
       "to": "environment.production"
+    },
+    {
+      "from": "decision.single-ledger",
+      "rel": "decided_by",
+      "to": "role.r-owner"
+    },
+    {
+      "from": "component.payment-api",
+      "rel": "satisfies",
+      "to": "requirement.take-payment"
+    },
+    {
+      "from": "component.payment-api",
+      "rel": "satisfies",
+      "to": "requirement.nfr-ledger"
     }
   ]
 }

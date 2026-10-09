@@ -23,7 +23,9 @@ nothing), and is reported as not usable: an ontology states its namespace.
 that uses it (model/namespaces.py). It is required: an ontology without one is not usable. Once
 published it is an identifier others hold: do not change it.
 `domain` is the category the ontology belongs to, one lowercase slug, for grouping a listing or a
-catalog; optional. `release` is an integer that rises on every published change; whether a change breaks a project
+catalog; optional. `product_type` says the ontology is what a product of that kind must specify
+(`product-report` declares `report`): one lowercase slug, optional; a registry lists its product
+types so a studio's first question, "which kind of product?", is read from the marketplace. `release` is an integer that rises on every published change; whether a change breaks a project
 is computed by a diff, never declared here. The vocabulary's own `ontology_version` inside
 `ontology.config.json` rises only on a breaking change and stays independent: two numbers, two
 questions (which publication is this; does the schema still fit the data).
@@ -45,6 +47,7 @@ CARRIES = {
     "rationale": "ontology.rationale.json",
     "rules": "rules.json",
     "questions": "questions.json",
+    "briefs": "briefs.json",
     "sample": "sample.graph.json",
     "readme": "README.md",
     "lexicon": "lexicon.json",
@@ -53,11 +56,11 @@ CARRIES = {
     "actions": "actions",
     "gold": os.path.join("gold", "patterns.jsonl"),
 }
-FIELDS = ("name", "release", "domain", "summary", "extends", "namespace", "engine", "carries", "maintainer", "changelog")
+FIELDS = ("name", "release", "domain", "product_type", "summary", "extends", "namespace", "engine", "carries", "maintainer", "changelog")
 #: The domains the engine has seen: the category an ontology or a pack belongs to. A new one is
 #: allowed and noted, never refused; add it here once it is deliberate. Never the same word as a
 #: relation's domain and range, which live inside the vocabulary.
-DOMAINS = ("insurance", "organization", "professional-services", "software")
+DOMAINS = ("insurance", "organization", "product", "professional-services", "reporting", "software")
 #: Written by `oto ontology add`, never by an author: where a fetched ontology came from.
 PROVENANCE = ("registry", "source", "ref", "path", "commit", "fetched_at")
 
@@ -138,6 +141,15 @@ def domain_problems(domain, where="manifest.json"):
     return []
 
 
+def product_type_problems(product_type, where="manifest.json"):
+    """A product type is optional; when given it is one lowercase slug."""
+    if product_type is None:
+        return []
+    if not isinstance(product_type, str) or not NAME_OK.match(product_type):
+        return ["%s product_type %r must be one lowercase slug (letters, digits, hyphens)" % (where, product_type)]
+    return []
+
+
 def domain_note(domain):
     """An advisory line when the domain is one the engine has not seen, or None."""
     if not domain or not isinstance(domain, str) or not NAME_OK.match(domain) or domain in DOMAINS:
@@ -202,6 +214,7 @@ def problems(directory):
                 if item != "readme":
                     out.append("the directory holds %s but manifest.json does not list %r in carries" % (CARRIES[item], item))
     out += domain_problems(declared.get("domain"), "manifest.json")
+    out += product_type_problems(declared.get("product_type"), "manifest.json")
     if declared.get("namespace") in (None, ""):
         out.append("manifest.json states no namespace: the IRI the ontology's terms live under, "
                    "for example https://example.org/ont/%s#" % (name or "name"))

@@ -5,6 +5,7 @@ matches its description.
 
 | Skill | When |
 |---|---|
+| [start](start/SKILL.md) | Nothing yet: from a specification, a folder of documents, an expert or an existing ontology to the first confirmed questions, then a hand-off. `/oto:start`. |
 | [concierge](concierge/SKILL.md) | Where the project is, the options at this point, why OTO does what it does, and which playbook to load. Quotes the engine, does no work itself. |
 | [build-knowledge-base](build-knowledge-base/SKILL.md) | A folder of documents, all the way to a served graph. Start here. |
 | [ontology-interview](ontology-interview/SKILL.md) | Designing or restructuring the vocabulary, with recorded reasoning. |
@@ -18,7 +19,10 @@ matches its description.
 
 They are discovered two ways: as a Claude Code plugin (`claude --plugin-dir <this repo>`, via the
 manifest in `.claude-plugin/`), or project-locally through the symlinks under `.claude/skills/`
-when Claude Code is opened in this repository.
+when Claude Code is opened in this repository. Each is also a slash command, `/oto:<name>`:
+`/oto:start` for a new project, `/oto:concierge` for "where am I", `/oto:curate` for a change.
+The engine's mechanical commands (`oto ingest`, `oto survey`, `oto build`) stay commands: a skill
+runs them when a step needs them, and `oto status` names the next one at every stage.
 
 The plugin also registers `oto serve` as an MCP server for whatever project the host opens
 (`.mcp.json`), so the `kg_*` tools are available to the agent without editing a config file, and

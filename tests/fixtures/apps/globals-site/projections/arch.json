@@ -1,9 +1,9 @@
 {
   "context": {"problem": {"$first": {"$nodes": "System", "$field": "$summary"}},
               "systems": {"$nodes": "System", "$map": {"id": "$id", "name": "$label", "tier": "$attr.tier"}}},
-  "decisions": {"$nodes": "DecisionRecord", "$sort": "label",
-                "$map": {"id": "$id", "title": "$label", "reason": "$attr.reason",
-                         "affects": {"$in": "decided_by", "$select": "$id"},
+  "decisions": {"$nodes": "Decision", "$sort": "label",
+                "$map": {"id": "$id", "title": "$label", "reason": "$attr.rationale",
+                         "affects": {"$out": "about", "$select": "$id"},
                          "documents": {"$out": "documented_in", "$select": "$label"},
                          "evidence": "$evidence",
                          "label": {"$format": "{label} [{status}]"}}},

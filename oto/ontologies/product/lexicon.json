@@ -1,0 +1,128 @@
+{
+  "_about": "Seed lexicon: the words a product owner, analyst or agent uses for the product vocabulary, so a question in their words resolves. Targets are filled per project.",
+  "entries": [
+    {
+      "term": "FR",
+      "aka": [
+        "functional requirement",
+        "functional requirements"
+      ],
+      "targets": [],
+      "status": "current",
+      "note": "A Requirement with kind functional."
+    },
+    {
+      "term": "NFR",
+      "aka": [
+        "non-functional requirement",
+        "non functional requirement",
+        "quality attribute"
+      ],
+      "targets": [],
+      "status": "current",
+      "note": "A Requirement with kind non-functional."
+    },
+    {
+      "term": "MVP",
+      "aka": [
+        "minimum viable product",
+        "first release"
+      ],
+      "targets": [],
+      "status": "current",
+      "note": "A Release with horizon mvp."
+    },
+    {
+      "term": "OKR",
+      "aka": [
+        "objective and key result",
+        "objectives and key results"
+      ],
+      "targets": [],
+      "status": "current",
+      "note": "An Objective measured by SuccessCriterion nodes."
+    },
+    {
+      "term": "KPI",
+      "aka": [
+        "key performance indicator",
+        "success metric",
+        "metric"
+      ],
+      "targets": [],
+      "status": "current",
+      "note": "A SuccessCriterion."
+    },
+    {
+      "term": "user story",
+      "aka": [
+        "story",
+        "epic"
+      ],
+      "targets": [],
+      "status": "current",
+      "note": "Captured as a Requirement served by a value proposition; an epic is a Feature that contains features."
+    },
+    {
+      "term": "stakeholder",
+      "aka": [
+        "sponsor",
+        "steering committee"
+      ],
+      "targets": [],
+      "status": "current",
+      "note": "A Role with kind stakeholder or decider."
+    },
+    {
+      "term": "anti-persona",
+      "aka": [
+        "not for",
+        "excluded user"
+      ],
+      "targets": [],
+      "status": "current",
+      "note": "A Persona with relationship excluded."
+    },
+    {
+      "term": "ADR",
+      "aka": [
+        "architecture decision record",
+        "decision record"
+      ],
+      "targets": [],
+      "status": "current",
+      "note": "A Decision about a technical subject, documented in a Document."
+    },
+    {
+      "term": "open question",
+      "aka": [
+        "TBD",
+        "to be decided",
+        "unknown"
+      ],
+      "targets": [],
+      "status": "current",
+      "note": "An OpenQuestion with state open."
+    },
+    {
+      "term": "out of scope",
+      "aka": [
+        "descoped",
+        "deferred"
+      ],
+      "targets": [],
+      "status": "current",
+      "note": "A Requirement or Feature excluded_from a Release."
+    },
+    {
+      "term": "glossary",
+      "aka": [
+        "term",
+        "definition"
+      ],
+      "targets": [],
+      "status": "current",
+      "note": "Term nodes with a definition."
+    }
+  ]
+}

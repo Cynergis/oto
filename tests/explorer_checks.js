@@ -28,7 +28,7 @@ process.stdout.write(JSON.stringify({
          edge: lane.edges.filter(e => e.pending).map(e => [e.from, e.rel, e.to, e.pending.station]), off: laneOff.nodes.length - g.nodes.length},
   nodes: g.nodes.length, edges: g.edges.length, historyNodes: withHistory.nodes.length,
   inverses: adapter.inverses(payload.vocabulary),
-  edgeSample: g.edges.find(e => e.dash) || null,
+  edgeSample: g.edges.find(e => e.dash && e.derived_by === "risk-reaches-system") || null,
   neighbours: adapter.neighbors(g, sys).map(n => [n.id, n.label, n.dir]),
   hop1: adapter.neighbourhood(g, "risk.ledger-single-point", 1).sort(),
   hop2: adapter.neighbourhood(g, "risk.ledger-single-point", 2).length,

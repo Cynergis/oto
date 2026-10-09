@@ -1,0 +1,28 @@
+{
+  "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
+  "name": "work",
+  "release": 1,
+  "domain": "product",
+  "summary": "What is planned, by whom, blocked by what: work items and milestones over the product's requirements, features and components; what slips when a component is late, what is overdue, what waits on a decision.",
+  "extends": [
+    "software-architecture"
+  ],
+  "namespace": "https://cynergis.ai/ont/work#",
+  "engine": ">=0.10",
+  "carries": [
+    "vocabulary",
+    "rationale",
+    "rules",
+    "questions",
+    "sample",
+    "readme"
+  ],
+  "maintainer": "OTO",
+  "changelog": [
+    {
+      "release": 1,
+      "at": "2026-10-07",
+      "note": "First release: work items and milestones on the product's requirements, features and components; the delivery lead's questions WK1-WK10, confirmed by Chiheb Dkhil on 2026-10-07."
+    }
+  ]
+}

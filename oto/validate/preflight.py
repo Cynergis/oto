@@ -50,9 +50,6 @@ def preflight(project):
         problems.append("%s must have both 'nodes' and 'edges' keys"
                         % os.path.basename(project.graph_path))
         nodes, edges = nodes or [], edges or []
-    if not nodes:
-        problems.append("%s declares no nodes" % os.path.basename(project.graph_path))
-
     # The integrity gate, run against the SOURCE of truth rather than a generated file.
     node_ids = set()
     duplicate_ids = set()

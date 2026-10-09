@@ -1,6 +1,7 @@
 # Software architecture — starter vocabulary
 
-A first draft for describing a software estate. Edit it.
+How a product's solution is shaped. Sits on `product`: a requirement, a risk, a decision or a document is
+the product's, and `satisfies` is the one edge from an asset back to the requirement it meets (SA8, SA17).
 
 ## What this shape is for
 
@@ -11,11 +12,11 @@ questions people actually ask under pressure:
   interfaces others depend on, not in the boxes. Record `exposes` and `consumes` before anything else.
 - **"Who do I call?"** `owned_by` points at a `Team`, never a person. People move; the question does
   not.
-- **"Why is it like this?"** `DecisionRecord` with a reason, and `decided_by` linking the thing to the
-  decision. Architecture without recorded reasons gets re-litigated every year.
-- **"What is fragile?"** `Risk` with `threatens` and `mitigated_by`. A risk nobody can trace to a
+- **"Why is it like this?"** The product's `Decision`, `about` the asset it shaped. Architecture without
+  recorded reasons gets re-litigated every year.
+- **"What is fragile?"** The product's `Risk`, with `threatens` and `mitigated_by` widened to the estate. A risk nobody can trace to a
   component is not actionable.
-- **"What does the business lose?"** `Capability`, reached through `supports`. This is the only class
+- **"What does the business lose?"** `Capability`, reached through `enables`. This is the only class
   a non-engineer will use, so keep its names theirs.
 
 ## Two writers to one store

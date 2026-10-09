@@ -8,8 +8,10 @@ Three declarations in `ontology.config.json` are shapes (model/vocabulary.py):
     "classes":     {"Component": {"requires": ["part_of", "runs_in"], ...}}
 
 A relation's `min` and `max` count what one subject of its domain carries; an attribute's
-`required` means every instance of the class carries a value; a class's `requires` names the
-attributes and relations every instance must carry. A constraint on a class applies to the kinds
+`required` means every instance of the class carries a value, and its `pattern`, `min_value`,
+`max_value` and `min_length` constrain the value it carries (a list, each of its values; a pattern
+matches anywhere in the value, as `sh:pattern` does: anchor it to constrain the whole); a
+class's `requires` names the attributes and relations every instance must carry. A constraint on a class applies to the kinds
 of it, as everywhere else. Policy rules (`rules.json`, kind `policy`) are the fourth source of
 shape, and may say which question they protect (`"answers": "CQ3"`).
 
@@ -18,7 +20,11 @@ as blocking, `oto ontology check` prints them for the live graph, and the self-c
 ontology's sample to them. The export writes them as SHACL (compile/ontology.py); the engine never
 reads SHACL.
 """
-from ..model.vocabulary import ancestors, covers as _covers, declared_attributes, relation_covers, _union
+import re
+
+from ..model.vocabulary import ancestors, covers as _covers, declared_attributes, relation_covers, _union, ISO_DATE
+
+VALUE_KEYS = ("pattern", "min_value", "max_value", "min_length")
 
 
 def _applies(relation_spec, kind, cover):
@@ -45,7 +51,39 @@ def declared(vocabulary):
         for name, spec in sorted(attrs.items()):
             if spec.get("required"):
                 out.append({"kind": "required", "class": kind, "subject": name})
+            for key in VALUE_KEYS:
+                if spec.get(key) is not None:
+                    out.append({"kind": key, "class": kind, "subject": name, "value": spec[key]})
     return out
+
+
+def value_problem(spec, value):
+    """Why a value breaks the attribute's value constraints, or None. A list is held value by value."""
+    values = value if isinstance(value, list) else [value]
+    for one in values:
+        if one is None or one == "":
+            continue
+        text = str(one)
+        if spec.get("pattern") is not None and not re.search(spec["pattern"], text):
+            return "%r does not match the pattern %s" % (one, spec["pattern"])
+        if spec.get("min_length") is not None and len(text) < spec["min_length"]:
+            return "%r is shorter than %d" % (one, spec["min_length"])
+        for key, op, word in (("min_value", lambda a, b: a < b, "below"), ("max_value", lambda a, b: a > b, "above")):
+            bound = spec.get(key)
+            if bound is None:
+                continue
+            if isinstance(bound, str):
+                comparable = isinstance(one, str) and ISO_DATE.match(one)
+                if comparable and op(one, bound):
+                    return "%r is %s %s" % (one, word, bound)
+                continue
+            try:
+                number = float(one)
+            except (TypeError, ValueError):
+                return "%r is not a number, and %s is %s" % (one, key, bound)
+            if op(number, bound):
+                return "%r is %s %s" % (one, word, bound)
+    return None
 
 
 def problems(vocabulary):
@@ -131,6 +169,11 @@ def findings(vocabulary, nodes, edges, derived_attributes=None):
             if spec.get("required") and not _present(value(node, name)):
                 out.append({"kind": "required", "node": nid, "class": kind, "subject": name,
                             "message": "%s %s has no %s; every %s must" % (kind, nid, name, kind)})
+            if any(spec.get(key) is not None for key in VALUE_KEYS) and _present(value(node, name)):
+                problem = value_problem(spec, value(node, name))
+                if problem:
+                    out.append({"kind": "value", "node": nid, "class": kind, "subject": name,
+                                "message": "%s %s: %s %s" % (kind, nid, name, problem)})
         for relation, spec in sorted(properties.items()):
             if not _applies(spec, kind, cover):
                 continue

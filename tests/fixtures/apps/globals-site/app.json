@@ -6,8 +6,8 @@
   "data": [
     {"file": "data.js", "format": "js-globals",
      "globals": {"__ARCH__": {"$include": "projections/arch.json"},
-                 "__META__": {"project": {"$const": "from the graph"}, "decisions": {"$count": {"$nodes": "DecisionRecord"}}}}}
+                 "__META__": {"project": {"$const": "from the graph"}, "decisions": {"$count": {"$nodes": "Decision"}}}}}
   ],
   "adapter": "adapter.js",
-  "requires": {"classes": ["System", "DecisionRecord", "Risk"], "relations": ["decided_by", "threatens"]}
+  "requires": {"classes": ["System", "Decision", "Risk"], "relations": ["about", "threatens"]}
 }

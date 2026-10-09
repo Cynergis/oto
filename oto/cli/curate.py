@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """`oto curate`: propose, review and apply changes to the curated graph."""
 import os
+import re
 import sys
 
 from ._common import project_arguments, resolve as _resolve
@@ -24,6 +25,48 @@ def cmd_curate(args):
             return 1
         print("candidate created: %s" % os.path.relpath(path, os.path.dirname(project.src)))
         print("Edit it, then run `oto curate check`. The live graph is untouched until you apply.")
+        return 0
+
+    if command == "propose":
+        # A capture (what an elicitation tool collected against the capture schema) becomes a
+        # proposal file; `add` and `check` take it from there like any other.
+        from ..compile import capture as _capture
+        from ..curate import propose as _propose
+        if not args.source:
+            print("oto: propose needs --from <capture.json> (what a tool captured against the capture schema)", file=sys.stderr)
+            return 1
+        schema = _capture.for_project(project)
+        for path in args.source:
+            try:
+                with open(path, encoding="utf-8") as f:
+                    captured = _json.load(f)
+            except (OSError, ValueError) as exc:
+                print("oto: %s: %s" % (path, exc), file=sys.stderr)
+                return 1
+            found = _propose.problems(captured, schema)
+            if found:
+                print("%s is not a capture against this vocabulary:" % os.path.basename(path))
+                for problem in found[:args.show * 2]:
+                    print("  %s" % problem)
+                return 1
+            graph_ids = {n.get("id") for n in (_session.live(project).get("nodes") or [])}
+            if _session.exists(project):
+                graph_ids |= {n.get("id") for n in (_session.candidate(project).get("nodes") or [])}
+            proposal = _propose.propose(captured, schema, graph_ids)
+            unresolved = proposal.pop("unresolved")
+            out_dir = os.path.join(project.data, "proposals")
+            os.makedirs(out_dir, exist_ok=True)
+            out = os.path.join(out_dir, "%s.json" % re.sub(r"[^A-Za-z0-9._-]+", "-", proposal["source_doc"]))
+            with open(out, "w", encoding="utf-8", newline="\n") as f:
+                _json.dump(proposal, f, indent=1, ensure_ascii=False)
+                f.write("\n")
+            print("proposal: %s  (%d node(s), %d edge(s) from %d item(s))" % (
+                os.path.relpath(out, os.path.dirname(project.src)), len(proposal["nodes"]), len(proposal["edges"]), len(captured["items"])))
+            for item in unresolved[:args.show]:
+                print("  unresolved: %s -%s-> %s is neither an item of the capture nor a node of the graph; left out" % (item["from"], item["rel"], item["to"]))
+            if len(unresolved) > args.show:
+                print("  ... and %d more unresolved" % (len(unresolved) - args.show))
+            print("  next: oto curate add --from %s --dry-run" % os.path.relpath(out, os.path.dirname(project.src)))
         return 0
 
     if command == "add":
@@ -218,7 +261,9 @@ def cmd_curate(args):
                                               "policy %s: %s%s" % (item["rule"], item["message"],
                                                                     (" (answers %s)" % answers[item["rule"]]) if answers.get(item["rule"]) else "")))
     # Shapes and questions: the vocabulary's contract with the graph. A node that breaks a declared
-    # constraint, or a required question the candidate cannot answer, is blocking.
+    # constraint is blocking. A required question the candidate cannot answer is open work, reported
+    # as a gap: facts arrive section by section, and a question answered later must not refuse the
+    # fact that arrives first. What must refuse is a policy (blocking), never a question.
     from ..model.vocabulary import covers as _covers
     from ..reason import shapes as _shapes, questions as _questions
     for item in _shapes.findings(vocabulary, proposed.get("nodes") or [], proposed.get("edges") or []):
@@ -228,7 +273,7 @@ def cmd_curate(args):
         for entry in _questions.findings(declared_questions, proposed.get("nodes") or [], proposed.get("edges") or [],
                                          _covers(vocabulary.get("classes") or {}), declared=_questions.declared_names(vocabulary)):
             for item in entry["unanswered"] or [{"node": "(graph)", "label": "(graph)", "status": entry["status"], "gaps": entry["gaps"]}]:
-                findings.append(_diff.Finding(_diff.Finding.BLOCKING, item["node"],
+                findings.append(_diff.Finding(_diff.Finding.GAP, item["node"],
                                               "question %s %s: %s%s" % (entry["id"], item["status"], entry["question"],
                                                                         ("; " + "; ".join(item["gaps"])) if item["gaps"] else "")))
     from ..curate import reattest as _reattest
@@ -299,13 +344,14 @@ def cmd_curate(args):
 def register(sub):
     curate = sub.add_parser("curate", help="propose, review and apply changes to the curated graph")
     curate.add_argument("curate_command", nargs="?", default="check",
-                        choices=["start", "add", "diff", "check", "apply", "abort", "undo",
+                        choices=["start", "propose", "add", "diff", "check", "apply", "abort", "undo",
                                  "assert", "assertions", "log", "resolve"],
-                        help="start a candidate; add merges proposal files into it; diff shows what it changes; check validates it; "
+                        help="start a candidate; propose turns a capture (--from, written against capture.json) into a proposal file; "
+                             "add merges proposal files into it; diff shows what it changes; check validates it; "
                              "apply promotes it (with --by and --note for the ledger); abort discards it; undo restores the previous graph; log reads the ledger; "
                              "assert records something a person said; assertions lists them")
     curate.add_argument("--from", dest="source", action="append", default=None,
-                        help="a proposal file of nodes and edges, for `add` (repeatable)")
+                        help="a proposal file of nodes and edges, for `add`; a capture file, for `propose` (repeatable)")
     curate.add_argument("--text", default=None, help="the statement, for `assert`")
     curate.add_argument("--by", default=None,
                         help="who said it (assert), or who applied it (apply): an unattributed change cannot be followed up")

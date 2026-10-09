@@ -22,7 +22,7 @@ pytestmark = pytest.mark.skipif(not rdf_import.available(), reason="needs rdflib
 
 def _value(term, terms, schemes):
     """An rdflib term as the engine would return it: an id, a concept key, or a plain value."""
-    from rdflib import URIRef, Literal
+    from rdflib import URIRef, Literal, BNode
     if term is None:
         return None
     if isinstance(term, URIRef):
@@ -34,6 +34,9 @@ def _value(term, terms, schemes):
             if local.startswith(scheme + "."):
                 return local[len(scheme) + 1:]
         return local
+    if isinstance(term, BNode):
+        from rdflib.collection import Collection
+        return [_value(x, terms, schemes) for x in Collection(_value.graph, term)]
     if isinstance(term, Literal):
         value = term.toPython()
         if isinstance(value, decimal.Decimal):
@@ -45,6 +48,7 @@ def _value(term, terms, schemes):
 
 
 def _rows(graph, query, select, terms, schemes):
+    _value.graph = graph
     out = []
     for binding in graph.query(query):
         row = {}

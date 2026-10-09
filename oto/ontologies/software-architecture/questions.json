@@ -227,8 +227,8 @@
     },
     "SA7": {
       "who": "the business",
-      "question": "Which capabilities does $SYSTEM support: what does the business lose if it is down?",
-      "why": "Impact is stated in business capabilities, not in services; without the link an outage has no stated cost.",
+      "question": "Which capabilities does $SYSTEM enable: what does the business lose if it is down?",
+      "why": "The only question a non-engineer asks of the estate; the capability is the business's name for what the system is for.",
       "validated_by": "",
       "params": {
         "SYSTEM": {
@@ -240,17 +240,17 @@
           {
             "edge": [
               "$SYSTEM",
-              "supports",
-              "cap"
+              "enables",
+              "c"
             ]
           },
           {
-            "node": "cap",
+            "node": "c",
             "type": "Capability"
           }
         ],
         "select": [
-          "cap.label"
+          "c.label"
         ]
       },
       "gate": "non_empty",
@@ -259,7 +259,7 @@
           {
             "not_edge": [
               "$SYSTEM",
-              "supports",
+              "enables",
               "*"
             ]
           }
@@ -300,7 +300,7 @@
     "SA9": {
       "who": "anyone",
       "question": "Why is $ASSET the way it is: which recorded decision shaped it?",
-      "why": "A decision nobody can find is re-litigated; the record is what stops that.",
+      "why": "A decision nobody can find is re-litigated; the record is what stops that. The decision is the product's: one record of why.",
       "validated_by": "",
       "params": {
         "ASSET": {
@@ -311,19 +311,20 @@
         "when": [
           {
             "edge": [
-              "$ASSET",
-              "decided_by",
-              "d"
+              "d",
+              "about",
+              "$ASSET"
             ]
           },
           {
             "node": "d",
-            "type": "DecisionRecord"
+            "type": "Decision"
           }
         ],
         "select": [
           "d.label",
-          "d.as_of"
+          "d.rationale",
+          "d.decided_on"
         ]
       },
       "gate": "any",
@@ -331,19 +332,19 @@
         "when": [
           {
             "not_edge": [
-              "$ASSET",
-              "decided_by",
-              "*"
+              "*",
+              "about",
+              "$ASSET"
             ]
           }
         ],
-        "say": "no decision record is linked to it"
+        "say": "no decision is recorded about it"
       }
     },
     "SA10": {
       "who": "a risk owner",
       "question": "What is fragile: which risks threaten which assets, and what mitigates each?",
-      "why": "The risk register must be readable from the graph alone, with the mitigation beside each risk.",
+      "why": "The risk register must be readable from the graph alone, with the mitigation beside each risk. The risk is the product's, widened to the estate.",
       "validated_by": "",
       "ask": {
         "when": [
@@ -583,6 +584,32 @@
         ]
       },
       "gate": "any"
+    },
+    "SA17": {
+      "who": "an architect",
+      "question": "Which requirements of the product does nothing in the design satisfy yet?",
+      "why": "The trace from specification to design, read backwards: a requirement no system, component or interface satisfies is open design work, and the build must not start from it.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "r",
+            "type": "Requirement"
+          },
+          {
+            "not_edge": [
+              "*",
+              "satisfies",
+              "r"
+            ]
+          }
+        ],
+        "select": [
+          "r.label",
+          "r.priority"
+        ]
+      },
+      "gate": "empty"
     }
   }
 }

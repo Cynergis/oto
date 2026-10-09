@@ -12,6 +12,7 @@ restriction, a cardinality, a property chain, a name two namespaces both declare
     classes, properties, notes = read(paths)
     read.attributes, read.schemes, read.namespaces, read.rationale
 """
+import decimal
 import os
 import re
 
@@ -262,6 +263,9 @@ def read(paths):
     # a class's requires; what the vocabulary cannot hold is noted ----
     SH = "http://www.w3.org/ns/shacl#"
     counts = {}                                                 # (class, term) -> (min, max)
+    bounds = {}                                                 # (class, term) -> {pattern, min_value, ...}
+    VALUE_PREDS = {"pattern": URIRef(SH + "pattern"), "min_value": URIRef(SH + "minInclusive"),
+                   "max_value": URIRef(SH + "maxInclusive"), "min_length": URIRef(SH + "minLength")}
     for shape in sorted(g.subjects(RDF.type, URIRef(SH + "NodeShape")), key=str):
         target = g.value(shape, URIRef(SH + "targetClass"))
         if target not in class_iris:
@@ -275,10 +279,25 @@ def read(paths):
             if path not in names:
                 notes.append("shape on %s constrains <%s>, which is not a term of this vocabulary; skipped" % (kind, path))
                 continue
-            others = [p for p in g.predicates(prop, None) if p not in (URIRef(SH + "path"), URIRef(SH + "minCount"), URIRef(SH + "maxCount"), URIRef(SH + "message"))]
+            known = {URIRef(SH + "path"), URIRef(SH + "minCount"), URIRef(SH + "maxCount"), URIRef(SH + "message")} | set(VALUE_PREDS.values())
+            others = [p for p in g.predicates(prop, None) if p not in known]
             if others:
-                notes.append("shape on %s %s: only minCount and maxCount are read; %s left out"
+                notes.append("shape on %s %s: only minCount, maxCount, pattern, minInclusive, maxInclusive and minLength are read; %s left out"
                              % (kind, name_of(path), ", ".join(sorted(_ns(p)[1] for p in others))))
+            for key, pred in VALUE_PREDS.items():
+                found = g.value(prop, pred)
+                if found is None:
+                    continue
+                value = found.toPython()
+                if isinstance(value, decimal.Decimal):
+                    value = int(value) if value == int(value) else float(value)
+                if key == "pattern":
+                    value = str(found)
+                elif key == "min_length":
+                    value = int(value)
+                elif hasattr(value, "isoformat"):
+                    value = value.isoformat()
+                bounds.setdefault((kind, name_of(path)), {})[key] = value
             if low is None and high is None:
                 continue
             counts[(kind, name_of(path))] = (int(low) if low is not None else 0, int(high) if high is not None else None)
@@ -306,6 +325,12 @@ def read(paths):
                 notes.append("shape on %s %s: maxCount %d on an attribute is not held; an attribute has one value" % (kind, term, high))
         else:
             notes.append("shape on %s constrains %s, which %s does not carry; skipped" % (kind, term, kind))
+
+    for (kind, term), found in sorted(bounds.items()):
+        if term in (attributes.get(kind) or {}):
+            attributes[kind][term].update(found)
+        else:
+            notes.append("shape on %s %s: a value constraint on something %s does not carry as an attribute; skipped" % (kind, term, kind))
 
     # where each term lives, keyed by the file's prefix for its namespace, so the IRIs are kept
     namespaces, prefix_of = {}, {}

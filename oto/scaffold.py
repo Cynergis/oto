@@ -152,13 +152,15 @@ def _ontology_record(name, ontologies, bases, pack=None):
 
 
 def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, ontology=None,
-         repo=False, engine=None, pack=None):
+         repo=False, engine=None, pack=None, empty=False):
     """Create or top up a project. Never overwrites authored data unless force is set.
 
     One of `slug` and `name` is enough: the other derives from it. With an ontology, the vocabulary
     and a small sample graph are installed so `oto build` works immediately. A team that sees the
     whole loop on day one understands what it is building; a team facing an empty config often does
-    not.
+    not. `empty` installs the vocabulary and leaves the graph empty: a real product's graph holds
+    what its people said, not the pack's example, and its lexicon seed (which names the example)
+    is left out too.
     """
     if not slug and not name:
         raise ValueError("a project needs a name: pass --name (the slug derives from it) or --slug")
@@ -177,6 +179,7 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
     ontology_rationale = None
     ontology_rules = []
     ontology_questions = {}
+    ontology_briefs = {}
     ontology_lexicon = None
     ontology_interview = None
     ontology_guide = None
@@ -227,6 +230,7 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
             ontology_rationale = result["rationale"]
             ontology_rules = result["rules"]
             ontology_questions = result["questions"]
+            ontology_briefs = result["briefs"]
             ontology_lexicon, ontology_interview, ontology_gold = result["lexicon"], result["interview"], result["gold"]
             ontology_guide = result.get("guide")
             ontology_actions = list(result.get("actions") or [])
@@ -239,6 +243,7 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
             ontology_config, sample_graph, ontology_notes, ontology_rationale, report = _ontologies.merge(names)
             ontology_rules = list(ontology_config.pop("_rules", None) or [])   # carried by the merge, not config
             ontology_questions = dict(ontology_config.pop("_questions", None) or {})
+            ontology_briefs = dict(ontology_config.pop("_briefs", None) or {})
             ontology_lexicon = ontology_config.pop("_lexicon", None)
             ontology_interview = ontology_config.pop("_interview", None)
             ontology_guide = ontology_config.pop("_guide", None)
@@ -249,7 +254,7 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
             for kind, first, second in report["class_clashes"]:
                 print("    class %-24s described differently in %s and %s; kept %s" % (kind, first, second, first))
             for relation, first, second in report["relation_clashes"]:
-                print("    relation %-21s domain or range differ in %s and %s; kept %s" % (relation, first, second, first))
+                print("    relation %-21s domain or range differ in %s and %s; widened to both" % (relation, first, second))
             ontology_record = {"name": ontology, "release": None, "source": "merge",
                                "commit": None, "installed_at": _today(),
                                "parts": [_ontology_record(one, _ontologies, _ontologies.parts(one)[:-1]) for one in names]}
@@ -305,6 +310,15 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
             print("  wrote: %s" % _questions.NAME)
         else:
             print("  kept (exists): %s" % _questions.NAME)
+    if ontology and ontology_briefs:
+        import types
+        from .reason import briefs as _briefs
+        holder = types.SimpleNamespace(data=root)
+        if not os.path.exists(_briefs.path_for(holder)) or force:
+            _briefs.save(holder, ontology_briefs)
+            print("  wrote: %s" % _briefs.NAME)
+        else:
+            print("  kept (exists): %s" % _briefs.NAME)
 
     for action in ontology_actions:
         target = os.path.join(root, "actions", action["id"] + ".json")
@@ -320,6 +334,8 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
             "properties": ontology_rationale.get("properties") or {},
         }, force, _rationale.RATIONALE_NAME)
 
+    if empty:
+        ontology_lexicon = None
     if ontology_lexicon and (ontology_lexicon.get("entries") or []):
         _write(os.path.join(root, "lexicon.json"), {
             "_about": ("Jargon, acronyms and synonyms mapped to entities, so a question in the reader's "
@@ -358,6 +374,9 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
                % (ontology_notes.rstrip(), ontology),
                force, "ONTOLOGY-NOTES.md")
 
+    if empty:
+        sample_graph, ontology_lexicon = None, None
+        print("  graph: empty (--empty); the ontology's sample stays in the ontology")
     _write(os.path.join(root, "graph.json"), sample_graph or {
         "_about": "The curated knowledge graph. Hand-authored, or authored by an agent under review. "
                   "This is the source of truth; everything under build/ is compiled from it.",

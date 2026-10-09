@@ -1,7 +1,17 @@
 {
-  "name": "oto",
-  "owner": { "name": "Cynergis AI" },
+  "name": "cynergis-engine",
+  "owner": {
+    "name": "Cynergis"
+  },
+  "metadata": {
+    "description": "The OTO engine plugin from its own repository: the kg_* query tools as an MCP server, the generic skills, the session hook. Packs come from the Cynergis/oto-registry marketplace."
+  },
   "plugins": [
-    { "name": "oto", "source": "./", "description": "OTO knowledge graph: documents to a served, cited, temporal graph." }
+    {
+      "name": "oto",
+      "source": "./",
+      "version": "0.11.1",
+      "description": "The OTO engine: the kg_* query tools as an MCP server, the generic skills, and the session hook. Every pack depends on it."
+    }
   ]
 }

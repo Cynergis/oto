@@ -1,0 +1,394 @@
+{
+  "_about": "The core of a product's specification, on the portfolio (which declares Product, Role, Team, Objective and Capability): what it must do, for whom, under what rules, why. Every product type (`product-report`, ...) and the design packs (`software-architecture`, `ddd`) extend it. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
+  "_summary": "What a product must do, for whom, under what rules, why: personas, journeys, requirements, releases, constraints, assumptions, risks, decisions, open questions, objectives, policies, terms. The core every product type extends.",
+  "name": "Product",
+  "ontology_version": 1,
+  "strict_domains": false,
+  "languages": [
+    "en"
+  ],
+  "classes": {
+    "Product": {
+      "definition": "The thing a project sets out to build, software or not: the root every other class hangs off. The portfolio says where it stands; here is what it must do, for whom, under what rules, why."
+    },
+    "Persona": {
+      "definition": "A kind of user the product is for, or explicitly not for. Journeys, requirements and value propositions point at a persona."
+    },
+    "ValueProposition": {
+      "definition": "One promise the product makes to a persona, and the problem it solves. The anchor every requirement, journey and success criterion traces to."
+    },
+    "SuccessCriterion": {
+      "definition": "A measurable statement of what success looks like: a metric, a target, a date, an owner role."
+    },
+    "Requirement": {
+      "definition": "A stated need the product must satisfy, functional or otherwise. The unit a builder works from and a release scopes."
+    },
+    "Release": {
+      "definition": "A dated boundary of scope: what ships together. Requirements and features are in scope of, or excluded from, a release."
+    },
+    "Feature": {
+      "definition": "A user-visible capability the product is made of. Features nest through part_of, so an epic and a sub-feature are the same class at different depths."
+    },
+    "UserJourney": {
+      "definition": "How a persona gets value, end to end: a trigger, ordered steps, an outcome."
+    },
+    "JourneyStep": {
+      "definition": "One step of a user journey, with its own identity so a design decision, a requirement or a test can point at it."
+    },
+    "Constraint": {
+      "definition": "A limit the product is built under: budget, platform, regulation, timeline. Imposed from outside, not chosen."
+    },
+    "Assumption": {
+      "definition": "Something believed but not yet verified, on which a decision or requirement rests. Validated or invalidated over time."
+    },
+    "Risk": {
+      "definition": "A known way this can go wrong, including an external dependency whose failure would hurt. Mitigated, accepted or realised over time."
+    },
+    "Decision": {
+      "definition": "A dated choice with its reason and evidence, made by a role. Settles what it is about, so nobody reopens it by accident."
+    },
+    "OpenQuestion": {
+      "definition": "Something unresolved that a decision must settle. Raised, then resolved by a decision, or dropped."
+    },
+    "Document": {
+      "definition": "A source document in the corpus: a brief, a PRD, a UX spec, an architecture note, a transcript. Every fact cites one; a newer document supersedes an older one."
+    },
+    "Scenario": {
+      "definition": "One concrete path through a requirement or a journey step: given, when, then. What a test verifies and what acceptance is judged on."
+    },
+    "Policy": {
+      "definition": "A rule the product must obey that comes from outside it: business, compliance, data, security. Has an authority and a role that enforces it; distinct from a constraint, which limits resources."
+    },
+    "Term": {
+      "definition": "A word with a definition in this product's language, cited and dated, so a changed meaning is superseded rather than argued about."
+    }
+  },
+  "properties": {
+    "owned_by": {
+      "domain": "Product|Objective|Capability|Feature|SuccessCriterion|Risk|Requirement|Release",
+      "range": "Role|Team",
+      "inverse": "owns",
+      "definition": "The role or team accountable for this. Ownership sits on a role, not a person, so it survives people moving. Widened from the portfolio to what a product specifies."
+    },
+    "decided_by": {
+      "domain": "Decision",
+      "range": "Role",
+      "inverse": "decides",
+      "definition": "The role whose call it was."
+    },
+    "offers": {
+      "domain": "Product",
+      "range": "ValueProposition",
+      "inverse": "offered_by",
+      "definition": "The promise a product makes. A product usually offers more than one."
+    },
+    "intended_for": {
+      "domain": "ValueProposition|UserJourney",
+      "range": "Persona",
+      "inverse": "wanted_by",
+      "definition": "The persona a value proposition or journey exists for. Requirements and features reach the persona through the value proposition they serve. Point at an excluded persona to say who it is deliberately not for."
+    },
+    "serves": {
+      "domain": "Requirement|UserJourney|Feature|ValueProposition",
+      "range": "ValueProposition|Objective",
+      "inverse": "served_by",
+      "definition": "The purpose this exists for: a requirement, journey or feature serves a value proposition; a value proposition serves an objective. The traceability spine an agent walks from a requirement up to the strategy."
+    },
+    "measures": {
+      "domain": "SuccessCriterion",
+      "range": "Objective|ValueProposition",
+      "inverse": "measured_by",
+      "definition": "What a criterion tells you succeeded."
+    },
+    "part_of": {
+      "domain": "Feature|JourneyStep",
+      "range": "Product|Feature|UserJourney",
+      "inverse": "contains",
+      "definition": "This belongs to that: a feature to its product or parent feature, a step to its journey."
+    },
+    "realises": {
+      "domain": "Feature",
+      "range": "Requirement",
+      "inverse": "realised_by",
+      "definition": "The requirement a feature exists to satisfy."
+    },
+    "in_scope_of": {
+      "domain": "Requirement|Feature",
+      "range": "Release",
+      "inverse": "includes",
+      "definition": "Ships in this release. Dated, so scope as of a past date is readable."
+    },
+    "excluded_from": {
+      "domain": "Requirement|Feature",
+      "range": "Release",
+      "inverse": "excludes",
+      "definition": "Explicitly not in this release. Recorded, not silently absent, so a builder sees the boundary."
+    },
+    "constrains": {
+      "domain": "Constraint",
+      "range": "Product|Requirement|Release|Feature",
+      "inverse": "constrained_by",
+      "definition": "What a constraint limits."
+    },
+    "relies_on": {
+      "domain": "Decision|Requirement|Release",
+      "range": "Assumption",
+      "inverse": "underpins",
+      "definition": "An assumption this rests on. If the assumption is invalidated, this must be revisited."
+    },
+    "threatens": {
+      "domain": "Risk",
+      "range": "Product|Release|Requirement|Feature|SuccessCriterion",
+      "inverse": "at_risk_from",
+      "definition": "What a risk applies to."
+    },
+    "mitigated_by": {
+      "domain": "Risk",
+      "range": "Decision|Requirement|Feature",
+      "inverse": "mitigates",
+      "definition": "What reduces a risk."
+    },
+    "about": {
+      "domain": "Decision|OpenQuestion",
+      "range": "Product|ValueProposition|Objective|SuccessCriterion|Requirement|Release|Feature|UserJourney|JourneyStep|Scenario|Constraint|Policy|Risk|Persona",
+      "inverse": "subject_of",
+      "definition": "What a decision settles, or what an open question concerns."
+    },
+    "resolves": {
+      "domain": "Decision",
+      "range": "OpenQuestion",
+      "inverse": "resolved_by",
+      "definition": "The open question this decision closes."
+    },
+    "blocks": {
+      "domain": "OpenQuestion",
+      "range": "Release",
+      "inverse": "blocked_by",
+      "definition": "An unresolved question a release should not ship with. A risk threatens a release; it does not block it."
+    },
+    "documented_in": {
+      "domain": "Product|Role|Persona|ValueProposition|Objective|SuccessCriterion|Requirement|Release|Feature|UserJourney|JourneyStep|Scenario|Constraint|Policy|Assumption|Risk|Decision|OpenQuestion|Term",
+      "range": "Document",
+      "inverse": "documents",
+      "definition": "The artifact that formally specifies this: a brief, a PRD, a UX spec. Distinct from source_doc, which is provenance: the document that introduced the fact into the graph, possibly a transcript."
+    },
+    "interested_in": {
+      "domain": "Role",
+      "range": "Objective|Requirement|Release|Feature|Decision",
+      "inverse": "concerns",
+      "definition": "What a stakeholder role must be consulted or informed about."
+    },
+    "exercises": {
+      "domain": "Scenario",
+      "range": "Requirement|JourneyStep",
+      "inverse": "exercised_by",
+      "definition": "The requirement or step a scenario is a concrete path through."
+    },
+    "enforced_by": {
+      "domain": "Policy",
+      "range": "Role",
+      "inverse": "enforces",
+      "definition": "The governance role that enforces a policy."
+    },
+    "defines": {
+      "domain": "Term",
+      "range": "Product|ValueProposition|Objective|Requirement|Feature|UserJourney|Persona|Policy|Release|Scenario|Constraint|Risk",
+      "inverse": "defined_by",
+      "definition": "The entity a term is the name for, when there is one."
+    },
+    "applies_to": {
+      "domain": "Policy",
+      "range": "Product|Requirement|Release|Feature|Decision",
+      "inverse": "governed_by",
+      "definition": "What a policy prescribes behaviour for. The governance edge: from here, enforced_by says who enforces it."
+    }
+  },
+  "attributes": {
+    "Product": {
+      "problem": {
+        "type": "string",
+        "definition": "The problem statement: what is wrong today, for whom."
+      },
+      "background": {
+        "type": "string",
+        "definition": "Context a newcomer needs before the rest makes sense."
+      },
+      "vision": {
+        "type": "string",
+        "definition": "Where this product is going, in one or two sentences."
+      }
+    },
+    "Persona": {
+      "relationship": {
+        "type": "enum:target|excluded",
+        "definition": "Whether the product is for this persona, or explicitly not."
+      },
+      "need": {
+        "type": "string",
+        "definition": "What this persona is trying to get done."
+      }
+    },
+    "ValueProposition": {
+      "promise": {
+        "type": "string",
+        "definition": "The value, in one sentence."
+      },
+      "differentiator": {
+        "type": "string",
+        "definition": "Why this rather than what the persona does today."
+      }
+    },
+    "SuccessCriterion": {
+      "metric": {
+        "type": "string",
+        "definition": "What is measured."
+      },
+      "target": {
+        "type": "string",
+        "definition": "The value that means success."
+      },
+      "due_on": {
+        "type": "date",
+        "definition": "When the target should be met."
+      }
+    },
+    "Requirement": {
+      "kind": {
+        "type": "enum:functional|non-functional",
+        "definition": "Behaviour, or a quality the behaviour must have."
+      },
+      "priority": {
+        "type": "enum:must|should|could|wont",
+        "definition": "MoSCoW priority."
+      }
+    },
+    "Release": {
+      "target_date": {
+        "type": "date",
+        "definition": "When it is meant to ship."
+      },
+      "state": {
+        "type": "enum:planned|in-progress|shipped|cancelled",
+        "definition": "Where the release is."
+      },
+      "horizon": {
+        "type": "enum:mvp|growth|later",
+        "definition": "Which scope horizon this release belongs to."
+      }
+    },
+    "UserJourney": {
+      "trigger": {
+        "type": "string",
+        "definition": "What starts the journey."
+      },
+      "outcome": {
+        "type": "string",
+        "definition": "What the persona has at the end."
+      }
+    },
+    "JourneyStep": {
+      "position": {
+        "type": "integer",
+        "definition": "Order within the journey, from 1."
+      },
+      "action": {
+        "type": "string",
+        "definition": "What the persona does."
+      },
+      "outcome": {
+        "type": "string",
+        "definition": "What the step leaves the persona with."
+      }
+    },
+    "Constraint": {
+      "kind": {
+        "type": "enum:budget|platform|timeline|technical|other",
+        "definition": "The sort of limit. A regulatory rule is a Policy, not a constraint."
+      },
+      "imposed_by": {
+        "type": "string",
+        "definition": "Who or what imposes it."
+      }
+    },
+    "Assumption": {
+      "state": {
+        "type": "enum:unverified|validated|invalidated",
+        "definition": "Whether anyone has checked it."
+      },
+      "checked_on": {
+        "type": "date",
+        "definition": "When it was last checked."
+      }
+    },
+    "Risk": {
+      "kind": {
+        "type": "enum:dependency|technical|market|delivery|compliance|other",
+        "definition": "The sort of risk; dependency is an external thing the product needs."
+      },
+      "state": {
+        "type": "enum:open|mitigated|accepted|realised",
+        "definition": "Where the risk is."
+      }
+    },
+    "Decision": {
+      "rationale": {
+        "type": "string",
+        "definition": "Why this and not the alternatives."
+      },
+      "decided_on": {
+        "type": "date",
+        "definition": "When it was decided."
+      }
+    },
+    "OpenQuestion": {
+      "raised_on": {
+        "type": "date",
+        "definition": "When it was raised."
+      },
+      "state": {
+        "type": "enum:open|resolved|dropped",
+        "definition": "Whether it still needs an answer."
+      }
+    },
+    "Document": {
+      "kind": {
+        "type": "enum:brief|prd|ux-spec|architecture|transcript|decision-log|other",
+        "definition": "What sort of artifact."
+      }
+    },
+    "Scenario": {
+      "given": {
+        "type": "string",
+        "definition": "The preconditions."
+      },
+      "when": {
+        "type": "string",
+        "definition": "The action."
+      },
+      "then": {
+        "type": "string",
+        "definition": "The expected result."
+      },
+      "kind": {
+        "type": "enum:happy-path|edge-case|failure",
+        "definition": "What sort of path."
+      }
+    },
+    "Policy": {
+      "kind": {
+        "type": "enum:business|compliance|data|security|other",
+        "definition": "The sort of rule."
+      },
+      "authority": {
+        "type": "string",
+        "definition": "Who or what the rule comes from: a regulation, a standard, a company policy."
+      }
+    },
+    "Term": {
+      "definition": {
+        "type": "string",
+        "definition": "What the word means here."
+      }
+    }
+  }
+}

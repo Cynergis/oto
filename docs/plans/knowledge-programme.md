@@ -1,0 +1,156 @@
+# From a product idea to a running, knowing agent: the implementation plan
+
+Status: draft 2026-10-06, for Chiheb's review. Supersedes the first draft of this file. It covers
+the OTO engine, the ontologies as packs, and version 2 of the PRD & Architecture Studio (ours),
+and it is organised around the experience we are building, so that every stage is accepted by a
+scene a person can live, not by a feature list.
+
+## 1. The experience we are building
+
+One persona, Atlas, carries a person from a product idea to a published knowledge base that
+other people query. The person never types an `oto` command unless they want to; the graph is
+the source of truth from the first confirmed gate; a reader who installed one pack asks one
+question and gets a cited, dated answer without knowing the rest exists.
+
+| # | Scene | The person sees | Under the hood |
+|---|---|---|---|
+| 1 | **Start** — "Atlas, lead this product." | two questions: which kind of product (the marketplace's product types), what do you have (nothing, notes, a brief); then Atlas has the project ready | `oto init`, `/plugin install` of the packs the type needs, `/oto:start` on the brief if there is one |
+| 2 | **Specify** | the spec captured section by section, each section a question someone asks; after each gate, "the graph answers N of M questions a <type> product must answer; these are open" | capture against the pack's schema; every confirmed section becomes proposals through `curate check`; the gate is `kg_questions` |
+| 3 | **Derive the domain** — "what must this product know?" | the domain questions, derived from the spec, confirmed by the person; then the vocabulary with its reasons, shapes and questions that run | `/oto:start` on the spec graph, then the interview from its Phase 2 |
+| 4 | **Design and plan the flow** | the architecture and the build flow captured the same way; every component traces to a requirement | capture against the design and flow packs; the links are relations |
+| 5 | **Build** | an implementing agent that asks before it acts and is BLOCKED by name when a fact is missing; what it builds, tests and deploys lands in the graph | `kg_brief`, actions, evidence |
+| 6 | **Publish** — "publish" | the domain pack on the marketplace, the store published for readers, the site regenerated, the install line to send to a colleague | `oto ontology export`, `oto pack new/publish`, `oto publish --repo`, the site view |
+| 7 | **Someone else uses it** | `/plugin install report@cynergis`; "which fields of the fund profile are still unmapped?" → the rows with their sources; a correction goes through the gates and comes back to the owning project as a pull request | the pack, `kg_ask`, the curate skill, `oto init --repo` workflows |
+
+Scene 7 is the measure. Everything upstream is in its service.
+
+## 2. The pieces
+
+### 2.1 The levels of knowledge (each an ontology, each a pack)
+
+```
+                         portfolio
+                              │
+product ──satisfied by──► architecture & design ──built and run by──► flow ◄── work
+    │                              │                                      │
+    └────────── about ────────────►│   domain   ◄──────── produces ───────┘
+```
+
+| Pack | Level | Generic / per type | Source |
+|---|---|---|---|
+| `portfolio` | what we build, who owns it, objectives, releases, lineage between levels | generic | interview (the executive's questions) |
+| `product` | what a product must do, for whom, under what rules, why | generic core | interview, pruned from today's `product` |
+| `product-report` | what a *report* product's specification must say | per type, extends `product` | interview on the report application |
+| `software-architecture`, `ddd` | how the solution is shaped | generic | exist; `ddd` generalised out of `ddd-kyc` |
+| `flow`, `flow-report` | how building and running is executed | core + per type | port of `ontology.ttl` (`flow:`, `doctemplate:`, `bindings.ttl`) and the 17 flow questions |
+| `work` | what is planned, by whom, blocked by what | generic | interview (the delivery lead's questions) |
+| `report` | the domain of a report product | per product | from scratch via scene 3; compared with the port `report-ontology/oto/report` |
+| `report-technical` | environments, deployments, credentials, tests | per type | exists |
+
+### 2.2 What a user installs
+
+| Block | Role |
+|---|---|
+| `oto` plugin | the engine: CLI (uvx), `kg_*` MCP server, 11 skills, session hook |
+| the Cynergis marketplace (`oto-registry`) | ontologies at releases, packs as plugins |
+| packs | an ontology unit + skills + views, depending on `oto` |
+| `prd-architecture-studio` v2 | Atlas, the front door of the arc; depends on `oto`; no vocabulary of its own |
+| a project repository (`oto init --repo`) | the team's graph changes by pull request |
+| a production store | Neo4j; BigQuery Graph later |
+
+## 3. Workstreams
+
+### WS-A — OTO engine
+
+| # | Deliverable | Purpose | Functioning | Tests | Size |
+|---|---|---|---|---|---|
+| A1 | **capture schema**: `oto ontology capture --name <pack>` → `capture.json`; also written by the build beside `questions.yaml` | the studio captures against a pack | sections = the pack's questions grouped by asker; items = the classes a question needs; fields = attributes (enum/scheme as choices, `required`); cross-links = relations with "must resolve"; `may_continue` = the question's gate; every field carries `x-term` | unit: the shipped packs render; round trip: a capture filled from the sample converts back to the sample's facts (A2) | S |
+| A2 | **proposals from a capture**: `oto curate propose --from <data.json> --capture capture.json --doc <slug>` | the studio's output becomes facts through the gates | each item a node of its term with stable id from the capture id; each cross-link an edge; `source_doc`, `as_of`, evidence = the PRD section; refuses an unknown field | unit on the sample; `curate check` clean on the result; a second capture with a changed value yields a supersession | S |
+| A3 | **briefs** — DONE 2026-10-07 (0.9.2): `briefs.json` beside the questions, `kg_brief`, `oto query brief`, `/api/brief`; the `no_gaps` gate | an agent knows what it must know before a task, and is BLOCKED by name | a brief = task type + required and optional question ids + params; READY / BLOCKED with the unanswered required questions and their gaps; the table without params; composed by task, stored with the questions, carried by packs (not yet in the lock/diff) | `tests/test_briefs.py`; `test_flow_port.py` gives `kgctl`'s verdicts | M |
+| A4 | **value constraints** — DONE 2026-10-07 (0.10.0): `pattern`, `min_value`, `max_value`, `min_length` on an attribute | the report shapes the port could not hold | evaluated in `curate check` and the self-check; rendered as `sh:pattern`, `sh:minInclusive`, `sh:maxInclusive`, `sh:minLength`; read back by the importer | unit; pyshacl equivalence extended | S |
+| A5 | **the site as a view** — DONE 2026-10-07 (studio `views/prd-site`, no engine change needed) | the site shows what is believed, dated; `data.js` is written by the engine | `oto serve --view <plugin>/views/prd-site`; `oto build --target site --view ...`; `app.json` + `projections/prd.json`, `arch.json` | scene test 6: the globals read from `data.js` are the graph's facts; a section no pack covers is empty | M |
+| A6 | **survey cache** — DONE 2026-10-07 (0.10.0) | `kg_questions` on a large graph | survey cached per build sequence, invalidated on reload | unit | S |
+| A7 | **marketplace from Atlas** — DONE 2026-10-07 (0.10.0; `product-report` @2 declares `report`): `oto registry types` lists product types (packs tagged `product-type`) | scene 1's first question | a pack manifest field `product_type`; `oto registry list --product-types` | unit | S |
+| A9 | **derived nodes**: a derive rule may create a node (`then: {node: ..., edges: [...]}`), as SPARQL CONSTRUCT did for the flow's test obligations; today a captured flow's obligations are `requiresTest` edges and only the port materialises `TestObligation` nodes | a thing the rules conclude, with an id code can cite | engine, derived.json, the stores, explain, the explorer | unit; the flow port's FL21 answered on a captured flow | M |
+| A8 | **BigQuery Graph store and target** (later; a target state once the graph is filled) | a third backend where the graph lives beside the data | `targets/bigquery.py` loads the rows into a dataset and `CREATE OR REPLACE PROPERTY GRAPH`; `BigQueryStore` answers the `Store` interface, GQL via `GRAPH_TABLE` for the graph-shaped reads; `bigquery` extra; ADC credentials | the store equivalence battery against a GCP project | L; last |
+
+### WS-B — Ontologies and packs
+
+| # | Deliverable | Method | Acceptance |
+|---|---|---|---|
+| B1 | `product` core | interview with Chiheb as the expert; `product` as the draft to prune | questions run on its sample; `oto ontology check` clean; the capture schema renders; published |
+| B2 | `product-report` | interview on the report application; extends `product` | Atlas (v2) captures the report application's PRD against it; the graph answers its questions |
+| B3 | `report` from scratch | scene 3 on the spec graph; the interview from Phase 2; the fixture's facts authored through proposals | the 21 questions answer on the fixture; a written comparison with the port: which questions, which classes differ, and whether each difference is OTO's discipline or its limit |
+| B4 | `ddd` generalised; `software-architecture` settled — DONE 2026-10-07 (0.9.0) | one chain, `product` → `software-architecture` → `ddd`: the product's classes serve, the design packs widen `part_of`, `owned_by`, `about`, `satisfies`, `serves`; `Reaction` for the storming policy; a merge widens a relation two parts declare | `architecture-build` captures against `ddd` (one name: it brings the estate); `report-product-builder` (the pre-v2 mesh) no longer composes and is B7's to retire or rebase; `report` @4 renamed its `Component` to `Macro` |
+| B5 | `flow` — DONE 2026-10-07 (report-ontology `oto/flow`, `tools/flow_port.py`) | port of `ontology.ttl` and `competency_questions.yaml` by the same script pattern as `oto_port.py`; task types became briefs; the flow instance is a project graph (`fixtures/pdf-to-template/graph.json`), not a pack's sample; no `flow-report` pack: the `dt:` concepts wait for run data | `tests/test_flow_port.py`: the briefs give `kgctl`'s readiness and brief verdicts for every step and task |
+| B6 | `portfolio`, `work` — DONE 2026-10-07 (0.11.0) | the questions drafted and confirmed by Chiheb the same day; portfolio is the base of the chain, Role, Team, Objective and Capability declared once; work on software-architecture | a project composing five packs has one Role and one Team; WK5 "which requirements slip if this component is late" runs on the sample |
+| B7 | the user ontologies reviewed — DONE 2026-10-07: report-product-builder and ddd-kyc retired (~/.oto/ontologies-retired); report-generation's lineage and quality terms folded into `report` @5 (Transformation, QualityCheck, Finding, Q23–Q26), then it and report-technical retired; the delivered-instance and delivery-level terms were not wanted | `validated_by` filled where confirmed |
+
+### WS-C — PRD & Architecture Studio v2 (ours)
+
+| # | Deliverable | Purpose |
+|---|---|---|
+| C1 | **Atlas owns the arc**: menu = the seven scenes; product type chosen first; the concierge's knowledge of stations folded into Atlas as what it consults, not a second voice | one persona |
+| C2 | **capture against a pack**: `prd-build`/`architecture-build` read `capture.json` (A1); the built-in section list and `data-schema.md` retired | one interview per product type, no skill edits |
+| C3 | **contribute as you go**: on every [C], the section is written as proposals (A2) and goes through `curate check`; Atlas reports the gate as `kg_questions` | the graph is the source of truth from the first gate |
+| C4 | **feature-flow reads the graph** — DONE 2026-10-07: every phase asks the graph (`kg_ask`, `kg_neighbors`, `kg_brief`); scene 4 (design and flow captured, traced) and scene 5 (the agent's brief BLOCKED by name, the missing fact captured, READY) scripted and green; `flow` installed from the report-ontology checkout (`oto ontology add <checkout> --path oto/flow`) | gates with evidence |
+| C5 | **the site is a view** (A5); `prd-site` serves or builds it; the template's `data.js`, generator and data schema are gone — DONE 2026-10-07 | no drift |
+| C6 | **"what must this product know?"** and **"publish"** as Atlas stages — DONE 2026-10-07: scene 3 `/oto:start` → interview; scene 6 the site, the domain pack to the marketplace, the product's store with the site beside it, the two lines readers need; a product's facts are a store, never an ontology (an ontology must answer every question it must) | scenes 3 and 6 |
+| C7 | `knowledge-graph` skill and the mesh ontology retired; plugin depends on `oto`; studio README and GETTING-STARTED rewritten around the arc | one vocabulary |
+| C8 | **scene tests**: a scripted run of scenes 1–7 on the report application, in the studio's CI, against a pinned OTO release | the experience is tested, not assumed |
+
+### WS-D — Publishing and readers
+
+| # | Deliverable | Purpose |
+|---|---|---|
+| D1 | the registry on GitHub with the packs of B1–B6, `oto registry check` in its CI — proven on a bare registry in scene test 6–7; the push to github.com/Cynergis/oto-registry is Chiheb's: `oto pack new <p> --ontology <p>` then `oto pack publish --from <p> --to <registry url>` for product-report, report, ddd, flow (product, software-architecture ship with the engine) | scene 7's install line works |
+| D2 | the report project as a repository (`oto init --repo`), with the author and checks workflows live — Chiheb's: `oto init --repo` on the fund report project, push, enable Actions | a correction from a reader comes back as a pull request |
+| D3 | a published query store (`oto publish --repo`) and a static site — proven locally in scene test 6–7 (`oto publish --repo <bare> --site`, `oto sync`); the GitHub repository is Chiheb's | readers without the documents |
+| D4 | the plugin installed in Cowork, scene 7 run there | the second host |
+
+## 4. Order, dependencies, and what each stage proves
+
+```
+Stage 1  B1 product core ── B2 product-report ── B3 report from scratch   DONE 2026-10-07, see report-from-scratch.md
+Stage 2  A1 capture ── A2 propose ── C2 ── C3 ── C1 ── C7 ── C8 (scenes 1-3)  DONE 2026-10-07: OTO 0.8.2–0.8.3, studio b36397f; scenes 1–3 green
+Stage 3  B4 ── B5 ── A3 ── C4 (scenes 4-5)   DONE 2026-10-07: the agent gets its brief from the graph (0.9.2-0.9.3, studio scenes 1-5); kgctl can retire
+Stage 4  A5 ── C5 ── C6 (DONE 2026-10-07) ── D1 ── D2 ── D3 (proven locally; the GitHub pushes are Chiheb's)   proves: publish and read, end to end
+Stage 5  B6 ── A4 ── A6 ── A7 ── B7 (DONE 2026-10-07, 0.10.0–0.11.0) ── D4 Cowork (Chiheb's)   proves: the levels link; the second host
+Later    A8 BigQuery Graph, once the graph is filled                          a target state, not on the path to the first release
+```
+
+Stages 1 and 2 are done; stage 3's B4 and the design half of C4 too (0.9.0, 0.9.1). What they found: a product starts from an empty graph (`oto init --empty`), the packs' samples are exemplars, never the product's facts; a question reports at the gate, a policy refuses. What stage 2 found: a merged project (`oto init --ontology a,b`) must
+keep its parts' samples, not invent one; a sample must pass its own blocking policies; a
+document's ids are unique in the document, so a capture names its `scope`. Stage 3's B4 and
+B5 are independent of stage 2. Stage 4 needs C3 (facts in the graph) and B3 (the pack to publish).
+
+Rough sizes, one person: stage 1 three to five sessions with Chiheb as the expert; stage 2 four
+to six days; stage 3 five to eight days (the flow port is the bulk); stage 4 three to four days;
+stage 5 three days. BigQuery (A8) is a week with a GCP project, when its time comes.
+
+## 5. Testing, at three levels
+
+| Level | What | Where |
+|---|---|---|
+| unit | every engine addition (A1–A8) with the suite's conventions: the shipped packs as fixtures, the SQLite/Neo4j battery, rdflib/pyshacl equivalence | OTO `tests/` |
+| pack | self-check (every term cited, the sample answers what it must, shapes hold); `oto registry check`; a port's acceptance against the original (as `test_oto_port.py`) | each pack's repository and the registry's CI |
+| scene | C8: scenes 1–7 scripted on the report application against a pinned OTO release, run in the studio's CI; scene 7 by hand in Claude Code and Cowork before each release | the studio's repository |
+
+A stage is done when its scenes pass, its packs check clean, and the commits are signed.
+
+## 6. Decisions taken (2026-10-06, with Chiheb)
+
+1. The core keeps the name **`product`**; a product type extends it as `product-report`, `product-api`, …; the word "spec" names the stage, never a vocabulary.
+2. **One project composes the packs** of one product: the links between levels are ordinary edges under one gate and one store; each pack keeps its namespace, so a level can be split into its own project later without renaming.
+3. **Studio v2 in its own repository**, depending on a pinned OTO release; its scene tests pin what they test against.
+4. **`data.js` stays as the intermediate projection** for the site until the site view (A5) lands, then retires with C5.
+5. **BigQuery Graph is a target state** once the graph is filled; not on the path to the first release.
+
+6. The studio had no source repository; version 2 starts from the installed copy, extracted to `~/Downloads/prd-architecture-studio` (git, first commit `e3386cd`, plugin version 0.7.0, 23 files).
+
+## 7. Risks
+
+- **The interview is the slow path.** Stages 1, 3 and 5 need the domain expert's time; the plan assumes Chiheb for `product`, `product-report`, `portfolio` and `work`. Mitigation: `/oto:start` from the existing material first, confirm rather than elicit.
+- **Capture-as-you-go changes the studio's feel.** A gate that says "the graph cannot answer X" is stricter than a checklist; C3 must report it as what is open, never block the conversation.
+- **Two tools, one experience** relies on the dependency mechanism working in both hosts; D4 checks Cowork early enough to change course.
+- **The flow port** is the largest single piece; B5 follows the proven `oto_port.py` pattern and is bounded by the 17 questions.

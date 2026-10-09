@@ -133,6 +133,20 @@ def index_problems(index, root=None):
     packs = index.get("packs", [])
     if not isinstance(packs, list):
         return out + ["registry.json `packs` must be a list"]
+    extras = index.get("plugins", [])
+    if not isinstance(extras, list):
+        return out + ["registry.json `plugins` must be a list"]
+    seen_plugins = set()
+    for number, entry in enumerate(extras, 1):
+        if not isinstance(entry, dict) or not isinstance(entry.get("name"), str) or not NAME_OK.match(entry["name"]):
+            out.append("plugin entry %d needs a lowercase `name`" % number); continue
+        if entry["name"] in seen_plugins:
+            out.append("plugin %r is listed twice" % entry["name"])
+        seen_plugins.add(entry["name"])
+        if not entry.get("repo") and not entry.get("url"):
+            out.append("plugin %r needs a `repo` (owner/name on GitHub) or a git `url`" % entry["name"])
+        if entry.get("repo") and not re.match(r"^[\w.-]+/[\w.-]+$", entry["repo"]):
+            out.append("plugin %r: `repo` is owner/name" % entry["name"])
     for kind, entries in (("ontology", entries), ("pack", packs)):
         _read = _kind_tools(kind)[2]
         seen = set()
@@ -554,6 +568,40 @@ def publish(to, project=None, ontology=None, name=None, summary=None, from_graph
             "cached": _refresh_cached(to), "plugins": [p["name"] for p in plugins], "created": created}
 
 
+def register_plugin(to, name, repo=None, url=None, plugin_ref=None, path=None, version=None, description=None,
+                    category=None, ref=None, registry_name=None, engine=None, remove=False):
+    """List a plugin that lives in its own repository (a studio, a tool) in the registry's
+    marketplace, beside the engine and the packs, so its dependency on `oto` resolves there; or
+    remove it. Named `oto`, it says where the engine comes from (a branch under test). Pushes."""
+    if not remove and not (repo or url):
+        raise ProjectError("a plugin needs --repo owner/name (GitHub) or --url <git url>")
+    work, branch = _clone_for_writing(to, ref)
+    try:
+        index, created = _open_index(work, to, registry_name, engine)
+        entries = {e["name"]: e for e in index.get("plugins") or []}
+        if remove:
+            if name not in entries:
+                raise ProjectError("the registry lists no plugin %r" % name)
+            entries.pop(name)
+        else:
+            entry = {"name": name}
+            for key, value in (("repo", repo), ("url", url), ("ref", plugin_ref), ("path", path), ("version", version),
+                               ("description", description), ("category", category)):
+                if value:
+                    entry[key] = value
+            entries[name] = entry
+        index["plugins"] = [entries[k] for k in sorted(entries)]
+        _write_index(work, index)
+        write_marketplace(work, index)
+        if created:
+            _scaffold_registry(work, index, engine)
+        tag = "plugin-%s--%s" % (name, datetime.datetime.now().strftime("%Y%m%d%H%M%S%f"))
+        commit = _commit_and_push(work, to, branch, tag, "plugin %s: %s" % (name, "removed" if remove else "listed from %s" % (repo or url)))
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    return {"name": name, "registry": index["name"], "commit": commit, "cached": _refresh_cached(to), "created": created}
+
+
 def publish_pack(to, pack, note=None, summary=None, ref=None, registry_name=None, engine=None):
     """Publish a pack from this machine into a registry, under packs/<name>. Bumps the release,
     regenerates the plugin files so the plugin version follows, appends the changelog, updates the
@@ -806,13 +854,39 @@ def _engine_source(engine):
     return {"source": "url", "url": engine}
 
 
+def _plugin_source(entry):
+    """A marketplace source for a plugin that lives in its own repository: GitHub shorthand, with a
+    branch or tag (`ref`) and a directory (`path`) when given; or a git URL."""
+    if entry.get("repo"):
+        source = {"source": "github", "repo": entry["repo"]}
+    else:
+        source = {"source": "git", "url": entry["url"]}
+    for key in ("ref", "path"):
+        if entry.get(key):
+            source[key] = entry[key]
+    return source
+
+
 def write_marketplace(work, index):
-    """The registry as a Claude Code marketplace: the engine plugin first, then every pack, so a
-    pack's dependency on `oto` resolves inside the same marketplace."""
+    """The registry as a Claude Code marketplace: the engine plugin first, then the plugins that live
+    in their own repositories (`plugins` in the index: a studio, a tool), then every pack, so every
+    dependency on `oto` resolves inside the same marketplace. A `plugins` entry named `oto` is the
+    engine, from the repository and branch it names."""
     engine = index.get("engine") or DEFAULT_ENGINE
-    plugins = [{"name": "oto", "source": _engine_source(engine),
+    extras = {e["name"]: e for e in index.get("plugins") or []}
+    plugins = [{"name": "oto", "source": _plugin_source(extras["oto"]) if "oto" in extras else _engine_source(engine),
                 "description": "The OTO engine: the kg_* query tools as an MCP server, the generic skills, and "
                                "the session hook. Every pack depends on it."}]
+    if "oto" in extras and extras["oto"].get("version"):
+        plugins[0]["version"] = extras["oto"]["version"]
+    for name, entry in sorted(extras.items()):
+        if name == "oto":
+            continue
+        plugin = {"name": name, "source": _plugin_source(entry), "description": (entry.get("description") or "").strip()}
+        for key in ("version", "category"):
+            if entry.get(key):
+                plugin[key] = entry[key]
+        plugins.append(plugin)
     for entry in index.get("packs") or []:
         if not entry.get("path"):
             continue

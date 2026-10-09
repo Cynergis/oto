@@ -4,6 +4,16 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.1 — 2026-10-09
+
+**Plugins in their own repositories, in the marketplace.** A plugin that depends on `oto` (a
+studio, a tool) resolves that dependency inside its own marketplace, so it must be listed beside
+the engine: `oto registry plugin <name> --to <registry> --repo owner/name [--plugin-ref, --path,
+--version, --description, --category]` lists it in the registry's index and marketplace
+(`--remove` delists); named `oto`, it says where the engine comes from, a branch under test
+included. **A checkout as the engine**: the plugin's MCP server and session hook run
+`OTO_SOURCE` when it is set, the published engine otherwise.
+
 ## 0.11.0 — 2026-10-07
 
 **The portfolio and the work** (stage 5, B6; decided and confirmed with Chiheb Dkhil). `portfolio`

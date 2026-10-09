@@ -383,3 +383,29 @@ def test_publish_scaffolds_the_registry_and_carries_the_domain(home, capsys):
     assert "Cynergis/oto" in workflow
     assert "OTO ontologies" in open(os.path.join(work, "README.md"), encoding="utf-8").read()
     assert main(["registry", "check", work]) == 0
+
+
+def test_a_plugin_in_its_own_repository_is_listed_in_the_marketplace_and_the_engine_can_be_pinned(home, capsys):
+    """A studio or a tool that depends on `oto` must be in the same marketplace as the engine, or its
+    dependency does not resolve; `oto registry plugin` lists it there, and names the engine's branch."""
+    bare = _empty_registry(home, name="market")
+    assert main(["registry", "plugin", "studio", "--to", bare, "--repo", "Cynergis/studio", "--version", "2.0.0",
+                 "--category", "product", "--description", "The studio.", "--registry-name", "market"]) == 0
+    out = capsys.readouterr().out
+    assert "listed plugin studio in registry market" in out and "/plugin install studio@market" in out
+    assert main(["registry", "plugin", "oto", "--to", bare, "--repo", "Cynergis/oto", "--plugin-ref", "semantic-layer", "--version", "0.11.0"]) == 0
+    work = os.path.join(home, "market-check")
+    _git(["clone", "--quiet", bare, work], home)
+    index = json.load(open(os.path.join(work, "registry.json"), encoding="utf-8"))
+    assert [p["name"] for p in index["plugins"]] == ["oto", "studio"]
+    plugins = json.load(open(os.path.join(work, ".claude-plugin", "marketplace.json"), encoding="utf-8"))["plugins"]
+    assert plugins[0] == {"name": "oto", "source": {"source": "github", "repo": "Cynergis/oto", "ref": "semantic-layer"},
+                          "description": plugins[0]["description"], "version": "0.11.0"}
+    assert plugins[1]["source"] == {"source": "github", "repo": "Cynergis/studio"} and plugins[1]["category"] == "product"
+    assert registry.index_problems(index, work) == []
+    assert any("needs a `repo`" in p for p in registry.index_problems(dict(index, plugins=[{"name": "x"}]), work))
+    assert main(["registry", "plugin", "studio", "--to", bare, "--remove"]) == 0
+    _git(["pull", "--quiet"], work)
+    plugins = json.load(open(os.path.join(work, ".claude-plugin", "marketplace.json"), encoding="utf-8"))["plugins"]
+    assert [p["name"] for p in plugins] == ["oto"]
+    assert main(["registry", "check", work]) == 0

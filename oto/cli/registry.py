@@ -76,6 +76,17 @@ def cmd_registry(args):
             for record in _registry.refresh(which[0] if which else None):
                 print("refreshed %s at %s" % (record["name"], record["commit"]))
             return 0
+        if verb == "plugin":
+            if not which or not args.to:
+                print("oto: registry plugin needs a plugin name and --to <registry url> (and --repo owner/name, or --remove)", file=sys.stderr)
+                return 1
+            result = _registry.register_plugin(args.to, which[0], repo=args.repo, url=args.url, plugin_ref=args.plugin_ref,
+                                               path=args.path, version=args.version, description=args.description,
+                                               category=args.category, ref=args.ref, registry_name=args.registry_name,
+                                               engine=args.engine, remove=args.remove)
+            print("%s plugin %s in registry %s as %s" % ("removed" if args.remove else "listed", result["name"], result["registry"], result["commit"]))
+            print("  in Claude Code: /plugin marketplace add %s, then /plugin install %s@%s" % (args.to, result["name"], result["registry"]))
+            return 0
         if verb == "site":
             from .. import catalog as _catalog
             root = os.path.abspath(which[0] if which else ".")
@@ -104,13 +115,24 @@ def cmd_registry(args):
 def register(sub):
     registry = sub.add_parser("registry", help="the registries this machine fetches ontologies from")
     registry.add_argument("registry_command", nargs="?", default="list",
-                          choices=["add", "list", "remove", "refresh", "check", "site"],
+                          choices=["add", "list", "remove", "refresh", "check", "site", "plugin"],
                           help="add <git url> registers one; list (default) shows them; remove <name> forgets one "
                                "(what was fetched from it stays); refresh [<name>] re-reads the index; "
                                "check [<dir>] verifies a registry checkout: the index matches the directories; "
                                "site [<dir>] generates the catalog, a static site, from a registry checkout")
     registry.add_argument("which", nargs="*", default=None,
                           help="add: a git URL; remove and refresh: a registry name; check: the checkout (default .)")
+    registry.add_argument("--to", default=None, help="for plugin: the registry's git URL")
+    registry.add_argument("--repo", default=None, help="for plugin: the plugin's GitHub repository, owner/name")
+    registry.add_argument("--plugin-url", dest="url", default=None, help="for plugin: the plugin's git URL when not on GitHub")
+    registry.add_argument("--plugin-ref", dest="plugin_ref", default=None, help="for plugin: a branch or tag of the plugin's repository")
+    registry.add_argument("--path", default=None, help="for plugin: the plugin's directory inside its repository")
+    registry.add_argument("--version", default=None, help="for plugin: the version the marketplace lists")
+    registry.add_argument("--description", default=None, help="for plugin: one line for the marketplace")
+    registry.add_argument("--category", default=None, help="for plugin: the marketplace category")
+    registry.add_argument("--remove", action="store_true", help="for plugin: delist it")
+    registry.add_argument("--registry-name", dest="registry_name", default=None, help="for plugin into an empty repository: the registry's name")
+    registry.add_argument("--engine", default=None, help="for plugin into an empty repository: the engine repository the check workflow installs")
     registry.add_argument("--product-types", dest="product_types", action="store_true",
                           help="for list: the kinds of product the registries' packs specify (manifest `product_type`)")
     registry.add_argument("--as", dest="as_name", default=None,

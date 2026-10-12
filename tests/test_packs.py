@@ -73,6 +73,13 @@ def test_the_start_skill_hands_over_to_the_skills_the_pack_ships(home):
     assert "capture-form to answer the vocabulary's" in skill and "build-knowledge-base for a folder of documents" in skill
     assert "3. **Hand over**" not in skill and "- **arch:start**" not in skill
     assert packs.check(directory) == []
+    # a pack broader than its ontology names itself: the title replaces the ontology's name
+    manifest = packs.read(directory); manifest["title"] = "Estate studio"; packs.write(directory, manifest)
+    packs.plugin_files(directory)
+    plugin = json.load(open(os.path.join(directory, ".claude-plugin", "plugin.json"), encoding="utf-8"))
+    assert plugin["displayName"] == "Estate studio (OTO pack)" and packs.read(directory)["title"] == "Estate studio"
+    assert "\n# Estate studio\n" in open(os.path.join(directory, "skills", "start", "SKILL.md"), encoding="utf-8").read()
+    assert packs.check(directory) == []
 
 
 def test_new_refuses_a_bad_name_an_unknown_ontology_and_a_wrong_pin(home, capsys):

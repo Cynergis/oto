@@ -13,7 +13,8 @@ product extends: a studio pack embeds what every product shares, and each produc
 (`product-report`) and the flow. `merge` finds a name in the pack's embedded copy first, as
 `composed` does; the project records the merge, with the pack on its first part and beside the
 record, so `oto status` still says which pack it came from. The generated `start` skill mentions
-the option.
+the option. A pack's manifest may carry a `title`: a pack broader than its ontology (a studio over
+`ddd`) is then shown under its own name, not the ontology's.
 
 ## 0.11.4 — 2026-10-12
 

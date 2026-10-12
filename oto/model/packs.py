@@ -6,7 +6,7 @@ and the plugin manifest Claude Code reads. The ontology inside is a copy, with w
 recorded, so a pack works with no network and the engine can still say when the registry holds a
 newer release of it.
 
-    manifest.json               name, release, domain, summary, the ontology it embeds (name,
+    manifest.json               name, title, release, domain, summary, the ontology it embeds (name,
                                 release, registry, source, ref, path, commit, embedded_at),
                                 engine, maintainer, license, changelog
     .claude-plugin/plugin.json  generated from the manifest: name, version "<release>.0.0",
@@ -46,7 +46,7 @@ START_SKILL = "start"
 ENGINE_PLUGIN = "oto"
 NAME_OK = re.compile(r"^[a-z][a-z0-9-]*$")
 DATE_OK = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-FIELDS = ("name", "release", "domain", "product_type", "summary", "ontology", "engine", "maintainer", "license", "changelog")
+FIELDS = ("name", "title", "release", "domain", "product_type", "summary", "ontology", "engine", "maintainer", "license", "changelog")
 ONTOLOGY_FIELDS = ("name", "release", "registry", "source", "ref", "path", "commit", "embedded_at")
 #: Written by `oto pack add`, never by an author: where a fetched pack came from.
 PROVENANCE = ("registry", "source", "ref", "path", "commit", "fetched_at")
@@ -262,7 +262,8 @@ def plugin_files(directory, registry_name=None):
     manifest and the embedded ontology. Returns the paths written."""
     manifest = read(directory)
     raw = _ontologies.load_raw(embedded_name(directory), roots=[embedded_root(directory)])
-    title = (raw["config"].get("name") or manifest["name"]).strip()
+    # A pack broader than its ontology (a studio over `ddd`) names itself; otherwise the ontology's name.
+    title = (manifest.get("title") or raw["config"].get("name") or manifest["name"]).strip()
     onto = manifest.get("ontology") or {}
     written = []
 

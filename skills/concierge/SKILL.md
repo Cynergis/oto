@@ -90,7 +90,7 @@ oto bench validate --project <root>      # the gold set's shape
 |---|---|---|---|
 | Nothing yet | a specification or brief; a folder of documents; an expert; an ontology or pack that is close | the start skill (`/oto:start`): it asks which, and runs the first phase | `oto init`, then the start skill |
 | Where the vocabulary comes from | a pack; an ontology; the documents by interview; a file you own | a pack or an ontology if one fits, then the interview to prune it | `oto pack list`, `oto init --pack <name>`, `oto ontology list`, `oto init --ontology <name>`, `oto ontology import --file <path>`, the ontology-interview skill |
-| How facts get in | author proposals by reading; a model drafts them (`draft` extra); a conversation captured | reading, for anything that will be believed; `oto draft` for volume, still through the gates | `oto curate start`, `oto curate add --from <proposal> --dry-run`, `oto draft <slug>`, the capture skill |
+| How facts get in | author proposals by reading; a model drafts them (`draft` extra); a conversation captured; an interview against the capture form | reading, for anything that will be believed; `oto draft` for volume, still through the gates | `oto curate start`, `oto curate add --from <proposal> --dry-run`, `oto draft <slug>`, the capture skill, `oto curate propose --from <capture>` and the capture-form skill |
 | Where apply happens | locally by a person; in a repository, by pull request | local for one author; repository mode for a team | `oto curate apply --by <you> --note <why>`; `oto init --repo` and the workflows it writes |
 | Which store serves | SQLite, the local build; Neo4j, self-hosted, shared | SQLite until more than one machine reads; Neo4j is the production store | `serve.backend` in `project.config.json`, `oto serve --backend sqlite|neo4j`, `oto build --target neo4j --verify` |
 | What a served view shows | live (believed facts, the pending lane beside them); preview, on command; watch, on every change | live for readers; watch while authoring | `oto serve --http <port>`, `oto preview`, `oto serve --http <port> --preview`, `oto serve --http <port> --watch` |
@@ -126,6 +126,7 @@ The concierge ends its turn by naming the skill. It does not start the work.
 | Design or restructure the vocabulary | ontology-interview | "what classes should we have", "the vocabulary is wrong" |
 | Add one document, or one correction someone said | curate | "add this document", "that fact is wrong", "X changed" |
 | Write what someone said into the inbox as a source | capture | "remember that", "note this down", "they told me" |
+| Answer the vocabulary's questions in an interview, each confirmed group into the graph | capture-form | "capture against the pack", "fill the form", "interview me for this" |
 | Find facts citing a document nobody can open | vet-provenance | "the documents moved", "is the graph still grounded" |
 | Ask a question of the graph | query-knowledge | any question about the domain |
 | Measure answer quality | evaluate | "how good are the answers", "make a gold set" |

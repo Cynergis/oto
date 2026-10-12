@@ -4,6 +4,15 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.4 — 2026-10-12
+
+**Skills that sound alike say which is which.** Descriptions only, no behaviour: `start` and
+`build-knowledge-base` both answered "build me a knowledge base"; `start` is for choosing the way
+in, `build-knowledge-base` for documents already in hand. `spec` writes a spec, an ADR or a brief
+*from* the graph, and names capture-form and a studio's prd-build and architecture-build for
+capturing one *into* it. `query-knowledge` lets a pack's own question skill (the report pack's
+ask-reports) answer its domain first.
+
 ## 0.11.3 — 2026-10-12
 
 **A pack's `start` hands over to the pack's own skills.** The generated starter skill told every

@@ -2,10 +2,12 @@
 name: spec
 description: >-
   Draft a product specification, an architecture decision record, or a design brief from what an
-  OTO knowledge graph holds: the current facts as the ground, every claim cited to an entity and
-  its source, open questions where the graph is silent, and the resulting decisions recorded back
-  into the graph as first-class facts. Use whenever someone asks for a spec, an ADR, a design or
-  the reasoning behind a choice, in a domain an OTO project covers.
+  OTO knowledge graph already holds: the current facts as the ground, every claim cited to an
+  entity and its source, open questions where the graph is silent, and the resulting decisions
+  recorded back into the graph as first-class facts. Use whenever someone asks to write up a spec,
+  an ADR, a design or the reasoning behind a choice from the graph, in a domain an OTO project
+  covers. Capturing a specification or a design into the graph by interview is another job:
+  capture-form, or a studio's prd-build and architecture-build.
 ---
 
 # Write a spec from the graph, and write the decision back

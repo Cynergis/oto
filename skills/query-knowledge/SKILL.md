@@ -5,6 +5,8 @@ description: >-
   read current facts only, cite the source and the date, frame what it means, and say plainly
   what the graph does not know. History and as-of dates only when asked. Read-only. Use whenever
   someone asks a question about the domain an OTO project covers, or wants an insight from it.
+  When the project's pack ships a question skill of its own (the report pack's ask-reports), that
+  one answers its domain's questions first.
 ---
 
 # Answer from the graph, dated and cited

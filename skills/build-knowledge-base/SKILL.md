@@ -4,9 +4,10 @@ description: >-
   Take a folder of documents all the way to a served, queryable knowledge graph with OTO: ingest
   them to Markdown, survey and read them, design the vocabulary from what they say, author the
   graph document by document as proposal files, merge and check them through the curate gates,
-  build every layer, verify with real queries, and serve the result over JSON-RPC. Use when a user
-  says "build a knowledge base from these documents", "turn this folder into a knowledge graph",
-  or an OTO project exists but has no vocabulary or no graph yet.
+  build every layer, verify with real queries, and serve the result over JSON-RPC. Use when the
+  documents are in hand: "build a knowledge base from these documents", "turn this folder into a
+  knowledge graph", or an OTO project exists but has no vocabulary or no graph yet. With no
+  documents (a specification, an expert, a pack), start chooses the way in.
 ---
 
 # From a pile of documents to a served graph

@@ -4,8 +4,9 @@ description: >-
   Start a knowledge base from whatever the person has: a specification or brief, a folder of
   documents, a domain expert, or an existing ontology or pack. Makes the project, gets the
   material in, derives the first questions and hands off to the playbook that builds the
-  vocabulary. Use when someone says "get started", "new project", "start from this spec", "I have
-  the requirements", "build me a knowledge base for X", or opens an empty OTO project.
+  vocabulary. Use when the way in is still to choose: someone says "get started", "new project",
+  "start from this spec", "I have the requirements", "build me a knowledge base for X", or opens an
+  empty OTO project. A folder of documents already in hand goes straight to build-knowledge-base.
 ---
 
 # Start

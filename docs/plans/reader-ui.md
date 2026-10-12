@@ -164,6 +164,7 @@ and the same live and static. Its primitives, with a decisions section as the wo
 | `$lexicon`, `$documents`, `$findings`, `$ledger`, `$pending` | the non-graph parts of the payload |
 | `$const`, `$concat`, `$format: "..."` | literals and simple text |
 | `$include: path` | a projection kept in its own file |
+| `$optional: expr` | a part that may name classes and relations the vocabulary lacks; empty in a project without them |
 
 Anything the language cannot say goes to `adapter.js`: a function `window.__OTO_ADAPT__ =
 (data, graph) => data` that receives the projected globals and the full `/api/graph` payload and
@@ -172,7 +173,7 @@ The language is meant to cover most apps; the adapter exists so no app is blocke
 
 A knowledge template's self-check validates every app under `views/`: the manifest, the
 projections against the vocabulary (a class, relation or attribute a projection names must
-exist), `requires` satisfied by the template itself. `oto templates show` lists the apps.
+exist, unless only an `$optional` part names it), `requires` satisfied by the template itself. `oto templates show` lists the apps.
 
 ### Tests
 

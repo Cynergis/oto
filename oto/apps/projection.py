@@ -22,6 +22,9 @@ needs no browser to test.
     {"$graph": true}                         the whole payload, for an app that reads it as is
     {"$payload": "counts.by_class"}          one top-level field of the payload, dotted path allowed
     {"$include": "relative/file.json"}       a projection kept in its own file
+    {"$optional": expr}                      a part that may name classes and relations the vocabulary
+                                             lacks (a design pattern a product may add); evaluated as
+                                             is, so it is empty in a project without them
 
 `$where` is a map of field path (no `$`) to a value, or to {"$in": [...]}, {"$ne": v},
 {"$exists": bool}, {"$contains": "text"}. Superseded facts are excluded unless `$history` is true.
@@ -94,6 +97,8 @@ class Projector:
     def operator(self, expr, row, edge):
         if "$include" in expr:
             return self.evaluate(self._include(expr["$include"]), row, edge)
+        if "$optional" in expr:
+            return self.evaluate(expr["$optional"], row, edge)
         if "$const" in expr:
             return expr["$const"]
         if "$graph" in expr:
@@ -283,34 +288,40 @@ def project(expr, payload, base_dir=None):
 
 # ---- what a projection refers to, for validation ----
 
-def references(expr, out=None, base_dir=None):
-    """Classes, relations and attribute names a projection names: {"classes", "relations", "attributes", "includes"}."""
+def references(expr, out=None, base_dir=None, optional=False):
+    """Classes, relations and attribute names a projection names: {"classes", "relations", "attributes",
+    "includes", "optional"}. Classes and relations named under `$optional` go to `optional`, which the
+    vocabulary need not declare."""
     out = out if out is not None else {"classes": set(), "relations": set(), "attributes": set(), "includes": []}
+    out.setdefault("optional", {"classes": set(), "relations": set()})
+    named = out["optional"] if optional else out
     if isinstance(expr, str):
         if expr.startswith("$attr."):
             out["attributes"].add(expr[6:])
         return out
     if isinstance(expr, list):
         for x in expr:
-            references(x, out, base_dir)
+            references(x, out, base_dir, optional)
         return out
     if isinstance(expr, dict):
         for key, value in expr.items():
             if key == "$nodes":
                 for c in ([value] if isinstance(value, str) else value):
                     if c != "*":
-                        out["classes"].add(c)
+                        named["classes"].add(c)
             elif key in ("$out", "$in"):
                 for r in ([value] if isinstance(value, str) else value):
                     if r != "*":
-                        out["relations"].add(r)
+                        named["relations"].add(r)
+            elif key == "$optional":
+                references(value, out, base_dir, True)
             elif key == "$include":
                 out["includes"].append(value)
                 if base_dir:
                     path = os.path.join(base_dir, value)
                     if os.path.exists(path):
                         with open(path, encoding="utf-8") as f:
-                            references(json.load(f), out, base_dir)
+                            references(json.load(f), out, base_dir, optional)
             elif key == "$format" and isinstance(value, str):
                 i = 0
                 while True:
@@ -328,5 +339,5 @@ def references(expr, out=None, base_dir=None):
                     if k.startswith("attr."):
                         out["attributes"].add(k[5:])
             else:
-                references(value, out, base_dir)
+                references(value, out, base_dir, optional)
     return out

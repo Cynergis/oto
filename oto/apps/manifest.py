@@ -87,7 +87,8 @@ def problems(directory, vocabulary=None):
     data = manifest.get("data")
     if not isinstance(data, list):
         return out + ["`data` must be a list of data files"]
-    refs = {"classes": set(), "relations": set(), "attributes": set(), "includes": []}
+    refs = {"classes": set(), "relations": set(), "attributes": set(), "includes": [],
+            "optional": {"classes": set(), "relations": set()}}
     for number, entry in enumerate(data, 1):
         if not isinstance(entry, dict) or not entry.get("file"):
             out.append("data entry %d needs a `file`" % number); continue

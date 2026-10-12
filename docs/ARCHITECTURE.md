@@ -283,7 +283,10 @@ live and static. `$nodes` with `$where`, `$sort`, `$limit`, `$history` and `$map
 such as `$label` and `$attr.<name>`; `$out` and `$in` across relations with `$select` and
 `$derived` include, exclude or mark; `$evidence`; `$first`, `$count`, `$group`; `$lexicon`,
 `$documents`, `$findings`, `$ledger`, `$edges`, `$pending`; `$const`, `$concat`, `$format`;
-`$include` for a projection kept in its own file. Formats are `js-globals` (`window.X = ...;`),
+`$include` for a projection kept in its own file; `$optional` for a part that may name classes
+and relations the vocabulary lacks (a design pattern a product may add: the part is evaluated as
+is, so it is empty without them, and validation does not require what only it names). Formats are
+`js-globals` (`window.X = ...;`),
 `json` and `js-module`; an app with no data entry calls the HTTP routes itself and cannot be
 exported, since a static site needs its data on disk.
 

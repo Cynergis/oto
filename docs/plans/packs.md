@@ -19,8 +19,9 @@ views that show its graph, and the plugin manifest Claude Code reads.
                                 release, registry, source, commit), engine, maintainer, changelog
     .claude-plugin/plugin.json  generated from the manifest: name, version "<release>.0.0",
                                 description, author, dependencies ["oto"]
-    skills/start/SKILL.md       the starter skill, generated: start a project from the pack, run
-                                the interview, hand over; and any skills the author writes beside it
+    skills/start/SKILL.md       the starter skill, generated: start a project from the pack, then
+                                hand over to the skills the author writes beside it, or, when there
+                                are none, to the interview and the engine's skills
     ontology/<name>/            the embedded ontology, a copy, and beside it every ontology it
                                 extends, so the pack composes with nothing else on the machine
     views/<view>/app.json       views, each an app the explorer or the reader can be; optional

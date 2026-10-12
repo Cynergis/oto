@@ -4,6 +4,17 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.3 — 2026-10-12
+
+**A pack's `start` hands over to the pack's own skills.** The generated starter skill told every
+pack to run ontology-interview and hand over to build-knowledge-base and query-knowledge, so a pack
+that ships `new-report` or `implement-step` sent people away from them. When a pack ships skills
+beside `start`, step 2 now names each one (`<pack>:<skill>`, with the first clause of its
+description) and step 3 lists the engine's skills for what they do not cover, capture-form among
+them. A pack with no skills of its own is generated as before. `packs.frontmatter` reads a
+SKILL.md's frontmatter for both the generator and the registry site. Takes effect when a pack is
+regenerated: `oto pack refresh` or `oto pack publish`.
+
 ## 0.11.2 — 2026-10-12
 
 **The capture form has one playbook.** The skill **capture-form** fills a project's

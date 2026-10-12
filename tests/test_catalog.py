@@ -89,7 +89,7 @@ def test_the_catalog_has_a_page_per_pack_and_per_ontology_and_draws_the_sample(h
 
 def test_the_small_markdown_renderer_covers_what_the_engine_writes():
     text = "---\nname: x\n---\n# Title\n\nA line with `code` and **bold**.\n\n- one\n- two\n  continued\n\n```bash\noto init\n```\n"
-    fields, body = catalog._frontmatter(text)
+    fields, body = packs.frontmatter(text)
     assert fields == {"name": "x"} and body.startswith("# Title")
     out = catalog._markdown(body)
     assert "<h2>Title</h2>" in out and "<code>code</code>" in out and "<strong>bold</strong>" in out

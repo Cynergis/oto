@@ -4,6 +4,15 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.6 — 2026-10-12
+
+**A view can carry what a pattern adds.** `{"$optional": expr}` in the projection language marks a
+part that may name classes and relations the vocabulary lacks. It is evaluated as is, so in a
+project without them it is empty (a collection over a class the graph does not hold already is),
+and validation (`oto pack check`, a template's self-check, serving) does not require what only an
+optional part names; a class named outside one is still checked. A studio's site can show the DDD
+pages of a product that adds `ddd`, or later a pipeline's layers, without its pack embedding them.
+
 ## 0.11.5 — 2026-10-12
 
 **A pack and the ontologies a product adds.** `oto init --pack <pack> --ontology <name>,...`

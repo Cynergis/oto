@@ -128,6 +128,31 @@ def test_references_collect_what_a_projection_names(tmp_path):
                             "b": {"$include": "part.json"}}, base_dir=str(tmp_path))
     assert refs["classes"] == {"System", "Risk"} and refs["relations"] == {"decided_by"}
     assert refs["attributes"] == {"tier", "reason", "status", "decided_on"} and refs["includes"] == ["part.json"]
+    assert refs["optional"] == {"classes": set(), "relations": set()}
+
+
+def test_an_optional_part_is_evaluated_as_is_and_may_name_what_the_vocabulary_lacks(tmp_path):
+    # evaluated: the wrapped projection, and empty for a class the graph does not hold
+    assert P({"$optional": {"$nodes": "System", "$field": "$label"}}) == ["Alpha", "Beta"]
+    assert P({"$optional": {"$nodes": "Aggregate", "$map": {"e": {"$out": "emits"}}}}) == []
+    assert P({"$nodes": "System", "$field": {"$optional": {"$out": "deployed_as"}}}) == [[], []], "inside a row too"
+    # collected apart: what only an optional part names is not a mandatory reference
+    refs = proj.references({"core": {"$nodes": "System", "$map": {"by": {"$out": "decided_by"}}},
+                            "ddd": {"$optional": {"$nodes": ["Aggregate", "System"], "$map": {"e": {"$out": "emits"}}}}})
+    assert refs["classes"] == {"System"} and refs["relations"] == {"decided_by"}
+    assert refs["optional"] == {"classes": {"Aggregate", "System"}, "relations": {"emits"}}
+    # validated: an optional class the vocabulary lacks is no problem; the same class outside one is
+    app = tmp_path / "patterns"
+    app.mkdir()
+    vocabulary = {"classes": {"System": {"definition": ""}}, "properties": {"decided_by": []}, "attributes": {}}
+    def problems(root):
+        (app / "app.json").write_text(json.dumps({"name": "patterns", "entry": "index.html",
+                                                  "data": [{"file": "d.json", "format": "json", "root": root}]}), encoding="utf-8")
+        (app / "index.html").write_text("<title>x</title>", encoding="utf-8")
+        return apps.problems(str(app), vocabulary)
+    assert problems({"core": {"$nodes": "System"}, "ddd": {"$optional": {"$nodes": "Aggregate", "$map": {"e": {"$out": "emits"}}}}}) == []
+    text = "\n".join(problems({"core": {"$nodes": "Aggregate"}, "ddd": {"$optional": {"$nodes": "Aggregate"}}}))
+    assert "names class 'Aggregate'" in text, "named outside an optional part too: checked"
 
 
 # ---- the manifest ----

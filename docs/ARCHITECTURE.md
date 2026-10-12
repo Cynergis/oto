@@ -455,7 +455,9 @@ directory, so a project starts from a pack with nothing fetched.
 `oto init --pack <name|dir>` installs the pack's ontology (its origin kept in the project's
 record, and the pack named beside it, so `oto status` and `oto ontology diff` still work) and
 copies its views under `<project>/views/`. A view by name is also found under the packs on this
-machine.
+machine. `--ontology <name>,...` beside `--pack` merges the ontologies named there with the pack's,
+as `--ontology a,b` merges: a studio pack embeds the core every product shares, and each product
+adds its type and the flow. The project records the merge, with the pack on its first part.
 
 A registry lists packs beside ontologies, under `packs/<name>` because a pack and its ontology
 usually share a name: `oto pack list|show|add|update` mirror the ontology verbs, and `oto pack

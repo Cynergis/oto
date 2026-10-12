@@ -189,8 +189,6 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
     roots, pack_info, pack_views = None, None, {}
     if pack:
         from .model import packs as _packs
-        if ontology:
-            raise ValueError("pass --ontology or --pack, not both: a pack embeds its ontology")
         pack_dir = _packs.dir_for(pack)
         if pack_dir is None:
             raise ValueError("unknown pack %r: a name from `oto pack list`, or a directory" % pack)
@@ -198,7 +196,9 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
         if problems:
             raise ValueError("pack %r is not usable: %s" % (pack, "; ".join(problems[:5])))
         pack_info = {"manifest": _packs.read(pack_dir), "directory": pack_dir}
-        ontology = _packs.embedded_name(pack_dir)
+        # Ontologies named beside a pack (a product type, the flow) are merged with the one it embeds,
+        # as `--ontology a,b` merges: the project starts from the pack and what this product adds.
+        ontology = ",".join([_packs.embedded_name(pack_dir)] + ([ontology] if ontology else []))
         roots = [_packs.embedded_root(pack_dir)]
         pack_views = _packs.views(pack_dir)
         print("  pack: %s @%d (%s)" % (pack_info["manifest"]["name"], pack_info["manifest"]["release"], pack_dir))
@@ -240,7 +240,7 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
                                             if len(result["report"]["parts"]) > 1 else ""))
             ontology_record = _ontology_record(names[0], _ontologies, result["report"]["parts"][:-1], pack=pack_info)
         else:
-            ontology_config, sample_graph, ontology_notes, ontology_rationale, report = _ontologies.merge(names)
+            ontology_config, sample_graph, ontology_notes, ontology_rationale, report = _ontologies.merge(names, roots=roots)
             ontology_rules = list(ontology_config.pop("_rules", None) or [])   # carried by the merge, not config
             ontology_questions = dict(ontology_config.pop("_questions", None) or {})
             ontology_briefs = dict(ontology_config.pop("_briefs", None) or {})
@@ -257,7 +257,11 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
                 print("    relation %-21s domain or range differ in %s and %s; widened to both" % (relation, first, second))
             ontology_record = {"name": ontology, "release": None, "source": "merge",
                                "commit": None, "installed_at": _today(),
-                               "parts": [_ontology_record(one, _ontologies, _ontologies.parts(one)[:-1]) for one in names]}
+                               "parts": [_ontology_record(one, _ontologies, _ontologies.parts(one, roots)[:-1],
+                                                          pack=pack_info if pack_info and i == 0 else None)
+                                         for i, one in enumerate(names)]}
+            if pack_info:
+                ontology_record["pack"] = ontology_record["parts"][0]["pack"]
         ontology_config = dict(ontology_config, name=name)
 
     config = {

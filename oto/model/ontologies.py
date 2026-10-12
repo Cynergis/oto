@@ -763,8 +763,9 @@ def _today():
 
 # ---- composing ontologies ----
 
-def merge(names):
+def merge(names, roots=None):
     """Combine ontologies into one vocabulary. Returns (config, sample, readme, rationale, report).
+    `roots` are searched first for each name, as `composed` searches them: a pack's embedded copy.
 
     The union of classes and relations, first ontology winning a class described twice; a relation
     declared twice with different signatures is widened to the union of both, as composition
@@ -782,7 +783,7 @@ def merge(names):
     lexicon_entries, interviews, guides, gold, merged_actions = [], [], [], [], {}
     sample_nodes, sample_edges, sample_keys = {}, [], set()
     for name in names:
-        result = composed(name)
+        result = composed(name, roots=roots)
         config, readme, record = result["config"], result["readme"], result["rationale"]
         # the samples merge by node id, as composition merges them: a merged project starts
         # with the facts its parts ship, not an invented graph

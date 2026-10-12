@@ -33,7 +33,8 @@ def register(sub):
                            "`oto ontology list`, name@release, or a directory path")
     init.add_argument("--pack", default=None,
                       help="start from a pack: its ontology, with where it came from kept, and its views; a name "
-                           "from `oto pack list` or a directory (inside Claude Code, the installed plugin's root)")
+                           "from `oto pack list` or a directory (inside Claude Code, the installed plugin's root). "
+                           "With --ontology, the ontologies named there are merged with the pack's")
     init.add_argument("--empty", action="store_true",
                       help="install the vocabulary and leave the graph empty: a real product's graph holds what "
                            "its people said, not the ontology's example")

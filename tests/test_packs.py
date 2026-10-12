@@ -73,6 +73,13 @@ def test_the_start_skill_hands_over_to_the_skills_the_pack_ships(home):
     assert "capture-form to answer the vocabulary's" in skill and "build-knowledge-base for a folder of documents" in skill
     assert "3. **Hand over**" not in skill and "- **arch:start**" not in skill
     assert packs.check(directory) == []
+    # a pack broader than its ontology names itself: the title replaces the ontology's name
+    manifest = packs.read(directory); manifest["title"] = "Estate studio"; packs.write(directory, manifest)
+    packs.plugin_files(directory)
+    plugin = json.load(open(os.path.join(directory, ".claude-plugin", "plugin.json"), encoding="utf-8"))
+    assert plugin["displayName"] == "Estate studio (OTO pack)" and packs.read(directory)["title"] == "Estate studio"
+    assert "\n# Estate studio\n" in open(os.path.join(directory, "skills", "start", "SKILL.md"), encoding="utf-8").read()
+    assert packs.check(directory) == []
 
 
 def test_new_refuses_a_bad_name_an_unknown_ontology_and_a_wrong_pin(home, capsys):
@@ -352,15 +359,43 @@ def test_init_from_a_pack_installs_its_ontology_and_views_and_records_the_pack(h
     with tempfile.TemporaryDirectory() as root:
         init(root, slug="kb2", name="KB2", pack=directory)
         assert json.load(open(os.path.join(root, "project.config.json"), encoding="utf-8"))["ontology"]["pack"]["name"] == "arch"
-    # refusals: both flags, an unknown pack, a pack that fails its check
+    # refusals: an unknown pack, a pack that fails its check
     with tempfile.TemporaryDirectory() as root:
-        with pytest.raises(ValueError, match="not both"):
-            init(root, slug="x", name="X", pack="arch", ontology="auto-claims")
         with pytest.raises(ValueError, match="unknown pack 'nope'"):
             init(root, slug="x", name="X", pack="nope")
         os.makedirs(os.path.join(directory, "skills", "broken"))
         with pytest.raises(ValueError, match="not usable"):
             init(root, slug="x", name="X", pack="arch")
+
+
+def test_init_from_a_pack_merges_the_ontologies_named_beside_it(home, capsys):
+    from oto.builder import build
+    from oto.project import Project
+    # a pack whose ontology exists nowhere else on the machine: the merge must find the embedded copy
+    estate = os.path.join(home, "ontologies", "estate")
+    shutil.copytree(os.path.join(os.path.dirname(ontologies.__file__), "..", "ontologies", "software-architecture"), estate)
+    manifest = json.load(open(os.path.join(estate, "manifest.json"), encoding="utf-8"))
+    manifest["name"] = "estate"
+    json.dump(manifest, open(os.path.join(estate, "manifest.json"), "w", encoding="utf-8"))
+    assert main(["pack", "new", "estate", "--ontology", "estate"]) == 0
+    directory = packs.dir_for("estate")
+    shutil.copytree(os.path.join(FIXTURES, "globals-site"), os.path.join(directory, "views", "globals-site"))
+    shutil.rmtree(estate)
+    capsys.readouterr()
+    with tempfile.TemporaryDirectory() as root:
+        assert main(["init", "--name", "KB", "--slug", "kb", "--project", root, "--pack", "estate",
+                     "--ontology", "auto-claims", "--empty"]) == 0
+        out = capsys.readouterr().out
+        assert "pack: estate @1" in out and "merged 2 ontologies" in out and "wrote: views/globals-site" in out
+        vocabulary = json.load(open(os.path.join(root, "ontology.config.json"), encoding="utf-8"))
+        assert "System" in vocabulary["classes"] and "Claim" in vocabulary["classes"], "the pack's and the named"
+        record = json.load(open(os.path.join(root, "project.config.json"), encoding="utf-8"))["ontology"]
+        assert record["source"] == "merge" and record["pack"] == {"name": "estate", "release": 1, "registry": None, "source": None}
+        assert [part["name"] for part in record["parts"]] == ["estate", "auto-claims"]
+        assert record["parts"][0]["pack"]["name"] == "estate" and "pack" not in record["parts"][1]
+        build(Project.standard(root))
+        assert main(["status", "--project", root]) == 0
+        assert "via pack estate @1" in capsys.readouterr().out
 
 
 def test_init_from_a_fetched_pack_keeps_the_registry_provenance(home, capsys):

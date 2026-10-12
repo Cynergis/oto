@@ -4,6 +4,15 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.2 — 2026-10-12
+
+**The capture form has one playbook.** The skill **capture-form** fills a project's
+`capture.json` with a person: the questions group by group, the items drafted and confirmed,
+every confirmed group through `oto curate start`, `propose`, `add`, `check` and `apply`. A pack's
+or a studio's interview runs it and adds only what its domain needs; the studio's `capture` and
+the report pack's `new-report` no longer carry their own copy. The loop now starts a candidate
+first: both copies went straight to `oto curate add`, which refuses without one.
+
 ## 0.11.1 — 2026-10-09
 
 **Plugins in their own repositories, in the marketplace.** A plugin that depends on `oto` (a

@@ -14,6 +14,7 @@ matches its description.
 | [query-knowledge](query-knowledge/SKILL.md) | Answer a question: current facts, dated, cited, and what the graph does not know. |
 | [evaluate](evaluate/SKILL.md) | A few gold questions per document, run against the graph, judged and recorded. |
 | [capture](capture/SKILL.md) | What someone said in conversation, written into the inbox as a dated source document. |
+| [capture-form](capture-form/SKILL.md) | A person answers the project's capture form (`capture.json`); every confirmed group goes through `oto curate propose`, `add`, `check` and `apply`. Packs' and studios' interviews run it. |
 | [act](act/SKILL.md) | Do something about an entity: list the actions the graph declares, confirm before anything that changes the world, invoke through the declared transport with your own tools, record the response as evidence. OTO never invokes. |
 | [spec](spec/SKILL.md) | A product spec, ADR or design brief drawn from the graph, every claim cited, and its decisions recorded back as `DecisionRecord` facts ([the convention](spec/references/decisions.md)). |
 

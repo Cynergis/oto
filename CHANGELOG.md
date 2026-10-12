@@ -4,6 +4,17 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.5 — 2026-10-12
+
+**A pack and the ontologies a product adds.** `oto init --pack <pack> --ontology <name>,...`
+merges the named ontologies with the pack's, as `--ontology a,b` merges, and installs the pack's
+views. It was refused ("pass --ontology or --pack, not both"), so a pack could not be the core a
+product extends: a studio pack embeds what every product shares, and each product adds its type
+(`product-report`) and the flow. `merge` finds a name in the pack's embedded copy first, as
+`composed` does; the project records the merge, with the pack on its first part and beside the
+record, so `oto status` still says which pack it came from. The generated `start` skill mentions
+the option.
+
 ## 0.11.4 — 2026-10-12
 
 **Skills that sound alike say which is which.** Descriptions only, no behaviour: `start` and

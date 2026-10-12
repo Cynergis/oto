@@ -306,7 +306,8 @@ def plugin_files(directory, registry_name=None):
              "   with the pack on the machine (`oto pack add %s`%s), `oto init --pack %s` does the same."
              % (manifest["name"], (" from the %s registry" % registry_name) if registry_name else "", manifest["name"]),
              "   The project records the ontology's origin, so `oto status` says when a newer release exists and",
-             "   `oto ontology diff` shows what changed.", ""]
+             "   `oto ontology diff` shows what changed. Add `--ontology <name>,...` to merge other ontologies",
+             "   with the pack's (a product type, the flow).", ""]
     # A pack that ships skills of its own hands over to them, then to the engine's generic skills for
     # what they do not cover; a pack with no skills of its own hands over to the generic ones.
     own = {name: path for name, path in skills(directory).items() if name != START_SKILL}

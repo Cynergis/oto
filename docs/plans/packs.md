@@ -56,7 +56,7 @@ to the pack that ships it. Nothing shipped has one today, so nothing moves.
 | `oto pack add <name\|name@r\|url>` | fetch a pack from a registry onto this machine, with provenance |
 | `oto pack update [<name>]` | re-fetch fetched packs whose registry lists a newer release |
 | `oto pack publish --to <registry url> [--from <name\|dir>] [--note <text>]` | copy into `packs/<name>/`, bump the release, regenerate the index and the marketplace, tag, push; refuses on any check or publishability problem |
-| `oto init --pack <name\|dir>` | start a project from a pack: its ontology (provenance kept, so `oto ontology diff` works) and its views installed under `<project>/views/` |
+| `oto init --pack <name\|dir> [--ontology <name>,...]` | start a project from a pack: its ontology (provenance kept, so `oto ontology diff` works) and its views installed under `<project>/views/`; ontologies named with `--ontology` are merged with the pack's |
 
 The same rule as `oto ontology`: a verb with a name acts on the catalog; `check` and `refresh`
 with no name act on the pack in the current directory.

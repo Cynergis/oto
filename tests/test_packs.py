@@ -49,6 +49,7 @@ def test_new_embeds_the_ontology_and_its_bases_and_generates_the_plugin_files(ho
     assert 'oto init --name "<project name>" --pack "${CLAUDE_PLUGIN_ROOT}"' in skill
     assert "software-architecture" in skill and "- **System**" in skill and "## The actions it ships" in skill
     assert "## The guide" in skill, "the embedded guide is quoted"
+    assert "3. **Hand over** to the build-knowledge-base skill" in skill, "no skills of its own: the engine's"
     assert os.path.exists(os.path.join(directory, "README.md"))
     assert packs.check(directory) == []
     assert packs.summary("arch")["ontology"] == "software-architecture" and packs.summary("arch")["skills"] == ["start"]
@@ -56,6 +57,22 @@ def test_new_embeds_the_ontology_and_its_bases_and_generates_the_plugin_files(ho
     assert main(["pack", "new", "arch", "--ontology", "software-architecture"]) == 1
     assert "already exists" in capsys.readouterr().err
     assert main(["pack", "new", "arch", "--ontology", "software-architecture", "--force"]) == 0
+
+
+def test_the_start_skill_hands_over_to_the_skills_the_pack_ships(home):
+    assert main(["pack", "new", "arch", "--ontology", "software-architecture"]) == 0
+    directory = packs.dir_for("arch")
+    os.makedirs(os.path.join(directory, "skills", "plan-estate"))
+    with open(os.path.join(directory, "skills", "plan-estate", "SKILL.md"), "w", encoding="utf-8") as f:
+        f.write("---\nname: plan-estate\ndescription: >-\n  Plan the estate with its architect: systems, components\n"
+                "  and owners. Use when someone says \"plan the estate\".\n---\n\n# Plan the estate\n")
+    packs.plugin_files(directory)
+    skill = open(os.path.join(directory, "skills", "start", "SKILL.md"), encoding="utf-8").read()
+    assert "2. **Go on with this pack's skills**, written for this domain:" in skill
+    assert "   - **arch:plan-estate**: Plan the estate with its architect." in skill, "the description's first clause"
+    assert "capture-form to answer the vocabulary's" in skill and "build-knowledge-base for a folder of documents" in skill
+    assert "3. **Hand over**" not in skill and "- **arch:start**" not in skill
+    assert packs.check(directory) == []
 
 
 def test_new_refuses_a_bad_name_an_unknown_ontology_and_a_wrong_pin(home, capsys):

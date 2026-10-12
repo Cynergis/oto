@@ -181,6 +181,30 @@ def skills(directory):
             if os.path.isfile(os.path.join(base, name, "SKILL.md"))}
 
 
+def frontmatter(text):
+    """(fields, body) of a SKILL.md."""
+    if not text.startswith("---\n"):
+        return {}, text
+    end = text.find("\n---", 4)
+    if end < 0:
+        return {}, text
+    fields, key = {}, None
+    for line in text[4:end].splitlines():
+        m = re.match(r"^([a-zA-Z_-]+):\s*(.*)$", line)
+        if m:
+            key = m.group(1); fields[key] = m.group(2).strip().lstrip(">-").strip()
+        elif key and line.startswith("  "):
+            fields[key] = (fields[key] + " " + line.strip()).strip()
+    return fields, text[end + 4:].lstrip("\n")
+
+
+def _skill_summary(path):
+    """What a skill does, in one clause: its description up to the first colon or full stop."""
+    with open(path, encoding="utf-8") as f:
+        description = frontmatter(f.read())[0].get("description") or ""
+    return re.split(r":\s|\.\s|\.$", description, maxsplit=1)[0].strip()
+
+
 # ---- embedding the ontology ----
 
 def _provenance_of(ontology_dir, given):
@@ -282,19 +306,35 @@ def plugin_files(directory, registry_name=None):
              "   with the pack on the machine (`oto pack add %s`%s), `oto init --pack %s` does the same."
              % (manifest["name"], (" from the %s registry" % registry_name) if registry_name else "", manifest["name"]),
              "   The project records the ontology's origin, so `oto status` says when a newer release exists and",
-             "   `oto ontology diff` shows what changed.", "",
-             "2. **Run the domain interview** with the ontology-interview skill. The project holds `INTERVIEW.md`"
-             if raw["interview"] else
-             "2. **Run the ontology-interview skill** to fit the vocabulary to the documents at hand.",
-             "   with the questions a person who knows this domain asks first; ask them in order, record the"
-             if raw["interview"] else None,
-             "   answers in `ontology.rationale.json`, then `oto ontology check --strict` and `oto ontology accept`."
-             if raw["interview"] else None,
-             "",
-             "3. **Hand over** to the build-knowledge-base skill for the documents, and to the query-knowledge",
-             "   skill for questions. The engine plugin `oto` comes with this pack: the `kg_*` tools and the",
-             "   generic skills are available once it is installed.", "",
-             "## What the ontology declares", ""]
+             "   `oto ontology diff` shows what changed.", ""]
+    # A pack that ships skills of its own hands over to them, then to the engine's generic skills for
+    # what they do not cover; a pack with no skills of its own hands over to the generic ones.
+    own = {name: path for name, path in skills(directory).items() if name != START_SKILL}
+    if own:
+        lines += ["2. **Go on with this pack's skills**, written for this domain:", ""]
+        for name, path in own.items():
+            what = _skill_summary(path)
+            lines.append("   - **%s:%s**%s" % (manifest["name"], name, (": %s." % what) if what else ""))
+        lines += ["",
+                  "3. **For anything else, the engine's skills**: capture-form to answer the vocabulary's",
+                  "   questions in an interview, ontology-interview to fit the vocabulary to the documents at hand%s,"
+                  % (" (the domain interview below first)" if raw["interview"] else ""),
+                  "   build-knowledge-base for a folder of documents, query-knowledge for questions. The engine",
+                  "   plugin `oto` comes with this pack: the `kg_*` tools and the generic skills are available once",
+                  "   it is installed.", ""]
+    else:
+        lines += ["2. **Run the domain interview** with the ontology-interview skill. The project holds `INTERVIEW.md`"
+                  if raw["interview"] else
+                  "2. **Run the ontology-interview skill** to fit the vocabulary to the documents at hand.",
+                  "   with the questions a person who knows this domain asks first; ask them in order, record the"
+                  if raw["interview"] else None,
+                  "   answers in `ontology.rationale.json`, then `oto ontology check --strict` and `oto ontology accept`."
+                  if raw["interview"] else None,
+                  "",
+                  "3. **Hand over** to the build-knowledge-base skill for the documents, and to the query-knowledge",
+                  "   skill for questions. The engine plugin `oto` comes with this pack: the `kg_*` tools and the",
+                  "   generic skills are available once it is installed.", ""]
+    lines += ["## What the ontology declares", ""]
     for kind in classes:
         lines.append("- **%s**: %s" % (kind, (raw["config"]["classes"][kind].get("definition") or "").strip()))
     if raw.get("actions"):

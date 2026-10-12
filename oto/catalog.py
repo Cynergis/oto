@@ -182,23 +182,6 @@ def _inline(text):
     return text
 
 
-def _frontmatter(text):
-    """(fields, body) of a SKILL.md."""
-    if not text.startswith("---\n"):
-        return {}, text
-    end = text.find("\n---", 4)
-    if end < 0:
-        return {}, text
-    fields, key = {}, None
-    for line in text[4:end].splitlines():
-        m = re.match(r"^([a-zA-Z_-]+):\s*(.*)$", line)
-        if m:
-            key = m.group(1); fields[key] = m.group(2).strip().lstrip(">-").strip()
-        elif key and line.startswith("  "):
-            fields[key] = (fields[key] + " " + line.strip()).strip()
-    return fields, text[end + 4:].lstrip("\n")
-
-
 def _page(title, body, depth, registry_name, address=("&lt;this registry&gt;", "&lt;this registry&gt;"), look=None, search=False):
     up = "../" * depth
     look = look or {"title": registry_name, "tagline": "", "colors": {}, "logo": None, "domain": None, "links": []}
@@ -289,7 +272,7 @@ def _pack_page(entry, pack_dir, registry_name, drawn, address, look=None):
     skills = []
     for skill, path in _packs.skills(pack_dir).items():
         with open(path, encoding="utf-8") as f:
-            fields, body = _frontmatter(f.read())
+            fields, body = _packs.frontmatter(f.read())
         skills.append("<details%s><summary><code>/%s:%s</code> <span class=\"muted\">%s</span></summary><div class=\"md\">%s</div></details>"
                       % ("", _e(manifest["name"]), _e(skill), _e(fields.get("description") or ""), _markdown(body)))
     views = "".join("<li><code>%s</code>: <code>oto serve --http &lt;port&gt; --view %s</code></li>" % (_e(v), _e(v)) for v in _packs.views(pack_dir))

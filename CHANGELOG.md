@@ -4,6 +4,16 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.12 — 2026-10-13
+
+**A project declares the plugins it uses.** `oto init` from installed packs writes the project's
+`.claude/settings.json` as Claude Code's project scope does (`enabledPlugins`,
+`extraKnownMarketplaces`): the `--pack`, the pack of every ontology the project composes, named or
+extended (the `ddd` pack for its skills although `ddd` ships with the engine; `report` under
+`product-report`), and the engine plugin. Whoever opens the project is offered the same plugins, and
+the lock records exactly those. `oto lock --use <name@marketplace>,...` declares a tool no ontology
+brings, such as `pdf-to-template`. Other settings in the file are kept.
+
 ## 0.11.11 — 2026-10-13
 
 **A project records the tools it is built with.** `oto.lock.json`, written by `oto init` and

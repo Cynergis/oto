@@ -97,6 +97,36 @@ __pycache__/
 """
 
 
+def _declare_plugins(root, pack_dirs, names):
+    """The plugins behind what the project starts from, declared in its .claude/settings.json as
+    Claude Code's project scope declares them, so whoever opens the project is offered the same:
+    the pack it was made from, and for each ontology named the pack whose own ontology it is (its
+    skills), and of each ontology it extends (report under product-report brings report's skills),
+    else the installed pack its vocabulary was read from."""
+    from .model import lock as _lock
+    ids = []
+    for directory in pack_dirs:
+        key = _lock.plugin_for(directory)
+        if key and key not in ids:
+            ids.append(key)
+    prefer = [key.split("@", 1)[1] for key in ids]
+    for name, read_from, parts in names:
+        keys = [_lock.packs_of(name, root, prefer) or (_lock.plugin_for(read_from) if read_from else None)]
+        keys += [_lock.packs_of(base, root, prefer) for base in parts if base != name]
+        for key in keys:
+            if key and key not in ids:
+                ids.append(key)
+    if not ids:
+        return
+    try:
+        added = _lock.declare(root, ids)
+    except OSError as exc:
+        print("  note: %s not written (%s): oto lock --use declares the plugins" % (_lock.SETTINGS, exc))
+        return
+    if added:
+        print("  wrote: %s (the plugins this project uses: %s)" % (_lock.SETTINGS, ", ".join(added)))
+
+
 def _write_lock(root, force):
     """The tools the project starts with (oto.lock.json): the engine, the plugins Claude Code has
     for it, the ontologies. Never fails an init: `oto lock` writes it later."""
@@ -216,6 +246,8 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
     ontology_gold = []
     ontology_record = None
     roots, pack_info, pack_views = None, None, {}
+    packs_used = []                    # the pack directories the project starts from, to declare their plugins
+    names_used = []                    # each ontology named, the installed pack it was read from, what it composes
     if pack:
         from .model import packs as _packs
         pack_dir = _packs.dir_for(pack)
@@ -225,6 +257,7 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
         if problems:
             raise ValueError("pack %r is not usable: %s" % (pack, "; ".join(problems[:5])))
         pack_info = {"manifest": _packs.read(pack_dir), "directory": pack_dir}
+        packs_used.append(pack_dir)
         # Ontologies named beside a pack (a product type, the flow) are merged with the one it embeds,
         # as `--ontology a,b` merges: the project starts from the pack and what this product adds.
         ontology = ",".join([_packs.embedded_name(pack_dir)] + ([ontology] if ontology else []))
@@ -253,6 +286,9 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
             problems = _ontologies.self_check(one, roots)
             if problems:
                 raise ValueError("ontology %r is not usable: %s" % (one, "; ".join(problems)))
+            found = os.path.dirname(_ontologies.dir_for(one, roots))
+            in_pack = found in {os.path.normpath(r) for r in _ontologies._pack_roots()}
+            names_used.append((one, os.path.dirname(found) if in_pack else None, _ontologies.parts(one, roots)))
         if len(names) == 1:
             result = _ontologies.composed(names[0], roots=roots)
             ontology_config, sample_graph, ontology_notes = result["config"], result["sample"], result["readme"]
@@ -423,6 +459,7 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
         _repo.write(root, slug, name, engine=engine, force=force, writer=_write)
     else:
         _write(os.path.join(root, ".gitignore"), PROJECT_GITIGNORE, force, ".gitignore")
+    _declare_plugins(root, packs_used, names_used)
     _write_lock(root, force)
 
     print("\nProject ready. Next:")

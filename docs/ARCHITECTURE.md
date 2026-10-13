@@ -496,6 +496,15 @@ Claude Code's declaration committed with the project; without one, the OTO plugi
 (the engine plugin, the packs, the plugins that depend on the engine). Everything is read from
 Claude Code's files under `CLAUDE_CONFIG_DIR`; nothing is installed or fetched.
 
+`oto init` writes that declaration when it starts from installed packs, in the form `claude plugin
+install --scope project` writes (`enabledPlugins`, `extraKnownMarketplaces`), keeping whatever else
+the file holds: the pack given by `--pack`; for every ontology the project composes, named or
+extended, the installed pack whose own ontology it is, wherever the vocabulary was read from (`ddd`
+ships with the engine, and the `ddd` pack brings `model-domain`; `report` under `product-report`
+brings `new-report`), preferring the `--pack`'s marketplace when several carry one; and the engine
+plugin of each marketplace. Whoever opens the project in Claude Code is offered the same plugins.
+`oto lock --use <name@marketplace>,...` declares a tool no ontology brings (`pdf-to-template`).
+
 `oto lock --check` and `oto status` say how a machine differs: another engine version, a plugin
 at another version or missing, a plugin used and not locked, an ontology record that changed. A
 marketplace's commit is recorded, not compared: a registry moves on while a project's plugins stay

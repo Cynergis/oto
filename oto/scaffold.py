@@ -60,6 +60,7 @@ An OTO knowledge project. It holds **data only**. The engine is the installed `o
 | `graph.json` | The curated graph. This is the source of truth. |
 | `lexicon.json` | Optional. Maps jargon, acronyms and synonyms to entities, so a question in the reader's words resolves: `{{"entries": [{{"term": "PM", "aka": ["preventive maintenance"], "targets": ["procedure.pm"], "status": "current", "note": ""}}]}}`. |
 | `ontology.lock.json` | The vocabulary as last accepted, so a change can be diffed. Commit it. |
+| `oto.lock.json` | The tools this project is built with: the engine, the plugins and the ontologies. `oto lock --check` compares a machine; `oto lock --script` rebuilds them elsewhere. Commit it. |
 | `assertions.jsonl` | Append-only record of things people said. Facts derived from one cite it. |
 | `notes/` | **Authored** narrative markdown. Indexed alongside the generated pages. |
 | `inbox/` | Drop raw documents here. |
@@ -94,6 +95,21 @@ build/
 *.db.new
 __pycache__/
 """
+
+
+def _write_lock(root, force):
+    """The tools the project starts with (oto.lock.json): the engine, the plugins Claude Code has
+    for it, the ontologies. Never fails an init: `oto lock` writes it later."""
+    from .model import lock as _lock
+    from .project import Project as _Project
+    if os.path.exists(os.path.join(root, _lock.LOCK_NAME)) and not force:
+        print("  kept (exists): %s" % _lock.LOCK_NAME)
+        return
+    try:
+        _lock.write(_Project.standard(root))
+        print("  wrote: %s (the engine, plugins and ontologies it is built with)" % _lock.LOCK_NAME)
+    except Exception as exc:                                      # noqa: BLE001 - the project stands without it
+        print("  note: %s not written (%s): oto lock writes it" % (_lock.LOCK_NAME, exc))
 
 
 def slug_from(name):
@@ -407,6 +423,7 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
         _repo.write(root, slug, name, engine=engine, force=force, writer=_write)
     else:
         _write(os.path.join(root, ".gitignore"), PROJECT_GITIGNORE, force, ".gitignore")
+    _write_lock(root, force)
 
     print("\nProject ready. Next:")
     if repo:

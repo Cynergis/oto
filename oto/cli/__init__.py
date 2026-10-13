@@ -16,6 +16,7 @@ One module per command, in the order a project moves through them:
     build.py       oto build, oto clean, oto verify
     query.py       oto query, oto serve         ask, or serve over JSON-RPC
     status.py      oto status                   where the project is, and the next step
+    lock.py        oto lock                     the engine, plugins and ontologies a project is built with
     bench.py       oto bench                    measure answer quality
     feedback.py    oto feedback                 a complaint becomes a gold question
 
@@ -27,9 +28,9 @@ import sys
 
 from .. import __version__
 from ..project import ProjectError
-from . import actions, bench, build, capture, curate, draft, feedback, ingest, init, ontology, pack, preview, publish, query, registry, rules, status, vet
+from . import actions, bench, build, capture, curate, draft, feedback, ingest, init, lock, ontology, pack, preview, publish, query, registry, rules, status, vet
 
-COMMANDS = (init, status, ingest, capture, ontology, pack, registry, rules, actions, curate, draft, vet, build, preview, query, publish, bench, feedback)
+COMMANDS = (init, status, lock, ingest, capture, ontology, pack, registry, rules, actions, curate, draft, vet, build, preview, query, publish, bench, feedback)
 
 
 def cmd_version(args):

@@ -102,6 +102,9 @@ clean-then-build round trip reproduces the database exactly.
   rules.json              rules over the graph: derive (positive patterns) and policy (may negate)
   questions.json          competency questions that run: what the graph exists to answer, in the rules' pattern language
   ontology.lock.json      the last accepted vocabulary and rules, written by `oto ontology accept`
+  oto.lock.json           the tools the project is built with: the engine, the Claude Code plugins
+                          and the marketplaces they come from, the ontologies; written by `oto init`
+                          and `oto lock` (see "The tools a project is built with")
   graph.json              the curated graph: the source of truth
   graph.candidate.json    an open `oto curate` session, if any
   proposals/              one file of proposed nodes and edges per source document (authored)
@@ -481,6 +484,29 @@ explorer: a throwaway project is started from the pack, built, and exported as t
 static site under the page. The registry's site workflow, written with the check workflow when a
 registry is created, generates it on every push and publishes it with GitHub Pages; the site
 directory is ignored by git.
+
+## The tools a project is built with
+
+A project's facts carry their provenance; `oto.lock.json` carries the tools'. `oto init` writes it
+and `oto lock` rewrites it ([model/lock.py](../oto/model/lock.py)): the engine (its version, and the
+checkout and commit when it runs from one), each plugin the project uses with its marketplace,
+version and commit, each marketplace with the commit of its copy, and the ontology record of
+`project.config.json`. Which plugins: those the project's own `.claude/settings.json` enables,
+Claude Code's declaration committed with the project; without one, the OTO plugins installed for it
+(the engine plugin, the packs, the plugins that depend on the engine). Everything is read from
+Claude Code's files under `CLAUDE_CONFIG_DIR`; nothing is installed or fetched.
+
+`oto lock --check` and `oto status` say how a machine differs: another engine version, a plugin
+at another version or missing, a plugin used and not locked, an ontology record that changed. A
+marketplace's commit is recorded, not compared: a registry moves on while a project's plugins stay
+where they are. `oto lock --script` writes the shell script that rebuilds the locked tools on a
+fresh machine or in a container: each marketplace cloned at its locked commit and added from that
+directory (Claude Code pins a marketplace to a branch or a tag, never a commit), each plugin
+installed from it, and the engine installed from its commit or its release tag `v<version>`, which
+every version gets when it reaches main (`.github/workflows/tag-release.yml`), and named in
+`OTO_SOURCE`, which the engine plugin's server and hook read. What a lock cannot pin is said when it
+is written: a plugin listed from its own repository's default branch, a marketplace that is a
+directory on one machine, an engine checkout with uncommitted changes.
 
 ## Rules, and what a derived fact is
 

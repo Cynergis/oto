@@ -176,6 +176,11 @@ one project is not a confirmation in another. It refuses while any class lacks a
 Ontologies live in `~/.oto/ontologies/`, and a directory path works too. An ontology embedded in an
 installed pack, through `oto pack add` or as a Claude Code plugin, resolves by name as well.
 
+A project records the tools it is built with in `oto.lock.json`: the engine, the Claude Code
+plugins and the marketplaces they come from, the ontologies. `oto init` writes it, `oto lock`
+rewrites it, `oto lock --check` and `oto status` say how a machine differs, and `oto lock --script`
+prints the script that rebuilds the same tools on a fresh machine or in a container.
+
 A **pack** is what a person installs into Claude Code: one ontology, embedded with what it extends,
 the skills that know how to use it, and the views that show its graph. `oto pack new claims
 --ontology acme-claims` scaffolds one, `oto pack check` validates it, `oto pack publish --to

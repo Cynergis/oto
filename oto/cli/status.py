@@ -73,8 +73,22 @@ def gather(project):
     }
     status.update(_serving(project))
     status["ontology"] = _ontology(project)
+    status["lock"] = _lock(project)
     status["next"] = _next(status)
     return status
+
+
+def _lock(project):
+    """Whether the project records its tools (oto.lock.json), and how this machine differs."""
+    from ..model import lock as _lockfile
+    locked = _lockfile.read(project)
+    if locked is None:
+        return None
+    try:
+        differences = _lockfile.drift(project, locked)
+    except Exception:                                                 # noqa: BLE001 - advisory only
+        differences = []
+    return {"locked_at": locked.get("locked_at"), "differences": differences}
 
 
 def _ontology(project):
@@ -214,6 +228,14 @@ def cmd_status(args):
         if t.get("legacy_key"):
             print("              recorded under the old key `template` in project.config.json; rename it to "
                   "`ontology` and `version` inside it to `release`")
+    lock = s.get("lock")
+    if lock is None:
+        print("  tools       not locked: oto lock records the engine, plugins and ontologies this project is built with")
+    elif not lock["differences"]:
+        print("  tools       oto.lock.json (%s): this machine matches" % lock["locked_at"])
+    else:
+        print("  tools       oto.lock.json (%s): %d difference(s) here, %s; oto lock --check"
+              % (lock["locked_at"], len(lock["differences"]), lock["differences"][0]))
     if s["classes"] == 0 or s["properties"] == 0:
         print("              none declared yet. Four ways to get one, usually combined (the start skill, /oto:start, asks which):")
         print("                1. from an ontology:       oto ontology import --from <name>[,<name>]   (oto ontology list)")

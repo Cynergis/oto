@@ -465,3 +465,29 @@ def test_a_pack_declares_its_product_type_and_the_registry_lists_it(home, capsys
     out = capsys.readouterr().out
     assert "claims         product-claims         @1   registry market" in out, out
     assert [(t, n) for t, n, _r, _w, _s in registry.product_types()] == [("claims", "product-claims")]
+
+
+def test_a_pack_that_replaces_a_plugin_takes_its_place_and_continues_its_versions(home, capsys):
+    """A studio listed from its own repository at 2.0.0 becomes a pack: one entry in the marketplace,
+    at 3.0.0, never a version the old plugin had (Claude Code would serve the stale cached copy)."""
+    bare = _empty_registry(home, name="market")
+    assert main(["registry", "plugin", "arch", "--to", bare, "--repo", "Cynergis/arch", "--version", "2.0.0",
+                 "--registry-name", "market"]) == 0
+    assert main(["registry", "plugin", "tool", "--to", bare, "--repo", "Cynergis/tool", "--version", "0.4.0"]) == 0
+    assert main(["pack", "new", "arch", "--ontology", "software-architecture", "--maintainer", "Cynergis"]) == 0
+    capsys.readouterr()
+    assert main(["pack", "publish", "--from", "arch", "--to", bare, "--note", "the studio as a pack"]) == 0
+    out = capsys.readouterr().out
+    assert "published pack arch @3" in out and "replaces the plugin arch listed from Cynergis/arch at 2.0.0" in out
+    work = os.path.join(home, "market-check")
+    _git(["clone", "--quiet", bare, work], home)
+    index = json.load(open(os.path.join(work, "registry.json"), encoding="utf-8"))
+    assert [p["name"] for p in index["plugins"]] == ["tool"]
+    assert [(p["name"], p["release"]) for p in index["packs"]] == [("arch", 3)]
+    market = json.load(open(os.path.join(work, ".claude-plugin", "marketplace.json"), encoding="utf-8"))["plugins"]
+    assert [(p["name"], p.get("version")) for p in market] == [("oto", None), ("tool", "0.4.0"), ("arch", "3.0.0")]
+    assert [(e["release"], e["note"]) for e in packs.read(os.path.join(work, "packs", "arch"))["changelog"]] == [(3, "the studio as a pack")]
+    assert main(["registry", "check", work]) == 0
+    # the next publish goes on from the pack's own release
+    assert main(["pack", "publish", "--from", "arch", "--to", bare, "--note", "again"]) == 0
+    assert "published pack arch @4" in capsys.readouterr().out

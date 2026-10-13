@@ -61,6 +61,10 @@ def run(args):
                   % (result["name"], result["release"], args.to, result["registry"], result["commit"], result["tag"]))
             if result["created"]:
                 print("  the registry was created: index, marketplace, README and its check workflow")
+            if result.get("replaced"):
+                print("  replaces the plugin %s listed from %s at %s; the pack continues its versions at %d.0.0"
+                      % (result["name"], result["replaced"].get("repo") or result["replaced"].get("url") or "its repository",
+                         result["replaced"].get("version") or "no version", result["release"]))
             print("  marketplace lists the engine plugin and %d pack(s): %s" % (len(result["plugins"]), ", ".join(result["plugins"])))
             if result["cached"]:
                 print("  the local copy of the registry index was refreshed")

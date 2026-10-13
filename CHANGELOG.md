@@ -4,6 +4,15 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.10 — 2026-10-13
+
+**A pack can take the place of a plugin.** `oto pack publish` of a pack named like a plugin the
+registry lists from its own repository (`oto registry plugin`; a studio that became a pack) replaces
+that entry, so the marketplace lists one plugin under the name, and continues its version line: the
+studio plugin at 2.0.0 becomes the pack at release 3, 3.0.0. Claude Code caches a plugin by version,
+so a pack published at a version the old plugin once had would be served from the stale cached copy.
+The publish says what it replaced. `data` is a known domain (a data pipeline's packs).
+
 ## 0.11.9 — 2026-10-13
 
 **The shipped `product` ontology names no client.** Its release 1 changelog entry named the project

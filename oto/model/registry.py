@@ -605,7 +605,12 @@ def register_plugin(to, name, repo=None, url=None, plugin_ref=None, path=None, v
 def publish_pack(to, pack, note=None, summary=None, ref=None, registry_name=None, engine=None):
     """Publish a pack from this machine into a registry, under packs/<name>. Bumps the release,
     regenerates the plugin files so the plugin version follows, appends the changelog, updates the
-    index and the marketplace, tags and pushes. Refuses on any check problem, and pushes nothing."""
+    index and the marketplace, tags and pushes. Refuses on any check problem, and pushes nothing.
+
+    A pack published under the name of a plugin the registry lists from its own repository (a studio
+    that became a pack) replaces that entry and continues its version line: Claude Code caches a
+    plugin by version, so a pack at a version the plugin once had would be served from the stale
+    copy."""
     from . import packs as _packs
 
     src = _packs.dir_for(pack)
@@ -625,6 +630,11 @@ def publish_pack(to, pack, note=None, summary=None, ref=None, registry_name=None
         for key in _packs.PROVENANCE:
             manifest.pop(key, None)
         previous = int(entries[name]["release"]) if name in entries else 0
+        others = {e["name"]: e for e in index.get("plugins") or []}
+        replaced = others.pop(name, None) if name != "oto" else None
+        if replaced is not None:
+            previous = max(previous, _major(replaced.get("version")))
+            index["plugins"] = [others[k] for k in sorted(others)]
         manifest["release"] = previous + 1
         if summary:
             manifest["summary"] = summary
@@ -653,7 +663,16 @@ def publish_pack(to, pack, note=None, summary=None, ref=None, registry_name=None
     finally:
         shutil.rmtree(work, ignore_errors=True)
     return {"name": name, "release": manifest["release"], "tag": tag, "registry": index["name"], "commit": commit,
-            "cached": _refresh_cached(to), "plugins": [p["name"] for p in plugins], "created": created}
+            "cached": _refresh_cached(to), "plugins": [p["name"] for p in plugins], "created": created,
+            "replaced": replaced}
+
+
+def _major(version):
+    """The major number of a plugin version ("2.1.1" -> 2), 0 when there is none."""
+    try:
+        return int(str(version or "0").split(".")[0])
+    except ValueError:
+        return 0
 
 
 # ---- what an upstream ontology changed since a project started from it ----

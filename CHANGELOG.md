@@ -4,6 +4,16 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.13 — 2026-10-13
+
+**The concierge knows the project's packs.** `oto status` gains a `packs` section: each plugin the
+project uses (its `.claude/settings.json`, else the OTO plugins installed for it), with its version,
+its skills and its views; a declared plugin not installed here says so, with its install line.
+`oto status --json` gives each skill's command (`/<pack>:<skill>`) and what it does. The concierge
+quotes the section when it orients and routes to a pack's skill first when the need is what the
+pack does (model a part with DDD, design a pipeline, define a report); until now its hand-off table
+knew only OTO's own skills.
+
 ## 0.11.12 — 2026-10-13
 
 **A project declares the plugins it uses.** `oto init` from installed packs writes the project's

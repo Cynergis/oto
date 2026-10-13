@@ -203,6 +203,35 @@ def _known(name):
     return known if isinstance(known, dict) else {}
 
 
+def offered(root):
+    """What the project's plugins offer, for `oto status` and the concierge: for each plugin it uses
+    other than the engine's own, its version, its skills (name, what it does in one clause, the
+    command that calls it) and its views. Read from the installs; a declared plugin not installed
+    here offers nothing yet and says so."""
+    from . import packs as _packs
+    have = installed(root)
+    ids, own = used(root)
+    out = []
+    for key in ids:
+        name = key.split("@", 1)[0]
+        if name == ENGINE_PLUGIN:
+            continue
+        entry = have.get(key) or {}
+        path = entry.get("installPath") or ""
+        skills = []
+        for skill, skill_path in sorted(_packs.skills(path).items()) if path else []:
+            try:
+                summary = _packs._skill_summary(skill_path)
+            except OSError:
+                summary = ""
+            skills.append({"name": skill, "summary": summary, "command": "/%s:%s" % (name, skill)})
+        out.append({"id": key, "name": name, "version": entry.get("version"), "installed": bool(entry),
+                    "pack": bool(path) and os.path.isdir(os.path.join(path, "ontology")),
+                    "skills": skills, "views": sorted(_packs.views(path)) if path else []})
+    return {"declared_by": ".claude/settings.json" if own else ("the OTO plugins installed for it" if out else None),
+            "plugins": out}
+
+
 def marketplace(name):
     """A marketplace Claude Code knows: its source as Claude Code records it, and the commit of its copy."""
     location = _known(name).get("installLocation") or ""

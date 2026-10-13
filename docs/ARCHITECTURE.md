@@ -505,7 +505,9 @@ brings `new-report`), preferring the `--pack`'s marketplace when several carry o
 plugin of each marketplace. Whoever opens the project in Claude Code is offered the same plugins.
 `oto lock --use <name@marketplace>,...` declares a tool no ontology brings (`pdf-to-template`).
 
-`oto lock --check` and `oto status` say how a machine differs: another engine version, a plugin
+`oto status` lists, under `packs`, each plugin the project uses with its skills and views
+(`--json`: each skill's command and what it does), which is how the concierge routes to a pack's
+skill. `oto lock --check` and `oto status` say how a machine differs: another engine version, a plugin
 at another version or missing, a plugin used and not locked, an ontology record that changed. A
 marketplace's commit is recorded, not compared: a registry moves on while a project's plugins stay
 where they are. `oto lock --script` writes the shell script that rebuilds the locked tools on a

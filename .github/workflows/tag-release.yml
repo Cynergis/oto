@@ -1,0 +1,30 @@
+name: tag release
+
+# Every version that reaches main gets its tag, v<version>, so a project's oto.lock.json can pin the
+# engine it was built with: `oto lock --script` installs oto-kg from that tag.
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Tag the version when it is new
+        run: |
+          version=$(python3 -c "import re; print(re.search(r'^version = \"([^\"]+)\"', open('pyproject.toml').read(), re.M).group(1))")
+          tag="v$version"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "$tag already exists"
+          else
+            git tag "$tag"
+            git push origin "refs/tags/$tag"
+            echo "tagged $tag"
+          fi

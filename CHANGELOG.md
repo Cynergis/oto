@@ -4,6 +4,19 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.11 — 2026-10-13
+
+**A project records the tools it is built with.** `oto.lock.json`, written by `oto init` and
+`oto lock`, holds the engine's version (and commit when it runs from a checkout), each Claude Code
+plugin the project uses with its marketplace, version and commit, each marketplace with its commit,
+and the ontology record. The plugins are those the project's `.claude/settings.json` enables, else
+the OTO plugins installed for it. `oto lock --check` and a new `tools` line in `oto status` say how a
+machine differs; `oto lock --script` prints the script that rebuilds the tools on a fresh machine or
+in a container: marketplaces cloned at their commits (Claude Code pins a branch or a tag, not a
+commit), plugins installed from them, the engine from its commit or tag, named in `OTO_SOURCE`.
+Every version that reaches main is now tagged `v<version>` (a workflow), so the engine of a lock can
+be pinned. Auditable, repeatable, shareable: a project says what built it.
+
 ## 0.11.10 — 2026-10-13
 
 **A pack can take the place of a plugin.** `oto pack publish` of a pack named like a plugin the

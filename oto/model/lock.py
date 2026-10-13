@@ -11,7 +11,10 @@ and an auditor can read them.
 
 Which plugins a project uses: those its `.claude/settings.json` enables (Claude Code's own
 declaration, committed with the project); without one, the OTO plugins this machine has for it:
-the engine plugin, the packs, and the plugins that depend on the engine. Everything is read from
+the engine plugin, the packs, and the plugins that depend on the engine. `oto init` writes the
+declaration for the packs it starts from (`declare`), in the form `claude plugin install --scope
+project` writes, so whoever opens the project is offered the same plugins; `oto lock --use` adds a
+tool no ontology brings. Everything is read from
 Claude Code's files under CLAUDE_CONFIG_DIR (default ~/.claude); nothing is installed or fetched.
 
 `drift` says how this machine differs from the lock; `restore_script` writes the shell script that
@@ -82,9 +85,76 @@ def _checkout():
             "modified": bool(_git(top, "status", "--porcelain", "--untracked-files=no"))}
 
 
+SETTINGS = os.path.join(".claude", "settings.json")
+
+
+def _installs():
+    plugins = (_read_json(os.path.join(_claude_dir(), "plugins", "installed_plugins.json"), {}) or {}).get("plugins") or {}
+    return plugins if isinstance(plugins, dict) else {}
+
+
+def plugin_for(directory):
+    """The installed plugin (`name@marketplace`) whose install is this directory, or None: how a
+    pack given by its path is named."""
+    want = os.path.normpath(os.path.abspath(directory))
+    for key, entries in sorted(_installs().items()):
+        for entry in entries if isinstance(entries, list) else []:
+            if isinstance(entry, dict) and entry.get("installPath") and os.path.normpath(entry["installPath"]) == want:
+                return key
+    return None
+
+
+def packs_of(ontology, root, prefer=()):
+    """The installed plugin that is the pack of this ontology (its manifest embeds it as its own),
+    for this project: it brings the ontology's skills and views wherever the vocabulary was read
+    from (a built-in ddd still needs the ddd pack's model-domain). Several, from several
+    marketplaces: the one from a preferred marketplace, else the first. None when no pack is installed."""
+    owners = []
+    for key, entry in sorted(installed(root).items()):
+        path = entry.get("installPath") or ""
+        manifest = _read_json(os.path.join(path, "manifest.json"), None)
+        if isinstance(manifest, dict) and (manifest.get("ontology") or {}).get("name") == ontology \
+                and os.path.isdir(os.path.join(path, "ontology")):
+            owners.append(key)
+    preferred = [k for k in owners if k.split("@", 1)[1] in set(prefer)]
+    return (preferred or owners or [None])[0]
+
+
+def declare(root, ids):
+    """Add plugins to the project's Claude Code declaration (.claude/settings.json), as `claude plugin
+    install --scope project` does: each enabled, its marketplace known, and the engine plugin of each
+    marketplace that lists one. Everything else in the file is kept. Returns the ids it added."""
+    wanted = list(ids)
+    for market in sorted({key.split("@", 1)[1] for key in ids if "@" in key}):
+        engine_id = "%s@%s" % (ENGINE_PLUGIN, market)
+        if engine_id not in wanted and _listed_from(market, ENGINE_PLUGIN) is not None:
+            wanted.append(engine_id)
+    path = os.path.join(root, SETTINGS)
+    settings = _read_json(path, {})
+    settings = settings if isinstance(settings, dict) else {}
+    enabled = settings.setdefault("enabledPlugins", {})
+    markets = settings.setdefault("extraKnownMarketplaces", {})
+    added = []
+    for key in wanted:
+        if enabled.get(key) is not True:
+            enabled[key] = True
+            added.append(key)
+        market = key.split("@", 1)[1] if "@" in key else None
+        source = _known(market).get("source") if market else None
+        if market and market not in markets and source:
+            markets[market] = {"source": source}
+    if not markets:
+        settings.pop("extraKnownMarketplaces")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(settings, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    return added
+
+
 def declared(root):
     """The plugins the project's own Claude Code settings enable, as `name@marketplace`, or None."""
-    settings = _read_json(os.path.join(root, ".claude", "settings.json"), None)
+    settings = _read_json(os.path.join(root, SETTINGS), None)
     if not isinstance(settings, dict) or not isinstance(settings.get("enabledPlugins"), dict):
         return None
     return sorted(k for k, on in settings["enabledPlugins"].items() if on and "@" in k)
@@ -93,10 +163,9 @@ def declared(root):
 def installed(root):
     """Claude Code's installs that apply to this project: `name@marketplace` -> its record, the
     project's own scope before the user's."""
-    plugins = (_read_json(os.path.join(_claude_dir(), "plugins", "installed_plugins.json"), {}) or {}).get("plugins") or {}
     root = os.path.normpath(os.path.abspath(root))
     out = {}
-    for key, entries in plugins.items():
+    for key, entries in _installs().items():
         if not isinstance(entries, list):
             continue
         mine = [e for e in entries if isinstance(e, dict) and e.get("projectPath")

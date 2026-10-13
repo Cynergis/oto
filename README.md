@@ -179,7 +179,9 @@ installed pack, through `oto pack add` or as a Claude Code plugin, resolves by n
 A project records the tools it is built with in `oto.lock.json`: the engine, the Claude Code
 plugins and the marketplaces they come from, the ontologies. `oto init` writes it, `oto lock`
 rewrites it, `oto lock --check` and `oto status` say how a machine differs, and `oto lock --script`
-prints the script that rebuilds the same tools on a fresh machine or in a container.
+prints the script that rebuilds the same tools on a fresh machine or in a container. `oto init`
+declares the plugins the project uses in its `.claude/settings.json`, so whoever opens it in Claude
+Code is offered the same; `oto lock --use` adds a tool.
 
 A **pack** is what a person installs into Claude Code: one ontology, embedded with what it extends,
 the skills that know how to use it, and the views that show its graph. `oto pack new claims

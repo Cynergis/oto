@@ -28,6 +28,14 @@ def cmd_lock(args):
             return 1
         sys.stdout.write(_lock.restore_script(locked, project.config().get("name")))
         return 0
+    if args.use:
+        ids = [k.strip() for k in args.use.split(",") if k.strip()]
+        bad = [k for k in ids if "@" not in k]
+        if bad:
+            print("oto: --use takes plugins as name@marketplace: %s" % ", ".join(bad), file=sys.stderr)
+            return 1
+        added = _lock.declare(project.data, ids)
+        print("declared in %s: %s" % (_lock.SETTINGS, ", ".join(added) or "nothing new"))
     where, locked = _lock.write(project)
     eng = locked["engine"]
     print("wrote %s" % where)
@@ -43,7 +51,11 @@ def cmd_lock(args):
         print("  ontologies    %s" % ", ".join("%s @%s" % (p.get("name"), p.get("release")) for p in parts))
     for warning in _lock.warnings(locked):
         print("  note: %s" % warning)
-    print("commit it with the project; oto lock --check compares a machine, oto lock --script rebuilds the tools")
+    if locked["declared_by"] != ".claude/settings.json":
+        print("  the project declares no plugins of its own: oto lock --use <name@marketplace>,... declares them in %s"
+              % _lock.SETTINGS)
+    print("commit it with the project (and %s); oto lock --check compares a machine, oto lock --script rebuilds the tools"
+          % _lock.SETTINGS)
     return 0
 
 
@@ -53,4 +65,7 @@ def register(sub):
     mode = lock.add_mutually_exclusive_group()
     mode.add_argument("--check", action="store_true", help="say how this machine differs from oto.lock.json (exit 1 when it does)")
     mode.add_argument("--script", action="store_true", help="print the shell script that rebuilds the locked tools elsewhere")
+    lock.add_argument("--use", metavar="PLUGINS",
+                      help="declare plugins the project uses beyond its packs (name@marketplace, comma-separated) in "
+                           ".claude/settings.json, then lock")
     lock.set_defaults(func=cmd_lock)

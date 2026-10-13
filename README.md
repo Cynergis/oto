@@ -173,7 +173,8 @@ oto init --slug claims-eu --name "Acme Claims EU" --ontology acme-claims
 The export carries the vocabulary and its recorded reasoning, invents a sample graph so nothing
 from the source project leaks, and blanks every `validated_by`: a domain expert's confirmation in
 one project is not a confirmation in another. It refuses while any class lacks a recorded reason.
-Ontologies live in `~/.oto/ontologies/`, and a directory path works too.
+Ontologies live in `~/.oto/ontologies/`, and a directory path works too. An ontology embedded in an
+installed pack, through `oto pack add` or as a Claude Code plugin, resolves by name as well.
 
 A **pack** is what a person installs into Claude Code: one ontology, embedded with what it extends,
 the skills that know how to use it, and the views that show its graph. `oto pack new claims

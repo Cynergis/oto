@@ -82,7 +82,8 @@ def _list():
         extends = ("  extends %s" % ", ".join(info["extends"])) if info["extends"] else ""
         print("  %-22s @%-3d %2d classes, %2d relations%s%s%s"
               % (name, info["release"], info["classes"], info["properties"],
-                 "  (yours)" if info["origin"] == ontologies.USER else "", extends, state))
+                 "  (yours)" if info["origin"] == ontologies.USER else
+                 "  (in a pack)" if info["origin"] == ontologies.PACK else "", extends, state))
         if info["about"]:
             print("  %-22s %s" % ("", info["about"]))
     local = set(names)
@@ -215,7 +216,7 @@ def _show(name):
         return 1
     manifest = ontologies.manifest_for(name)
     print("%s @%d  (%s%s)" % (name, manifest["release"], ontologies.origin(name), ontologies.dir_for(name) and
-                              (", " + ontologies.dir_for(name)) if ontologies.origin(name) == ontologies.PATH else ""))
+                              (", " + ontologies.dir_for(name)) if ontologies.origin(name) in (ontologies.PATH, ontologies.PACK) else ""))
     if manifest.get("summary"):
         print("  %s" % manifest["summary"])
     if manifest.get("domain"):

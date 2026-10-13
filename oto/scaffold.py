@@ -140,15 +140,28 @@ def _ontology_record(name, ontologies, bases, pack=None):
                          "registry": pack["manifest"].get("registry"), "source": pack["manifest"].get("source")}}
     manifest = ontologies.manifest_for(name)
     where = ontologies.origin(name)
+    pack_of = None
+    if where == ontologies.PACK:
+        # found in an installed pack: remembered as that pack's, with the origin it recorded on embedding
+        from .model import packs as _packs
+        pack_dir = os.path.dirname(os.path.dirname(ontologies.dir_for(name)))
+        found = {"manifest": _packs.read(pack_dir), "directory": pack_dir}
+        if (found["manifest"].get("ontology") or {}).get("name") == name:
+            return _ontology_record(name, ontologies, bases, pack=found)
+        pack_of = {"name": found["manifest"]["name"], "release": found["manifest"]["release"],
+                   "registry": found["manifest"].get("registry"), "source": found["manifest"].get("source")}
     if where == ontologies.FETCHED:
         source = manifest.get("source")
     elif where in (ontologies.BUILTIN, ontologies.USER):
         source = where
     else:
         source = ontologies.dir_for(name)
-    return {"name": manifest["name"], "release": manifest["release"], "origin": where, "source": source,
-            "registry": manifest.get("registry"), "ref": manifest.get("ref"), "commit": manifest.get("commit"),
-            "installed_at": _today(), "extends": list(bases)}
+    record = {"name": manifest["name"], "release": manifest["release"], "origin": where, "source": source,
+              "registry": manifest.get("registry"), "ref": manifest.get("ref"), "commit": manifest.get("commit"),
+              "installed_at": _today(), "extends": list(bases)}
+    if pack_of:
+        record["pack"] = pack_of
+    return record
 
 
 def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, ontology=None,

@@ -739,7 +739,10 @@ against it. The engine answers with current facts by default and slices history 
   [serve/engine.py](../oto/serve/engine.py). The CLI mode maps a command word to the same function.
 - **A new starter vocabulary.** Export one from a project with `oto ontology export`, which
   writes it to `~/.oto/ontologies/<name>/` (or `OTO_ONTOLOGIES`). A user ontology shadows a shipped
-  one of the same name, and `oto init --ontology` also accepts a directory path. To ship one with
+  one of the same name, and `oto init --ontology` also accepts a directory path. A name not found
+  there or among the shipped ones resolves to the copy an installed pack embeds (under
+  `OTO_PACKS`, or a plugin in Claude Code's list of installed plugins), the highest release
+  first, composed with the bases that pack carries. To ship one with
   the package, add the same four files under [ontologies/](../oto/ontologies/); the ontology test
   takes it through init, build and a query automatically.
 
@@ -756,6 +759,7 @@ None are needed for ordinary use.
 | `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` (or `NEO4J_AUTH=user/password`) | Where the Neo4j load goes and what serves from it. The uri may also live in the project config; the credentials never do. |
 | `OTO_DENY_TERMS` | Terms the publishability gate refuses. See [GATES.md](GATES.md). |
 | `OTO_ONTOLOGIES`, `OTO_PACKS`, `OTO_REGISTRIES` | Where user and fetched ontologies and packs live, and the registries file. |
+| `CLAUDE_CONFIG_DIR` | Claude Code's own: where its list of installed plugins is, so the ontologies an installed pack embeds resolve by name. Default `~/.claude`. |
 | `OTO_REGISTRY_TOKEN`, `OTO_QUERY_REPO_TOKEN`, `OTO_ENGINE_TOKEN` | Tokens for private ontology registries, the query repository, and the engine repository in workflows. |
 | `OTO_SERVE_TOKEN` | The bearer token `oto serve --http` requires from every caller when it is set, and demands before binding beyond localhost. |
 | `PYTHON` | Which interpreter `tools/run_gates.sh` uses. |

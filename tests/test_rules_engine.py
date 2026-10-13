@@ -122,6 +122,29 @@ def test_superseding_a_premise_removes_the_derivation_on_the_next_run():
     assert engine.run([RISK], NODES, edges)["edges"] == []
 
 
+def test_a_not_block_and_not_in_say_what_is_absent_with_its_conditions():
+    # a component part of no system; a claim whose state is not one of a list; the absent node carries
+    # conditions, and a reference reaches across the negation to a variable bound outside it
+    orphan = {"id": "component-in-no-system", "kind": "policy", "severity": "blocking",
+              "when": [{"node": "c", "type": "Component"},
+                       {"not": [{"edge": ["c", "part_of", "s"]}, {"node": "s", "type": "System"}]}],
+              "then": {"flag": "a component must belong to a system"}, "why": "x"}
+    odd = {"id": "claim-state-unknown", "kind": "policy", "severity": "warn",
+           "when": [{"node": "c", "type": "Claim", "where": {"state": {"not_in": ["closed", "settled"]}, "amount": {"<": 1000}}}],
+           "then": {"flag": "small claims settle"}, "why": "x"}
+    other = {"id": "another-component-exposes-it", "kind": "policy", "severity": "warn",
+             "when": [{"node": "a", "type": "Component"}, {"edge": ["a", "exposes", "i"]},
+                      {"not": [{"edge": ["b", "consumes", "i"]}, {"node": "b", "where": {"id": {"!=": "$a"}}}]}],
+             "then": {"flag": "nobody else consumes it"}, "why": "x"}
+    found = engine.run([orphan, odd, other], NODES, EDGES)["findings"]
+    assert [(f["rule"], f["node"]) for f in found] == [("component-in-no-system", "component.job"), ("claim-state-unknown", "claim.2")]
+    consumed = engine.run([other], NODES + [_node("interface.v3", "Interface")],
+                          EDGES + [_edge("component.api", "exposes", "interface.v3")])["findings"]
+    assert [(f["rule"], f["node"]) for f in consumed] == [("another-component-exposes-it", "component.api")], "v3: nobody else consumes it"
+    assert match.compare("not_in", "open", ["closed"]) and not match.compare("not_in", "open", ["open"])
+    assert not match.compare("not_in", None, ["open"]), "an absent value is not outside the list (as SPARQL's NOT IN)"
+
+
 def test_policy_rules_flag_and_change_nothing():
     result = engine.run([DOCUMENTED], NODES, EDGES)
     assert [(f["rule"], f["node"], f["severity"]) for f in result["findings"]] == \

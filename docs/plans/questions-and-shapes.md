@@ -83,8 +83,8 @@ own), the pattern language of `rules.json` with a `select`:
  }}
 ```
 
-- `ask.when` is a rule's `when`: `node`, `edge`, `not_edge`, `not_node`, `where` conditions, dates
-  against `$today`. `select` names variables, or `var.attribute`, or `var.type`, or `var.label`.
+- `ask.when` is a rule's `when`: `node`, `edge`, `not_edge`, `not_node`, `not` (patterns that must
+  match nothing), `where` conditions (`not_in` among the operators), dates against `$today`. `select` names variables, or `var.attribute`, or `var.type`, or `var.label`.
   Hierarchy is honoured (`type: Asset` matches a Component), as in rules.
 - `params` are the question's holes: a `$NAME` bound to an entity id, resolved through the same
   resolver `kg_resolve` uses, so a person can pass a label. A question with no params asks about the

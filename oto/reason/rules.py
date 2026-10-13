@@ -20,7 +20,9 @@ names what it would leave unanswerable; the export carries it as the shape's mes
 Patterns: `node` (a variable, optionally a class or `A|B`, optionally `where` conditions on its
 declared attributes or on the node's own fields: status, as_of, valid_from, valid_to,
 source_doc; a date may be compared with `$today` or `$today-<n>d`), `edge` (from, relation or
-`a|b`, to; `*` is any), and, in policy rules only, `not_edge` and `not_node`. A derivation sees
+`a|b`, to; `*` is any), and, in policy rules only, `not_edge`, `not_node` and `not` (a list of
+patterns that must match nothing from the binding, so the absent node may carry conditions:
+{"not": [{"edge": ["s", "after", "g"]}, {"node": "g", "where": {"stepKind": "run_gate"}}]}). A derivation sees
 current facts only; a policy also sees `intended` ones, so it can flag a plan gone stale. Actions: `edge`, `attribute` [var, name, value], or `flag`.
 Derivation rules are positive, so a fixpoint exists; policy rules produce findings that never
 feed back, so negation is safe there.
@@ -31,7 +33,7 @@ import os
 NAME = "rules.json"
 KINDS = ("derive", "policy")
 SEVERITIES = ("warn", "blocking")
-OPERATORS = ("=", "!=", "<", "<=", ">", ">=", "in", "contains", "exists")
+OPERATORS = ("=", "!=", "<", "<=", ">", ">=", "in", "not_in", "contains", "exists")
 ORDERED_TYPES = ("number", "integer", "date")
 _MISSING = object()
 
@@ -148,7 +150,7 @@ def problems(rules, vocabulary):
 
 def pattern_problems(label, when, vocabulary, negation_ok=True, bound=None):
     """What is wrong with a list of `when` patterns against the vocabulary: (problems, {var: classes}).
-    `negation_ok` allows not_edge and not_node (a policy, a question; never a derivation). `bound`
+    `negation_ok` allows not_edge, not_node and not (a policy, a question; never a derivation). `bound`
     names variables bound from outside (a question's parameters), which a pattern may use as is."""
     classes = vocabulary.get("classes") or {}
     properties = vocabulary.get("properties") or {}
@@ -183,6 +185,14 @@ def pattern_problems(label, when, vocabulary, negation_ok=True, bound=None):
             for kind_name in _split(pattern.get("type")):
                 if kind_name not in classes:
                     out.append("%s: class %r is not declared" % (label, kind_name))
+        elif "not" in pattern:
+            if not negation_ok:
+                out.append("%s: not is allowed in policy rules and questions only; a derivation must stay positive" % label)
+            elif not isinstance(pattern["not"], list) or not pattern["not"]:
+                out.append("%s: `not` must be a non-empty list of patterns" % label)
+            else:
+                found, _inner = pattern_problems(label, pattern["not"], vocabulary, negation_ok, bound)
+                out += found
         elif "optional" in pattern:
             if not negation_ok:
                 out.append("%s: optional is allowed in policy rules and questions only; a derivation must stay positive" % label)

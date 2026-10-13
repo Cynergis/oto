@@ -4,6 +4,19 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.8 — 2026-10-13
+
+**An installed pack's ontologies resolve by name.** `oto init --ontology <name>` (alone, merged, or
+beside `--pack`) finds an ontology embedded in an installed pack: one under `~/.oto/packs`
+(`OTO_PACKS`), or a pack Claude Code installed as a plugin, read from its list of installed plugins
+(`CLAUDE_CONFIG_DIR`, default `~/.claude`). A machine that installed the `product-report`, `ddd` and
+`flow` packs from a marketplace could not name them (`unknown ontology 'product-report'`): only
+`~/.oto/ontologies` and the shipped set were searched. Packs come last, after yours and the shipped
+ones, so a pack's copy of a base it extends never shadows them; when two packs carry the same
+ontology, the higher release wins. An ontology found in a pack composes with the bases that pack
+carries, the copies it was checked with, as `--pack` composes. The project records the pack and the
+origin the pack recorded on embedding; `oto ontology list` marks these `(in a pack)`.
+
 ## 0.11.7 — 2026-10-13
 
 **A rule can say what is absent, with conditions.** `{"not": [patterns]}` in a policy rule or a

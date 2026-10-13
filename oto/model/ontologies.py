@@ -29,14 +29,19 @@ a project gets the whole vocabulary, and `load_raw` returns an ontology's own fi
 The sample graph matters more than it looks. A team that can run the whole loop on day one, and see a
 cited answer come back, understands what they are building. A team staring at an empty config does not.
 
-Ontologies come from two places, and a project can be turned into one:
+Ontologies come from these places, and a project can be turned into one:
 
-    oto/ontologies/<name>/       shipped with the package
     ~/.oto/ontologies/<name>/    yours, written by `oto ontology export` (OTO_ONTOLOGIES overrides)
+    oto/ontologies/<name>/       shipped with the package
+    <pack>/ontology/<name>/      embedded in an installed pack: under ~/.oto/packs (OTO_PACKS
+                                 overrides), or a plugin Claude Code installed
     any directory path          passed directly to `oto init --ontology <path>`
 
-A user ontology with the same name as a shipped one shadows it, so a team can keep its own edited
-version of `auto-claims` under the same name.
+A name resolves in that order. A user ontology with the same name as a shipped one shadows it, so a
+team can keep its own edited version of `auto-claims` under the same name. A pack's copy comes last,
+so the copies of the bases a pack carries never shadow yours or the shipped ones; when two packs
+carry the same ontology, the higher release wins. An ontology found only in a pack composes with
+the bases that pack carries.
 """
 import json
 import os
@@ -67,6 +72,10 @@ BUILTIN = "built-in"
 USER = "user"
 FETCHED = "fetched"
 PATH = "path"
+#: Embedded in an installed pack: under the packs directory, or a pack Claude Code installed.
+PACK = "pack"
+#: Where Claude Code keeps its configuration, and so its list of installed plugins (its own variable).
+CLAUDE_CONFIG_ENV = "CLAUDE_CONFIG_DIR"
 
 
 def _root():
@@ -86,11 +95,66 @@ def _is_ontology_dir(path):
     return os.path.isdir(path) and os.path.exists(os.path.join(path, CONFIG_NAME))
 
 
+def _pack_roots():
+    """The embedded ontology folders of the packs installed on this machine: those under the packs
+    directory (`oto pack add`), and those Claude Code installed, read from its list of installed
+    plugins. A pack carries the ontology it embeds and the ones it extends; installing it is enough
+    for a project to name them (`--ontology product-report`)."""
+    from . import packs as _packs        # here, not at the top: packs imports this module
+    roots = []
+    base = _packs.user_dir()
+    if os.path.isdir(base):
+        for name in sorted(os.listdir(base)):
+            embedded = os.path.join(base, name, _packs.ONTOLOGY_DIR)
+            if os.path.exists(os.path.join(base, name, _packs.MANIFEST_NAME)) and os.path.isdir(embedded):
+                roots.append(embedded)
+    config = os.environ.get(CLAUDE_CONFIG_ENV) or os.path.join(os.path.expanduser("~"), ".claude")
+    try:
+        with open(os.path.join(config, "plugins", "installed_plugins.json"), encoding="utf-8") as f:
+            plugins = json.load(f).get("plugins") or {}
+    except (OSError, ValueError, AttributeError):
+        plugins = {}
+    for _plugin, installs in sorted(plugins.items()):
+        for entry in installs if isinstance(installs, list) else []:
+            path = entry.get("installPath") if isinstance(entry, dict) else None
+            embedded = os.path.join(path, _packs.ONTOLOGY_DIR) if path else None
+            if embedded and os.path.exists(os.path.join(path, _packs.MANIFEST_NAME)) and os.path.isdir(embedded) \
+                    and embedded not in roots:
+                roots.append(embedded)
+    return roots
+
+
+def _in_packs(name):
+    """The highest release of `name` embedded in an installed pack, or None."""
+    best = None
+    for root in _pack_roots():
+        path = os.path.join(root, name)
+        if _is_ontology_dir(path):
+            release = int(_manifest.read(path).get("release") or 0)
+            if best is None or release > best[0]:
+                best = (release, path)
+    return best[1] if best else None
+
+
+def _home(name, roots=None):
+    """`roots`, and when `name` is found only in an installed pack, that pack's embedded ontologies
+    first: what it extends then resolves to the copies the pack was checked with, as `--pack` does."""
+    path = dir_for(name, roots)
+    if path is None or os.sep in name or (os.altsep and os.altsep in name) or name.startswith("."):
+        return roots
+    home = os.path.dirname(path)
+    if home in {os.path.normpath(r) for r in _pack_roots()} and home not in (roots or []):
+        return [home] + list(roots or [])
+    return roots
+
+
 def dir_for(name, roots=None):
     """The directory an ontology name resolves to, or None. A name may be a path.
 
     `roots` are extra directories searched first: a registry checkout, so an ontology and the
-    siblings it extends resolve together before anything on this machine.
+    siblings it extends resolve together before anything on this machine. Then yours, then the
+    shipped set, then what installed packs embed (the highest release when two carry it): last, so a
+    pack's copy of a base it extends never shadows the engine's own.
     """
     if os.sep in name or (os.altsep and os.altsep in name) or name.startswith("."):
         path = os.path.abspath(name)
@@ -99,7 +163,7 @@ def dir_for(name, roots=None):
         path = os.path.join(root, name)
         if _is_ontology_dir(path):
             return path
-    return None
+    return _in_packs(name)
 
 
 def origin(name):
@@ -112,13 +176,15 @@ def origin(name):
             if kind == USER and _manifest.read(path).get("source"):
                 return FETCHED
             return kind
+    if os.path.dirname(path) in {os.path.normpath(r) for r in _pack_roots()}:
+        return PACK
     return PATH
 
 
 def available():
     """Ontology names, sorted. A directory counts only if it holds a vocabulary."""
     names = set()
-    for root, _origin in _roots():
+    for root in [r for r, _origin in _roots()] + _pack_roots():
         if not os.path.isdir(root):
             continue
         for name in os.listdir(root):
@@ -217,6 +283,7 @@ def _read_actions(base):
 
 def parts(name, roots=None):
     """The ontologies a name composes, bases first, the name last. Raises OntologyError."""
+    roots = _home(name, roots)
     if dir_for(name, roots) is None:
         raise KeyError(name)
     return _compose.resolve(name, lambda n: manifest_for(n, roots))
@@ -225,6 +292,7 @@ def parts(name, roots=None):
 def composed(name, roots=None):
     """The ontology with everything it extends applied. Raises KeyError or OntologyError.
     With `roots`, a checkout is searched first for the ontology and what it extends."""
+    roots = _home(name, roots)
     return _compose.compose(name, parts(name, roots), lambda n: load_raw(n, roots))
 
 
@@ -303,6 +371,7 @@ def self_check(name, roots=None):
     Checked here rather than only in a build, because a broken ontology wastes the time of the person
     least able to diagnose it.
     """
+    roots = _home(name, roots)
     base = dir_for(name, roots)
     if base is None:
         return ["unknown ontology %r" % name]
@@ -461,6 +530,7 @@ def publishability_problems(name, sample=None, roots=None):
     from ..validate import privacy as _privacy
 
     out = []
+    roots = _home(name, roots)
     terms = sorted({t.strip().lower() for t in os.environ.get("OTO_DENY_TERMS", "").split(",") if t.strip()})
     if terms:
         for part in parts(name, roots):

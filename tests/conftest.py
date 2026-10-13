@@ -10,5 +10,8 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-# The suite must see only the shipped ontologies, never whatever the developer keeps in ~/.oto.
+# The suite must see only the shipped ontologies, never whatever the developer keeps in ~/.oto, the
+# packs installed there, or the packs Claude Code installed (whose embedded ontologies resolve by name).
 os.environ.setdefault("OTO_ONTOLOGIES", os.path.join(REPO_ROOT, ".no-user-ontologies"))
+os.environ.setdefault("OTO_PACKS", os.path.join(REPO_ROOT, ".no-user-packs"))
+os.environ.setdefault("CLAUDE_CONFIG_DIR", os.path.join(REPO_ROOT, ".no-claude-config"))

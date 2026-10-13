@@ -74,8 +74,18 @@ def gather(project):
     status.update(_serving(project))
     status["ontology"] = _ontology(project)
     status["lock"] = _lock(project)
+    status["packs"] = _packs(project)
     status["next"] = _next(status)
     return status
+
+
+def _packs(project):
+    """The project's plugins and what they offer (skills, views): where the concierge routes."""
+    from ..model import lock as _lockfile
+    try:
+        return _lockfile.offered(project.data)
+    except Exception:                                                 # noqa: BLE001 - advisory only
+        return {"declared_by": None, "plugins": []}
 
 
 def _lock(project):
@@ -228,6 +238,24 @@ def cmd_status(args):
         if t.get("legacy_key"):
             print("              recorded under the old key `template` in project.config.json; rename it to "
                   "`ontology` and `version` inside it to `release`")
+    offered = s.get("packs") or {}
+    plugins = offered.get("plugins") or []
+    if not plugins:
+        print("  packs       none for this project: `oto lock --use <name@marketplace>` declares one")
+    else:
+        print("  packs       %d, %s" % (len(plugins), "declared in .claude/settings.json"
+                                       if offered.get("declared_by") == ".claude/settings.json" else "installed here (the project declares none)"))
+        width = max(len("%s %s" % (p["name"], p["version"] or "")) for p in plugins)
+        for p in plugins:
+            if not p["installed"]:
+                what = "NOT INSTALLED here: claude plugin install %s" % p["id"]
+            else:
+                names = [k["name"] for k in p["skills"] if k["name"] != "start"]
+                what = ", ".join(names) or "no skills"
+                if p["views"]:
+                    what += "; view%s %s" % ("s" if len(p["views"]) > 1 else "", ", ".join(p["views"]))
+            print("                %-*s  %s" % (width, "%s %s" % (p["name"], p["version"] or ""), what))
+        print("              each skill is /<pack>:<skill>; `oto status --json` says what each does")
     lock = s.get("lock")
     if lock is None:
         print("  tools       not locked: oto lock records the engine, plugins and ontologies this project is built with")

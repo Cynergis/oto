@@ -252,3 +252,50 @@ def test_the_pack_of_an_ontology_a_named_one_extends_is_declared_too(claude):
     root = str(claude["tmp"] / "project")
     init(root, slug="p", name="P", ontology="pack-claims", empty=True)
     assert _settings(Project.standard(root))["enabledPlugins"] == {"claimsplus@acme": True, "core@acme": True, "oto@acme": True}
+
+
+# ---- what the project's plugins offer: oto status and the concierge ----
+
+def test_status_lists_the_projects_packs_with_their_skills_and_views(claude, capsys):
+    claims = claude["installs"]["claims@acme"][0]["installPath"]
+    for skill, text in (("model-claims", "Model a claim from first notice to settlement: the parties. Use when"),
+                        ("start", "Start a project from this pack.")):
+        os.makedirs(os.path.join(claims, "skills", skill))
+        with open(os.path.join(claims, "skills", skill, "SKILL.md"), "w") as f:
+            f.write("---\nname: %s\ndescription: >-\n  %s\n---\n\n# x\n" % (skill, text))
+    os.makedirs(os.path.join(claims, "views", "claims-map"))
+    with open(os.path.join(claims, "views", "claims-map", "app.json"), "w") as f:
+        f.write("{}")
+    project = _project(claude)
+    os.makedirs(os.path.join(project.data, ".claude"))
+    with open(os.path.join(project.data, ".claude", "settings.json"), "w") as f:
+        json.dump({"enabledPlugins": {"claims@acme": True, "oto@acme": True, "orders@acme": True}}, f)
+    capsys.readouterr()
+    assert main(["status", "--project", project.data]) == 0
+    out = capsys.readouterr().out
+    assert "packs       2, declared in .claude/settings.json" in out
+    assert "claims 2.0.0" in out and "model-claims; view claims-map" in out and "start" not in out.split("packs")[1].split("\n")[1]
+    assert "orders" in out and "NOT INSTALLED here: claude plugin install orders@acme" in out
+    assert main(["status", "--json", "--project", project.data]) == 0
+    offered = json.loads(capsys.readouterr().out)["packs"]
+    claims_entry = [p for p in offered["plugins"] if p["name"] == "claims"][0]
+    assert {"name": "model-claims", "summary": "Model a claim from first notice to settlement",
+            "command": "/claims:model-claims"} in claims_entry["skills"]
+    assert claims_entry["pack"] is True and claims_entry["views"] == ["claims-map"]
+    assert all(p["name"] != "oto" for p in offered["plugins"]), "the engine's own skills are the concierge's table"
+
+
+def test_status_says_when_the_project_uses_no_pack(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv(ontologies.CLAUDE_CONFIG_ENV, str(tmp_path / "no-claude"))
+    root = str(tmp_path / "project")
+    init(root, slug="p", name="P", ontology="auto-claims")
+    capsys.readouterr()
+    assert main(["status", "--project", root]) == 0
+    assert "packs       none for this project" in capsys.readouterr().out
+
+
+def test_the_concierge_routes_to_the_projects_packs_first():
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    text = open(os.path.join(root, "skills", "concierge", "SKILL.md"), encoding="utf-8").read()
+    assert "`packs` lists plugins" in text and "The project's packs come first" in text
+    assert "NOT INSTALLED" in text and "oto status --json" in text

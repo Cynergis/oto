@@ -49,6 +49,8 @@ Quote the output. Then add one sentence for the station it names:
 | serve `Neo4j NOT serving` | The project serves from Neo4j and cannot reach it; `--backend sqlite` serves the local build meanwhile. |
 | `a published query store, not a knowledge project` | An `oto sync` checkout. It can be queried and served; it cannot be authored. Say so plainly. |
 | `up to date` | Serve it or query it. |
+| `packs` lists plugins | The packs and tools this project uses (declared in its `.claude/settings.json`) and the skills each brings: the routes beyond OTO's own skills. `oto status --json` says what each skill does. A plugin marked `NOT INSTALLED` offers nothing here yet: give the install line it prints. |
+| `packs none` | The project uses no pack: only OTO's own skills apply until one is declared. |
 
 A `next:` line is the engine's recommendation. Do not contradict it; if the person wants
 something else, show the fork below and say what the recommendation assumes.
@@ -120,6 +122,12 @@ if nothing is recorded, say that, because an unexplained rule or class is a find
 
 The concierge ends its turn by naming the skill. It does not start the work.
 
+The project's packs come first. `oto status` lists them under `packs`, and `oto status --json`
+gives each skill's command (`/<pack>:<skill>`) and what it does: when the person's need is what a
+pack's skill does (model a part with DDD, design a pipeline, define a report, build a template),
+name that skill; it is the domain's own way, and the table below is what OTO offers every project.
+Never name a skill of a plugin the project does not list, nor one marked `NOT INSTALLED`.
+
 | When the person wants to | Load | They tend to say |
 |---|---|---|
 | Go from a folder of documents to a served graph | build-knowledge-base | "build a knowledge base from these", "turn this folder into a graph" |
@@ -129,6 +137,7 @@ The concierge ends its turn by naming the skill. It does not start the work.
 | Answer the vocabulary's questions in an interview, each confirmed group into the graph | capture-form | "capture against the pack", "fill the form", "interview me for this" |
 | Find facts citing a document nobody can open | vet-provenance | "the documents moved", "is the graph still grounded" |
 | Ask a question of the graph | query-knowledge | any question about the domain |
+| Do what one of the project's packs does | that pack's skill, from `oto status --json` (`packs`) | "model the domain", "design the pipeline", "define a new report", "build the template" |
 | Measure answer quality | evaluate | "how good are the answers", "make a gold set" |
 | Write a spec or an ADR from the graph | spec | "write the spec", "draft an ADR", "design brief" |
 | Do something about an entity: list, confirm, invoke, record | act | "create the repository", "check that it exists", "call the API and record it" |

@@ -39,13 +39,19 @@ def test_each_defect_is_named():
         _rule(id="j", when=[{"node": "c", "type": "Claim", "where": {"state": {">": "open"}}}], then={"attribute": ["c", "state", "x"]}),
         _rule(id="k", when=[{"node": "c", "type": "Claim", "where": {"colour": "red"}}], then={"attribute": ["c", "state", "x"]}),
         _rule(id="l", when=[{"node": "c", "type": "Claim"}], then={"attribute": ["c", "colour", "red"]}),
+        _rule(id="m", when=[{"edge": ["r", "threatens", "c"]}, {"not": [{"edge": ["c", "part_of", "s"]}]}]),
+        _rule(id="n", kind="policy", severity="warn", then={"flag": "x"}, when=[{"edge": ["r", "threatens", "c"]}, {"not": []}]),
+        _rule(id="o", kind="policy", severity="warn", then={"flag": "x"},
+              when=[{"edge": ["r", "threatens", "c"]}, {"not": [{"edge": ["c", "haunts", "s"]}]}]),
     ], VOCAB)
     text = "\n".join(probs)
     for expected in ("duplicate id", "kind must be derive or policy", "has no `why`", "relation 'menaces' is not declared",
                      "class 'Ghost' is not declared", "variable 'zz' in `then` is not bound", "not_edge is allowed in policy rules only",
                      "a derive rule's action must be edge or attribute", "severity must be warn or blocking",
                      "'>' on state, which is declared enum:open|closed", "attribute 'colour' is not declared for Claim",
-                     "Claim declares its attributes and 'colour' is not one of them"):
+                     "Claim declares its attributes and 'colour' is not one of them",
+                     "rule 'm': not is allowed in policy rules and questions only", "rule 'n': `not` must be a non-empty list",
+                     "rule 'o': relation 'haunts' is not declared"):
         assert expected in text, expected
 
 

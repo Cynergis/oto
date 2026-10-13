@@ -111,6 +111,8 @@ def describe_when(when):
             parts.append("no %s -%s-> %s" % tuple(clause["not_edge"]))
         elif "not_node" in clause:
             parts.append("no %s" % (clause.get("type") or "node"))
+        elif "not" in clause:
+            parts.append("no (%s)" % describe_when(clause["not"]))
         else:
             parts.append(json.dumps(clause, ensure_ascii=False))
     return "  and  ".join(parts)

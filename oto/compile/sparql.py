@@ -9,7 +9,7 @@ rendering is mechanical and the engine never runs it; a test keeps the two in st
     node {var, type, where}   ->  ?var a <C> .           (a union, or a class with kinds: VALUES)
     optional [patterns]       ->  OPTIONAL { ... }
     edge [a, rel, b]          ->  ?a <rel> ?b .          (a union of relations: VALUES on the predicate)
-    not_edge, not_node        ->  FILTER NOT EXISTS { ... }
+    not_edge, not_node, not   ->  FILTER NOT EXISTS { ... }
     where {attr: {op: v}}     ->  ?var <attr> ?var_attr . FILTER(?var_attr op v)
     select var.label / .type / .<attr>  ->  OPTIONAL { ?var rdfs:label ?var_label } ...
     $NAME (a parameter)       ->  $NAME, for the caller to replace with the entity's IRI
@@ -193,9 +193,10 @@ class Renderer:
                         lines.append("FILTER(%s %s %s)" % (value_var, OPERATORS[op], self.cls(str(expected))))
                     else:
                         lines.append("FILTER(%s %s %s)" % (value_var, OPERATORS[op], self.literal(expected, spec)))
-                elif op == "in":
+                elif op in ("in", "not_in"):
                     values = expected if isinstance(expected, list) else [expected]
-                    lines.append("FILTER(%s IN (%s))" % (value_var, ", ".join(self.literal(v, spec) for v in values)))
+                    lines.append("FILTER(%s %s (%s))" % (value_var, "IN" if op == "in" else "NOT IN",
+                                                          ", ".join(self.literal(v, spec) for v in values)))
                 elif op == "contains":
                     if spec and str(spec.get("type")) == "list":
                         self.notes.append("`contains` on the list attribute %s is not rendered: a list is an RDF collection" % name)
@@ -232,6 +233,11 @@ class Renderer:
                 inner = []
                 self.node_pattern({"node": "_absent", "type": pattern.get("type"), "where": pattern.get("where")}, dict(var_types), inner)
                 lines.append("FILTER NOT EXISTS { %s }" % " ".join(inner))
+            elif "not" in pattern:
+                inner = []
+                self.patterns(pattern["not"], dict(var_types), inner)
+                self.current_only([v for v in self.bound(pattern["not"], {}) if v not in self._outer], inner)
+                lines.append("FILTER NOT EXISTS { %s }" % " ".join(inner))
             elif "optional" in pattern:
                 inner = []
                 self.patterns(pattern["optional"], var_types, inner)
@@ -254,8 +260,9 @@ class Renderer:
         for pattern in when:
             if isinstance(pattern.get("node"), str) and pattern.get("type"):
                 var_types[pattern["node"].lstrip("$")] = _split(pattern["type"])
-            if isinstance(pattern.get("optional"), list):
-                self._collect_types(pattern["optional"], var_types)
+            for block in ("optional", "not"):
+                if isinstance(pattern.get(block), list):
+                    self._collect_types(pattern[block], var_types)
 
     def bound(self, when, params):
         out = []

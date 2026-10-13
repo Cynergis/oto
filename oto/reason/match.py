@@ -117,6 +117,8 @@ def compare(op, value, expected):
         return value != expected
     if op == "in":
         return value in (expected if isinstance(expected, list) else [expected])
+    if op == "not_in":
+        return value not in (expected if isinstance(expected, list) else [expected])
     if op == "contains":
         return expected in value if isinstance(value, (list, str)) else False
     if op in ("<", "<=", ">", ">="):
@@ -177,7 +179,8 @@ def matches(graph, when, bindings=None):
     `bindings` pre-binds variables (a question's parameters); a pattern naming one must fit it.
     An `optional` block (a list of patterns) extends a binding when it matches and keeps the
     binding, its variables unbound, when it does not: a left join, for the facts a question
-    reports when they are there and does not require."""
+    reports when they are there and does not require. A `not` block keeps a binding only when its
+    patterns match nothing from it: "no step that comes after this one is a gate-1 step"."""
     results = [(dict(bindings or {}), [])]
     for pattern in when:
         next_results = []
@@ -206,6 +209,9 @@ def matches(graph, when, bindings=None):
             elif "optional" in pattern:
                 extended = [(b, used + u) for b, u in matches(graph, pattern["optional"], bindings)]
                 next_results += extended if extended else [(bindings, used)]
+            elif "not" in pattern:
+                if not matches(graph, pattern["not"], bindings):
+                    next_results.append((bindings, used))
         results = next_results
         if not results:
             break

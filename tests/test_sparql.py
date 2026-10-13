@@ -166,6 +166,12 @@ def test_optional_exists_and_references_render_and_answer_alike():
                            "select": ["c", "e.label"]}, "gate": "non_empty"},
             "O2": {"who": "x", "question": "Which repositories have no URL?", "why": "w",
                    "ask": {"when": [{"node": "r", "type": "Repository", "where": {"url": {"exists": False}}}], "select": ["r", "r.name"]}, "gate": "any"},
+            "O4": {"who": "x", "question": "Which components are part of no system other than $SYSTEM?", "why": "w", "params": {"SYSTEM": {"type": "System"}},
+                   "ask": {"when": [{"node": "c", "type": "Component"},
+                                    {"not": [{"edge": ["c", "part_of", "s"]}, {"node": "s", "type": "System", "where": {"id": {"!=": "$SYSTEM"}}}]}],
+                           "select": ["c"]}, "gate": "any"},
+            "O5": {"who": "x", "question": "Which repositories are not named bare?", "why": "w",
+                   "ask": {"when": [{"node": "r", "type": "Repository", "where": {"name": {"not_in": ["bare"]}}}], "select": ["r"]}, "gate": "any"},
             "O3": {"who": "x", "question": "Which components are not part of $SYSTEM?", "why": "w", "params": {"SYSTEM": {"type": "System"}},
                    "ask": {"when": [{"node": "c", "type": "Component"}, {"edge": ["c", "part_of", "s"]},
                                     {"node": "s", "type": "System", "where": {"id": {"!=": "$SYSTEM"}}}], "select": ["c"]}, "gate": "any"},
@@ -185,6 +191,10 @@ def test_optional_exists_and_references_render_and_answer_alike():
                 assert "FILTER NOT EXISTS { ?r software-architecture:url ?r_url }" in query
             if qid == "O3":
                 assert "FILTER(?s != $SYSTEM)" in query
+            if qid == "O4":
+                assert "FILTER NOT EXISTS { ?c product:part_of ?s . ?s a software-architecture:System . FILTER(?s != $SYSTEM)" in query
+            if qid == "O5":
+                assert "NOT IN (" in query
             params = {"SYSTEM": "system.payments"} if q.get("params") else {}
             engine = Q.run(qid, q, params, built["nodes"], built["edges"], cover)["rows"]
             bound = query.replace("$SYSTEM", "<%s>" % terms.instance("system.payments"))

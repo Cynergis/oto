@@ -4,6 +4,16 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.7 — 2026-10-13
+
+**A rule can say what is absent, with conditions.** `{"not": [patterns]}` in a policy rule or a
+question keeps a binding only when the patterns match nothing from it, so the absent node may carry
+conditions and reach variables bound outside it: "a step that builds a silver entity and comes after
+no gate-1 step". `not_edge` could only say there was no edge at all. The `not_in` operator is the
+complement of `in` (an absent value is not outside the list, as SPARQL's `NOT IN`). Both render to
+SPARQL (`FILTER NOT EXISTS`, `NOT IN`) and answer the same there; a derivation stays positive. Needed
+by the medallion flow validations, which are rules over a declared flow.
+
 ## 0.11.6 — 2026-10-12
 
 **A view can carry what a pattern adds.** `{"$optional": expr}` in the projection language marks a

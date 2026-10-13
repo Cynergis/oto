@@ -503,8 +503,9 @@ check` (blocking or gap by severity), `oto ontology check`, `kg_policy` and the 
 A competency question is what the ontology exists to answer, and in OTO it runs. `questions.json`
 ([reason/questions.py](../oto/reason/questions.py)) declares each one with the sentence a person
 would ask, who asks it, why it exists and who confirmed it, and an `ask`: a `when` in the rules'
-pattern language (node, edge, `not_edge`, `not_node`, `where`, and `optional`: patterns that
-extend a binding when they match and leave their variables unbound when they do not) and a
+pattern language (node, edge, `not_edge`, `not_node`, `where`, `optional`: patterns that
+extend a binding when they match and leave their variables unbound when they do not, and `not`:
+patterns that must match nothing from the binding, so an absent node can carry conditions) and a
 `select` of bound variables or `var.label`, `var.type`, `var.<attribute>`. A `$NAME` is a
 parameter bound to an entity before the patterns run, resolved the way `kg_resolve` resolves a
 label; a `where` value may refer to a bound variable (`"$REPORT"`, `"$FIELD.fieldId"`, or spliced
@@ -541,7 +542,7 @@ self-check holds every ontology to them: see "Ontologies" above.
 The build renders each question as SPARQL over `graph.ttl` into `questions.yaml`
 ([compile/sparql.py](../oto/compile/sparql.py)): `node` is `?x a <C>` (a union, or a class with
 kinds, as `VALUES`), `edge` a triple (a union of relations, or a relation with the ones that
-specialise it, as `VALUES` on the predicate), `not_edge` and `not_node` are `FILTER NOT EXISTS`,
+specialise it, as `VALUES` on the predicate), `not_edge`, `not_node` and `not` are `FILTER NOT EXISTS`,
 a `where` is a `FILTER` (a scheme value is its concept IRI, a date is typed), a `$NAME` stays for
 the caller to replace with the entity's IRI, every bound node is filtered to current facts, and
 `select` binds labels, fields and attributes with `OPTIONAL`. The engine never runs the SPARQL;

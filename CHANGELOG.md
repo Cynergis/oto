@@ -4,6 +4,12 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.9 — 2026-10-13
+
+**The shipped `product` ontology names no client.** Its release 1 changelog entry named the project
+it was exported from; it now says it came from a client project. Nothing else changes: same release,
+same vocabulary. Packs that embed `product` pick it up on `oto pack refresh`.
+
 ## 0.11.8 — 2026-10-13
 
 **An installed pack's ontologies resolve by name.** `oto init --ontology <name>` (alone, merged, or

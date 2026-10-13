@@ -152,6 +152,30 @@ def declare(root, ids):
     return added
 
 
+def install_views(root, ids, force=False, skip=()):
+    """Copy the views of these plugins into the project's views/, so its site and its server show
+    them: [(view, plugin id, "wrote" or "kept")]. A name already there is kept, the first pack to
+    bring it wins, unless `force`; plugins in `skip` (whose views are already in) are passed over."""
+    import shutil
+    from . import packs as _packs
+    have = installed(root)
+    out = []
+    for key in ids:
+        path = (have.get(key) or {}).get("installPath")
+        if key in skip or not path:
+            continue
+        for name, source in sorted(_packs.views(path).items()):
+            target = os.path.join(root, "views", name)
+            if os.path.exists(target) and not force:
+                out.append((name, key, "kept"))
+                continue
+            if os.path.exists(target):
+                shutil.rmtree(target)
+            shutil.copytree(source, target, ignore=shutil.ignore_patterns(".git", "__pycache__", ".DS_Store"))
+            out.append((name, key, "wrote"))
+    return out
+
+
 def declared(root):
     """The plugins the project's own Claude Code settings enable, as `name@marketplace`, or None."""
     settings = _read_json(os.path.join(root, SETTINGS), None)

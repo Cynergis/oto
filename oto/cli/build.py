@@ -66,8 +66,9 @@ def register(sub):
     build.add_argument("--verify", action="store_true",
                        help="after loading an external target, read it back and compare with the build")
     build.add_argument("--view", default=None,
-                       help="for the site target: the view, by name or directory, to copy beside "
-                            "data.json (default: the built-in explorer)")
+                       help="for the site target: the view, by name or directory, to copy beside data.json, or `all`: "
+                            "a home page and each of the project's views in its own folder (the default when the "
+                            "project has views of its own; otherwise the built-in explorer)")
     build.set_defaults(func=cmd_build)
 
     clean = sub.add_parser("clean", help="delete everything the build generated")

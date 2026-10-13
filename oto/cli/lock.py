@@ -36,6 +36,8 @@ def cmd_lock(args):
             return 1
         added = _lock.declare(project.data, ids)
         print("declared in %s: %s" % (_lock.SETTINGS, ", ".join(added) or "nothing new"))
+        for name, key, state in _lock.install_views(project.data, ids):
+            print("  %s views/%s (from %s)" % ("installed" if state == "wrote" else "kept, already there:", name, key))
     where, locked = _lock.write(project)
     eng = locked["engine"]
     print("wrote %s" % where)

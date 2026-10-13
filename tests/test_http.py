@@ -404,3 +404,71 @@ def test_binding_beyond_this_machine_needs_the_token():
         r = subprocess.run([sys.executable, "-m", "oto.cli", "serve", "--project", root, "--http", "0.0.0.0:0"],
                            cwd=REPO, env=env, capture_output=True, text=True, timeout=60)
         assert r.returncode == 1 and "refused" in r.stderr and "OTO_SERVE_TOKEN" in r.stderr
+
+
+# ---- a project's views side by side: the home page, each view under its name ----
+
+def _two_views(root):
+    for name, text in (("board", "The board."), ("map", "The map.")):
+        view = os.path.join(root, "views", name)
+        os.makedirs(view)
+        with open(os.path.join(view, "app.json"), "w", encoding="utf-8") as f:
+            json.dump({"name": name, "summary": text, "entry": "index.html",
+                       "data": [{"file": "data.js", "format": "js-globals",
+                                 "globals": {"__COUNT__": {"$count": {"$nodes": "System"}}}}]}, f)
+        with open(os.path.join(view, "index.html"), "w", encoding="utf-8") as f:
+            f.write("<title>%s</title><script src=\"data.js\"></script>" % name)
+
+
+def test_the_site_of_a_project_with_views_is_a_home_page_and_every_view():
+    with tempfile.TemporaryDirectory() as root:
+        project = _project(root)
+        _two_views(root)
+        assert main(["build", "--project", root, "--target", "site"]) == 0
+        site = project.layout.site
+        assert "Project views" in open(os.path.join(site, "index.html"), encoding="utf-8").read()
+        listing = json.load(open(os.path.join(site, "views.json"), encoding="utf-8"))
+        assert listing["project"]["name"] == "Acme"
+        assert [(v["name"], v["path"]) for v in listing["views"]] == [("board", "board/"), ("map", "map/"), ("explorer", "explorer/")]
+        assert listing["views"][0]["summary"] == "The board."
+        assert "__COUNT__" in open(os.path.join(site, "board", "data.js"), encoding="utf-8").read()
+        assert os.path.exists(os.path.join(site, "explorer", "data.json")) and os.path.exists(os.path.join(site, "map", "index.html"))
+        assert main(["build", "--project", root, "--target", "site", "--view", "map"]) == 0
+        assert not os.path.exists(os.path.join(site, "views.json")), "one view named: that view at the root, as before"
+        assert os.path.exists(os.path.join(site, "data.js"))
+
+
+def test_the_server_mounts_every_view_under_the_home_page():
+    from oto.apps import manifest as apps
+    from oto.serve import http as _http
+    with tempfile.TemporaryDirectory() as root:
+        project = _project(root)
+        _two_views(root)
+        engine = _engine(project)
+        views = apps.project_views(root)
+        server = _http.Server(engine, "127.0.0.1", 0, app_dir=apps.HOME_DIR, project_root=root, identity=project.config(),
+                              mounts=views, catalog=apps.catalog(views, project.config())).start()
+        try:
+            status, _ctype, body = _get(server.url + "/")
+            assert status == 200 and b"Project views" in body
+            status, _ctype, body = _get(server.url + "/views.json")
+            assert [v["name"] for v in json.loads(body)["views"]] == ["board", "map", "explorer"]
+            status, _ctype, body = _get(server.url + "/board/")
+            assert status == 200 and b"<title>board</title>" in body
+            status, _ctype, body = _get(server.url + "/board/data.js")
+            assert status == 200 and b"__COUNT__" in body
+            status, _ctype, body = _get(server.url + "/explorer/data.json")
+            assert status == 200 and json.loads(body)["nodes"], "a built-in view's relative data.json resolves under its prefix"
+            status, _ctype, body = _get(server.url + "/explorer/api/status")
+            assert status == 200 and json.loads(body)["views"] == ["board", "map", "explorer"]
+            req = urllib.request.Request(server.url + "/map")
+            opener = urllib.request.build_opener(type("NoRedirect", (urllib.request.HTTPRedirectHandler,), {"redirect_request": lambda *a, **k: None}))
+            try:
+                opener.open(req, timeout=10)
+                assert False, "expected a redirect"
+            except urllib.error.HTTPError as exc:
+                assert exc.code == 301 and exc.headers["Location"] == "/map/"
+            status, _ctype, _body = _get(server.url + "/board/../../etc/passwd")
+            assert status in (403, 404)
+        finally:
+            server.stop()

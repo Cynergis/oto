@@ -544,3 +544,25 @@ def test_the_registry_records_a_packs_pattern(home, capsys):
     assert entry["pattern"] == {"of": "software-architecture", "for": "a part of a product designed with domain-driven design",
                                 "skill": "model-domain"}
     assert main(["registry", "check", work]) == 0
+
+
+def test_a_retired_pack_published_again_goes_on_after_its_last_release(home, capsys):
+    """Retired from the index, its tags stay: publishing it again must not reuse a version (the tag
+    exists, and Claude Code would serve the stale cached copy)."""
+    bare = _empty_registry(home, name="market")
+    assert main(["pack", "new", "arch", "--ontology", "software-architecture", "--maintainer", "Cynergis"]) == 0
+    for note in ("first", "second"):
+        assert main(["pack", "publish", "--from", "arch", "--to", bare, "--registry-name", "market", "--note", note]) == 0
+    work = os.path.join(home, "market-retire")
+    _git(["clone", "--quiet", bare, work], home)
+    index = json.load(open(os.path.join(work, "registry.json"), encoding="utf-8"))
+    index["packs"] = [p for p in index["packs"] if p["name"] != "arch"]
+    json.dump(index, open(os.path.join(work, "registry.json"), "w", encoding="utf-8"), indent=2)
+    shutil.rmtree(os.path.join(work, "packs", "arch"))
+    _git(["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qam", "retire arch"], work)
+    _git(["push", "-q", "origin", "HEAD:main"], work)
+    capsys.readouterr()
+    assert main(["pack", "publish", "--from", "arch", "--to", bare, "--note", "back"]) == 0
+    assert "published pack arch @3" in capsys.readouterr().out, "after v2, not v1 again"
+    tags = subprocess.run(["git", "--git-dir", bare, "tag", "--list"], capture_output=True, text=True).stdout.split()
+    assert sorted(t for t in tags if t.startswith("arch--")) == ["arch--v1.0.0", "arch--v2.0.0", "arch--v3.0.0"]

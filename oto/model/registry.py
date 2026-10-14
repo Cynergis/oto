@@ -630,6 +630,9 @@ def publish_pack(to, pack, note=None, summary=None, ref=None, registry_name=None
         for key in _packs.PROVENANCE:
             manifest.pop(key, None)
         previous = int(entries[name]["release"]) if name in entries else 0
+        # a pack retired from the index and published again goes on after its last release: its tags
+        # remain, and Claude Code would serve a cached copy of a version it once had
+        previous = max(previous, _released_before(work, name))
         others = {e["name"]: e for e in index.get("plugins") or []}
         replaced = others.pop(name, None) if name != "oto" else None
         if replaced is not None:
@@ -667,6 +670,16 @@ def publish_pack(to, pack, note=None, summary=None, ref=None, registry_name=None
     return {"name": name, "release": manifest["release"], "tag": tag, "registry": index["name"], "commit": commit,
             "cached": _refresh_cached(to), "plugins": [p["name"] for p in plugins], "created": created,
             "replaced": replaced}
+
+
+def _released_before(work, name):
+    """The highest release a pack of this name was ever tagged with in the registry (0 for none)."""
+    try:
+        tags = gitx.run(["tag", "--list", "%s--v*" % name], cwd=work).split()
+    except ProjectError:
+        return 0
+    found = [int(m.group(1)) for m in (re.match(r"^%s--v(\d+)\.0\.0$" % re.escape(name), t) for t in tags) if m]
+    return max(found or [0])
 
 
 def _major(version):

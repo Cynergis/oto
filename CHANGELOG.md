@@ -4,6 +4,14 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.18 — 2026-10-14
+
+**A retired pack published again goes on after its last release.** A pack removed from a
+registry's index keeps its tags (`<name>--v<N>.0.0`); publishing a pack of that name again numbered
+it from 1, so the push failed on the existing `--v1.0.0` tag, and Claude Code would have served a
+cached copy of a version the old pack once had. `oto pack publish` now continues after the highest
+release the registry ever tagged for the name (`software-architecture`, retired at 4, comes back at 5).
+
 ## 0.11.17 — 2026-10-14
 
 **A pattern pack says what it is a pattern of.** A pack manifest may declare `pattern`:

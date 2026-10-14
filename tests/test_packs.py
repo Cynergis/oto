@@ -491,3 +491,56 @@ def test_a_pack_that_replaces_a_plugin_takes_its_place_and_continues_its_version
     # the next publish goes on from the pack's own release
     assert main(["pack", "publish", "--from", "arch", "--to", bare, "--note", "again"]) == 0
     assert "published pack arch @4" in capsys.readouterr().out
+
+
+# ---- a pattern pack declares what it is a pattern of ----
+
+def _pattern_pack(name="dddp", of="software-architecture", skill="model-domain"):
+    assert main(["pack", "new", name, "--ontology", "ddd", "--maintainer", "Cynergis"]) == 0
+    directory = packs.dir_for(name)
+    os.makedirs(os.path.join(directory, "skills", "model-domain"))
+    with open(os.path.join(directory, "skills", "model-domain", "SKILL.md"), "w", encoding="utf-8") as f:
+        f.write("---\nname: model-domain\ndescription: >-\n  Model a part with DDD.\n---\n\n# Model\n")
+    manifest = packs.read(directory)
+    manifest["pattern"] = {"of": of, "for": "a part of a product designed with domain-driven design", "skill": skill}
+    packs.write(directory, manifest)
+    packs.plugin_files(directory)
+    return directory
+
+
+def test_a_pattern_pack_says_what_it_is_a_pattern_of(home, capsys):
+    directory = _pattern_pack()
+    assert packs.check(directory) == []
+    start = open(os.path.join(directory, "skills", "start", "SKILL.md"), encoding="utf-8").read()
+    assert "**A design pattern of `software-architecture`**: for a part of a product designed with domain-driven design" in start
+    assert "`/dddp:model-domain`" in start
+    capsys.readouterr()
+    assert main(["pack", "list", "--patterns"]) == 0
+    out = capsys.readouterr().out
+    assert "dddp" in out and "pattern of software-architecture: for a part of a product designed with domain-driven design (skill model-domain)" in out
+    assert main(["pack", "new", "arch", "--ontology", "software-architecture", "--maintainer", "Cynergis"]) == 0
+    capsys.readouterr()
+    assert main(["pack", "list", "--patterns"]) == 0
+    assert "arch " not in capsys.readouterr().out, "a pack that declares no pattern is not listed with --patterns"
+
+
+def test_a_pattern_is_checked_against_the_pack(home):
+    assert any("not one of this pack's" in p for p in packs.check(_pattern_pack("p1", skill="no-such-skill")))
+    assert any("does not extend 'auto-claims'" in p for p in packs.check(_pattern_pack("p2", of="auto-claims")))
+    directory = _pattern_pack("p3")
+    manifest = json.load(open(os.path.join(directory, "manifest.json"), encoding="utf-8"))
+    manifest["pattern"] = {"of": "software-architecture"}
+    json.dump(manifest, open(os.path.join(directory, "manifest.json"), "w", encoding="utf-8"))
+    assert any("pattern must be" in p for p in packs.check(directory))
+
+
+def test_the_registry_records_a_packs_pattern(home, capsys):
+    bare = _empty_registry(home, name="market")
+    _pattern_pack()
+    assert main(["pack", "publish", "--from", "dddp", "--to", bare, "--registry-name", "market"]) == 0
+    work = os.path.join(home, "market-check")
+    _git(["clone", "--quiet", bare, work], home)
+    entry = json.load(open(os.path.join(work, "registry.json"), encoding="utf-8"))["packs"][0]
+    assert entry["pattern"] == {"of": "software-architecture", "for": "a part of a product designed with domain-driven design",
+                                "skill": "model-domain"}
+    assert main(["registry", "check", work]) == 0

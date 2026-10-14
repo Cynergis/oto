@@ -344,3 +344,16 @@ def test_a_project_without_views_of_its_own_keeps_the_explorer(tmp_path):
     from oto.apps import manifest as apps
     assert apps.default_view(str(tmp_path)) == "explorer"
     assert apps.project_views(str(tmp_path)) == [("explorer", os.path.join(apps.UI_DIR, "explorer"))]
+
+
+def test_status_marks_the_projects_pattern_packs(claude, capsys):
+    claims = claude["installs"]["claims@acme"][0]["installPath"]
+    with open(os.path.join(claims, "manifest.json"), "w") as f:
+        json.dump({"name": "claims", "pattern": {"of": "software-architecture", "for": "a claims part", "skill": "model-claims"}}, f)
+    project = _project(claude)
+    capsys.readouterr()
+    assert main(["status", "--project", project.data]) == 0
+    assert "(pattern of software-architecture)" in capsys.readouterr().out
+    assert main(["status", "--json", "--project", project.data]) == 0
+    offered = {p["name"]: p for p in json.loads(capsys.readouterr().out)["packs"]["plugins"]}
+    assert offered["claims"]["pattern"]["skill"] == "model-claims" and offered["tool"]["pattern"] is None

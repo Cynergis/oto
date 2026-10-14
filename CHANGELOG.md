@@ -4,6 +4,17 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.15 — 2026-10-13
+
+**A refined description is not a clash.** Merging ontologies (`--ontology a,b`, `--pack` with
+`--ontology`) reported a class "described differently" whenever two parts disagreed, so every
+product project with `flow` warned about `Document`: `product` says more about oto-core's
+`Document` and `flow` keeps oto-core's words. When one side keeps the description of a base the
+other refined, the merge now keeps the refined one, in either order, with its recorded reason, and
+lists it under `class_refinements`; two different refinements of one base are still a clash. The
+product composition (studio, `product-report`, `ddd`, `medallion`, `report-medallion`, `flow`) now
+merges with none.
+
 ## 0.11.14 — 2026-10-13
 
 **A project's views, side by side.** `oto init` installs the views of every pack the project

@@ -4,6 +4,14 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.27 — 2026-10-14
+
+**The studio works opened from disk.** A built site (`oto build --target site`) opened by double-clicking
+`build/site/index.html` landed on a folder listing: from disk, a browser does not open a folder's
+`index.html` the way a server does. The home page, the navigation and every link between pages now
+name `index.html` when the site is opened from disk, and `Studio.page(path)` gives a view the same
+address for its own links. Served and published sites are unchanged.
+
 ## 0.11.26 — 2026-10-14
 
 **Quotes that hold: every fact cites the sentence that says it, and the sentence is in its document.**

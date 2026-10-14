@@ -33,7 +33,9 @@ a.page strong { color: var(--st-accent); }
     return;
   }
   // the product's front page, when its type's pack provides one
-  if (D.portal) { location.replace(D.portal + "/" + location.hash); return; }
+  // opened from disk, a folder is a listing: go to the file itself
+  var fromDisk = location.protocol === "file:";
+  if (D.portal) { location.replace(D.portal + "/" + (fromDisk ? "index.html" : "") + location.hash); return; }
   var name = (D.project && D.project.name) || "The product";
   document.getElementById("name").textContent = name;
   document.title = name;
@@ -42,7 +44,7 @@ a.page strong { color: var(--st-accent); }
   var html = (D.places || []).filter(function (place) { return place.pages.length; }).map(function (place) {
     return "<h2>" + esc(place.label) + '</h2><div class="pages">' + place.pages.map(function (n) {
       var p = byName[n];
-      return '<a class="page" href="' + esc(p.path) + '"><strong>' + esc(p.title) + "</strong>" +
+      return '<a class="page" href="' + esc(p.path + (fromDisk ? "index.html" : "")) + '"><strong>' + esc(p.title) + "</strong>" +
              (p.summary ? '<br><span class="studio-muted">' + esc(p.summary) + "</span>" : "") + "</a>";
     }).join("") + "</div>";
   }).join("");

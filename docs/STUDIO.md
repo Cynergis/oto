@@ -58,6 +58,8 @@ The kit draws the navigation at the top of the page, and gives the page three th
 - `Studio.link(id, text)`: a link to the page that shows the thing, or the text alone when no page
   does. Never write an id where a reader sees it; use the thing's label.
 - `Studio.ready(fn)`: run `fn` once the page is loaded.
+- `Studio.page(path)`: a page's address for a link the page builds itself (`"../reports/"`): it names
+  `index.html` when the site is opened from disk, where a folder would open as a listing.
 - `<div id="studio-open"></div>`: filled with what is still open on this page, each gap in words with
   who can answer it. An element per thing with `id="<the thing's id>"` lets a link highlight it.
 

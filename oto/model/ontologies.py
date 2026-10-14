@@ -531,8 +531,9 @@ def publishability_problems(name, sample=None, roots=None):
 
     out = []
     roots = _home(name, roots)
-    terms = sorted({t.strip().lower() for t in os.environ.get("OTO_DENY_TERMS", "").split(",") if t.strip()})
-    if terms:
+    from ..validate.publishable import env_terms, names_a_term, term_patterns
+    patterns = term_patterns(env_terms())
+    if patterns:
         for part in parts(name, roots):
             base = dir_for(part, roots)
             for dirpath, dirnames, filenames in os.walk(base):
@@ -540,13 +541,13 @@ def publishability_problems(name, sample=None, roots=None):
                 for filename in sorted(filenames):
                     path = os.path.join(dirpath, filename)
                     try:
-                        text = _read_text(path).lower()
+                        text = _read_text(path)
                     except (OSError, UnicodeDecodeError):
                         continue
-                    hits = [t for t in terms if t in text]
-                    if hits:
-                        out.append("%s in %s names a deny term (%s); an ontology must not"
-                                   % (os.path.relpath(path, base), part, ", ".join(hits)))
+                    if names_a_term(text, patterns):
+                        # never which term: this message is printed in public CI logs
+                        out.append("%s in %s names a client term; an ontology must not"
+                                   % (os.path.relpath(path, base), part))
     if sample is None:
         sample = composed(name, roots)["sample"]
     text = "\n".join(" ".join([str(n.get("label") or ""), str(n.get("summary") or ""),

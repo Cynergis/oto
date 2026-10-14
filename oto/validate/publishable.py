@@ -51,6 +51,22 @@ def load_terms(root):
     return sorted({t.lower() for t in terms})
 
 
+def env_terms():
+    """The deny terms of the environment alone (OTO_DENY_TERMS), lower-cased: what the pack and
+    ontology gates check."""
+    return sorted({t.strip().lower() for t in os.environ.get("OTO_DENY_TERMS", "").split(",") if t.strip()})
+
+
+def term_patterns(terms):
+    """A term is matched as a whole word, in any case: "IGM" is a client, "Figma" is not."""
+    return [re.compile(r"\b%s\b" % re.escape(t), re.IGNORECASE) for t in terms]
+
+
+def names_a_term(text, patterns):
+    """Whether a text names any term. Says nothing of which: a finding is printed in public CI logs."""
+    return any(p.search(text) for p in patterns)
+
+
 def walk(root):
     """The files that would be published: what git tracks, when the root is a repository, so
     untracked reference material and build caches beside the code are never scanned; every file
@@ -86,7 +102,7 @@ def scan(root, strict=False, out=print):
     A finding names the file, the line and what was found, never the text: a CI log is public."""
     root = os.path.abspath(root)
     terms = load_terms(root)
-    term_res = [(t, re.compile(r"\b%s\b" % re.escape(t), re.IGNORECASE)) for t in terms]
+    term_res = [(t, p) for t, p in zip(terms, term_patterns(terms))]
     repo_res = [re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]*%s[A-Za-z0-9_.-]*" % re.escape(t),
                            re.IGNORECASE) for t in terms]
 

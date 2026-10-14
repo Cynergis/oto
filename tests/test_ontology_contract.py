@@ -342,11 +342,12 @@ def test_a_deny_term_or_personal_data_makes_a_ontology_unpublishable(ontologies_
     write_ontology(ontologies_dir, "leaky", {"Thing": {"definition": "a thing for AcmeCorp"}}, {"near": {"domain": "Thing", "range": "Thing", "definition": "n"}},
                    {"nodes": [_node("t.1", "Thing", "One", card="4111 1111 1111 1111")], "edges": []})
     problems = ontologies.self_check("leaky")
-    assert any("ontology.config.json in leaky names a deny term (acmecorp)" in p for p in problems), problems
+    assert any("ontology.config.json in leaky names a client term" in p for p in problems), problems
+    assert not any("acmecorp" in p.lower() for p in problems), "the term is never printed"
     assert any("the sample holds personal data or a credential" in p for p in problems), problems
     monkeypatch.delenv("OTO_DENY_TERMS")
     problems = ontologies.self_check("leaky")
-    assert not any("deny term" in p for p in problems) and any("personal data" in p for p in problems)
+    assert not any("client term" in p for p in problems) and any("personal data" in p for p in problems)
 
 
 # ---- what a project records, and what init installs ----

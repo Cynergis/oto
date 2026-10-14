@@ -289,10 +289,30 @@ def product_types(local=True):
     return sorted(out)
 
 
+def claude_marketplaces():
+    """The OTO registries Claude Code knows as marketplaces, as registry records: a marketplace whose
+    copy holds `registry.json`. A machine that added the marketplace in Claude Code lists its packs,
+    its patterns and its product types without `oto registry add`."""
+    from . import lock as _lock
+    known = _lock._read_json(os.path.join(_lock._claude_dir(), "plugins", "known_marketplaces.json"), {}) or {}
+    out = []
+    for market, record in sorted(known.items()) if isinstance(known, dict) else []:
+        location = record.get("installLocation") if isinstance(record, dict) else None
+        if not location or not os.path.exists(os.path.join(location, INDEX_NAME)):
+            continue
+        try:
+            index = read_index(location)
+        except (OSError, ValueError, ProjectError):
+            continue
+        out.append({"name": index.get("name") or market, "index": index, "marketplace": market})
+    return out
+
+
 def remote_entries(kind="ontology"):
-    """Every index entry with the registry it comes from, in resolution order, first listing wins."""
+    """Every index entry with the registry it comes from, in resolution order, first listing wins:
+    the registries added with `oto registry add`, then the ones Claude Code knows as marketplaces."""
     seen, out = set(), []
-    for record in load_registries():
+    for record in load_registries() + claude_marketplaces():
         for entry in (record.get("index") or {}).get(KINDS[kind]["list"]) or []:
             if entry.get("name") in seen:
                 continue

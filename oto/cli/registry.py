@@ -56,14 +56,21 @@ def cmd_registry(args):
             return _print_product_types(_registry.product_types(local=False), "in a registry")
         if verb == "list":
             registries = _registry.load_registries()
-            if not registries:
+            marketplaces = _registry.claude_marketplaces()
+            if not registries and not marketplaces:
                 print("no registries; add one: oto registry add <git url>")
                 return 0
             for record in registries:
                 print("%-14s %s  (%s, fetched %s at %s)"
                       % (record["name"], record["url"], _counts(record.get("index") or {}),
                          record.get("fetched_at", "?"), record.get("commit", "?")))
-            print("\nrecorded in %s" % _registry.registries_path())
+            if registries:
+                print("\nrecorded in %s" % _registry.registries_path())
+            if marketplaces:
+                print("%sknown to Claude Code as marketplaces, listed here too (their packs, patterns and product types):"
+                      % ("\n" if registries else ""))
+                for record in marketplaces:
+                    print("  %-14s marketplace %s  (%s)" % (record["name"], record["marketplace"], _counts(record["index"])))
             return 0
         if verb == "remove":
             if not which:

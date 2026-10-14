@@ -4,6 +4,13 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.20 — 2026-10-14
+
+**capture-form carries the confirmation menu.** At every confirmation the capture-form skill offers
+**[A] Advanced elicitation · [P] Perspectives · [C] Continue & contribute**, and contributes a group
+only on C. The studio's `elicit` skill existed to add that menu on top; every pack's interview now
+has it, and `elicit` is gone from the packs.
+
 ## 0.11.19 — 2026-10-14
 
 **Client terms match whole words, and are never printed.** The client-name gate of `oto pack check`

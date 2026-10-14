@@ -117,14 +117,27 @@ def _declare_plugins(root, pack_dirs, names):
             if key and key not in ids:
                 ids.append(key)
     if not ids:
-        return
+        return []
     try:
         added = _lock.declare(root, ids)
     except OSError as exc:
         print("  note: %s not written (%s): oto lock --use declares the plugins" % (_lock.SETTINGS, exc))
-        return
+        return []
     if added:
         print("  wrote: %s (the plugins this project uses: %s)" % (_lock.SETTINGS, ", ".join(added)))
+    return ids
+
+
+def _install_declared_views(root, ids, force, given_pack_dirs):
+    """The views of every declared pack, beside the --pack's own (installed above): the project's
+    site and server show them all from one home page."""
+    from .model import lock as _lock
+    skip = [key for key in (_lock.plugin_for(d) for d in given_pack_dirs) if key]
+    for name, key, state in _lock.install_views(root, ids, force=force, skip=skip):
+        if state == "wrote":
+            print("  wrote: %s (from %s)" % (os.path.join("views", name), key))
+        else:
+            print("  note: the view %s from %s is not installed: views/%s already holds another" % (name, key, name))
 
 
 def _write_lock(root, force):
@@ -459,7 +472,8 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
         _repo.write(root, slug, name, engine=engine, force=force, writer=_write)
     else:
         _write(os.path.join(root, ".gitignore"), PROJECT_GITIGNORE, force, ".gitignore")
-    _declare_plugins(root, packs_used, names_used)
+    declared = _declare_plugins(root, packs_used, names_used)
+    _install_declared_views(root, declared, force, packs_used[:1] if pack else [])
     _write_lock(root, force)
 
     print("\nProject ready. Next:")

@@ -219,6 +219,39 @@ def candidates(name, project_root=None):
     return out
 
 
+ALL = "all"
+HOME_DIR = os.path.join(UI_DIR, "home")
+
+
+def project_views(project_root):
+    """The views a project's home page lists, [(name, directory)]: those in its `views/` folder
+    (installed from its packs by `oto init` and `oto lock --use`), then the built-in explorer."""
+    out = []
+    base = os.path.join(project_root, "views") if project_root else None
+    if base and os.path.isdir(base):
+        for name in sorted(os.listdir(base)):
+            path = os.path.join(base, name)
+            if os.path.isdir(path) and (os.path.exists(os.path.join(path, MANIFEST_NAME))
+                                        or os.path.exists(os.path.join(path, "index.html"))):
+                out.append((name, path))
+    if "explorer" not in [name for name, _path in out]:
+        out.append(("explorer", os.path.join(UI_DIR, "explorer")))
+    return out
+
+
+def default_view(project_root):
+    """`all` (the home page and every view) when the project has views of its own, else the explorer."""
+    return ALL if len(project_views(project_root)) > 1 else "explorer"
+
+
+def catalog(views, identity=None):
+    """What the home page lists (`views.json`): the project, and each view with its summary and path."""
+    identity = identity or {}
+    return {"project": {"name": identity.get("name"), "slug": identity.get("slug")},
+            "views": [{"name": name, "summary": (read(path).get("summary") or "").strip(), "path": "%s/" % name}
+                      for name, path in views]}
+
+
 def resolve(app, project_root=None):
     """The directory of a view, from a path or a name. None when nothing was asked."""
     if not app:

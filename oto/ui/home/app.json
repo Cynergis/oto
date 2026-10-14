@@ -1,0 +1,7 @@
+{
+  "name": "home",
+  "summary": "The home page of a project's site: every view the project's packs bring, each in its own folder, with what it shows. Served at / by `oto serve --http` and written as build/site/index.html by `oto build --target site` when the view is `all`.",
+  "entry": "index.html",
+  "engine": ">=0.11.14",
+  "requires": {}
+}

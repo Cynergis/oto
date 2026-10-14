@@ -88,11 +88,22 @@ def _coerce(args):
     return out
 
 
-def make_handler(engine, app_dir=None, project_root=None, identity=None, token=None, cors=()):
-    app_root = os.path.abspath(app_dir) if app_dir else None
-    app_manifest = _apps.read(app_root) if app_root else None
-    data_files = {e["file"].lstrip("/"): e for e in (app_manifest or {}).get("data") or []}
-    overrides = _apps.override_files(app_manifest, project_root) if app_manifest else {}
+def _mount(prefix, app_dir, project_root):
+    """One view served under /<prefix>/ ("" for the root): its directory, manifest, data files, overrides."""
+    root = os.path.abspath(app_dir)
+    manifest = _apps.read(root)
+    return {"prefix": prefix.strip("/"), "root": root, "manifest": manifest,
+            "data": {e["file"].lstrip("/"): e for e in manifest.get("data") or []},
+            "overrides": _apps.override_files(manifest, project_root)}
+
+
+def make_handler(engine, app_dir=None, project_root=None, identity=None, token=None, cors=(), mounts=None, catalog=None):
+    """`app_dir` is served at /; each of `mounts`, [(name, directory)], at /<name>/ with its own data
+    files, so a project's views sit side by side under one home page; `catalog` is served as
+    /views.json for that page. A view's relative addresses (data.json, api/...) resolve under its prefix."""
+    mounted = ([_mount("", app_dir, project_root)] if app_dir else []) + \
+        [_mount(name, directory, project_root) for name, directory in (mounts or [])]
+    by_prefix = {m["prefix"]: m for m in mounted}
     origins = tuple(o.strip().rstrip("/") for o in (cors or ()) if o and o.strip())
 
     def allowed_origin(origin):
@@ -234,27 +245,45 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
                 return None
             path = parsed.path
             args = _coerce(urllib.parse.parse_qs(parsed.query))
-            if path.startswith("/api/") or path == "/data.json":
-                return self._api(path, args)
-            if app_root is None:
+            if catalog is not None and path == "/views.json":
+                return self._json(200, catalog)
+            mount, rest = self._mount_for(path)
+            if mount is not None and mount["prefix"] and rest == "":
+                return self._redirect(path + "/")          # relative addresses resolve under the slash
+            if rest.startswith("/api/") or rest == "/data.json":
+                return self._api(rest, args)
+            if mount is None:
                 return self._json(404, {"error": "no app mounted; the routes are under /api/ and POST /rpc",
                                         "tools": sorted(ROUTES)})
-            rel = posixpath.normpath(urllib.parse.unquote(path)).lstrip("/")
-            if rel in data_files:
-                return self._generated(rel)
-            if rel in overrides:
-                return self._file(overrides[rel])
-            return self._static(path)
+            rel = posixpath.normpath(urllib.parse.unquote(rest)).lstrip("/")
+            if rel in mount["data"]:
+                return self._generated(mount, rel)
+            if rel in mount["overrides"]:
+                return self._file(mount["overrides"][rel])
+            return self._static(mount, rest)
 
-        def _generated(self, rel):
-            """One of the app's data files, projected from the live store on each request."""
+        def _mount_for(self, path):
+            """(the view a path belongs to, the path inside it): /<name>/... for a mounted view, else the root's."""
+            first, slash, remainder = path.lstrip("/").partition("/")
+            if first and first in by_prefix and by_prefix[first]["prefix"]:
+                return by_prefix[first], ("/" + remainder) if slash else ""
+            return by_prefix.get(""), path
+
+        def _redirect(self, location):
+            self.send_response(301)
+            self.send_header("Location", location)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def _generated(self, mount, rel):
+            """One of a view's data files, projected from the live store on each request."""
             engine.ensure_fresh()
             if engine.STORE is None:
                 return self._text(503, "/* %s */" % engine.no_data_message(), "application/javascript; charset=utf-8")
             payload = _payload.build(engine.STORE, project_root, identity, passages=True, mode=engine.MODE)
             try:
-                _apps.check_requires(app_manifest, payload.get("vocabulary"))
-                text = _apps.render(data_files[rel], payload, app_root)
+                _apps.check_requires(mount["manifest"], payload.get("vocabulary"))
+                text = _apps.render(mount["data"][rel], payload, mount["root"])
             except (_apps.AppError, ValueError) as exc:
                 engine.log("app data", rel, exc)
                 return self._text(500, "/* oto could not generate %s: %s */" % (rel, exc), "application/javascript; charset=utf-8")
@@ -280,7 +309,9 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
                           "schema_version": store.meta("schema_version") if store else None,
                           "reason": None if store else engine.no_data_message(),
                           "stations": _payload.stations(project_root), "mode": dict(engine.MODE),
-                          "app": {"name": app_manifest["name"], "data": sorted(data_files)} if app_root else None}
+                          "app": {"name": by_prefix[""]["manifest"]["name"], "data": sorted(by_prefix[""]["data"])}
+                          if "" in by_prefix else None,
+                          "views": [m["prefix"] for m in mounted if m["prefix"]]}
                 return self._json(200, status)
             if path == "/api/changes":
                 store = engine.STORE
@@ -315,7 +346,8 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
                 data = None
             return self._json(200, {"tool": tool, "arguments": args, "text": text, "data": data})
 
-        def _static(self, path):
+        def _static(self, mount, path):
+            app_root = mount["root"]
             rel = posixpath.normpath(urllib.parse.unquote(path)).lstrip("/")
             if rel in ("", "."):
                 rel = "index.html"
@@ -335,12 +367,13 @@ class Server:
     """A running HTTP front end. `serve_forever` blocks; `start` runs it on a thread (tests)."""
 
     def __init__(self, engine, host="127.0.0.1", port=8765, app_dir=None, project_root=None, identity=None,
-                 token=None, cors=()):
+                 token=None, cors=(), mounts=None, catalog=None):
         check_bind(host, token)
         self.engine = engine
         self.token = token
         self.cors = tuple(cors or ())
-        self.httpd = ThreadingHTTPServer((host, port), make_handler(engine, app_dir, project_root, identity, token, cors))
+        self.httpd = ThreadingHTTPServer((host, port), make_handler(engine, app_dir, project_root, identity, token, cors,
+                                                                    mounts=mounts, catalog=catalog))
         self.httpd.daemon_threads = True
         self.thread = None
 
@@ -372,15 +405,17 @@ class Server:
             self.httpd.server_close()
 
 
-def serve(engine, bind, app_dir=None, project_root=None, identity=None, token=None, cors=()):
+def serve(engine, bind, app_dir=None, project_root=None, identity=None, token=None, cors=(), mounts=None, catalog=None):
     """Run the front end until interrupted. Raises BindError for a bind beyond this machine with no token."""
     host, port = parse_bind(bind)
-    server = Server(engine, host, port, app_dir=app_dir, project_root=project_root, identity=identity, token=token, cors=cors)
+    server = Server(engine, host, port, app_dir=app_dir, project_root=project_root, identity=identity, token=token, cors=cors,
+                    mounts=mounts, catalog=catalog)
     engine.log("http: serving on %s%s%s%s" % (server.url, (" with app %s" % app_dir) if app_dir else "",
                                               " (token required)" if token else "",
                                               (" cors=%s" % ",".join(server.cors)) if server.cors else ""))
     print("oto serve: %s  (POST /rpc, GET /api/graph, GET /api/status%s)%s" % (
-        server.url, ", GET / for the app" if app_dir else "",
+        server.url, (", GET / for the home page, and %s" % ", ".join("/%s/" % n for n, _d in mounts)) if mounts
+        else (", GET / for the app" if app_dir else ""),
         "\n  a token is required on every call: Authorization: Bearer <%s>, or open /?%s=<token> once in a browser"
         % (TOKEN_ENV, COOKIE) if token else ""), file=sys.stderr, flush=True)
     if host not in LOOPBACK:

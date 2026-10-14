@@ -4,6 +4,29 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.15 — 2026-10-13
+
+**A refined description is not a clash.** Merging ontologies (`--ontology a,b`, `--pack` with
+`--ontology`) reported a class "described differently" whenever two parts disagreed, so every
+product project with `flow` warned about `Document`: `product` says more about oto-core's
+`Document` and `flow` keeps oto-core's words. When one side keeps the description of a base the
+other refined, the merge now keeps the refined one, in either order, with its recorded reason, and
+lists it under `class_refinements`; two different refinements of one base are still a clash. The
+product composition (studio, `product-report`, `ddd`, `medallion`, `report-medallion`, `flow`) now
+merges with none.
+
+## 0.11.14 — 2026-10-13
+
+**A project's views, side by side.** `oto init` installs the views of every pack the project
+declares, not only the `--pack`'s, and `oto lock --use` installs those of the tool it declares: a
+product project started from the studio with `medallion` gets `prd-site` and `lineage` both. A
+project with views of its own is served and built as a home page that lists them, each view under
+its own name: `oto serve --http` serves the home page at `/` and each view at `/<name>/` with its
+data generated live (a view's relative `data.json` and `api/...` resolve under its prefix), and
+`oto build --target site` writes `index.html`, `views.json` and a folder per view, the built-in
+explorer among them. This is the view `all`, the default when the project has views; `--view
+<name>` serves or builds one view at the root, as before. No view needs to be named by path any more.
+
 ## 0.11.13 — 2026-10-13
 
 **The concierge knows the project's packs.** `oto status` gains a `packs` section: each plugin the

@@ -225,3 +225,23 @@ def test_without_rdflib_a_turtle_file_is_read_the_way_oto_writes_it(monkeypatch)
         with pytest.raises(ValueError, match='needs rdflib: pip install "oto-kg\\[rdf\\]"'):
             importer.read(os.path.join(root, "anything.rdf"))
 
+
+
+def test_a_refined_description_is_kept_and_is_no_clash():
+    """product says more about oto-core's Document; merged with an ontology that keeps oto-core's
+    words, the class is the same: the refined description stays, in either order, with its reason."""
+    product = ontologies.composed("product")["config"]["classes"]["Document"]
+    for names in (["product", "oto-core"], ["oto-core", "product"]):
+        config, _sample, _readme, rationale, report = ontologies.merge(names)
+        assert "Document" not in [k for k, _a, _b in report["class_clashes"]], names
+        assert ("Document", "product", "oto-core") in report["class_refinements"], names
+        assert config["classes"]["Document"] == product, names
+        if "Document" in (ontologies.composed("product")["rationale"].get("classes") or {}):
+            assert rationale["classes"]["Document"] == ontologies.composed("product")["rationale"]["classes"]["Document"]
+
+
+def test_two_different_refinements_are_still_a_clash():
+    """organization-process and auto-claims each say something else about Document: that is a choice."""
+    _config, _sample, _readme, _rationale, report = ontologies.merge(["organization-process", "auto-claims"])
+    assert ("Document", "organization-process", "auto-claims") in report["class_clashes"]
+    assert not any(k == "Document" for k, _a, _b in report["class_refinements"])

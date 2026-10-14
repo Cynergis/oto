@@ -837,7 +837,8 @@ def merge(names, roots=None):
     """Combine ontologies into one vocabulary. Returns (config, sample, readme, rationale, report).
     `roots` are searched first for each name, as `composed` searches them: a pack's embedded copy.
 
-    The union of classes and relations, first ontology winning a class described twice; a relation
+    The union of classes and relations, first ontology winning a class described twice (unless one
+    side keeps a base's description the other refined: the refined one stays, no clash); a relation
     declared twice with different signatures is widened to the union of both, as composition
     widens, so no part's facts are refused. The report lists every clash so a person can see what
     was kept or widened, and the totals, because two glued ontologies are the fastest way to the
@@ -847,13 +848,27 @@ def merge(names, roots=None):
     rationale = {"classes": {}, "properties": {}}
     merged_rules, merged_questions, merged_briefs = {}, {}, {}
     owner = {}
-    report = {"ontologies": list(names), "class_clashes": [], "relation_clashes": []}
+    report = {"ontologies": list(names), "class_clashes": [], "class_refinements": [], "relation_clashes": []}
+    part_classes, parts_of, refined_by = {}, {}, {}
+
+    def bases_of(name):
+        """The composed classes of each base `name` extends: what a part may have refined."""
+        out = []
+        for part in parts_of.get(name, [name])[:-1]:
+            if part not in part_classes:
+                try:
+                    part_classes[part] = composed(part, roots=roots)["config"].get("classes") or {}
+                except (KeyError, OntologyError):
+                    part_classes[part] = {}
+            out.append(part_classes[part])
+        return out
     summaries, readmes, titles = [], [], []
 
     lexicon_entries, interviews, guides, gold, merged_actions = [], [], [], [], {}
     sample_nodes, sample_edges, sample_keys = {}, [], set()
     for name in names:
         result = composed(name, roots=roots)
+        parts_of[name] = list((result.get("report") or {}).get("parts") or [name])
         config, readme, record = result["config"], result["readme"], result["rationale"]
         # the samples merge by node id, as composition merges them: a merged project starts
         # with the facts its parts ship, not an invented graph
@@ -877,7 +892,16 @@ def merge(names, roots=None):
         readmes.append((name, readme))
         for kind, description in (config.get("classes") or {}).items():
             if kind in classes and classes[kind] != description:
-                report["class_clashes"].append((kind, owner[kind], name))
+                # one side keeping the description of a base the other refined is no clash: the same
+                # class, said more precisely (product's Document over oto-core's); keep the refined one
+                if description in [b.get(kind) for b in bases_of(owner[kind])]:
+                    report["class_refinements"].append((kind, owner[kind], name))
+                elif classes[kind] in [b.get(kind) for b in bases_of(name)]:
+                    report["class_refinements"].append((kind, name, owner[kind]))
+                    classes[kind], owner[kind] = description, name
+                    refined_by[kind] = name             # its recorded reason goes with its description
+                else:
+                    report["class_clashes"].append((kind, owner[kind], name))
             classes.setdefault(kind, description)
             owner.setdefault(kind, name)
         for relation, spec in (config.get("properties") or {}).items():
@@ -909,7 +933,10 @@ def merge(names, roots=None):
             merged_actions.setdefault(action["id"], dict(action))
         for section in ("classes", "properties"):
             for key, entry in (record.get(section) or {}).items():
-                rationale[section].setdefault(key, dict(entry))
+                if section == "classes" and refined_by.get(key) == name:
+                    rationale[section][key] = dict(entry)
+                else:
+                    rationale[section].setdefault(key, dict(entry))
 
     config = {"_about": "Merged from the ontologies %s. A FIRST DRAFT to prune, not a finished model."
                         % ", ".join(names),

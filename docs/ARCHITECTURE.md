@@ -294,7 +294,13 @@ is, so it is empty without them, and validation does not require what only it na
 exported, since a static site needs its data on disk.
 
 An app is found by path or by name: `<project>/views/<name>`, `views/` of any ontology on the
-machine, or the engine's own `oto/ui/`. An ontology ships apps under `views/`; the
+machine, or the engine's own `oto/ui/`. `oto init` installs into `<project>/views/` the views of
+every pack the project declares (and `oto lock --use` those of a tool it adds). A project with views
+of its own is shown whole, the view `all`, its default: the built-in `home` app at `/` lists them
+from `views.json` ([apps/manifest.py](../oto/apps/manifest.py) `project_views`, `catalog`), and each
+view is mounted under `/<name>/` ([serve/http.py](../oto/serve/http.py) mounts), its data files
+generated live and its relative addresses resolving under its prefix; `oto build --target site`
+writes the same layout to `build/site/`. An ontology ships apps under `views/`; the
 composition carries them, the self-check validates each against the ontology's own vocabulary
 (a class or relation a projection names must exist, and `requires` must hold), `oto ontology
 show` lists them, and `oto init` installs them into the project. Serving and exporting refuse a

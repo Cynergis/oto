@@ -93,13 +93,20 @@ def cmd_serve(args):
             with open(config_path, encoding="utf-8") as f:
                 identity = json.load(f)
         project_root = root if os.path.exists(os.path.join(root, "ontology.config.json")) else None
+        from ..apps import manifest as _apps
+        mounts, catalog = None, None
         try:
-            app_dir = resolve_app(args.view or "explorer", root)
-            if app_dir:
-                from ..apps import manifest as _apps
-                problems = _apps.problems(app_dir)
+            view = args.view or _apps.default_view(project_root)
+            if view == _apps.ALL:
+                # the home page at /, each of the project's views at /<name>/
+                mounts = _apps.project_views(project_root)
+                app_dir, catalog = _apps.HOME_DIR, _apps.catalog(mounts, identity)
+            else:
+                app_dir = resolve_app(view, root)
+            for directory in ([app_dir] if app_dir else []) + [d for _n, d in mounts or []]:
+                problems = _apps.problems(directory)
                 if problems:
-                    raise ProjectError("app %r is not usable:\n  - %s" % (_apps.read(app_dir)["name"], "\n  - ".join(problems)))
+                    raise ProjectError("app %r is not usable:\n  - %s" % (_apps.read(directory)["name"], "\n  - ".join(problems)))
         except ProjectError as exc:
             print("oto serve: %s" % exc, file=sys.stderr)
             return 1
@@ -118,7 +125,7 @@ def cmd_serve(args):
                 engine.MODE["watching"] = list(_preview.WATCHED)
         try:
             _http.serve(engine, args.http, app_dir=app_dir, project_root=project_root, identity=identity,
-                        token=_http.token_from_env(), cors=args.cors or ())
+                        token=_http.token_from_env(), cors=args.cors or (), mounts=mounts, catalog=catalog)
         except _http.BindError as exc:
             print("oto serve: refused: %s" % exc, file=sys.stderr)
             return 1
@@ -162,6 +169,7 @@ def register(sub):
                        help="serve the preview and rebuild it whenever graph.json, the candidate, a proposal, the "
                             "vocabulary, the rules or the lexicon change (implies --preview)")
     serve.add_argument("--view", default=None,
-                       help="with --http: the view to serve at /, by name or directory (default: the "
-                            "built-in explorer; `reader` is the other built-in); its data files are generated from the graph")
+                       help="with --http: the view to serve at /, by name or directory, or `all`: a home page at / and "
+                            "each of the project's views at /<name>/ (the default when the project has views of its own; "
+                            "otherwise the built-in explorer; `reader` is the other built-in); data files are generated from the graph")
     serve.set_defaults(func=cmd_serve)

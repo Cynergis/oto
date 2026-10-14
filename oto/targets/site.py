@@ -6,7 +6,11 @@ writes `build/site/`:
 
     data.json           the graph payload (serve/payload.py), the same object `/api/graph` serves
     <the app's files>   copied as they are: `"site": {"view": "<name or path>"}` in project.config.json,
-                        `oto build --target site --app <name or path>`, or the built-in explorer
+                        `oto build --target site --view <name or path>`, or the built-in explorer
+
+With the view `all`, the default when the project has views of its own (installed from its packs),
+the site is a home page (`index.html`, `views.json`) and each view in its own folder beside it,
+`<name>/`, the built-in explorer among them: one site for every view the project's packs bring.
 
 Opening the app from disk or hosting the directory anywhere static gives a reader with no server
 and no credentials. Passages are included unless `"site": {"passages": false}`; a large corpus
@@ -45,41 +49,70 @@ def resolve_app(app, project_root=None):
     return _apps.resolve(app, project_root)
 
 
-def write(project, app_dir=None, passages=True):
-    """Write build/site/. Returns (site directory, payload)."""
+def _payload_of(project, passages):
     layout = project.layout
     if not os.path.exists(layout.database):
         raise ProjectError("the site stage needs the SQLite store; run the sqlite stage first")
+    store = SqliteStore(layout.database)
+    try:
+        return _payload.build(store, os.path.dirname(project.src), project.config(), passages=passages)
+    finally:
+        store.close()
+
+
+def _write_data(dest, payload):
+    with open(os.path.join(dest, DATA_NAME), "w", encoding="utf-8", newline="\n") as f:
+        json.dump(payload, f, ensure_ascii=False, separators=(",", ":"))
+        f.write("\n")
+
+
+def _write_app(project, app_dir, dest, payload):
+    """One view into `dest`: its files, the payload, the data files its app.json declares, its overrides."""
+    shutil.copytree(app_dir, dest, ignore=SKIP)
+    _write_data(dest, payload)
+    manifest = _apps.read(app_dir)
+    problems = _apps.problems(app_dir)
+    if problems:
+        raise ProjectError("app %r is not usable:\n  - %s" % (manifest["name"], "\n  - ".join(problems)))
+    _apps.check_requires(manifest, payload.get("vocabulary"))
+    if manifest["_declared"] and not manifest.get("data"):
+        raise ProjectError("app %r declares no data files; a static site needs its data on disk. Serve it live "
+                           "with `oto serve --http --view`, or add a `data` entry to app.json" % manifest["name"])
+    for rel, text in _apps.data_files(manifest, payload, app_dir).items():
+        path = os.path.join(dest, rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+    for name, source in _apps.override_files(manifest, os.path.dirname(project.src)).items():
+        shutil.copyfile(source, os.path.join(dest, name))
+
+
+def write(project, app_dir=None, passages=True):
+    """Write build/site/ with one view at its root. Returns (site directory, payload)."""
+    layout = project.layout
+    payload = _payload_of(project, passages)
     if os.path.exists(layout.site):
         shutil.rmtree(layout.site)
     if app_dir:
-        shutil.copytree(app_dir, layout.site, ignore=SKIP)
+        _write_app(project, app_dir, layout.site, payload)
     else:
         os.makedirs(layout.site, exist_ok=True)
-    store = SqliteStore(layout.database)
-    try:
-        payload = _payload.build(store, os.path.dirname(project.src), project.config(), passages=passages)
-    finally:
-        store.close()
-    with open(os.path.join(layout.site, DATA_NAME), "w", encoding="utf-8", newline="\n") as f:
-        json.dump(payload, f, ensure_ascii=False, separators=(",", ":"))
+        _write_data(layout.site, payload)
+    return layout.site, payload
+
+
+def write_all(project, views, passages=True):
+    """Write build/site/ as a home page and every view in its own folder. Returns (site directory, payload)."""
+    layout = project.layout
+    payload = _payload_of(project, passages)
+    if os.path.exists(layout.site):
+        shutil.rmtree(layout.site)
+    shutil.copytree(_apps.HOME_DIR, layout.site, ignore=SKIP)
+    for name, app_dir in views:
+        _write_app(project, app_dir, os.path.join(layout.site, name), payload)
+    with open(os.path.join(layout.site, "views.json"), "w", encoding="utf-8", newline="\n") as f:
+        json.dump(_apps.catalog(views, project.config()), f, indent=1, ensure_ascii=False)
         f.write("\n")
-    if app_dir:
-        manifest = _apps.read(app_dir)
-        problems = _apps.problems(app_dir)
-        if problems:
-            raise ProjectError("app %r is not usable:\n  - %s" % (manifest["name"], "\n  - ".join(problems)))
-        _apps.check_requires(manifest, payload.get("vocabulary"))
-        if manifest["_declared"] and not manifest.get("data"):
-            raise ProjectError("app %r declares no data files; a static site needs its data on disk. Serve it live "
-                               "with `oto serve --http --app`, or add a `data` entry to app.json" % manifest["name"])
-        for rel, text in _apps.data_files(manifest, payload, app_dir).items():
-            path = os.path.join(layout.site, rel)
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            with open(path, "w", encoding="utf-8", newline="\n") as f:
-                f.write(text)
-        for name, source in _apps.override_files(manifest, os.path.dirname(project.src)).items():
-            shutil.copyfile(source, os.path.join(layout.site, name))
     return layout.site, payload
 
 
@@ -88,9 +121,17 @@ def run(project):
         print("site: not targeted (add \"site\" to targets, or pass --target site); skipped")
         return
     conf = settings(project)
-    app_dir = resolve_app(conf["view"] or "explorer", os.path.dirname(project.src))
-    site, payload = write(project, app_dir=app_dir, passages=conf["passages"])
-    print("site: %d nodes, %d edges%s -> %s%s"
+    root = os.path.dirname(project.src)
+    view = conf["view"] or _apps.default_view(root)
+    if view == _apps.ALL:
+        views = _apps.project_views(root)
+        site, payload = write_all(project, views, passages=conf["passages"])
+        shown = "a home page and %d views: %s" % (len(views), ", ".join(name for name, _d in views))
+    else:
+        app_dir = resolve_app(view, root)
+        site, payload = write(project, app_dir=app_dir, passages=conf["passages"])
+        shown = "app %s" % os.path.basename(app_dir)
+    print("site: %d nodes, %d edges%s -> %s with %s"
           % (len(payload["nodes"]), len(payload["edges"]),
              (", %d passages" % len(payload["passages"])) if "passages" in payload else "",
-             os.path.relpath(site, project.src), " with app %s" % os.path.basename(app_dir)))
+             os.path.relpath(site, project.src), shown))

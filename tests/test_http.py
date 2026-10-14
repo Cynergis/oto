@@ -426,7 +426,11 @@ def test_the_site_of_a_project_with_views_is_a_home_page_and_every_view():
         _two_views(root)
         assert main(["build", "--project", root, "--target", "site"]) == 0
         site = project.layout.site
-        assert "Project views" in open(os.path.join(site, "index.html"), encoding="utf-8").read()
+        assert "_studio/data.js" in open(os.path.join(site, "index.html"), encoding="utf-8").read()
+        for kit in ("studio.css", "studio.js"):
+            assert os.path.exists(os.path.join(site, "_studio", kit)), kit
+        studio = open(os.path.join(site, "_studio", "data.js"), encoding="utf-8").read()
+        assert studio.startswith("window.__STUDIO__ = ") and '"title":"Explore the knowledge graph"' in studio
         listing = json.load(open(os.path.join(site, "views.json"), encoding="utf-8"))
         assert listing["project"]["name"] == "Acme"
         assert [(v["name"], v["path"]) for v in listing["views"]] == [("board", "board/"), ("map", "map/"), ("explorer", "explorer/")]
@@ -435,7 +439,7 @@ def test_the_site_of_a_project_with_views_is_a_home_page_and_every_view():
         assert os.path.exists(os.path.join(site, "explorer", "data.json")) and os.path.exists(os.path.join(site, "map", "index.html"))
         assert main(["build", "--project", root, "--target", "site", "--view", "map"]) == 0
         assert not os.path.exists(os.path.join(site, "views.json")), "one view named: that view at the root, as before"
-        assert os.path.exists(os.path.join(site, "data.js"))
+        assert os.path.exists(os.path.join(site, "data.js")) and os.path.exists(os.path.join(site, "_studio", "studio.js"))
 
 
 def test_the_server_mounts_every_view_under_the_home_page():
@@ -450,7 +454,12 @@ def test_the_server_mounts_every_view_under_the_home_page():
                               mounts=views, catalog=apps.catalog(views, project.config())).start()
         try:
             status, _ctype, body = _get(server.url + "/")
-            assert status == 200 and b"Project views" in body
+            assert status == 200 and b"_studio/data.js" in body
+            status, ctype, body = _get(server.url + "/_studio/data.js")
+            studio = json.loads(body.decode("utf-8").split(" = ", 1)[1].rstrip().rstrip(";"))
+            assert status == 200 and "javascript" in ctype and [p["name"] for p in studio["pages"]] == ["board", "map", "explorer"]
+            status, ctype, body = _get(server.url + "/_studio/studio.css")
+            assert status == 200 and "css" in ctype and b".studio-bar" in body
             status, _ctype, body = _get(server.url + "/views.json")
             assert [v["name"] for v in json.loads(body)["views"]] == ["board", "map", "explorer"]
             status, _ctype, body = _get(server.url + "/board/")
@@ -470,5 +479,35 @@ def test_the_server_mounts_every_view_under_the_home_page():
                 assert exc.code == 301 and exc.headers["Location"] == "/map/"
             status, _ctype, _body = _get(server.url + "/board/../../etc/passwd")
             assert status in (403, 404)
+        finally:
+            server.stop()
+
+
+def test_a_page_asking_for_its_data_files_at_once_gets_them_all():
+    """A page asks for its own data and the studio's together; the store has one connection."""
+    import threading
+    from oto.apps import manifest as apps
+    from oto.serve import http as _http
+    with tempfile.TemporaryDirectory() as root:
+        project = _project(root)
+        _two_views(root)
+        engine = _engine(project)
+        views = apps.project_views(root)
+        server = _http.Server(engine, "127.0.0.1", 0, app_dir=apps.HOME_DIR, project_root=root, identity=project.config(),
+                              mounts=views, catalog=apps.catalog(views, project.config())).start()
+        try:
+            results = []
+            paths = ["/_studio/data.js", "/board/data.js", "/map/data.js", "/explorer/data.json", "/api/status"] * 4
+            def fetch(path):
+                try:
+                    results.append(_get(server.url + path)[0])
+                except Exception as exc:                                # noqa: BLE001
+                    results.append(repr(exc))
+            threads = [threading.Thread(target=fetch, args=(p,)) for p in paths]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join(30)
+            assert results == [200] * len(paths), results
         finally:
             server.stop()

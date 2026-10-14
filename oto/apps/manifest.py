@@ -13,8 +13,13 @@
       ],
       "adapter": "adapter.js",
       "requires": {"classes": ["System", "DecisionRecord"], "relations": ["decided_by"],
-                   "attributes": {"DecisionRecord": ["status"]}}
+                   "attributes": {"DecisionRecord": ["status"]}},
+      "title": "Decisions", "place": "design", "shows": ["DecisionRecord"], "open": ["SA"]
     }
+
+`title`, `place`, `shows`, `open` and `portal` place the view in the product's studio: what a reader
+sees it as, where it belongs, the things it can open, the questions whose gaps belong on it, and
+whether it is the front page (see [studio.py](studio.py)).
 
 `format` is `js-globals` (`window.X = ...;` per global), `json` (one object: the globals keyed by
 name, or `root`), or `js-module` (`export const X = ...;` per global). `overrides` names files the
@@ -57,7 +62,8 @@ def read(directory):
         declared = json.load(f)
     if not isinstance(declared, dict):
         raise AppError("%s must be a JSON object" % path)
-    for key in ("name", "summary", "entry", "engine", "data", "adapter", "requires", "overrides"):
+    for key in ("name", "summary", "entry", "engine", "data", "adapter", "requires", "overrides",
+                "title", "place", "shows", "open", "portal"):
         if key in declared and declared[key] not in (None, ""):
             manifest[key] = declared[key]
     manifest["_declared"] = True
@@ -109,6 +115,16 @@ def problems(directory, vocabulary=None):
     for inc in refs["includes"]:
         if not os.path.exists(os.path.join(directory, inc)):
             out.append("$include %r: no such file in the app" % inc)
+    from . import studio as _studio
+    if "title" in manifest and not (isinstance(manifest["title"], str) and manifest["title"].strip()):
+        out.append("`title` must be the page's name in plain words")
+    if "place" in manifest and manifest["place"] not in _studio.PLACE_IDS:
+        out.append("`place` %r is not one of %s" % (manifest["place"], ", ".join(_studio.PLACE_IDS)))
+    for key in ("shows", "open"):
+        if key in manifest and not (isinstance(manifest[key], list) and all(isinstance(x, str) and x for x in manifest[key])):
+            out.append("`%s` must be a list of %s" % (key, "class names" if key == "shows" else "question ids or id prefixes"))
+    if "portal" in manifest and not isinstance(manifest["portal"], bool):
+        out.append("`portal` must be true or false")
     overrides = manifest.get("overrides") or []
     if not isinstance(overrides, list) or not all(isinstance(x, str) and x and "/" not in x and ".." not in x for x in overrides):
         out.append("`overrides` must be a list of file names")
@@ -245,11 +261,14 @@ def default_view(project_root):
 
 
 def catalog(views, identity=None):
-    """What the home page lists (`views.json`): the project, and each view with its summary and path."""
+    """What the home page lists (`views.json`): the project, and each view with its title, place,
+    summary and path, in the studio's reading order."""
+    from . import studio as _studio
     identity = identity or {}
-    return {"project": {"name": identity.get("name"), "slug": identity.get("slug")},
-            "views": [{"name": name, "summary": (read(path).get("summary") or "").strip(), "path": "%s/" % name}
-                      for name, path in views]}
+    listed = _studio.pages(views)
+    return {"project": {"name": identity.get("name"), "slug": identity.get("slug")}, "portal": _studio.portal(listed),
+            "views": [{"name": p["name"], "title": p["title"], "place": p["place"], "summary": p["summary"], "path": p["path"]}
+                      for p in listed]}
 
 
 def resolve(app, project_root=None):

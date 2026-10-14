@@ -4,7 +4,28 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
-## 0.11.24 — 2026-10-14
+## 0.11.25 — 2026-10-14
+
+**The studio: a product's pages, assembled from the views of the packs it uses.** The old site was one
+fixed web app that read like an internal tool (raw ids, method jargon, a coverage meter, empty boxes, a
+broken diagram) and could not show the parts a product's other packs bring. Now every pack's view
+says where it belongs, and the studio assembles them ([docs/STUDIO.md](docs/STUDIO.md)):
+
+- a view's `app.json` declares its `title` in plain words, its `place` (what the product is, what it
+  deals with, how it is designed, where the data comes from, how people work with it, where it runs,
+  how it is built, tools, technical), the classes it `shows`, the questions whose gaps are `open` on
+  it, and whether it is the product's front page (`portal`); `oto` checks them;
+- a kit every view includes (`_studio/`: one look, the navigation, `Studio.link` to open any thing on
+  the page that shows it, and the "still open" box: each unanswered question's gaps in words, with
+  who can answer), served by `oto serve --http` and written beside the views by `oto build --target
+  site`, with the studio's data generated from the knowledge base;
+- the home page opens the product's front page, or lists the pages by place when there is none; the
+  explorer is listed last, as "Explore the knowledge graph", technical.
+
+**The server's requests take turns on the store.** A page now asks for its own data and the studio's
+together; the store has one connection, and two requests reading it at once failed. They are
+serialised.
+
 
 **The platform binding: where a product runs, and who decides.** The design (the architecture and
 its patterns) says what the product does and never which platform runs it; nothing recorded where it

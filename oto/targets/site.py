@@ -23,6 +23,7 @@ import os
 import shutil
 
 from ..apps import manifest as _apps
+from ..apps import studio as _studio
 from ..project import ProjectError
 from ..serve import payload as _payload
 from ..serve.store import SqliteStore
@@ -87,6 +88,17 @@ def _write_app(project, app_dir, dest, payload):
         shutil.copyfile(source, os.path.join(dest, name))
 
 
+def _write_studio(project, site, views, payload):
+    """The kit every view includes, beside them under `_studio/`, and the studio's data: the pages in
+    reading order, which page shows each thing, and what is still open on each."""
+    from ..reason import questions as _questions
+    dest = os.path.join(site, _studio.KIT_PREFIX)
+    shutil.copytree(_studio.KIT_DIR, dest, ignore=SKIP, dirs_exist_ok=True)
+    rows = _studio.survey(_questions.load(project), payload)
+    with open(os.path.join(dest, _studio.DATA_NAME), "w", encoding="utf-8", newline="\n") as f:
+        f.write(_studio.script(_studio.data(views, payload, rows, project.config())))
+
+
 def write(project, app_dir=None, passages=True):
     """Write build/site/ with one view at its root. Returns (site directory, payload)."""
     layout = project.layout
@@ -95,6 +107,7 @@ def write(project, app_dir=None, passages=True):
         shutil.rmtree(layout.site)
     if app_dir:
         _write_app(project, app_dir, layout.site, payload)
+        _write_studio(project, layout.site, [], payload)
     else:
         os.makedirs(layout.site, exist_ok=True)
         _write_data(layout.site, payload)
@@ -113,6 +126,7 @@ def write_all(project, views, passages=True):
     with open(os.path.join(layout.site, "views.json"), "w", encoding="utf-8", newline="\n") as f:
         json.dump(_apps.catalog(views, project.config()), f, indent=1, ensure_ascii=False)
         f.write("\n")
+    _write_studio(project, layout.site, views, payload)
     return layout.site, payload
 
 

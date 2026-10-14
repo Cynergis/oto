@@ -94,6 +94,21 @@ def cmd_registry(args):
             print("%s plugin %s in registry %s as %s" % ("removed" if args.remove else "listed", result["name"], result["registry"], result["commit"]))
             print("  in Claude Code: /plugin marketplace add %s, then /plugin install %s@%s" % (args.to, result["name"], result["registry"]))
             return 0
+        if verb == "pin":
+            if not which or not (args.to and args.repo and args.plugin_ref and args.version):
+                print("oto: registry pin needs a plugin name, --to <registry url>, --repo owner/name, --plugin-ref <tag> and --version",
+                      file=sys.stderr)
+                return 1
+            result = _registry.pin_plugin(args.to, which[0], args.repo, args.plugin_ref, args.version, changelog=args.changelog)
+            if not result["moved"]:
+                print("the registry already pins %s at %s; nothing to move" % (which[0], result["current"]))
+                return 0
+            if args.body_file:
+                with open(args.body_file, "w", encoding="utf-8") as f:
+                    f.write(result["body"])
+            print("moved the %s pin to %s on branch %s" % (which[0], args.plugin_ref, result["branch"]))
+            print("title: %s" % result["title"])
+            return 0
         if verb == "site":
             from .. import catalog as _catalog
             root = os.path.abspath(which[0] if which else ".")
@@ -122,7 +137,7 @@ def cmd_registry(args):
 def register(sub):
     registry = sub.add_parser("registry", help="the registries this machine fetches ontologies from")
     registry.add_argument("registry_command", nargs="?", default="list",
-                          choices=["add", "list", "remove", "refresh", "check", "site", "plugin"],
+                          choices=["add", "list", "remove", "refresh", "check", "site", "plugin", "pin"],
                           help="add <git url> registers one; list (default) shows them; remove <name> forgets one "
                                "(what was fetched from it stays); refresh [<name>] re-reads the index; "
                                "check [<dir>] verifies a registry checkout: the index matches the directories; "
@@ -138,6 +153,8 @@ def register(sub):
     registry.add_argument("--description", default=None, help="for plugin: one line for the marketplace")
     registry.add_argument("--category", default=None, help="for plugin: the marketplace category")
     registry.add_argument("--remove", action="store_true", help="for plugin: delist it")
+    registry.add_argument("--changelog", default=None, help="for pin: the plugin's CHANGELOG.md, whose section for the version goes in the pull request")
+    registry.add_argument("--body-file", dest="body_file", default=None, help="for pin: where to write the pull request's description")
     registry.add_argument("--registry-name", dest="registry_name", default=None, help="for plugin into an empty repository: the registry's name")
     registry.add_argument("--engine", default=None, help="for plugin into an empty repository: the engine repository the check workflow installs")
     registry.add_argument("--product-types", dest="product_types", action="store_true",

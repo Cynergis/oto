@@ -1,0 +1,92 @@
+name: registry pin
+
+# When a plugin listed in the OTO registry releases a version, open the registry pull request that
+# moves its pin to the new tag. Called by the release workflow of the engine and of any listed plugin
+# (pdf-to-template), right after it tags; it can also be run by hand from the Actions tab.
+#
+# It needs the secret OTO_REGISTRY_TOKEN: a token that can push a branch to the registry and open a
+# pull request there (a fine-grained token on Cynergis/oto-registry with Contents and Pull requests
+# set to read and write, or a GitHub App's). The engine reads it from OTO_REGISTRY_TOKEN for its
+# clones and pushes of the registry, and gh for the pull request; nothing else sees it. Without it
+# the release is not blocked: the run says how to move the pin by hand. A registry that already pins
+# this version, or a newer one, gets nothing.
+
+on:
+  workflow_call:
+    inputs:
+      plugin: { description: "the plugin's name in the registry", required: true, type: string }
+      repo: { description: "the plugin's repository, owner/name", required: true, type: string }
+      tag: { description: "the release tag, v<version>", required: true, type: string }
+      version: { description: "the version, without the v", required: true, type: string }
+      changelog: { description: "the plugin's changelog, whose section for the version goes in the pull request", required: false, type: string, default: "" }
+      engine_ref: { description: "the engine release that moves the pin", required: false, type: string, default: "main" }
+      registry: { description: "the registry repository", required: false, type: string, default: "Cynergis/oto-registry" }
+    secrets:
+      OTO_REGISTRY_TOKEN: { required: false }
+  workflow_dispatch:
+    inputs:
+      plugin: { description: "the plugin's name in the registry", required: true, default: "oto" }
+      repo: { description: "the plugin's repository, owner/name", required: true, default: "Cynergis/oto" }
+      tag: { description: "the release tag, v<version>", required: true }
+      version: { description: "the version, without the v", required: true }
+      changelog: { description: "the plugin's changelog (path in the repository)", required: false, default: "CHANGELOG.md" }
+      engine_ref: { description: "the engine release that moves the pin", required: false, default: "main" }
+      registry: { description: "the registry repository", required: false, default: "Cynergis/oto-registry" }
+
+permissions:
+  contents: read
+
+jobs:
+  pin:
+    name: open the registry pull request
+    runs-on: ubuntu-latest
+    env:
+      OTO_REGISTRY_TOKEN: ${{ secrets.OTO_REGISTRY_TOKEN }}
+      PLUGIN: ${{ inputs.plugin }}
+      REPO: ${{ inputs.repo }}
+      TAG: ${{ inputs.tag }}
+      VERSION: ${{ inputs.version }}
+      CHANGELOG: ${{ inputs.changelog }}
+      ENGINE_REF: ${{ inputs.engine_ref }}
+      REGISTRY: ${{ inputs.registry }}
+    steps:
+      - name: Without the token, say how to move the pin by hand
+        if: env.OTO_REGISTRY_TOKEN == ''
+        run: |
+          echo "::notice title=Registry pin not moved::The secret OTO_REGISTRY_TOKEN is not set. Move it by hand: oto registry pin $PLUGIN --to https://github.com/$REGISTRY.git --repo $REPO --plugin-ref $TAG --version $VERSION, then open the pull request from its branch."
+      - uses: actions/checkout@v4
+        if: env.OTO_REGISTRY_TOKEN != ''
+        with:
+          repository: ${{ inputs.repo }}
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        if: env.OTO_REGISTRY_TOKEN != ''
+        with:
+          python-version: "3.12"
+      - name: Move the pin on a branch, and open the pull request
+        if: env.OTO_REGISTRY_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ secrets.OTO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config --global user.name "oto release"
+          git config --global user.email "oto-release@users.noreply.github.com"
+          python -m pip install --quiet --upgrade pip
+          python -m pip install --quiet "oto-kg @ git+https://github.com/Cynergis/oto@${ENGINE_REF}"
+          changelog_arg=()
+          if [ -n "$CHANGELOG" ] && [ -f "$CHANGELOG" ]; then changelog_arg=(--changelog "$CHANGELOG"); fi
+          out=$(oto registry pin "$PLUGIN" --to "https://github.com/$REGISTRY.git" --repo "$REPO" --plugin-ref "$TAG" \
+                  --version "$VERSION" "${changelog_arg[@]}" --body-file body.md)
+          echo "$out"
+          if ! echo "$out" | grep -q "^moved the"; then
+            echo "::notice title=Registry pin unchanged::$out"
+            exit 0
+          fi
+          branch="pin/${PLUGIN}-${TAG}"
+          if [ -n "$(gh pr list --repo "$REGISTRY" --head "$branch" --state open --json number --jq '.[].number')" ]; then
+            echo "::notice title=Registry pull request exists::the pull request for $branch is already open; its branch was updated"
+            exit 0
+          fi
+          url=$(gh pr create --repo "$REGISTRY" --base main --head "$branch" --title "Move the $PLUGIN pin to $TAG" --body-file body.md)
+          echo "::notice title=Registry pull request opened::$url"

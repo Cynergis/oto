@@ -4,6 +4,26 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.28 — 2026-10-14
+
+**A release moves its registry pin by itself.** Until now, after the engine or a listed plugin tagged a
+version, someone moved the registry's pin by hand, so a fresh install kept getting the previous one
+until they did.
+
+- **`oto registry pin <plugin> --to <registry> --repo owner/name --plugin-ref v<version> --version <version>`**
+  moves a listed plugin's pin on a branch of its own, `pin/<plugin>-v<version>`, and leaves the registry's
+  main untouched: the pull request from that branch is the review. Nothing moves when the registry
+  already pins that version or a newer one. `--changelog` quotes the version's section of the plugin's
+  changelog in the pull request text, which `--body-file` writes.
+- **The release workflow opens the pull request.** `tag-release.yml` calls the new reusable workflow
+  `registry-pin.yml` when it pushes a new tag; a plugin's own release workflow calls the same one
+  (`Cynergis/oto/.github/workflows/registry-pin.yml@main`). It needs the secret `OTO_REGISTRY_TOKEN`, a
+  token that can push a branch to the registry and open a pull request there; without it the release
+  still tags, and the run says how to move the pin by hand. It can also be run from the Actions tab.
+- **Moving a pin keeps what it does not restate.** `oto registry plugin` given only a new ref and
+  version kept nothing else of the entry: its description and category were lost. They stay now; a
+  new `--repo` or `--url` replaces the old source.
+
 ## 0.11.27 — 2026-10-14
 
 **The studio works opened from disk.** A built site (`oto build --target site`) opened by double-clicking

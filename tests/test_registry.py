@@ -405,6 +405,12 @@ def test_a_plugin_in_its_own_repository_is_listed_in_the_marketplace_and_the_eng
     assert plugins[1]["source"] == {"source": "github", "repo": "Cynergis/studio"} and plugins[1]["category"] == "product"
     assert registry.index_problems(index, work) == []
     assert any("needs a `repo`" in p for p in registry.index_problems(dict(index, plugins=[{"name": "x"}]), work))
+    # a release moves the pin with the version alone: the description and the category stay
+    assert main(["registry", "plugin", "studio", "--to", bare, "--repo", "Cynergis/studio", "--plugin-ref", "v2.1.0", "--version", "2.1.0"]) == 0
+    _git(["pull", "--quiet"], work)
+    moved = {p["name"]: p for p in json.load(open(os.path.join(work, "registry.json"), encoding="utf-8"))["plugins"]}["studio"]
+    assert moved == {"name": "studio", "repo": "Cynergis/studio", "ref": "v2.1.0", "version": "2.1.0",
+                     "description": "The studio.", "category": "product"}
     assert main(["registry", "plugin", "studio", "--to", bare, "--remove"]) == 0
     _git(["pull", "--quiet"], work)
     plugins = json.load(open(os.path.join(work, ".claude-plugin", "marketplace.json"), encoding="utf-8"))["plugins"]
@@ -439,3 +445,35 @@ def test_a_registry_claude_code_knows_as_a_marketplace_is_listed_without_registr
     assert "product-claims" in capsys.readouterr().out
     assert main(["registry", "list"]) == 0
     assert "known to Claude Code as marketplaces" in capsys.readouterr().out
+
+
+def test_a_release_moves_its_pin_on_a_branch_of_its_own_and_never_backward(home, capsys):
+    """What a plugin's release workflow runs on a new tag: the pin moves on `pin/<name>-<tag>`, the
+    listing keeps its description, the pull request quotes the release's changelog; the registry's
+    main is untouched, and a version it already pins, or an older one, moves nothing."""
+    bare = _empty_registry(home, name="market")
+    assert main(["registry", "plugin", "oto", "--to", bare, "--repo", "Cynergis/oto", "--plugin-ref", "v0.11.0",
+                 "--version", "0.11.0", "--description", "The engine.", "--registry-name", "market"]) == 0
+    changelog = os.path.join(home, "CHANGELOG.md")
+    with open(changelog, "w", encoding="utf-8") as f:
+        f.write("# Changelog\n\n## 0.11.1 — 2026-10-14\n\n**Quotes that hold.** Fixed it.\n\n## 0.11.0 — 2026-10-01\n\nOlder.\n")
+    body = os.path.join(home, "body.md")
+    capsys.readouterr()
+    assert main(["registry", "pin", "oto", "--to", bare, "--repo", "Cynergis/oto", "--plugin-ref", "v0.11.1", "--version", "0.11.1",
+                 "--changelog", changelog, "--body-file", body]) == 0
+    out = capsys.readouterr().out
+    assert "moved the oto pin to v0.11.1 on branch pin/oto-v0.11.1" in out and "title: Move the oto pin to v0.11.1" in out
+    text = open(body, encoding="utf-8").read()
+    assert "**oto 0.11.1 is released**" in text and "from 0.11.0 to it" in text and "**Quotes that hold.** Fixed it." in text
+    assert "Older." not in text, "only this release's section"
+    work = os.path.join(home, "pin-check")
+    _git(["clone", "--quiet", "--branch", "pin/oto-v0.11.1", bare, work], home)
+    oto = next(p for p in json.load(open(os.path.join(work, "registry.json"), encoding="utf-8"))["plugins"] if p["name"] == "oto")
+    assert oto["version"] == "0.11.1" and oto["ref"] == "v0.11.1" and oto["description"] == "The engine."
+    main_copy = os.path.join(home, "main-check")
+    _git(["clone", "--quiet", bare, main_copy], home)
+    oto = next(p for p in json.load(open(os.path.join(main_copy, "registry.json"), encoding="utf-8"))["plugins"] if p["name"] == "oto")
+    assert oto["version"] == "0.11.0", "the registry's main moves only when the pull request merges"
+    for older in ("0.11.0", "0.10.9"):
+        assert main(["registry", "pin", "oto", "--to", bare, "--repo", "Cynergis/oto", "--plugin-ref", "v" + older, "--version", older]) == 0
+        assert "the registry already pins oto at 0.11.0; nothing to move" in capsys.readouterr().out

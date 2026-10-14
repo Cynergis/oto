@@ -604,7 +604,13 @@ def register_plugin(to, name, repo=None, url=None, plugin_ref=None, path=None, v
                 raise ProjectError("the registry lists no plugin %r" % name)
             entries.pop(name)
         else:
-            entry = {"name": name}
+            # a listed plugin keeps what this call does not restate (its description, category, path), so a
+            # release workflow moves the pin with the version alone; a new source replaces the old one
+            entry = dict(entries.get(name) or {}, name=name)
+            if repo:
+                entry.pop("url", None)
+            if url:
+                entry.pop("repo", None)
             for key, value in (("repo", repo), ("url", url), ("ref", plugin_ref), ("path", path), ("version", version),
                                ("description", description), ("category", category)):
                 if value:
@@ -620,6 +626,54 @@ def register_plugin(to, name, repo=None, url=None, plugin_ref=None, path=None, v
     finally:
         shutil.rmtree(work, ignore_errors=True)
     return {"name": name, "registry": index["name"], "commit": commit, "cached": _refresh_cached(to), "created": created}
+
+
+def _version_key(version):
+    """A version as something to compare: numbers as numbers, the rest as text."""
+    return tuple((0, int(part)) if part.isdigit() else (1, part) for part in re.split(r"[.+-]", str(version or "")))
+
+
+def changelog_section(path, version):
+    """The section of a CHANGELOG.md for one version (`## <version> — date` to the next `## `), or ""."""
+    if not path or not os.path.isfile(path):
+        return ""
+    lines, keep, out = open(path, encoding="utf-8").read().splitlines(), False, []
+    for line in lines:
+        if line.startswith("## "):
+            if keep:
+                break
+            keep = line[3:].split(" ")[0].lstrip("v") == str(version).lstrip("v")
+            continue
+        if keep:
+            out.append(line)
+    return "\n".join(out).strip()
+
+
+def pin_plugin(to, name, repo, tag, version, changelog=None):
+    """Move a listed plugin's pin to a release, on a branch of its own, ready for a pull request:
+    what a plugin's release workflow runs when it tags `v<version>`. Nothing moves when the registry
+    already pins this version or a newer one. Returns {moved, branch, title, body, current}."""
+    probe = tempfile.mkdtemp(prefix="oto-pin-")
+    try:
+        gitx.clone(to, probe, token=_token(), depth=1)
+        index = json.load(open(os.path.join(probe, INDEX_NAME), encoding="utf-8")) if os.path.exists(os.path.join(probe, INDEX_NAME)) else {}
+        current = next((p.get("version") for p in index.get("plugins") or [] if p.get("name") == name), None)
+        if current and _version_key(current) >= _version_key(version):
+            return {"moved": False, "current": current, "branch": None, "title": None, "body": None}
+        branch = "pin/%s-%s" % (name, tag)
+        gitx.run(["push", "--quiet", "--force", "origin", "HEAD:refs/heads/%s" % branch], cwd=probe)
+    finally:
+        shutil.rmtree(probe, ignore_errors=True)
+    register_plugin(to, name, repo=repo, plugin_ref=tag, version=version, ref=branch)
+    notes = changelog_section(changelog, version)
+    body = ["**%s %s is released** (`%s` in %s). This moves the registry's pin from %s to it, so a fresh install gets it."
+            % (name, version, tag, repo, current or "nothing"), ""]
+    if notes:
+        body += ["**What changed** (from its changelog):", "", notes, ""]
+    body += ["Opened by %s's release workflow. Merging it publishes the new version: the registry's checks run on "
+             "this pull request first, and the catalog rebuilds after the merge." % repo]
+    return {"moved": True, "current": current, "branch": branch, "title": "Move the %s pin to %s" % (name, tag),
+            "body": "\n".join(body) + "\n"}
 
 
 def publish_pack(to, pack, note=None, summary=None, ref=None, registry_name=None, engine=None):

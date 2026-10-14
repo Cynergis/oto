@@ -1,0 +1,689 @@
+{
+  "_about": "The questions this ontology exists to answer, about an agent that is part of a product. Each is a query over the graph with a gate: `non_empty` must answer, `empty` must not match, `any` informs, `no_gaps` is unanswered while a gap remains. `gaps` say in words what is missing.",
+  "questions": {
+    "AG1": {
+      "who": "a product owner",
+      "question": "Which agents does the product offer, who does each work for, how is each packaged and where is it installed from, and is it ready?",
+      "why": "The first thing anyone asks about an agent: who it is for and how they get it.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "a",
+            "type": "Agent"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "a",
+                  "works_for",
+                  "p"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "a.label",
+          "a.packaging",
+          "a.distribution",
+          "a.readiness",
+          "p.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": [
+        {
+          "when": [
+            {
+              "node": "a",
+              "type": "Agent"
+            },
+            {
+              "not_edge": [
+                "a",
+                "works_for",
+                "*"
+              ]
+            }
+          ],
+          "say": "an agent that works for nobody"
+        }
+      ]
+    },
+    "AG2": {
+      "who": "a product owner",
+      "question": "Which jobs can a person hand to the agent, when does each apply, what does it produce, and who asks for it?",
+      "why": "The jobs are what the agent is for; a person who cannot tell when to ask for one will not use it.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "j",
+            "type": "Job"
+          },
+          {
+            "edge": [
+              "j",
+              "part_of",
+              "a"
+            ]
+          },
+          {
+            "node": "a",
+            "type": "Agent"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "j",
+                  "requested_by",
+                  "p"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "a.label",
+          "j.label",
+          "j.when_to_use",
+          "j.produces",
+          "p.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": [
+        {
+          "when": [
+            {
+              "node": "j",
+              "type": "Job"
+            },
+            {
+              "not_edge": [
+                "j",
+                "part_of",
+                "*"
+              ]
+            }
+          ],
+          "say": "a job no agent does"
+        },
+        {
+          "when": [
+            {
+              "node": "a",
+              "type": "Agent"
+            },
+            {
+              "not_edge": [
+                "*",
+                "part_of",
+                "a"
+              ]
+            }
+          ],
+          "say": "an agent with no job a person can hand it"
+        }
+      ]
+    },
+    "AG3": {
+      "who": "a builder",
+      "question": "What is job $JOB: which requirement does it meet, which tools does it use, what does it draw on, how far may it act alone, and is it ready?",
+      "why": "The job is the unit the builder plans from; its requirement is the trace back to the specification, its tools and sources are what it needs.",
+      "validated_by": "",
+      "params": {
+        "JOB": {
+          "type": "Job"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$JOB",
+              "satisfies",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Requirement"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$JOB",
+                  "calls",
+                  "t"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$JOB",
+                  "draws_on",
+                  "k"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "r.label",
+          "t.label",
+          "k.label",
+          "$JOB.autonomy",
+          "$JOB.readiness"
+        ]
+      },
+      "gate": "no_gaps",
+      "gaps": [
+        {
+          "when": [
+            {
+              "not_edge": [
+                "$JOB",
+                "satisfies",
+                "*"
+              ]
+            }
+          ],
+          "say": "it meets no requirement"
+        },
+        {
+          "when": [
+            {
+              "not_edge": [
+                "*",
+                "proves",
+                "$JOB"
+              ]
+            }
+          ],
+          "say": "no test conversation proves it"
+        },
+        {
+          "when": [
+            {
+              "node": "$JOB",
+              "where": {
+                "autonomy": {
+                  "exists": false
+                }
+              }
+            }
+          ],
+          "say": "nobody has said how far it may act alone"
+        }
+      ]
+    },
+    "AG4": {
+      "who": "an architect",
+      "question": "Which tools can the agent use, does each read, change or send something, can it be undone, and what does each reach?",
+      "why": "The tools are where an agent touches the estate; what each reaches and whether it can be undone decide how it must be guarded.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "a",
+            "type": "Agent"
+          },
+          {
+            "edge": [
+              "a",
+              "equipped_with",
+              "t"
+            ]
+          },
+          {
+            "node": "t",
+            "type": "Tool"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "t",
+                  "reaches",
+                  "s"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "a.label",
+          "t.label",
+          "t.effect",
+          "t.reversible",
+          "s.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": [
+        {
+          "when": [
+            {
+              "node": "t",
+              "type": "Tool"
+            },
+            {
+              "not_edge": [
+                "*",
+                "equipped_with",
+                "t"
+              ]
+            }
+          ],
+          "say": "a tool no agent has"
+        }
+      ]
+    },
+    "AG5": {
+      "who": "security",
+      "question": "Which tools change something or send something out, and what protects each?",
+      "why": "An agent that changes things or sends them out unguarded is the failure people fear from agents; every such tool needs a guardrail.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "t",
+            "type": "Tool",
+            "where": {
+              "effect": {
+                "in": [
+                  "changes",
+                  "sends"
+                ]
+              }
+            }
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "g",
+                  "protects",
+                  "t"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "t.label",
+          "t.effect",
+          "g.label",
+          "g.kind"
+        ]
+      },
+      "gate": "no_gaps",
+      "gaps": [
+        {
+          "when": [
+            {
+              "node": "t",
+              "type": "Tool",
+              "where": {
+                "effect": {
+                  "in": [
+                    "changes",
+                    "sends"
+                  ]
+                }
+              }
+            },
+            {
+              "not_edge": [
+                "*",
+                "protects",
+                "t"
+              ]
+            }
+          ],
+          "say": "a tool that changes or sends something has no guardrail"
+        }
+      ]
+    },
+    "AG6": {
+      "who": "compliance",
+      "question": "What must the agent never do, what may it do only after someone confirms and who, and which of the organisation's policies does each guardrail uphold?",
+      "why": "The guardrails are the agent's obligations; each is traced to who confirms and to the policy it carries out.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "g",
+            "type": "Guardrail"
+          },
+          {
+            "edge": [
+              "g",
+              "protects",
+              "x"
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "g",
+                  "confirmed_by",
+                  "w"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "g",
+                  "upholds",
+                  "pol"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "g.label",
+          "g.kind",
+          "g.rule",
+          "x.label",
+          "w.label",
+          "pol.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "AG7": {
+      "who": "a builder",
+      "question": "What does the agent draw on before it acts, where is each source kept, and how current must it be?",
+      "why": "An agent is only as right as what it reads; a stale source is a wrong answer said with confidence.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "j",
+            "type": "Job"
+          },
+          {
+            "edge": [
+              "j",
+              "draws_on",
+              "k"
+            ]
+          },
+          {
+            "node": "k",
+            "type": "KnowledgeSource"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "k",
+                  "held_in",
+                  "h"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "j.label",
+          "k.label",
+          "k.kind",
+          "k.freshness",
+          "h.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "AG8": {
+      "who": "an architect",
+      "question": "Where does each job hand the work over: to which job, which agent or which person?",
+      "why": "A hand-off is where work is lost; each says who takes it next.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "j",
+            "type": "Job"
+          },
+          {
+            "edge": [
+              "j",
+              "hands_off_to",
+              "x"
+            ]
+          }
+        ],
+        "select": [
+          "j.label",
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "any"
+    },
+    "AG9": {
+      "who": "a product owner",
+      "question": "How do we know each job works: its test conversations, what each expects and must never do, and how each went the last time it ran?",
+      "why": "The test conversations are the agent's acceptance; they are what a release is checked against.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "e",
+            "type": "Evaluation"
+          },
+          {
+            "edge": [
+              "e",
+              "proves",
+              "j"
+            ]
+          }
+        ],
+        "select": [
+          "j.label",
+          "e.label",
+          "e.request",
+          "e.expected",
+          "e.must_not",
+          "e.result"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": [
+        {
+          "when": [
+            {
+              "node": "j",
+              "type": "Job"
+            },
+            {
+              "not_edge": [
+                "*",
+                "proves",
+                "j"
+              ]
+            }
+          ],
+          "say": "a job no test conversation proves"
+        }
+      ]
+    },
+    "AG10": {
+      "who": "a product owner",
+      "question": "How does the agent talk with people: its voice, the shape of each exchange, and when does it show technical details?",
+      "why": "People keep using an agent that talks plainly and in a clear shape; the details are there when they ask.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "a",
+            "type": "Agent"
+          },
+          {
+            "edge": [
+              "a",
+              "speaks_in",
+              "c"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "ConversationStyle"
+          }
+        ],
+        "select": [
+          "a.label",
+          "c.label",
+          "c.voice",
+          "c.shape",
+          "c.technical_details"
+        ]
+      },
+      "gate": "any"
+    },
+    "AG11": {
+      "who": "an architect",
+      "question": "What carries agent $AGENT: its component, the team that owns it, the agents it depends on, and everything it reaches?",
+      "why": "Where the agent sits in the architecture: what deploys it, who answers for it, what it needs, and what it can touch through its tools.",
+      "validated_by": "",
+      "params": {
+        "AGENT": {
+          "type": "Agent"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$AGENT",
+                  "deployed_as",
+                  "c"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$AGENT",
+                  "owned_by",
+                  "o"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$AGENT",
+                  "depends_on",
+                  "d"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$AGENT",
+                  "reaches",
+                  "s"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "c.label",
+          "o.label",
+          "d.label",
+          "s.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": [
+        {
+          "when": [
+            {
+              "not_edge": [
+                "$AGENT",
+                "deployed_as",
+                "*"
+              ]
+            }
+          ],
+          "say": "no component carries it"
+        },
+        {
+          "when": [
+            {
+              "not_edge": [
+                "$AGENT",
+                "owned_by",
+                "*"
+              ]
+            }
+          ],
+          "say": "no team owns it"
+        }
+      ]
+    },
+    "AG12": {
+      "who": "a builder",
+      "question": "Which jobs marked ready still have an open question on them?",
+      "why": "Ready means the builder may start; an open question means somebody has not decided.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "h",
+            "type": "OpenQuestion",
+            "where": {
+              "state": "open"
+            }
+          },
+          {
+            "edge": [
+              "h",
+              "about",
+              "j"
+            ]
+          },
+          {
+            "node": "j",
+            "type": "Job",
+            "where": {
+              "readiness": "ready"
+            }
+          }
+        ],
+        "select": [
+          "j.label",
+          "h.label"
+        ]
+      },
+      "gate": "empty"
+    }
+  }
+}

@@ -396,7 +396,8 @@ The shipped ontologies extend `oto-core`, which holds the temporal fields and `D
 class every fact cites. Five of them form one chain, the levels of a product's knowledge:
 `portfolio` (what we build, who owns it, what we pursue) → `product` (what it must do, for whom,
 why) → `software-architecture` (the estate that satisfies it) → `ddd` (the model the builder
-works from), with `work` (what is planned, by whom, blocked by what) on `software-architecture`. A pack sits on the level below it and widens
+works from), with `work` (what is planned, by whom, blocked by what) and `agent` (a part people give
+work to through an agent: its jobs, tools, guardrails and test conversations) on `software-architecture`. A pack sits on the level below it and widens
 its relations (`part_of`, `owned_by`, `about`, `satisfies`, `serves`) rather than redeclaring
 its classes, so a project composing `product-report` and `ddd` has one `Requirement`, one
 `Decision`, one `Team`; where two sibling packs widen the same relation, a merge keeps the

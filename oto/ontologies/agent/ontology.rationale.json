@@ -1,0 +1,133 @@
+{
+  "_about": "Why each class and relation of the agent ontology exists, the question it answers, and what was rejected.",
+  "classes": {
+    "Agent": {
+      "question": "AG1, AG11. Which agents does the product offer, for whom, how are they packaged, and what carries each?",
+      "why": "The part of the product people give work to. It holds who it works for, its packaging and readiness, and is carried by a component of the architecture, as a bounded context is.",
+      "alternatives": "A Component with an 'agent' flag; rejected because an agent has jobs, tools, guardrails and a voice no other component has, and the questions about them are different.",
+      "validated_by": ""
+    },
+    "Job": {
+      "question": "AG2, AG3, AG12. Which jobs can a person hand the agent, which requirement does each meet, and is it ready?",
+      "why": "The unit the builder plans from, as a use case is for an application. It carries when it applies, what it produces and how far the agent may act alone; the rules check readiness against it.",
+      "alternatives": "Reusing ddd's UseCase; rejected so the pattern stands alone, and because a job's autonomy and its test conversations are what make an agent safe to build.",
+      "validated_by": ""
+    },
+    "Tool": {
+      "question": "AG4, AG5. Which tools can the agent use, what does each change or send, and what protects it?",
+      "why": "Where the agent touches the estate. Its effect (reads, changes, sends) and whether it can be undone decide how it must be guarded, and it reaches the architecture's systems, interfaces and stores.",
+      "alternatives": "oto-core's Action; rejected because an Action is something the engine records being run, while a Tool is a capability the design gives the agent.",
+      "validated_by": ""
+    },
+    "KnowledgeSource": {
+      "question": "AG7. What does the agent draw on before it acts, where is it kept, how current must it be?",
+      "why": "An agent's answers are only as right as what it reads; the source and its freshness are a design decision, not an implementation detail.",
+      "alternatives": "A DataStore link straight from the job; rejected because documents and the web are sources too, and freshness belongs to the source as the agent uses it.",
+      "validated_by": ""
+    },
+    "Guardrail": {
+      "question": "AG5, AG6. What must the agent never do, what needs a confirmation and whose, which policy does each uphold?",
+      "why": "The obligations of the agent: never, confirm first, or stay within a bound. It protects the agent, a job or a tool, names who confirms, and traces to the organisation's policy, which stays the product's.",
+      "alternatives": "The product's Policy; rejected because a policy is imposed from outside on the whole product, while a guardrail is how this agent carries one out, at a precise place.",
+      "validated_by": ""
+    },
+    "Evaluation": {
+      "question": "AG3, AG9. How do we know each job works?",
+      "why": "A test conversation is an agent's acceptance case: what the person says, what the agent must do and must never do, and the last result. The rules refuse a ready job with none, or with one failing.",
+      "alternatives": "The product's Scenario; rejected because an agent's test needs what it must never do and its last result, which a scenario does not carry.",
+      "validated_by": ""
+    },
+    "ConversationStyle": {
+      "question": "AG10. How does the agent talk with people, and when does it show technical details?",
+      "why": "How an agent talks decides whether people keep using it. The voice, the shape of every exchange and when technical details appear are designed, not left to chance.",
+      "alternatives": "Free text on the agent; rejected so a style can be shared by several agents and checked (technical details only on request).",
+      "validated_by": ""
+    }
+  },
+  "properties": {
+    "works_for": {
+      "question": "Who hands work to this agent?",
+      "why": "The product's personas and roles are the people; a separate User class would be the same people twice.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "requested_by": {
+      "question": "Who asks for this job?",
+      "why": "A job asked for by nobody is built for nobody; the persona or role is the product's.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "calls": {
+      "question": "Which tools does this job use?",
+      "why": "Ties the job to what it can touch, so the rules can check its autonomy against its tools' guardrails.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "draws_on": {
+      "question": "What does this job read before it acts?",
+      "why": "The sources a job relies on, so a stale one can be traced to the answers it affects.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "held_in": {
+      "question": "Where is this knowledge kept?",
+      "why": "Links the source to the architecture's store or system, or to the document it is.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "equipped_with": {
+      "question": "Which tools does the agent have?",
+      "why": "The agent's whole reach, before any job uses it; a tool no job calls is still something it can do.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "reaches": {
+      "question": "What does this tool, or this agent, touch?",
+      "why": "Where an agent meets the estate. Declared on tools, derived for the agent by agent-reaches-what-its-tools-reach.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "protects": {
+      "question": "What does this guardrail limit?",
+      "why": "A guardrail sits at a precise place: the whole agent, one job, or one tool.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "confirmed_by": {
+      "question": "Who must confirm before the agent goes ahead?",
+      "why": "A confirmation nobody is named to give is skipped or asked of the wrong person.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "upholds": {
+      "question": "Which policy or constraint does this guardrail carry out?",
+      "why": "The trace from the agent's limits to the organisation's rules, which stay the product's.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "hands_off_to": {
+      "question": "Where does this job pass the work on?",
+      "why": "Hand-offs are where work is lost; each names the job, agent or person who takes over.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "proves": {
+      "question": "Which job does this test conversation prove?",
+      "why": "The acceptance trace; the rules refuse a ready job no test proves.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "speaks_in": {
+      "question": "How does this agent talk?",
+      "why": "Attaches a style to an agent, so several agents can share one.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "deployed_as": {
+      "question": "What carries this agent in the architecture?",
+      "why": "The agent sits in the estate as a component or a system, as a bounded context does.",
+      "alternatives": "Declared by ddd for bounded contexts; widened here so the pattern stands alone and composes with it.",
+      "validated_by": ""
+    }
+  }
+}

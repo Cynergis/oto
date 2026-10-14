@@ -1,0 +1,245 @@
+{
+  "_about": "An agent people give work to, as a part of a product: who it works for, the jobs they hand it and the requirement each meets, the tools it can use and what each reads, changes or sends, what it draws on before it acts, its guardrails, how it talks, where it hands work over, the test conversations that prove each job, and how it is packaged. What the agent does, never how a given platform runs it.",
+  "_summary": "An agent as a part of a product: the jobs people hand it, its tools and what each changes, what it draws on, its guardrails and confirmations, how it talks, its hand-offs, the test conversations that prove each job, and how it is packaged.",
+  "name": "Agent",
+  "ontology_version": 1,
+  "strict_domains": false,
+  "languages": [
+    "en"
+  ],
+  "classes": {
+    "Agent": {
+      "definition": "Something people give work to instead of using a screen: it takes a request in their words, does the job with its tools and answers. A part of the product, packaged as a plugin, a tool server, an app or inside another product."
+    },
+    "Job": {
+      "definition": "A piece of work a person can hand to the agent: when it applies, what it produces, how far the agent may act on its own, and the requirement it meets. The unit the builder plans from, as a use case is for an application."
+    },
+    "Tool": {
+      "definition": "Something the agent can do beyond talking: look something up, change something, or send something out of the organisation. What it reaches and whether it can be undone decide how it must be guarded."
+    },
+    "KnowledgeSource": {
+      "definition": "What the agent reads before it acts: a knowledge base, documents, data or the web, with how current it must be. An agent is only as right as what it draws on."
+    },
+    "Guardrail": {
+      "definition": "A limit on the agent: something it must never do, something it may do only after a named person confirms, or a bound it must stay within. It protects the agent, a job or a tool, and may uphold one of the organisation's policies."
+    },
+    "Evaluation": {
+      "definition": "A test conversation that proves a job works: what the person asks, what the agent must do, what it must never do, and how it went the last time it ran."
+    },
+    "ConversationStyle": {
+      "definition": "How the agent talks with people: its voice, the shape of every exchange (what is next, a few questions, a read-back, a confirmation) and when it shows technical details."
+    }
+  },
+  "properties": {
+    "works_for": {
+      "domain": "Agent",
+      "range": "Persona|Role",
+      "definition": "The people who hand work to the agent.",
+      "inverse": "assisted_by"
+    },
+    "part_of": {
+      "domain": "Feature|JourneyStep|Component|Interface|DataStore|Job",
+      "range": "Product|Feature|UserJourney|System|Agent",
+      "definition": "The whole this belongs to. Widened to the agent: a job is part of the agent that does it.",
+      "inverse": "contains"
+    },
+    "requested_by": {
+      "domain": "Job",
+      "range": "Persona|Role",
+      "definition": "Who asks the agent for this job.",
+      "inverse": "requests"
+    },
+    "satisfies": {
+      "domain": "System|Component|Interface|Job",
+      "range": "Requirement",
+      "definition": "The requirement of the product this asset meets. Widened to the agent: a job meets a requirement, the trace from the agent back to the specification.",
+      "inverse": "satisfied_by"
+    },
+    "calls": {
+      "domain": "Job",
+      "range": "Tool",
+      "definition": "A tool the agent uses to do this job.",
+      "inverse": "called_by"
+    },
+    "draws_on": {
+      "domain": "Job",
+      "range": "KnowledgeSource",
+      "definition": "What the agent reads before it does this job.",
+      "inverse": "drawn_on_by"
+    },
+    "held_in": {
+      "domain": "KnowledgeSource",
+      "range": "DataStore|System|Document",
+      "definition": "Where the knowledge the agent reads is kept.",
+      "inverse": "source_for"
+    },
+    "equipped_with": {
+      "domain": "Agent",
+      "range": "Tool",
+      "definition": "A tool the agent has.",
+      "inverse": "available_to"
+    },
+    "reaches": {
+      "domain": "Tool|Agent",
+      "range": "System|Component|Interface|DataStore",
+      "definition": "The system, component, contract or store a tool reads or changes; for an agent, everything its tools reach, derived.",
+      "inverse": "reached_by"
+    },
+    "protects": {
+      "domain": "Guardrail",
+      "range": "Agent|Job|Tool",
+      "definition": "What the guardrail limits: the whole agent, one job or one tool.",
+      "inverse": "protected_by"
+    },
+    "confirmed_by": {
+      "domain": "Guardrail",
+      "range": "Persona|Role",
+      "definition": "Who must confirm before the agent goes ahead.",
+      "inverse": "confirms"
+    },
+    "upholds": {
+      "domain": "Guardrail",
+      "range": "Policy|Constraint",
+      "definition": "The organisation's policy or constraint this guardrail carries out.",
+      "inverse": "upheld_by"
+    },
+    "hands_off_to": {
+      "domain": "Job",
+      "range": "Job|Agent|Persona|Role",
+      "definition": "Where this job passes the work on: another job, another agent, or a person.",
+      "inverse": "takes_over_from"
+    },
+    "proves": {
+      "domain": "Evaluation",
+      "range": "Job",
+      "definition": "The job this test conversation proves.",
+      "inverse": "proven_by"
+    },
+    "speaks_in": {
+      "domain": "Agent",
+      "range": "ConversationStyle",
+      "definition": "How the agent talks with people.",
+      "inverse": "style_of"
+    },
+    "deployed_as": {
+      "domain": "Agent",
+      "range": "System|Component",
+      "definition": "The component or system of the architecture that carries the agent.",
+      "inverse": "carries"
+    },
+    "owned_by": {
+      "domain": "Product|Objective|Capability|Feature|SuccessCriterion|Risk|Requirement|Release|System|Component|Interface|DataStore|Agent",
+      "range": "Role|Team",
+      "definition": "Who is accountable for it. Widened to the agent: the team that owns it.",
+      "inverse": "owns"
+    },
+    "depends_on": {
+      "domain": "Product|System|Component|Agent",
+      "range": "Product|System|Component|Agent",
+      "definition": "What must be there for it to work. Widened to the agent: another agent or plugin it needs.",
+      "inverse": "depended_on_by"
+    },
+    "about": {
+      "domain": "Decision|OpenQuestion",
+      "range": "Product|ValueProposition|Objective|SuccessCriterion|Requirement|Release|Feature|UserJourney|JourneyStep|Scenario|Constraint|Policy|Risk|Persona|System|Component|Interface|DataStore|Agent|Job|Tool|Guardrail",
+      "definition": "What a decision or an open question concerns. Widened to the agent, its jobs, tools and guardrails.",
+      "inverse": "subject_of"
+    }
+  },
+  "attributes": {
+    "Agent": {
+      "packaging": {
+        "type": "enum:plugin|tool_server|app|embedded",
+        "definition": "How people get it: a plugin for an agent host, a tool server any agent can call, an app of its own, or built into another product."
+      },
+      "distribution": {
+        "type": "string",
+        "definition": "Where it is installed from: a marketplace, a registry, an internal catalogue."
+      },
+      "readiness": {
+        "type": "enum:draft|ready|built",
+        "definition": "Whether the builder may build it yet."
+      }
+    },
+    "Job": {
+      "when_to_use": {
+        "type": "string",
+        "definition": "The requests and situations that call for this job, in the words people use."
+      },
+      "produces": {
+        "type": "string",
+        "definition": "What the person has when the job is done."
+      },
+      "autonomy": {
+        "type": "enum:suggests|acts_after_confirmation|acts_alone",
+        "definition": "How far the agent may go on its own: it only suggests, it acts once a person confirms, or it acts alone."
+      },
+      "readiness": {
+        "type": "enum:draft|ready|built",
+        "definition": "Whether the builder may build it yet."
+      }
+    },
+    "Tool": {
+      "effect": {
+        "type": "enum:reads|changes|sends",
+        "definition": "Whether it only looks something up, changes something inside the organisation, or sends something out of it."
+      },
+      "reversible": {
+        "type": "boolean",
+        "definition": "Whether what it does can be undone."
+      }
+    },
+    "KnowledgeSource": {
+      "kind": {
+        "type": "enum:knowledge_base|documents|data|web",
+        "definition": "What sort of source it is."
+      },
+      "freshness": {
+        "type": "string",
+        "definition": "How current it must be for the agent to rely on it."
+      }
+    },
+    "Guardrail": {
+      "kind": {
+        "type": "enum:never|confirm_first|limit",
+        "definition": "Something the agent must never do, may do only after a person confirms, or must keep within a bound."
+      },
+      "rule": {
+        "type": "string",
+        "definition": "The guardrail in one sentence, as the agent must follow it."
+      }
+    },
+    "Evaluation": {
+      "request": {
+        "type": "string",
+        "definition": "What the person says to the agent."
+      },
+      "expected": {
+        "type": "string",
+        "definition": "What the agent must do and answer."
+      },
+      "must_not": {
+        "type": "string",
+        "definition": "What the agent must never do in this conversation."
+      },
+      "result": {
+        "type": "enum:pass|fail|not_run",
+        "definition": "How it went the last time it ran."
+      }
+    },
+    "ConversationStyle": {
+      "voice": {
+        "type": "string",
+        "definition": "How the agent sounds."
+      },
+      "shape": {
+        "type": "string",
+        "definition": "The steps every exchange follows."
+      },
+      "technical_details": {
+        "type": "enum:on_request|offered|always",
+        "definition": "When the agent shows codes, ids, commands or raw output: only when asked, offered as a choice, or always."
+      }
+    }
+  }
+}

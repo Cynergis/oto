@@ -4,6 +4,29 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.23 — 2026-10-14
+
+**A third pattern: the agent.** People increasingly give work to agents through plugins rather than
+use screens, so a product's part can now be an agent, beside an application (`ddd`) and a data
+pipeline (the `medallion` pack). The built-in `agent` ontology sits on `software-architecture` and
+says what the agent does, never how a given platform runs it:
+
+- the jobs people hand it, when each applies, what it produces, how far it may act alone, and the
+  requirement it meets;
+- its tools, whether each reads, changes or sends something, whether that can be undone, and what
+  each reaches in the architecture (the agent's own reach is derived);
+- what it draws on before it acts, where that is kept and how current it must be;
+- its guardrails: what it must never do, what needs a named person's confirmation, what bounds it
+  keeps, and the policy each upholds;
+- how it talks (technical details only on request), where it hands work over, and the test
+  conversations that prove each job.
+
+Its rules refuse a design that contradicts itself: a job acting alone with a tool that needs a
+confirmation, a job using a tool the agent must never use, a job acting alone with a tool that
+changes or sends something while nothing protects it, a job marked ready with no requirement, no
+test conversation, or a failing one. Twelve questions; the sample is a merchant assistant on the
+payments platform the other samples describe. It composes with `ddd`: the shared relations widen.
+
 ## 0.11.22 — 2026-10-14
 
 **Every conversation is in plain language, in a clear shape; technical details only when asked.**

@@ -63,6 +63,7 @@ says what each line means (for you):
 | `packs` lists plugins | The packs and tools this project uses (declared in its `.claude/settings.json`) and the skills each brings: the routes beyond OTO's own skills. `oto status --json` says what each skill does. A plugin marked `NOT INSTALLED` offers nothing here yet: give the install line it prints. |
 | `packs none` | The project uses no pack: only OTO's own skills apply until one is declared. |
 | a pack marked `(playbook: <skill>)` | The project's journey is that playbook's (`/<pack>:<skill>`): it leads it scene by scene and asks you where the project is. Name it when the person wants to go on with that journey; never run its scenes yourself. |
+| a pack marked `(binding of <ontology>)` | Where the product runs and what it is built with is captured with that pack's binding skill (`oto status --json` names it). Before anything is built, deployed or tested end to end, the briefs it brings say what is still missing: say it in plain words, with who can answer it. |
 
 A `next:` line is the engine's recommendation. Do not contradict it; if the person wants
 something else, show the fork below and say what the recommendation assumes.

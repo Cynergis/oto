@@ -1,0 +1,121 @@
+{
+  "_about": "Why each class and relation of the platform binding exists, the question it answers, and what was rejected.",
+  "classes": {
+    "Platform": {
+      "question": "PL1. Which platforms does the product run on?",
+      "why": "The first fact of the binding: everything else (accounts, services, regions) belongs to a platform.",
+      "alternatives": "A free-text `cloud` field on the system; rejected because accounts and services must point at the same platform, and a product may run on two.",
+      "validated_by": ""
+    },
+    "Account": {
+      "question": "PL1, PL2, PL3. Which account or project is each environment in?",
+      "why": "Where resources live and are billed, and the id an agent needs to reach them: the AWS account, the GCP project, the Azure subscription.",
+      "alternatives": "An attribute on Environment; rejected because one account hosts several environments, and its id and platform are facts of their own.",
+      "validated_by": ""
+    },
+    "PlatformService": {
+      "question": "PL4. What does each part run on?",
+      "why": "The managed service under a component or a store decides how it is packaged, configured and deployed, and where its secrets are kept.",
+      "alternatives": "The architecture's Component; rejected because the service is the platform's, shared by many components, and changes when the platform does.",
+      "validated_by": ""
+    },
+    "Technology": {
+      "question": "PL7. What is each component built with, at which versions?",
+      "why": "The original studio's tech stack, as facts: the builder needs the language, framework and versions before the first line of code.",
+      "alternatives": "ddd's free-text `stack` on a bounded context; kept there for the model, but versions need an item of their own.",
+      "validated_by": ""
+    },
+    "Choice": {
+      "question": "PL8, PL9, PL10, PL13. Which choices does the design need, and who makes each?",
+      "why": "Some choices are a person's to make, others are left to the builder within limits; recording which is which, and the limits, is what lets an agent build without guessing and without overstepping.",
+      "alternatives": "Decisions alone; rejected because a decision records an outcome, while a choice exists before it, says who may settle it, and can be checked as unsettled.",
+      "validated_by": ""
+    },
+    "SecretRef": {
+      "question": "PL5, PL12. Which secrets does each part need, and where is each kept?",
+      "why": "A deployment needs to know which secrets to fetch and from where; the value is never recorded, so the form has no field for it.",
+      "alternatives": "A list on the component; rejected because one secret is shared by several components and is kept in one place.",
+      "validated_by": ""
+    },
+    "Pipeline": {
+      "question": "PL6. What deploys each part, to where?",
+      "why": "The original studio's code links, as facts: a component nothing deploys is deployed by hand, once.",
+      "alternatives": "The repository's URL; rejected because a pipeline deploys several parts to several environments, and is opened at its own place.",
+      "validated_by": ""
+    }
+  },
+  "properties": {
+    "on_platform": {
+      "question": "Which platform does this account or service belong to?",
+      "why": "Ties accounts and services to one platform, so a mismatch can be seen.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "hosted_in": {
+      "question": "Which account is this environment in?",
+      "why": "The id an agent needs to reach an environment.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "provisioned_by": {
+      "question": "Which repository creates this environment?",
+      "why": "An environment that cannot be recreated from code cannot be tested from scratch.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "runs_on": {
+      "question": "Which service does this part run on?",
+      "why": "The platform service under a component or store.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "built_with": {
+      "question": "What is this component built with?",
+      "why": "The stack, item by item, each with its version.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "needs_secret": {
+      "question": "Which secrets does this component need?",
+      "why": "What a deployment must fetch before the component can start, named so it can be checked.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "kept_in": {
+      "question": "Where is this secret kept?",
+      "why": "The place a deployment fetches it from, never the value.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "deploys": {
+      "question": "Which parts does this pipeline deploy?",
+      "why": "The trace from a part to how it gets to production.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "deploys_to": {
+      "question": "Which environments does this pipeline deploy to?",
+      "why": "Where a pipeline's runs land, so a tester knows what reaches the environment under test.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "shapes": {
+      "question": "What is this choice about?",
+      "why": "Lets an agent find the choices it must not guess, part by part.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "settled_by": {
+      "question": "Which decision settles this choice?",
+      "why": "The record of the outcome; a proposal settles nothing until accepted.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "bounded_by": {
+      "question": "What must this choice keep to?",
+      "why": "The limits of a delegated choice beyond its allowed options: constraints, earlier decisions, policies.",
+      "alternatives": "",
+      "validated_by": ""
+    }
+  }
+}

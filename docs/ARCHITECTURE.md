@@ -397,7 +397,8 @@ class every fact cites. Five of them form one chain, the levels of a product's k
 `portfolio` (what we build, who owns it, what we pursue) → `product` (what it must do, for whom,
 why) → `software-architecture` (the estate that satisfies it) → `ddd` (the model the builder
 works from), with `work` (what is planned, by whom, blocked by what) and `agent` (a part people give
-work to through an agent: its jobs, tools, guardrails and test conversations) on `software-architecture`. A pack sits on the level below it and widens
+work to through an agent: its jobs, tools, guardrails and test conversations) on `software-architecture`,
+and `platform`, the binding of the architecture to where it runs. A pack sits on the level below it and widens
 its relations (`part_of`, `owned_by`, `about`, `satisfies`, `serves`) rather than redeclaring
 its classes, so a project composing `product-report` and `ddd` has one `Requirement`, one
 `Decision`, one `Team`; where two sibling packs widen the same relation, a merge keeps the
@@ -455,6 +456,10 @@ pattern `of`, `for` which part, and the `skill` that models such a part); `oto s
 project's patterns, so an architecture skill finds them instead of naming them. A pack may also be
 a **playbook** (`playbook`: `for` which journey, the `skill` that leads it from start to end); the
 concierge offers the playbooks it finds and leaves the journey to them, keeping orientation for itself.
+A pack may be a **binding** of an ontology it extends (`binding`: what it binds `of`, `for` what, and the
+`skill` that captures it): the design stays platform-neutral, and the binding says where each part runs
+and what it is built with. The built-in `platform` ontology is one, with briefs that stop an
+implementing agent by name on any missing detail.
 
 A pack is the whole thing a person installs into Claude Code
 ([model/packs.py](../oto/model/packs.py), the plan in [plans/packs.md](plans/packs.md)): one

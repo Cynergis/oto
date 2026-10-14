@@ -46,7 +46,7 @@ START_SKILL = "start"
 ENGINE_PLUGIN = "oto"
 NAME_OK = re.compile(r"^[a-z][a-z0-9-]*$")
 DATE_OK = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-FIELDS = ("name", "title", "release", "domain", "product_type", "pattern", "playbook", "summary", "ontology", "engine", "maintainer",
+FIELDS = ("name", "title", "release", "domain", "product_type", "pattern", "playbook", "binding", "summary", "ontology", "engine", "maintainer",
           "license", "changelog")
 #: A pattern pack declares what it is a design pattern of, for which part, and the skill that models
 #: that part: {"of": "software-architecture", "for": "a part designed with DDD", "skill": "model-domain"}.
@@ -56,6 +56,11 @@ PATTERN_KEYS = ("of", "for", "skill")
 #: from an idea to a published knowledge base", "skill": "atlas"}. The concierge offers the playbooks
 #: it finds (`oto status`, `oto pack list --playbooks`), never by their names.
 PLAYBOOK_KEYS = ("for", "skill")
+#: A binding pack declares what it binds to a platform, and the skill that captures the binding:
+#: {"of": "software-architecture", "for": "where each part runs and what it is built with",
+#: "skill": "bind-platform"}. The design stays platform-neutral; the architecture skill finds the
+#: bindings a project composes (`oto status`, `oto pack list --bindings`), never by their names.
+BINDING_KEYS = ("of", "for", "skill")
 #: How every skill talks with the person: the engine's skills carry it, and so does every pack's
 #: generated start skill. Technical details (ids, commands, output) are the record's, not the talk's.
 TALKING = ["## Talking with the person", "",
@@ -328,6 +333,12 @@ def plugin_files(directory, registry_name=None):
         lines += ["**A playbook**: for %s. This pack's **%s** skill (`/%s:%s`) leads it from start to end; OTO's"
                   % (playbook["for"].rstrip("."), playbook["skill"], manifest["name"], playbook["skill"]),
                   "concierge offers it, and says where the project is at any point.", ""]
+    binding = manifest.get("binding")
+    if isinstance(binding, dict) and all(isinstance(binding.get(k), str) for k in BINDING_KEYS):
+        lines += ["**A binding of `%s`**: for %s. In a project that composes `%s`, the binding is captured"
+                  % (binding["of"], binding["for"].rstrip("."), binding["of"]),
+                  "with this pack's **%s** skill (`/%s:%s`); `oto status` lists the project's bindings."
+                  % (binding["skill"], manifest["name"], binding["skill"]), ""]
     lines += [
              "1. **Start a project from this pack.**", "", "   ```bash",
              '   oto init --name "<project name>" --pack "${CLAUDE_PLUGIN_ROOT}" --project <root>',
@@ -516,6 +527,11 @@ def _manifest_problems(directory):
                                  or not all(isinstance(playbook[k], str) and playbook[k].strip() for k in PLAYBOOK_KEYS)):
         out.append("%s playbook must be {\"for\": <which journey, in a phrase>, \"skill\": <this pack's skill that "
                    "leads it>}" % MANIFEST_NAME)
+    binding = declared.get("binding")
+    if binding is not None and (not isinstance(binding, dict) or set(binding) != set(BINDING_KEYS)
+                                or not all(isinstance(binding[k], str) and binding[k].strip() for k in BINDING_KEYS)):
+        out.append("%s binding must be {\"of\": <the ontology it binds to a platform>, \"for\": <what it binds, in a "
+                   "phrase>, \"skill\": <this pack's skill that captures it>}" % MANIFEST_NAME)
     changelog = declared.get("changelog", [])
     if not isinstance(changelog, list):
         out.append("%s changelog must be a list" % MANIFEST_NAME)
@@ -555,6 +571,17 @@ def check(directory):
     playbook = manifest.get("playbook")
     if isinstance(playbook, dict) and isinstance(playbook.get("skill"), str) and playbook["skill"] not in skills(directory):
         problems.append("playbook: the skill %r is not one of this pack's (skills/%s/SKILL.md)" % (playbook["skill"], playbook["skill"]))
+    binding = manifest.get("binding")
+    if isinstance(binding, dict) and all(isinstance(binding.get(k), str) for k in BINDING_KEYS):
+        if binding["skill"] not in skills(directory):
+            problems.append("binding: the skill %r is not one of this pack's (skills/%s/SKILL.md)" % (binding["skill"], binding["skill"]))
+        try:
+            composed_of = _ontologies.parts(embedded_name(directory), roots=[embedded_root(directory)])
+        except (KeyError, _ontologies.OntologyError):
+            composed_of = []
+        if binding["of"] not in composed_of[:-1]:
+            problems.append("binding: the pack's ontology %r does not extend %r, so it binds nothing of it"
+                            % (embedded_name(directory), binding["of"]))
     embedded = _ontologies.manifest_dir(onto_dir)
     onto = manifest.get("ontology") or {}
     if onto.get("name") and embedded["name"] != onto["name"]:
@@ -672,4 +699,4 @@ def summary(name):
             "about": (manifest.get("summary") or "").strip(), "ontology": onto.get("name"),
             "ontology_release": onto.get("release"), "views": sorted(views(directory)),
             "skills": sorted(skills(directory)), "origin": origin(name), "pattern": manifest.get("pattern"),
-            "playbook": manifest.get("playbook")}
+            "playbook": manifest.get("playbook"), "binding": manifest.get("binding")}

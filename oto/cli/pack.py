@@ -122,6 +122,8 @@ def register(sub):
                       help="for list: only the pattern packs (a pack whose manifest says what it is a design pattern of)")
     pack.add_argument("--playbooks", action="store_true",
                       help="for list: only the playbook packs (a pack whose manifest names the journey one of its skills leads)")
+    pack.add_argument("--bindings", action="store_true",
+                      help="for list: only the binding packs (a pack whose manifest says what it binds to a platform)")
     pack.add_argument("--domain", default=None, help="for new: the category the pack belongs to, one lowercase slug (default: the ontology's)")
     pack.add_argument("--summary", default=None, help="for new and publish: one line saying what the pack is for")
     pack.add_argument("--view", action="append", default=None, help="for new: a view directory to ship (repeatable)")

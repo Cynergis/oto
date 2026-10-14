@@ -1,0 +1,622 @@
+{
+ "_about": "The payments platform the other samples describe, bound to Google Cloud: its production project and region, the service under each part, the stack with versions, its secrets by name and place, its pipelines, and three choices: the cloud and the region decided by named people, the API's framework left to the builder within the supported ones and confirmed by the lead architect.",
+ "nodes": [
+  {
+   "id": "platform.gcp",
+   "type": "Platform",
+   "label": "Google Cloud",
+   "summary": "The payments platform's cloud.",
+   "attributes": {
+    "provider": "gcp"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "account.payments-prod",
+   "type": "Account",
+   "label": "Payments production project",
+   "summary": "The GCP project production lives in.",
+   "attributes": {
+    "account_kind": "gcp_project",
+    "identifier": "acme-payments-prod"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "environment.production",
+   "type": "Environment",
+   "label": "Production",
+   "aliases": [
+    "prod"
+   ],
+   "summary": "The live environment serving customers.",
+   "attributes": {
+    "purpose": "production",
+    "region": "europe-west1",
+    "console_url": "https://console.cloud.google.com/home/dashboard?project=acme-payments-prod",
+    "logs_url": "https://console.cloud.google.com/logs/query?project=acme-payments-prod"
+   },
+   "tags": [
+    "environment"
+   ],
+   "as_of": "2026-10-14",
+   "valid_from": "2026-01-01",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "sample",
+    "payments-platform-binding"
+   ]
+  },
+  {
+   "id": "repo.payments-infra",
+   "type": "Repository",
+   "label": "acme/payments-infra",
+   "summary": "The infrastructure code that creates the payments environments.",
+   "attributes": {
+    "owner": "acme",
+    "name": "payments-infra",
+    "url": "https://github.com/acme/payments-infra",
+    "default_branch": "main"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "service.cloud-run",
+   "type": "PlatformService",
+   "label": "Cloud Run",
+   "summary": "Runs the API and the settlement job as containers.",
+   "attributes": {
+    "service_kind": "compute"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "service.cloud-sql",
+   "type": "PlatformService",
+   "label": "Cloud SQL for PostgreSQL",
+   "summary": "The managed database the ledger lives in.",
+   "attributes": {
+    "service_kind": "database"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "service.secret-manager",
+   "type": "PlatformService",
+   "label": "Secret Manager",
+   "summary": "Where the platform's secrets are kept.",
+   "attributes": {
+    "service_kind": "secrets"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "technology.python",
+   "type": "Technology",
+   "label": "Python",
+   "summary": "The language of the API and the job.",
+   "attributes": {
+    "technology_kind": "language",
+    "version": "3.12"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "technology.fastapi",
+   "type": "Technology",
+   "label": "FastAPI",
+   "summary": "The API's web framework, picked by the builder.",
+   "attributes": {
+    "technology_kind": "framework",
+    "version": "0.115"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "secret.acquirer-key",
+   "type": "SecretRef",
+   "label": "Acquirer API key",
+   "summary": "The key the API calls the acquirers with.",
+   "attributes": {
+    "reference": "acquirer-api-key"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "secret.ledger-password",
+   "type": "SecretRef",
+   "label": "Ledger database password",
+   "summary": "The settlement job's password to the ledger.",
+   "attributes": {
+    "reference": "ledger-db-password"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "pipeline.payment-api",
+   "type": "Pipeline",
+   "label": "Payment API pipeline",
+   "summary": "Builds, tests and deploys the API on every merge.",
+   "attributes": {
+    "url": "https://github.com/acme/payment-api/actions"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "pipeline.settlement",
+   "type": "Pipeline",
+   "label": "Settlement pipeline",
+   "summary": "Builds and deploys the settlement job and migrates the ledger.",
+   "attributes": {
+    "url": "https://github.com/acme/settlement-job/actions"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "role.r-architect",
+   "type": "Role",
+   "label": "Lead architect",
+   "summary": "Decides the platform and confirms the builder's picks.",
+   "attributes": {},
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "choice.cloud",
+   "type": "Choice",
+   "label": "Which cloud",
+   "summary": "The platform the payments product runs on.",
+   "attributes": {
+    "category": "platform",
+    "authority": "decided"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "decision.d-cloud",
+   "type": "Decision",
+   "label": "Run on Google Cloud",
+   "summary": "The payments platform runs on Google Cloud.",
+   "attributes": {
+    "rationale": "The company's data platform is already on Google Cloud; one cloud keeps one security model.",
+    "decided_on": "2026-09-30",
+    "status": "accepted",
+    "option": "Google Cloud",
+    "alternatives": [
+     "AWS",
+     "Azure"
+    ],
+    "consequences": "Managed services are Google's; moving off them would be a migration."
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "choice.region",
+   "type": "Choice",
+   "label": "Which region",
+   "summary": "Where production runs.",
+   "attributes": {
+    "category": "region",
+    "authority": "decided"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "decision.d-region",
+   "type": "Decision",
+   "label": "Run in europe-west1",
+   "summary": "Production runs in Belgium.",
+   "attributes": {
+    "rationale": "Card data stays in the EU, and europe-west1 has every service the product uses.",
+    "decided_on": "2026-09-30",
+    "status": "accepted",
+    "option": "europe-west1",
+    "alternatives": [
+     "europe-west4"
+    ],
+    "consequences": "Latency for customers outside Europe is higher."
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "choice.api-framework",
+   "type": "Choice",
+   "label": "The payment API's web framework",
+   "summary": "Left to the builder, within the frameworks the platform team supports.",
+   "attributes": {
+    "category": "technology",
+    "authority": "delegated",
+    "allowed": [
+     "FastAPI",
+     "Flask",
+     "Django"
+    ]
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "decision.d-framework",
+   "type": "Decision",
+   "label": "Build the payment API with FastAPI",
+   "summary": "The builder's pick, confirmed by the lead architect.",
+   "attributes": {
+    "rationale": "Typed request models match the payments API contract; the builder proposed it.",
+    "decided_on": "2026-10-08",
+    "status": "accepted",
+    "option": "FastAPI",
+    "alternatives": [
+     "Flask"
+    ],
+    "consequences": "The API's contract is generated from its models."
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "payments-platform-binding",
+   "status": "current",
+   "sources": [
+    "payments-platform-binding"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "account.payments-prod",
+   "rel": "on_platform",
+   "to": "platform.gcp"
+  },
+  {
+   "from": "environment.production",
+   "rel": "hosted_in",
+   "to": "account.payments-prod"
+  },
+  {
+   "from": "environment.production",
+   "rel": "provisioned_by",
+   "to": "repo.payments-infra"
+  },
+  {
+   "from": "service.cloud-run",
+   "rel": "on_platform",
+   "to": "platform.gcp"
+  },
+  {
+   "from": "service.cloud-sql",
+   "rel": "on_platform",
+   "to": "platform.gcp"
+  },
+  {
+   "from": "service.secret-manager",
+   "rel": "on_platform",
+   "to": "platform.gcp"
+  },
+  {
+   "from": "component.payment-api",
+   "rel": "runs_on",
+   "to": "service.cloud-run"
+  },
+  {
+   "from": "component.settlement-job",
+   "rel": "runs_on",
+   "to": "service.cloud-run"
+  },
+  {
+   "from": "datastore.ledger",
+   "rel": "runs_on",
+   "to": "service.cloud-sql"
+  },
+  {
+   "from": "component.payment-api",
+   "rel": "built_with",
+   "to": "technology.python"
+  },
+  {
+   "from": "component.payment-api",
+   "rel": "built_with",
+   "to": "technology.fastapi"
+  },
+  {
+   "from": "component.settlement-job",
+   "rel": "built_with",
+   "to": "technology.python"
+  },
+  {
+   "from": "secret.acquirer-key",
+   "rel": "kept_in",
+   "to": "service.secret-manager"
+  },
+  {
+   "from": "secret.ledger-password",
+   "rel": "kept_in",
+   "to": "service.secret-manager"
+  },
+  {
+   "from": "component.payment-api",
+   "rel": "needs_secret",
+   "to": "secret.acquirer-key"
+  },
+  {
+   "from": "component.settlement-job",
+   "rel": "needs_secret",
+   "to": "secret.ledger-password"
+  },
+  {
+   "from": "pipeline.payment-api",
+   "rel": "deploys",
+   "to": "component.payment-api"
+  },
+  {
+   "from": "pipeline.payment-api",
+   "rel": "deploys_to",
+   "to": "environment.production"
+  },
+  {
+   "from": "pipeline.settlement",
+   "rel": "deploys",
+   "to": "component.settlement-job"
+  },
+  {
+   "from": "pipeline.settlement",
+   "rel": "deploys",
+   "to": "datastore.ledger"
+  },
+  {
+   "from": "pipeline.settlement",
+   "rel": "deploys_to",
+   "to": "environment.production"
+  },
+  {
+   "from": "choice.cloud",
+   "rel": "settled_by",
+   "to": "decision.d-cloud"
+  },
+  {
+   "from": "choice.cloud",
+   "rel": "shapes",
+   "to": "system.payments"
+  },
+  {
+   "from": "decision.d-cloud",
+   "rel": "decided_by",
+   "to": "role.r-architect"
+  },
+  {
+   "from": "decision.d-cloud",
+   "rel": "about",
+   "to": "system.payments"
+  },
+  {
+   "from": "choice.region",
+   "rel": "settled_by",
+   "to": "decision.d-region"
+  },
+  {
+   "from": "choice.region",
+   "rel": "shapes",
+   "to": "environment.production"
+  },
+  {
+   "from": "decision.d-region",
+   "rel": "decided_by",
+   "to": "role.r-compliance"
+  },
+  {
+   "from": "choice.region",
+   "rel": "bounded_by",
+   "to": "decision.d-cloud"
+  },
+  {
+   "from": "decision.d-region",
+   "rel": "about",
+   "to": "environment.production"
+  },
+  {
+   "from": "choice.api-framework",
+   "rel": "settled_by",
+   "to": "decision.d-framework"
+  },
+  {
+   "from": "choice.api-framework",
+   "rel": "shapes",
+   "to": "component.payment-api"
+  },
+  {
+   "from": "choice.api-framework",
+   "rel": "bounded_by",
+   "to": "decision.d-cloud"
+  },
+  {
+   "from": "decision.d-framework",
+   "rel": "decided_by",
+   "to": "role.r-architect"
+  },
+  {
+   "from": "decision.d-framework",
+   "rel": "about",
+   "to": "component.payment-api"
+  }
+ ]
+}

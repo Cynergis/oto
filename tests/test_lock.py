@@ -371,3 +371,16 @@ def test_status_marks_the_projects_playbook(claude, capsys):
     assert main(["status", "--json", "--project", project.data]) == 0
     offered = {p["name"]: p for p in json.loads(capsys.readouterr().out)["packs"]["plugins"]}
     assert offered["claims"]["playbook"]["for"] == "a claim, from first notice to settlement"
+
+
+def test_status_marks_the_projects_binding(claude, capsys):
+    claims = claude["installs"]["claims@acme"][0]["installPath"]
+    with open(os.path.join(claims, "manifest.json"), "w") as f:
+        json.dump({"name": "claims", "binding": {"of": "software-architecture", "for": "where each part runs", "skill": "bind-platform"}}, f)
+    project = _project(claude)
+    capsys.readouterr()
+    assert main(["status", "--project", project.data]) == 0
+    assert "(binding of software-architecture)" in capsys.readouterr().out
+    assert main(["status", "--json", "--project", project.data]) == 0
+    offered = {p["name"]: p for p in json.loads(capsys.readouterr().out)["packs"]["plugins"]}
+    assert offered["claims"]["binding"]["skill"] == "bind-platform" and offered["tool"]["binding"] is None

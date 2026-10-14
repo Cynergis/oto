@@ -258,6 +258,8 @@ def cmd_status(args):
                     what += "  (pattern of %s)" % p["pattern"].get("of")
                 if p.get("playbook"):
                     what += "  (playbook: %s)" % p["playbook"].get("skill")
+                if p.get("binding"):
+                    what += "  (binding of %s)" % p["binding"].get("of")
             print("                %-*s  %s" % (width, "%s %s" % (p["name"], p["version"] or ""), what))
         print("              each skill is /<pack>:<skill>; `oto status --json` says what each does")
     lock = s.get("lock")

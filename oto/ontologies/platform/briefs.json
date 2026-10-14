@@ -1,0 +1,50 @@
+{
+  "_about": "What an implementing agent must know before it builds, deploys or tests end to end: the questions it must be able to answer (required) and may also read (optional). `oto query brief <task> NAME=<entity>` is READY or BLOCKED by name.",
+  "briefs": {
+    "implement-component": {
+      "description": "An agent is about to write a component's code: it must know what to build it with, at which versions, and every choice about the component must be settled.",
+      "params": {
+        "COMPONENT": "Component"
+      },
+      "required": [
+        "PL7",
+        "PL8"
+      ],
+      "optional": [
+        "PL4",
+        "PL5"
+      ]
+    },
+    "deploy-component": {
+      "description": "An agent is about to deploy a component: where it runs, on what, with which secrets from where, by which pipeline, every choice about it settled.",
+      "params": {
+        "COMPONENT": "Component"
+      },
+      "required": [
+        "PL3",
+        "PL4",
+        "PL5",
+        "PL6",
+        "PL8"
+      ],
+      "optional": [
+        "PL7"
+      ]
+    },
+    "test-end-to-end": {
+      "description": "An agent is about to test the product end to end in an environment: the environment fully described, every component in it deployable, every secret placed, every choice about it settled.",
+      "params": {
+        "ENVIRONMENT": "Environment"
+      },
+      "required": [
+        "PL2",
+        "PL11",
+        "PL12",
+        "PL13"
+      ],
+      "optional": [
+        "PL1"
+      ]
+    }
+  }
+}

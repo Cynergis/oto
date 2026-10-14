@@ -1,0 +1,239 @@
+{
+  "_about": "Rules over the platform binding. `derive` adds facts marked as derived, with the rule and the premises; `policy` flags what the binding contradicts or leaves out, naming the question it protects. Blocking ones refuse a binding that contradicts who decides what; a warning names what is still missing.",
+  "rules": [
+    {
+      "id": "choice-settled-by-an-accepted-decision",
+      "kind": "derive",
+      "when": [
+        {
+          "node": "c",
+          "type": "Choice"
+        },
+        {
+          "edge": [
+            "c",
+            "settled_by",
+            "d"
+          ]
+        },
+        {
+          "node": "d",
+          "type": "Decision",
+          "where": {
+            "status": "accepted"
+          }
+        }
+      ],
+      "then": {
+        "attribute": [
+          "c",
+          "settled",
+          true
+        ]
+      },
+      "why": "A choice is settled when a decision someone accepted settles it; a proposal alone settles nothing.",
+      "validated_by": ""
+    },
+    {
+      "id": "component-deployable",
+      "kind": "derive",
+      "when": [
+        {
+          "node": "c",
+          "type": "Component"
+        },
+        {
+          "edge": [
+            "c",
+            "runs_on",
+            "s"
+          ]
+        },
+        {
+          "edge": [
+            "p",
+            "deploys",
+            "c"
+          ]
+        }
+      ],
+      "then": {
+        "attribute": [
+          "c",
+          "deployable",
+          true
+        ]
+      },
+      "why": "A component can be deployed once it has a service to run on and a pipeline that deploys it.",
+      "validated_by": ""
+    },
+    {
+      "id": "builder-pick-outside-its-limits",
+      "kind": "policy",
+      "severity": "blocking",
+      "when": [
+        {
+          "node": "c",
+          "type": "Choice",
+          "where": {
+            "authority": "delegated",
+            "allowed": {
+              "exists": true
+            }
+          }
+        },
+        {
+          "edge": [
+            "c",
+            "settled_by",
+            "d"
+          ]
+        },
+        {
+          "node": "d",
+          "type": "Decision",
+          "where": {
+            "option": {
+              "not_in": "$c.allowed"
+            }
+          }
+        }
+      ],
+      "then": {
+        "flag": "a choice left to the builder is settled with an option it was not allowed"
+      },
+      "why": "The builder chooses within the limits it was given; an option outside them is a decision nobody delegated.",
+      "validated_by": "",
+      "answers": "PL9"
+    },
+    {
+      "id": "delegated-choice-without-limits",
+      "kind": "policy",
+      "severity": "blocking",
+      "when": [
+        {
+          "node": "c",
+          "type": "Choice",
+          "where": {
+            "authority": "delegated",
+            "allowed": {
+              "exists": false
+            }
+          }
+        },
+        {
+          "not_edge": [
+            "c",
+            "bounded_by",
+            "*"
+          ]
+        }
+      ],
+      "then": {
+        "flag": "a choice is left to the builder with no limits: no allowed options, nothing that bounds it"
+      },
+      "why": "Leaving a choice to the builder means saying within what; with no limits, it is not delegated but abandoned.",
+      "validated_by": "",
+      "answers": "PL9"
+    },
+    {
+      "id": "accepted-decision-names-who",
+      "kind": "policy",
+      "severity": "blocking",
+      "when": [
+        {
+          "node": "c",
+          "type": "Choice"
+        },
+        {
+          "edge": [
+            "c",
+            "settled_by",
+            "d"
+          ]
+        },
+        {
+          "node": "d",
+          "type": "Decision",
+          "where": {
+            "status": "accepted"
+          }
+        },
+        {
+          "not_edge": [
+            "d",
+            "decided_by",
+            "*"
+          ]
+        }
+      ],
+      "then": {
+        "flag": "a choice is settled by a decision marked accepted, with nobody named who accepted it"
+      },
+      "why": "An accepted decision is someone's call; the builder's pick is accepted only when a person confirms it.",
+      "validated_by": "",
+      "answers": "PL10"
+    },
+    {
+      "id": "decision-records-alternatives",
+      "kind": "policy",
+      "severity": "warn",
+      "when": [
+        {
+          "node": "c",
+          "type": "Choice",
+          "where": {
+            "authority": "decided"
+          }
+        },
+        {
+          "edge": [
+            "c",
+            "settled_by",
+            "d"
+          ]
+        },
+        {
+          "node": "d",
+          "type": "Decision",
+          "where": {
+            "status": "accepted",
+            "alternatives": {
+              "exists": false
+            }
+          }
+        }
+      ],
+      "then": {
+        "flag": "a decision settles a choice without recording the alternatives considered"
+      },
+      "why": "A decision record without its alternatives cannot be revisited: nobody knows what was ruled out, or why.",
+      "validated_by": "",
+      "answers": "PL10"
+    },
+    {
+      "id": "secret-has-a-place",
+      "kind": "policy",
+      "severity": "warn",
+      "when": [
+        {
+          "node": "k",
+          "type": "SecretRef"
+        },
+        {
+          "not_edge": [
+            "k",
+            "kept_in",
+            "*"
+          ]
+        }
+      ],
+      "then": {
+        "flag": "a secret is needed but kept nowhere on record"
+      },
+      "why": "A secret with no recorded place is looked for at deploy time, or pasted somewhere it should not be.",
+      "validated_by": "",
+      "answers": "PL5"
+    }
+  ]
+}

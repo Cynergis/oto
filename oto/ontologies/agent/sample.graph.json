@@ -1,0 +1,551 @@
+{
+ "_about": "A worked example on the payments platform the other samples describe: the merchant assistant, an agent a merchant's finance clerk gives work to. It explains a day's settlement on its own and refunds a payment only after the clerk confirms. The product's personas, roles, policy and the estate's interface, ledger and team come from the ontologies this one extends.",
+ "nodes": [
+  {
+   "id": "requirement.explain-settlement",
+   "type": "Requirement",
+   "label": "Explain any day's settlement in plain words",
+   "summary": "A merchant can ask why a day's settlement is what it is and get the answer payment by payment.",
+   "attributes": {
+    "kind": "functional",
+    "priority": "should"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "merchant-assistant-design",
+   "status": "current",
+   "sources": [
+    "merchant-assistant-design"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "requirement.refund-on-request",
+   "type": "Requirement",
+   "label": "Refund a payment when the merchant asks",
+   "summary": "A merchant can refund a customer's payment, in full or in part, without calling support.",
+   "attributes": {
+    "kind": "functional",
+    "priority": "must"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "merchant-assistant-design",
+   "status": "current",
+   "sources": [
+    "merchant-assistant-design"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "component.merchant-assistant",
+   "type": "Component",
+   "label": "Merchant assistant plugin",
+   "summary": "The plugin that carries the merchant assistant: its jobs, its tools and its guardrails.",
+   "attributes": {},
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "merchant-assistant-design",
+   "status": "current",
+   "sources": [
+    "merchant-assistant-design"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "openquestion.q-partial",
+   "type": "OpenQuestion",
+   "label": "May a payment be refunded in several parts?",
+   "summary": "Nobody has decided whether the assistant may issue a second partial refund on one payment.",
+   "attributes": {
+    "raised_on": "2026-10-14",
+    "state": "open"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "merchant-assistant-design",
+   "status": "current",
+   "sources": [
+    "merchant-assistant-design"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "agent.merchant-assistant",
+   "type": "Agent",
+   "label": "Merchant assistant",
+   "summary": "The agent a merchant's finance clerk gives work to instead of opening the back office.",
+   "attributes": {
+    "packaging": "plugin",
+    "distribution": "the company's plugin marketplace",
+    "readiness": "draft"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "merchant-assistant-design",
+   "status": "current",
+   "sources": [
+    "merchant-assistant-design"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "style.plain",
+   "type": "ConversationStyle",
+   "label": "Plain and brief",
+   "summary": "How the assistant talks with a clerk.",
+   "attributes": {
+    "voice": "Friendly and brief, in the clerk's own words; no ledger ids or payment codes.",
+    "shape": "Say what we are about to do, ask a few questions at a time, read back what was understood, wait for the clerk to confirm, say what is next.",
+    "technical_details": "on_request"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "merchant-assistant-design",
+   "status": "current",
+   "sources": [
+    "merchant-assistant-design"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "job.explain-settlement",
+   "type": "Job",
+   "label": "Explain a day's settlement",
+   "summary": "Tells the clerk why a day's settlement is what it is, payment by payment.",
+   "attributes": {
+    "when_to_use": "The clerk asks why they were paid less, or more, than they expected on a given day.",
+    "produces": "A short explanation: what settled, what was held back and why, in the clerk's words.",
+    "autonomy": "acts_alone",
+    "readiness": "ready"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "merchant-assistant-design",
+   "status": "current",
+   "sources": [
+    "merchant-assistant-design"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "job.refund-payment",
+   "type": "Job",
+   "label": "Refund a payment",
+   "summary": "Refunds a customer's payment once the clerk has confirmed it.",
+   "attributes": {
+    "when_to_use": "The clerk asks to refund an order, in full or in part.",
+    "produces": "One refund, issued and confirmed back to the clerk with the amount and the date it reaches the customer.",
+    "autonomy": "acts_after_confirmation",
+    "readiness": "draft"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "merchant-assistant-design",
+   "status": "current",
+   "sources": [
+    "merchant-assistant-design"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "tool.look-up-payments",
+   "type": "Tool",
+   "label": "Look up payments",
+   "summary": "Finds a merchant's payments and their settlement through the payments API.",
+   "attributes": {
+    "effect": "reads",
+    "reversible": true
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "merchant-assistant-design",
+   "status": "current",
+   "sources": [
+    "merchant-assistant-design"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "tool.issue-refund",
+   "type": "Tool",
+   "label": "Issue a refund",
+   "summary": "Refunds all or part of a captured payment.",
+   "attributes": {
+    "effect": "changes",
+    "reversible": false
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "merchant-assistant-design",
+   "status": "current",
+   "sources": [
+    "merchant-assistant-design"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "knowledge.ledger",
+   "type": "KnowledgeSource",
+   "label": "The ledger",
+   "summary": "Every captured and settled payment, as the settlement job recorded it.",
+   "attributes": {
+    "kind": "data",
+    "freshness": "As of the last settlement run."
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "merchant-assistant-design",
+   "status": "current",
+   "sources": [
+    "merchant-assistant-design"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "knowledge.handbook",
+   "type": "KnowledgeSource",
+   "label": "How settlement works",
+   "summary": "The operations handbook's chapter on cut-offs, holds and settlement days.",
+   "attributes": {
+    "kind": "documents",
+    "freshness": "The current edition."
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "merchant-assistant-design",
+   "status": "current",
+   "sources": [
+    "merchant-assistant-design"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "guardrail.confirm-refund",
+   "type": "Guardrail",
+   "label": "Confirm every refund",
+   "summary": "No refund leaves without the clerk's yes.",
+   "attributes": {
+    "kind": "confirm_first",
+    "rule": "Read the refund back (the order, the amount, the reason) and issue it only when the clerk confirms."
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "merchant-assistant-design",
+   "status": "current",
+   "sources": [
+    "merchant-assistant-design"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "guardrail.keep-evidence",
+   "type": "Guardrail",
+   "label": "Never alter payment evidence",
+   "summary": "The assistant reads payments; it never edits or deletes their record.",
+   "attributes": {
+    "kind": "never",
+    "rule": "Never change or delete a payment's record or its evidence."
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "merchant-assistant-design",
+   "status": "current",
+   "sources": [
+    "merchant-assistant-design"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "guardrail.own-payments",
+   "type": "Guardrail",
+   "label": "Only the clerk's own merchant",
+   "summary": "The assistant works within one merchant's payments.",
+   "attributes": {
+    "kind": "limit",
+    "rule": "Look up and act on the payments of the clerk's own merchant only."
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "merchant-assistant-design",
+   "status": "current",
+   "sources": [
+    "merchant-assistant-design"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "evaluation.short-day",
+   "type": "Evaluation",
+   "label": "A day that settled short",
+   "summary": "The clerk was paid less than the day's sales.",
+   "attributes": {
+    "request": "Why did I get less than I expected yesterday?",
+    "expected": "Lists what settled yesterday, names the payments held back and why, and says when they will settle, in plain words.",
+    "must_not": "Quote a ledger id, or show another merchant's payments.",
+    "result": "pass"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "merchant-assistant-design",
+   "status": "current",
+   "sources": [
+    "merchant-assistant-design"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  },
+  {
+   "id": "evaluation.refund-twice",
+   "type": "Evaluation",
+   "label": "The same refund asked twice",
+   "summary": "The clerk asks for one refund, then asks again.",
+   "attributes": {
+    "request": "Refund order 1042. (Later:) Refund order 1042.",
+    "expected": "Reads the first refund back, issues it once confirmed, and says the second request is already done.",
+    "must_not": "Issue a second refund.",
+    "result": "not_run"
+   },
+   "as_of": "2026-10-14",
+   "valid_from": "2026-10-14",
+   "source_doc": "merchant-assistant-design",
+   "status": "current",
+   "sources": [
+    "merchant-assistant-design"
+   ],
+   "aliases": [],
+   "tags": [
+    "sample"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "component.merchant-assistant",
+   "rel": "part_of",
+   "to": "system.payments"
+  },
+  {
+   "from": "component.merchant-assistant",
+   "rel": "runs_in",
+   "to": "environment.production"
+  },
+  {
+   "from": "requirement.refund-on-request",
+   "rel": "owned_by",
+   "to": "role.r-owner"
+  },
+  {
+   "from": "agent.merchant-assistant",
+   "rel": "works_for",
+   "to": "persona.p-merchant"
+  },
+  {
+   "from": "agent.merchant-assistant",
+   "rel": "deployed_as",
+   "to": "component.merchant-assistant"
+  },
+  {
+   "from": "agent.merchant-assistant",
+   "rel": "owned_by",
+   "to": "team.payments"
+  },
+  {
+   "from": "agent.merchant-assistant",
+   "rel": "speaks_in",
+   "to": "style.plain"
+  },
+  {
+   "from": "job.explain-settlement",
+   "rel": "part_of",
+   "to": "agent.merchant-assistant"
+  },
+  {
+   "from": "job.explain-settlement",
+   "rel": "requested_by",
+   "to": "persona.p-merchant"
+  },
+  {
+   "from": "job.explain-settlement",
+   "rel": "draws_on",
+   "to": "knowledge.ledger"
+  },
+  {
+   "from": "job.explain-settlement",
+   "rel": "calls",
+   "to": "tool.look-up-payments"
+  },
+  {
+   "from": "job.refund-payment",
+   "rel": "part_of",
+   "to": "agent.merchant-assistant"
+  },
+  {
+   "from": "job.refund-payment",
+   "rel": "requested_by",
+   "to": "persona.p-merchant"
+  },
+  {
+   "from": "job.refund-payment",
+   "rel": "draws_on",
+   "to": "knowledge.ledger"
+  },
+  {
+   "from": "job.refund-payment",
+   "rel": "calls",
+   "to": "tool.look-up-payments"
+  },
+  {
+   "from": "job.explain-settlement",
+   "rel": "satisfies",
+   "to": "requirement.explain-settlement"
+  },
+  {
+   "from": "job.refund-payment",
+   "rel": "satisfies",
+   "to": "requirement.refund-on-request"
+  },
+  {
+   "from": "job.refund-payment",
+   "rel": "calls",
+   "to": "tool.issue-refund"
+  },
+  {
+   "from": "job.explain-settlement",
+   "rel": "draws_on",
+   "to": "knowledge.handbook"
+  },
+  {
+   "from": "job.explain-settlement",
+   "rel": "hands_off_to",
+   "to": "job.refund-payment"
+  },
+  {
+   "from": "job.refund-payment",
+   "rel": "hands_off_to",
+   "to": "role.r-compliance"
+  },
+  {
+   "from": "openquestion.q-partial",
+   "rel": "about",
+   "to": "job.refund-payment"
+  },
+  {
+   "from": "agent.merchant-assistant",
+   "rel": "equipped_with",
+   "to": "tool.look-up-payments"
+  },
+  {
+   "from": "agent.merchant-assistant",
+   "rel": "equipped_with",
+   "to": "tool.issue-refund"
+  },
+  {
+   "from": "tool.look-up-payments",
+   "rel": "reaches",
+   "to": "interface.payments-v2"
+  },
+  {
+   "from": "tool.issue-refund",
+   "rel": "reaches",
+   "to": "interface.payments-v2"
+  },
+  {
+   "from": "tool.issue-refund",
+   "rel": "reaches",
+   "to": "datastore.ledger"
+  },
+  {
+   "from": "knowledge.ledger",
+   "rel": "held_in",
+   "to": "datastore.ledger"
+  },
+  {
+   "from": "knowledge.handbook",
+   "rel": "held_in",
+   "to": "doc.handbook"
+  },
+  {
+   "from": "guardrail.confirm-refund",
+   "rel": "protects",
+   "to": "tool.issue-refund"
+  },
+  {
+   "from": "guardrail.confirm-refund",
+   "rel": "confirmed_by",
+   "to": "persona.p-merchant"
+  },
+  {
+   "from": "guardrail.keep-evidence",
+   "rel": "protects",
+   "to": "agent.merchant-assistant"
+  },
+  {
+   "from": "guardrail.keep-evidence",
+   "rel": "upholds",
+   "to": "policy.pol-evidence"
+  },
+  {
+   "from": "guardrail.own-payments",
+   "rel": "protects",
+   "to": "tool.look-up-payments"
+  },
+  {
+   "from": "evaluation.short-day",
+   "rel": "proves",
+   "to": "job.explain-settlement"
+  },
+  {
+   "from": "evaluation.refund-twice",
+   "rel": "proves",
+   "to": "job.refund-payment"
+  }
+ ]
+}

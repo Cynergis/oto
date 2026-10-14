@@ -1,0 +1,29 @@
+{
+  "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
+  "name": "agent",
+  "release": 1,
+  "domain": "software",
+  "summary": "An agent people give work to, as a part of a product: the jobs they hand it and the requirement each meets, its tools and what each reads, changes or sends, what it draws on, its guardrails and who confirms, how it talks, where it hands work over, the test conversations that prove each job, and how it is packaged.",
+  "extends": [
+    "software-architecture"
+  ],
+  "namespace": "https://cynergis.ai/ont/agent#",
+  "engine": ">=0.11.23",
+  "carries": [
+    "vocabulary",
+    "rationale",
+    "rules",
+    "questions",
+    "sample",
+    "readme",
+    "guide"
+  ],
+  "maintainer": "OTO",
+  "changelog": [
+    {
+      "release": 1,
+      "at": "2026-10-14",
+      "note": "The agent pattern (decided with Chiheb Dkhil, 2026-10-14): a third kind of part beside an application (ddd) and a data pipeline (medallion). Sits on software-architecture and product. 7 classes, 12 questions, rules that refuse a design contradicting itself, a sample on the payments platform: a merchant assistant."
+    }
+  ]
+}

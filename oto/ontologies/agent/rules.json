@@ -1,0 +1,349 @@
+{
+  "_about": "Rules over the agent's design. `derive` adds facts marked as derived, with the rule and the premises; `policy` flags what a design contradicts or leaves unsafe, naming the question it protects. Blocking ones refuse a design that contradicts itself; a warning names what is still missing.",
+  "rules": [
+    {
+      "id": "agent-reaches-what-its-tools-reach",
+      "kind": "derive",
+      "when": [
+        {
+          "node": "a",
+          "type": "Agent"
+        },
+        {
+          "edge": [
+            "a",
+            "equipped_with",
+            "t"
+          ]
+        },
+        {
+          "edge": [
+            "t",
+            "reaches",
+            "s"
+          ]
+        }
+      ],
+      "then": {
+        "edge": [
+          "a",
+          "reaches",
+          "s"
+        ]
+      },
+      "why": "Whoever reviews an agent asks what it can touch; that is everything its tools reach, and nobody should have to add it up by hand.",
+      "validated_by": ""
+    },
+    {
+      "id": "acts-alone-with-a-tool-needing-confirmation",
+      "kind": "policy",
+      "severity": "blocking",
+      "when": [
+        {
+          "node": "j",
+          "type": "Job",
+          "where": {
+            "autonomy": "acts_alone"
+          }
+        },
+        {
+          "edge": [
+            "j",
+            "calls",
+            "t"
+          ]
+        },
+        {
+          "node": "g",
+          "type": "Guardrail",
+          "where": {
+            "kind": "confirm_first"
+          }
+        },
+        {
+          "edge": [
+            "g",
+            "protects",
+            "t"
+          ]
+        }
+      ],
+      "then": {
+        "flag": "a job acts alone with a tool that needs a person's confirmation first"
+      },
+      "why": "The design says both that nobody is asked and that somebody must be; the builder cannot honour both.",
+      "validated_by": "",
+      "answers": "AG5"
+    },
+    {
+      "id": "job-calls-a-forbidden-tool",
+      "kind": "policy",
+      "severity": "blocking",
+      "when": [
+        {
+          "node": "j",
+          "type": "Job"
+        },
+        {
+          "edge": [
+            "j",
+            "calls",
+            "t"
+          ]
+        },
+        {
+          "node": "g",
+          "type": "Guardrail",
+          "where": {
+            "kind": "never"
+          }
+        },
+        {
+          "edge": [
+            "g",
+            "protects",
+            "t"
+          ]
+        }
+      ],
+      "then": {
+        "flag": "a job uses a tool the agent must never use"
+      },
+      "why": "A tool the agent must never use cannot be part of a job it does.",
+      "validated_by": "",
+      "answers": "AG6"
+    },
+    {
+      "id": "acts-alone-on-an-unguarded-change",
+      "kind": "policy",
+      "severity": "blocking",
+      "when": [
+        {
+          "node": "j",
+          "type": "Job",
+          "where": {
+            "autonomy": "acts_alone"
+          }
+        },
+        {
+          "edge": [
+            "j",
+            "calls",
+            "t"
+          ]
+        },
+        {
+          "node": "t",
+          "type": "Tool",
+          "where": {
+            "effect": {
+              "in": [
+                "changes",
+                "sends"
+              ]
+            }
+          }
+        },
+        {
+          "not_edge": [
+            "*",
+            "protects",
+            "t"
+          ]
+        },
+        {
+          "not_edge": [
+            "*",
+            "protects",
+            "j"
+          ]
+        }
+      ],
+      "then": {
+        "flag": "a job acts alone with a tool that changes or sends something, and no guardrail protects it"
+      },
+      "why": "An agent that changes things or sends them out with nobody asked and no limit set is the failure people fear from agents; say who confirms, or what bounds it.",
+      "validated_by": "",
+      "answers": "AG5"
+    },
+    {
+      "id": "ready-job-meets-a-requirement",
+      "kind": "policy",
+      "severity": "blocking",
+      "when": [
+        {
+          "node": "j",
+          "type": "Job",
+          "where": {
+            "readiness": "ready"
+          }
+        },
+        {
+          "not_edge": [
+            "j",
+            "satisfies",
+            "*"
+          ]
+        }
+      ],
+      "then": {
+        "flag": "a job marked ready meets no requirement"
+      },
+      "why": "Ready means the builder may start; a job no requirement asks for is built for nobody.",
+      "validated_by": "",
+      "answers": "AG3"
+    },
+    {
+      "id": "ready-job-is-proven",
+      "kind": "policy",
+      "severity": "blocking",
+      "when": [
+        {
+          "node": "j",
+          "type": "Job",
+          "where": {
+            "readiness": "ready"
+          }
+        },
+        {
+          "not_edge": [
+            "*",
+            "proves",
+            "j"
+          ]
+        }
+      ],
+      "then": {
+        "flag": "a job marked ready has no test conversation"
+      },
+      "why": "An agent's job is only as good as the conversations it has been tried on; without one, nobody can say it works.",
+      "validated_by": "",
+      "answers": "AG9"
+    },
+    {
+      "id": "ready-job-fails-a-test",
+      "kind": "policy",
+      "severity": "blocking",
+      "when": [
+        {
+          "node": "e",
+          "type": "Evaluation",
+          "where": {
+            "result": "fail"
+          }
+        },
+        {
+          "edge": [
+            "e",
+            "proves",
+            "j"
+          ]
+        },
+        {
+          "node": "j",
+          "type": "Job",
+          "where": {
+            "readiness": {
+              "in": [
+                "ready",
+                "built"
+              ]
+            }
+          }
+        }
+      ],
+      "then": {
+        "flag": "a job marked ready or built fails one of its test conversations"
+      },
+      "why": "A failing test and a ready job cannot both be true; one of them is out of date.",
+      "validated_by": "",
+      "answers": "AG9"
+    },
+    {
+      "id": "confirmation-names-who",
+      "kind": "policy",
+      "severity": "warn",
+      "when": [
+        {
+          "node": "g",
+          "type": "Guardrail",
+          "where": {
+            "kind": "confirm_first"
+          }
+        },
+        {
+          "not_edge": [
+            "g",
+            "confirmed_by",
+            "*"
+          ]
+        }
+      ],
+      "then": {
+        "flag": "a guardrail needs a confirmation but names nobody to give it"
+      },
+      "why": "A confirmation nobody is named to give is either skipped or asked of the wrong person.",
+      "validated_by": "",
+      "answers": "AG6"
+    },
+    {
+      "id": "technical-details-on-request",
+      "kind": "policy",
+      "severity": "warn",
+      "when": [
+        {
+          "node": "c",
+          "type": "ConversationStyle",
+          "where": {
+            "technical_details": {
+              "in": [
+                "offered",
+                "always"
+              ]
+            }
+          }
+        }
+      ],
+      "then": {
+        "flag": "the agent shows technical details without being asked"
+      },
+      "why": "People stop using an agent that answers in codes and ids; the details are there when they ask for them.",
+      "validated_by": "",
+      "answers": "AG10"
+    },
+    {
+      "id": "ready-job-has-open-question",
+      "kind": "policy",
+      "severity": "warn",
+      "when": [
+        {
+          "node": "h",
+          "type": "OpenQuestion",
+          "where": {
+            "state": "open"
+          }
+        },
+        {
+          "edge": [
+            "h",
+            "about",
+            "j"
+          ]
+        },
+        {
+          "node": "j",
+          "type": "Job",
+          "where": {
+            "readiness": "ready"
+          }
+        }
+      ],
+      "then": {
+        "flag": "a job marked ready still has an open question on it"
+      },
+      "why": "Ready means the builder may start; an open question means somebody has not decided.",
+      "validated_by": "",
+      "answers": "AG12"
+    }
+  ]
+}

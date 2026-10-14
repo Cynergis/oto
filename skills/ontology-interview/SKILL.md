@@ -16,6 +16,14 @@ The output is two files, and the second is the one people skip:
 A vocabulary with no recorded reasoning cannot be reviewed. A domain expert looking at sixteen class
 names cannot tell a deliberate choice from an accident, so the review that matters never happens.
 
+## Talking with the person
+
+- **Plain, natural language, in the person's words.** Never say question numbers, ids, class or
+  field names, file names or commands, and never paste what a command printed.
+- **Technical details only when the person asks for them.** Never offer them, not even as a choice.
+- **The same clear shape every time:** say what we are about to do, ask a few questions at a time,
+  read back what you understood in plain sentences, confirm, then say what is next.
+
 ## The one rule: questions before nouns
 
 The common failure is to list every noun in the domain, declare forty classes, and produce a model

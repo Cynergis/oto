@@ -298,6 +298,7 @@ def test_the_concierge_routes_to_the_projects_packs_first():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     text = open(os.path.join(root, "skills", "concierge", "SKILL.md"), encoding="utf-8").read()
     assert "`packs` lists plugins" in text and "The project's packs come first" in text
+    assert "Read the engine; tell it in plain words" in text and "Quote the engine" not in text
     assert "NOT INSTALLED" in text and "oto status --json" in text
 
 

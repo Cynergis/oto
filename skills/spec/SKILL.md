@@ -22,6 +22,14 @@ already taken, risks, requirements, owners. Then the document feeds the graph: t
 makes become `DecisionRecord` facts through the pipeline, so the next spec starts from them
 instead of rediscovering them.
 
+## Talking with the person
+
+- **Plain, natural language, in the person's words.** Never say question numbers, ids, class or
+  field names, file names or commands, and never paste what a command printed.
+- **Technical details only when the person asks for them.** Never offer them, not even as a choice.
+- **The same clear shape every time:** say what we are about to do, ask a few questions at a time,
+  read back what you understood in plain sentences, confirm, then say what is next.
+
 ## Phase 1 — Scope, then resolve
 
 1. State in one paragraph what is being specified and for whom. Get that confirmed before reading

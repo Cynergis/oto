@@ -4,6 +4,27 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.22 — 2026-10-14
+
+**Every conversation is in plain language, in a clear shape; technical details only when asked.**
+The interview had become hard to follow: capture-form showed drafted items as "type, id, label,
+fields, links" and reported "the graph answers N of M", and the concierge's first rule was to show
+the engine's output. Ids, codes and exact output are needs of the record, not of the conversation.
+
+- **capture-form** is rewritten as a conversation: open with what it will settle; one topic at a
+  time, a few plain questions with choices; read back in plain sentences; "Save it and move on",
+  "Dig deeper" or "See it from someone else's side"; save behind the scenes and say the outcome in a
+  sentence; progress at the end of a topic, in what the questions ask, never their numbers; close
+  with a recap. The form, the capture file, the commands and the checks are in "Behind the scenes",
+  for the assistant only.
+- **The concierge** reads the engine and tells it in plain words; it shows output only when asked,
+  and hands over by saying who takes it from here, starting that skill when the person agrees.
+- **Every engine skill** and every pack's generated start skill carry the same rule: plain, natural
+  language, in the person's words; no question numbers, ids, class or field names, file names,
+  commands or pasted output; technical details only when the person asks, never offered; the same
+  clear shape every time. `query-knowledge` names the documents behind an answer by title and date,
+  the ids only when asked.
+
 ## 0.11.21 — 2026-10-14
 
 **A playbook pack says which journey it leads, and the concierge offers it.** A pack manifest may

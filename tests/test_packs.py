@@ -571,12 +571,36 @@ def test_a_retired_pack_published_again_goes_on_after_its_last_release(home, cap
     assert sorted(t for t in tags if t.startswith("arch--")) == ["arch--v1.0.0", "arch--v2.0.0", "arch--v3.0.0"]
 
 
-def test_capture_form_carries_the_confirmation_menu():
-    """The menu every pack's interview offers is capture-form's own: no pack keeps an elicit skill for it."""
+def test_capture_form_is_a_plain_language_conversation_with_the_engine_behind_the_scenes():
+    """People do not use an interview they cannot follow: plain words, a clear shape, the engine's
+    ids, commands and output behind the scenes, and technical details only when asked, never offered."""
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     text = open(os.path.join(root, "skills", "capture-form", "SKILL.md"), encoding="utf-8").read()
-    assert "**[A] Advanced elicitation · [P] Perspectives · [C] Continue & contribute**" in text
-    assert "Contribute only on **C**" in text and "studio" not in text.lower()
+    for words in ("## Talking with the person", "## The conversation", "## Behind the scenes",
+                  "Never offer them", "**Save it and move on**", "**Dig deeper**", "**See it from someone else's side**",
+                  "Save only when they choose to move on", "None of it is said to the person unless they ask"):
+        assert words in text, words
+    for gone in ("show them as items", "the graph answers N of M", "[A] Advanced elicitation", "studio"):
+        assert gone not in text, gone
+
+
+def test_every_engine_skill_talks_in_plain_language():
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for name in sorted(os.listdir(os.path.join(root, "skills"))):
+        path = os.path.join(root, "skills", name, "SKILL.md")
+        if not os.path.exists(path):
+            continue
+        text = open(path, encoding="utf-8").read()
+        assert text.count("## Talking with the person") == 1, name
+        assert "Technical details only when the person asks for them.** Never offer them" in text, name
+        for gone in ("Quote the engine", "Quote the output", "show its output", "in the engine's words"):
+            assert gone not in text, (name, gone)
+
+
+def test_a_packs_start_skill_talks_in_plain_language(home):
+    assert main(["pack", "new", "arch", "--ontology", "software-architecture", "--maintainer", "Cynergis"]) == 0
+    start = open(os.path.join(packs.dir_for("arch"), "skills", "start", "SKILL.md"), encoding="utf-8").read()
+    assert "## Talking with the person" in start and "Never offer them" in start
 
 
 def _playbook_pack(home_name="prod", skill="lead"):

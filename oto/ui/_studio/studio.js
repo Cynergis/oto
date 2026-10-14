@@ -3,6 +3,7 @@
  *   Studio.link(id, text)  a link to the page that shows the thing, or the text alone
  *   Studio.label(id)       the thing's label in plain words ("" when unknown; never its id)
  *   Studio.open(element)   fills an element with what is still open on this page
+ *   Studio.page(path)      a page's address: "<name>/", or "<name>/index.html" when the site is opened from disk
  *
  * On load it draws the studio's navigation at the top of the page (unless <body data-studio="bare">),
  * fills #studio-open when the page has one, and highlights the thing a link pointed to (#<id>) once
@@ -32,6 +33,9 @@
   }
 
   var current = pageOf(here()) ? here() : "";
+  // opened from disk (file://), a folder is a listing, not its index.html: name the file
+  var fromDisk = location.protocol === "file:";
+  function page(path) { return fromDisk && /\/$/.test(path) ? path + "index.html" : path; }
   // from a view's folder, the site's root is one level up; from the root, it is here
   var root = current ? "../" : "";
 
@@ -44,7 +48,7 @@
     var e = D && D.entities && D.entities[id];
     var shown = text || (e && e.label) || "";
     if (!e) return esc(shown);
-    var href = (e.view === current ? "" : root + e.view + "/") + "#" + encodeURIComponent(id);
+    var href = (e.view === current ? "" : page(root + e.view + "/")) + "#" + encodeURIComponent(id);
     return '<a class="studio-link" href="' + esc(href) + '">' + esc(shown) + "</a>";
   }
 
@@ -61,12 +65,12 @@
       if (!p) return;
       var cls = p.place === "technical" ? ' class="studio-technical"' : "";
       var curr = p.name === current ? ' aria-current="page"' : "";
-      links.push('<a href="' + esc(root + p.path) + '"' + cls + curr + ' title="' + esc(placeLabel(p.place)) + '">' +
+      links.push('<a href="' + esc(page(root + p.path)) + '"' + cls + curr + ' title="' + esc(placeLabel(p.place)) + '">' +
                  esc(p.title) + "</a>");
     });
     var nav = document.createElement("header");
     nav.className = "studio-bar";
-    nav.innerHTML = '<div class="studio-bar-inner"><a class="studio-home" href="' + esc(root || "./") + '">' + esc(name) +
+    nav.innerHTML = '<div class="studio-bar-inner"><a class="studio-home" href="' + esc(page(root || "./")) + '">' + esc(name) +
                     '</a><nav class="studio-nav" aria-label="Pages">' + links.join("") + "</nav></div>";
     return nav;
   }
@@ -121,5 +125,5 @@
   });
   window.addEventListener("hashchange", focus);
 
-  window.Studio = {data: D, link: link, label: label, open: open, focus: focus, ready: ready, here: current, esc: esc};
+  window.Studio = {data: D, link: link, label: label, open: open, focus: focus, ready: ready, here: current, esc: esc, page: page};
 })();

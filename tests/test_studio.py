@@ -97,3 +97,6 @@ def test_the_kit_is_shipped_and_names_no_pack():
     assert "Still open" in js and "window.Studio" in js
     home = open(os.path.join(apps.HOME_DIR, "index.html"), encoding="utf-8").read()
     assert "D.portal" in home and "_studio/data.js" in home
+    # opened from disk, a folder is a listing: the kit and the home page name index.html
+    assert 'location.protocol === "file:"' in js and "page: page" in js and 'path + "index.html"' in js
+    assert 'fromDisk ? "index.html" : ""' in home

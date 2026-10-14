@@ -4,6 +4,16 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.16 — 2026-10-13
+
+**Any repository can refuse client names.** The engine's publishability scanner
+(`tools/check_publishable.py`) is now part of the package: `oto publishable [<dir>] [--strict]`
+scans what git tracks in a repository (every file outside one) for the client terms of
+`OTO_DENY_TERMS` or a gitignored `.oto-denylist`, private repository references and credentials,
+and names each finding by file and line, never by its text, since a CI log is public. `--strict`
+fails when no term is configured. The registry, the ontology repositories, the packs and the plugins
+can run the same scan in CI as the engine does; the engine's wrapper is unchanged.
+
 ## 0.11.15 — 2026-10-13
 
 **A refined description is not a clash.** Merging ontologies (`--ontology a,b`, `--pack` with

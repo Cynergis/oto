@@ -19,6 +19,7 @@ One module per command, in the order a project moves through them:
     lock.py        oto lock                     the engine, plugins and ontologies a project is built with
     bench.py       oto bench                    measure answer quality
     feedback.py    oto feedback                 a complaint becomes a gold question
+    publishable.py oto publishable              no client name or credential in a repository about to be published
 
 Each exposes `register(sub)` to add its parsers, and a `cmd_*` handler per command. The handlers
 import what they need lazily, so `oto --help` and `oto version` start without loading the engine.
@@ -28,9 +29,9 @@ import sys
 
 from .. import __version__
 from ..project import ProjectError
-from . import actions, bench, build, capture, curate, draft, feedback, ingest, init, lock, ontology, pack, preview, publish, query, registry, rules, status, vet
+from . import actions, bench, build, capture, curate, draft, feedback, ingest, init, lock, ontology, pack, preview, publish, publishable, query, registry, rules, status, vet
 
-COMMANDS = (init, status, lock, ingest, capture, ontology, pack, registry, rules, actions, curate, draft, vet, build, preview, query, publish, bench, feedback)
+COMMANDS = (init, status, lock, ingest, capture, ontology, pack, registry, rules, actions, curate, draft, vet, build, preview, query, publish, publishable, bench, feedback)
 
 
 def cmd_version(args):

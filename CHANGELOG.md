@@ -4,6 +4,17 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.17 — 2026-10-14
+
+**A pattern pack says what it is a pattern of.** A pack manifest may declare `pattern`:
+`{"of": "software-architecture", "for": "a part designed with domain-driven design", "skill":
+"model-domain"}`. `oto pack check` refuses a pattern whose skill the pack does not ship or whose
+ontology does not extend `of`; the generated start skill says what the pack is a pattern of and
+which skill models such a part; `oto status` marks the project's pattern packs (`--json` carries
+the field); the registry index records it, and `oto pack list --patterns` lists only them. An
+architecture skill finds the patterns a project composes from this, so adding a pattern no longer
+means editing the skill that hands parts to it.
+
 ## 0.11.16 — 2026-10-13
 
 **Any repository can refuse client names.** The engine's publishability scanner

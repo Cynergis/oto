@@ -118,6 +118,8 @@ def register(sub):
                       help="new: the pack's name; check and refresh: a directory (default .); show: a name or "
                            "directory; add: a name, name@release or git URL; update: a name")
     pack.add_argument("--ontology", default=None, help="for new: the ontology to embed, a name on this machine, name@release, or a directory")
+    pack.add_argument("--patterns", action="store_true",
+                      help="for list: only the pattern packs (a pack whose manifest says what it is a design pattern of)")
     pack.add_argument("--domain", default=None, help="for new: the category the pack belongs to, one lowercase slug (default: the ontology's)")
     pack.add_argument("--summary", default=None, help="for new and publish: one line saying what the pack is for")
     pack.add_argument("--view", action="append", default=None, help="for new: a view directory to ship (repeatable)")

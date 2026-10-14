@@ -449,6 +449,10 @@ vocabulary and keep their names). The engine notes a domain it has not seen and 
 
 ## Packs: the extension a person installs
 
+A pack may be a **design pattern** of an ontology it extends (`pattern` in its manifest: what it is a
+pattern `of`, `for` which part, and the `skill` that models such a part); `oto status` lists the
+project's patterns, so an architecture skill finds them instead of naming them.
+
 A pack is the whole thing a person installs into Claude Code
 ([model/packs.py](../oto/model/packs.py), the plan in [plans/packs.md](plans/packs.md)): one
 ontology, the skills that know how to use it, the views that show its graph, and the plugin

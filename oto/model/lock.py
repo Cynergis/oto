@@ -249,8 +249,11 @@ def offered(root):
             except OSError:
                 summary = ""
             skills.append({"name": skill, "summary": summary, "command": "/%s:%s" % (name, skill)})
+        manifest = _read_json(os.path.join(path, "manifest.json"), {}) if path else {}
+        pattern = (manifest or {}).get("pattern") if isinstance(manifest, dict) else None
         out.append({"id": key, "name": name, "version": entry.get("version"), "installed": bool(entry),
                     "pack": bool(path) and os.path.isdir(os.path.join(path, "ontology")),
+                    "pattern": pattern if isinstance(pattern, dict) else None,
                     "skills": skills, "views": sorted(_packs.views(path)) if path else []})
     return {"declared_by": ".claude/settings.json" if own else ("the OTO plugins installed for it" if out else None),
             "plugins": out}

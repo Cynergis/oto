@@ -254,6 +254,8 @@ def cmd_status(args):
                 what = ", ".join(names) or "no skills"
                 if p["views"]:
                     what += "; view%s %s" % ("s" if len(p["views"]) > 1 else "", ", ".join(p["views"]))
+                if p.get("pattern"):
+                    what += "  (pattern of %s)" % p["pattern"].get("of")
             print("                %-*s  %s" % (width, "%s %s" % (p["name"], p["version"] or ""), what))
         print("              each skill is /<pack>:<skill>; `oto status --json` says what each does")
     lock = s.get("lock")

@@ -4,6 +4,32 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.26 — 2026-10-14
+
+**Quotes that hold: every fact cites the sentence that says it, and the sentence is in its document.**
+Asked for the source of a fact, an assistant found that its pointer said only "the section Rules":
+when a capture gave no quote, the engine wrote the item's own name as the quote (and its id as the
+place), so a loose citation looked complete, and nothing checked a quote against its document.
+
+- **Nothing stands in for evidence.** A capture item's evidence is the document, and the place and
+  the sentence when the capture gives them; never its id as a place nor its name as a quote.
+- **`oto curate check` looks every new quote up in the document it cites,** when the project holds it
+  (`build/documents/<doc>.md`): a quote that is not there is blocking ("its quote is not in the
+  document it cites"), and so is `apply`. The comparison keeps the words and forgives what extraction
+  and typing change: case, spacing, quote marks, dashes, a word broken at a line end, ligatures,
+  Markdown emphasis, links and table bars, and the punctuation at a quote's ends; `…` joins parts of
+  one passage that must appear in that order.
+- **Gaps, one per document, not one per fact:** the facts that say where they come from but quote no
+  sentence (a value from a table or a diagram has none), and the facts whose document the project
+  does not hold, so their quotes cannot be checked. Only what a change brings is judged; a fact saved
+  earlier is tightened by restating it with its exact quote, the new evidence beside the old.
+- **The studio** says on each page, in one line, how many of its facts quote no sentence yet (counting
+  facts saved before, whose quote was their own name).
+- **A recorded action run** quotes the response's lines as its run document prints them.
+- **capture-form** asks for each item's own sentence, word for word, and the interview note ingested
+  before saving; **query-knowledge** gives the sentence when asked for a source, says plainly when a
+  fact quotes none, and for a gap names what is missing and who can answer.
+
 ## 0.11.25 — 2026-10-14
 
 **The studio: a product's pages, assembled from the views of the packs it uses.** The old site was one

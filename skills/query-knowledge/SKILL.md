@@ -72,12 +72,16 @@ it: the chain ends in documents, and that is what you cite.
    precision matters ("current as of 2026-03-01"). A superseded fact is history: mention it only if
    the question is about history.
 4. **Answer, then say where it comes from**: the documents behind every fact you used, by their
-   title, and their date (`sources`, `source_doc`); the entity ids only when the person asks. An
-   unsourced number is not an answer here.
+   title, and their date (`sources`, `source_doc`); the entity ids only when the person asks. Asked
+   for the source of a fact, give the sentence it quotes (`evidence`) and where it is; when the fact
+   quotes no sentence, say so plainly ("it cites the interview note, but not the sentence"), and that
+   it can be tightened. An unsourced number is not an answer here.
 5. **Frame it.** After the direct answer:
    - *So what:* what it implies, if anything.
    - *Open:* what the graph does not say. Name the missing fact, the undated fact, or the document
-     that is not ingested. Never fill the gap from general knowledge.
+     that is not ingested. A gap has no source, by nature: say which question shows it (in words:
+     "nothing records who confirms a refund") and who can answer it. Never fill the gap from general
+     knowledge.
 
 ## Global questions: a synthesis, labelled as one
 

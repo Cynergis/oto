@@ -2,13 +2,13 @@
 """The view contract: `app.json`, the data files it asks for, and where an app is found.
 
     {
-      "name": "prd-site",
-      "summary": "A PRD and an Architecture document, read as documents, from the graph.",
+      "name": "decisions",
+      "summary": "The decisions that shaped the product, why, and what they are about.",
       "entry": "index.html",
       "engine": ">=0.1",
       "data": [
         {"file": "data.js", "format": "js-globals",
-         "globals": {"__PRD__": {"$include": "projections/prd.json"}, "__ARCH__": {...}}},
+         "globals": {"__DECISIONS__": {"$include": "projections/decisions.json"}}},
         {"file": "data/decisions.json", "format": "json", "root": {"$nodes": "DecisionRecord", ...}}
       ],
       "adapter": "adapter.js",

@@ -101,11 +101,12 @@ def data(views, payload, survey_rows=None, identity=None):
     listed = pages(views)
     vocabulary = (payload or {}).get("vocabulary") or {}
     covers = _covers(vocabulary.get("classes") or {})
-    entities = {}
+    entities, kinds_of = {}, {}
     for p in listed:
         kinds = set()
         for kind in p["shows"]:
             kinds |= set(covers.get(kind, {kind}))
+        kinds_of[p["name"]] = kinds
         if not kinds:
             continue
         for node in (payload or {}).get("nodes") or []:
@@ -119,6 +120,11 @@ def data(views, payload, survey_rows=None, identity=None):
         for row in survey_rows or []:
             if row.get("status") in FINDING_STATUSES and _matches(row.get("id") or "", p["open"]):
                 entries.append({"who": row.get("who") or "", "items": _open_items(row)})
+        loose = _unquoted(payload, kinds_of.get(p["name"]) or set())
+        if loose:
+            entries.append({"who": "", "items": [{"label": None, "gaps": [
+                ("One fact on this page does not quote the sentence it comes from yet." if loose == 1 else
+                 "%d facts on this page do not quote the sentence they come from yet." % loose)]}]})
         still_open[p["name"]] = entries
     project = dict((payload or {}).get("project") or {})
     if identity:
@@ -127,6 +133,14 @@ def data(views, payload, survey_rows=None, identity=None):
             "places": [{"id": pid, "label": label, "pages": [p["name"] for p in listed if p["place"] == pid and not p["portal"]]}
                        for pid, label in PLACES],
             "pages": listed, "portal": portal(listed), "entities": entities, "open": still_open}
+
+
+def _unquoted(payload, kinds):
+    """How many of the things a page shows cite their document but not the sentence that says it:
+    one line on the page, not one per fact."""
+    from ..curate.evidence import no_sentence
+    return sum(1 for node in (payload or {}).get("nodes") or []
+               if node.get("type") in kinds and node.get("status", "current") != "retired" and no_sentence(node))
 
 
 def script(studio_data):

@@ -95,6 +95,27 @@ def document_text(action, subject, at, by, inputs, response, ready, note=None):
     return "\n".join(lines) + "\n"
 
 
+def _quote(then, attributes, response):
+    """The response's lines that say the fact, as the run document prints them (so `oto curate check`
+    finds them there), in the order they appear, joined by `…`; the response itself when no attribute
+    is read from it. Nothing the document does not show."""
+    if isinstance(response, (dict, list)):
+        shown = json.dumps(response, indent=2, ensure_ascii=False, sort_keys=True)
+    else:
+        return str(response).rstrip()[:QUOTE_LIMIT]
+    parts = []
+    for name, source in (then.get("attributes") or {}).items():
+        if name not in attributes or not (isinstance(source, str) and source.startswith("$response")):
+            continue
+        leaf = source.rsplit(".", 1)[-1] if "." in source else None
+        part = json.dumps({leaf: attributes[name]}, ensure_ascii=False)[1:-1] if leaf else None
+        if part and part in shown:
+            parts.append((shown.index(part), part))
+    if parts:
+        return " \u2026 ".join(part for _at, part in sorted(set(parts)))[:QUOTE_LIMIT]
+    return shown[:QUOTE_LIMIT] if not attributes else ""
+
+
 def render_then(action, subject, response, at, doc_slug):
     """The proposal a `proposal` result asserts about the subject: (proposal dict, unresolved paths)."""
     then = ((action.get("result") or {}).get("then")) or {}
@@ -119,8 +140,8 @@ def render_then(action, subject, response, at, doc_slug):
     node["as_of"] = at
     node["source_doc"] = doc_slug
     node["sources"] = [doc_slug]
-    quote = json.dumps(attributes if attributes else response, ensure_ascii=False, sort_keys=True)
-    node["evidence"] = [{"doc": doc_slug, "where": "response", "quote": quote[:QUOTE_LIMIT]}]
+    quote = _quote(then, attributes, response)
+    node["evidence"] = [dict({"doc": doc_slug, "where": "response"}, **({"quote": quote} if quote else {}))]
     proposal = {"source_doc": doc_slug, "as_of": at,
                 "note": "recorded run of %s on %s" % (action["id"], subject["id"]),
                 "nodes": [node], "edges": []}

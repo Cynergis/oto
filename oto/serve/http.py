@@ -33,6 +33,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import payload as _payload
 from ..apps import manifest as _apps
+from ..apps import studio as _studio
 
 #: GET route name -> tool name; the query string carries the tool's arguments.
 ROUTES = {"entity": "kg_entity", "neighbors": "kg_neighbors", "search": "kg_search", "type": "kg_by_type",
@@ -97,6 +98,11 @@ def _mount(prefix, app_dir, project_root):
             "overrides": _apps.override_files(manifest, project_root)}
 
 
+#: One store, one connection, many request threads: the requests that read the store take turns. Two
+#: data files of one page (a view's own and the studio's) are asked for at once on every load.
+_STORE_LOCK = threading.RLock()
+
+
 def make_handler(engine, app_dir=None, project_root=None, identity=None, token=None, cors=(), mounts=None, catalog=None):
     """`app_dir` is served at /; each of `mounts`, [(name, directory)], at /<name>/ with its own data
     files, so a project's views sit side by side under one home page; `catalog` is served as
@@ -104,6 +110,7 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
     mounted = ([_mount("", app_dir, project_root)] if app_dir else []) + \
         [_mount(name, directory, project_root) for name, directory in (mounts or [])]
     by_prefix = {m["prefix"]: m for m in mounted}
+    studio_views = list(mounts or [])
     origins = tuple(o.strip().rstrip("/") for o in (cors or ()) if o and o.strip())
 
     def allowed_origin(origin):
@@ -231,10 +238,11 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
                 req = json.loads(raw.decode("utf-8") or "{}")
             except ValueError:
                 return self._json(400, {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "parse error"}})
-            if isinstance(req, list):
-                answers = [m for m in (engine.respond(r) for r in req) if m is not None]
-                return self._json(200, answers)
-            msg = engine.respond(req)
+            with _STORE_LOCK:
+                if isinstance(req, list):
+                    answers = [m for m in (engine.respond(r) for r in req) if m is not None]
+                    return self._json(200, answers)
+                msg = engine.respond(req)
             if msg is None:
                 return self._json(204, {})
             return self._json(200, msg)
@@ -247,17 +255,22 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
             args = _coerce(urllib.parse.parse_qs(parsed.query))
             if catalog is not None and path == "/views.json":
                 return self._json(200, catalog)
+            if path == "/" + _studio.KIT_PREFIX or path.startswith("/%s/" % _studio.KIT_PREFIX):
+                with _STORE_LOCK:
+                    return self._studio(path[len(_studio.KIT_PREFIX) + 1:].lstrip("/"))
             mount, rest = self._mount_for(path)
             if mount is not None and mount["prefix"] and rest == "":
                 return self._redirect(path + "/")          # relative addresses resolve under the slash
             if rest.startswith("/api/") or rest == "/data.json":
-                return self._api(rest, args)
+                with _STORE_LOCK:
+                    return self._api(rest, args)
             if mount is None:
                 return self._json(404, {"error": "no app mounted; the routes are under /api/ and POST /rpc",
                                         "tools": sorted(ROUTES)})
             rel = posixpath.normpath(urllib.parse.unquote(rest)).lstrip("/")
             if rel in mount["data"]:
-                return self._generated(mount, rel)
+                with _STORE_LOCK:
+                    return self._generated(mount, rel)
             if rel in mount["overrides"]:
                 return self._file(mount["overrides"][rel])
             return self._static(mount, rest)
@@ -345,6 +358,26 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
                 engine.log("tool data", tool, exc)
                 data = None
             return self._json(200, {"tool": tool, "arguments": args, "text": text, "data": data})
+
+        def _studio(self, rel):
+            """The kit every view of the studio includes, and its data from the live store."""
+            if rel != _studio.DATA_NAME:
+                return self._static({"root": os.path.abspath(_studio.KIT_DIR)}, "/" + rel)
+            engine.ensure_fresh()
+            if engine.STORE is None:
+                text = "window.__STUDIO__ = null;\n"
+            else:
+                payload = _payload.build(engine.STORE, project_root, identity, passages=False, mode=engine.MODE)
+                rows = engine.questions_data().get("rows") or []
+                text = _studio.script(_studio.data(studio_views, payload, rows, identity))
+            body = text.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/javascript; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            if self.command != "HEAD":
+                self.wfile.write(body)
 
         def _static(self, mount, path):
             app_root = mount["root"]

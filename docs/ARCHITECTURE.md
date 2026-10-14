@@ -461,6 +461,11 @@ A pack may be a **binding** of an ontology it extends (`binding`: what it binds 
 and what it is built with. The built-in `platform` ontology is one, with briefs that stop an
 implementing agent by name on any missing detail.
 
+A pack's views join the product's **studio** ([STUDIO.md](STUDIO.md)): each declares its title, its
+place, what it shows and what is open on it, the product type's pack provides the front page, and a
+shared kit gives every page one look, one navigation, links to the page that shows a thing, and what
+is still open.
+
 A pack is the whole thing a person installs into Claude Code
 ([model/packs.py](../oto/model/packs.py), the plan in [plans/packs.md](plans/packs.md)): one
 ontology, the skills that know how to use it, the views that show its graph, and the plugin

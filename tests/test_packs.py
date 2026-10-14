@@ -577,3 +577,39 @@ def test_capture_form_carries_the_confirmation_menu():
     text = open(os.path.join(root, "skills", "capture-form", "SKILL.md"), encoding="utf-8").read()
     assert "**[A] Advanced elicitation · [P] Perspectives · [C] Continue & contribute**" in text
     assert "Contribute only on **C**" in text and "studio" not in text.lower()
+
+
+def _playbook_pack(home_name="prod", skill="lead"):
+    assert main(["pack", "new", home_name, "--ontology", "software-architecture", "--maintainer", "Cynergis"]) == 0
+    directory = packs.dir_for(home_name)
+    os.makedirs(os.path.join(directory, "skills", "lead"))
+    with open(os.path.join(directory, "skills", "lead", "SKILL.md"), "w", encoding="utf-8") as f:
+        f.write("---\nname: lead\ndescription: >-\n  Lead a product.\n---\n\n# Lead\n")
+    manifest = packs.read(directory)
+    manifest["playbook"] = {"for": "a product, from an idea to a published knowledge base", "skill": skill}
+    packs.write(directory, manifest)
+    packs.plugin_files(directory)
+    return directory
+
+
+def test_a_playbook_pack_says_which_journey_its_skill_leads(home, capsys):
+    directory = _playbook_pack()
+    assert packs.check(directory) == []
+    start = open(os.path.join(directory, "skills", "start", "SKILL.md"), encoding="utf-8").read()
+    assert "**A playbook**: for a product, from an idea to a published knowledge base. This pack's **lead** skill (`/prod:lead`)" in start
+    capsys.readouterr()
+    assert main(["pack", "list", "--playbooks"]) == 0
+    assert "playbook: for a product, from an idea to a published knowledge base (skill lead)" in capsys.readouterr().out
+    assert any("playbook: the skill 'nope'" in p for p in packs.check(_playbook_pack("prod2", skill="nope")))
+    manifest = json.load(open(os.path.join(directory, "manifest.json"), encoding="utf-8"))
+    manifest["playbook"] = {"for": "x"}
+    json.dump(manifest, open(os.path.join(directory, "manifest.json"), "w", encoding="utf-8"))
+    assert any("playbook must be" in p for p in packs.check(directory))
+
+
+def test_the_concierge_offers_playbooks_and_never_runs_them():
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    text = open(os.path.join(root, "skills", "concierge", "SKILL.md"), encoding="utf-8").read()
+    assert "oto pack list --playbooks" in text and "(playbook: <skill>)" in text
+    assert "never run its scenes yourself" in text and "You orient; it leads." in text
+    assert "atlas" not in text.lower(), "a playbook is found, never named"

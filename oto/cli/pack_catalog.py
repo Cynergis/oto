@@ -70,7 +70,7 @@ def run(args):
                 print("  the local copy of the registry index was refreshed")
             print("  in Claude Code: /plugin marketplace add %s, then /plugin install %s@%s" % (args.to, result["name"], result["registry"]))
             return 0
-        return _list(patterns=getattr(args, "patterns", False))
+        return _list(patterns=getattr(args, "patterns", False), playbooks=getattr(args, "playbooks", False))
     except ProjectError as exc:
         print("oto: %s" % exc, file=sys.stderr)
         return 1
@@ -80,13 +80,19 @@ def _pattern_line(pattern):
     return "pattern of %s: for %s (skill %s)" % (pattern["of"], pattern["for"].rstrip("."), pattern["skill"])
 
 
-def _list(patterns=False):
+def _playbook_line(playbook):
+    return "playbook: for %s (skill %s)" % (playbook["for"].rstrip("."), playbook["skill"])
+
+
+def _list(patterns=False, playbooks=False):
     from ..model import packs
     from ..model import registry as _registry
 
     names = packs.available()
     if patterns:
         names = [n for n in names if packs.summary(n).get("pattern")]
+    if playbooks:
+        names = [n for n in names if packs.summary(n).get("playbook")]
     if names:
         print("packs on this machine (start from one with `oto init --pack <name>`; `oto pack show <name>` for one):\n")
         infos = {name: packs.summary(name) for name in names}
@@ -105,11 +111,13 @@ def _list(patterns=False):
                 print("  %-22s %s" % ("", info["about"]))
             if info.get("pattern"):
                 print("  %-22s %s" % ("", _pattern_line(info["pattern"])))
+            if info.get("playbook"):
+                print("  %-22s %s" % ("", _playbook_line(info["playbook"])))
     else:
         print("no packs on this machine (oto pack new <name> --ontology <name>, or oto pack add <name>)")
     local = set(names)
     remote = [(where, entry) for where, entry in _registry.remote_entries("pack") if entry["name"] not in local
-              and (not patterns or entry.get("pattern"))]
+              and (not patterns or entry.get("pattern")) and (not playbooks or entry.get("playbook"))]
     if remote:
         print("\nin a registry, not on this machine (oto pack add <name>):\n")
         for where, entry in remote:
@@ -118,6 +126,8 @@ def _list(patterns=False):
                                                  where, (", " + entry["domain"]) if entry.get("domain") else ""))
             if isinstance(entry.get("pattern"), dict) and all(k in entry["pattern"] for k in ("of", "for", "skill")):
                 print("  %-22s %s" % ("", _pattern_line(entry["pattern"])))
+            if isinstance(entry.get("playbook"), dict) and all(k in entry["playbook"] for k in ("for", "skill")):
+                print("  %-22s %s" % ("", _playbook_line(entry["playbook"])))
     print("\nYour own go in %s, written by `oto pack new`." % packs.user_dir())
     return 0
 

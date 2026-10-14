@@ -357,3 +357,16 @@ def test_status_marks_the_projects_pattern_packs(claude, capsys):
     assert main(["status", "--json", "--project", project.data]) == 0
     offered = {p["name"]: p for p in json.loads(capsys.readouterr().out)["packs"]["plugins"]}
     assert offered["claims"]["pattern"]["skill"] == "model-claims" and offered["tool"]["pattern"] is None
+
+
+def test_status_marks_the_projects_playbook(claude, capsys):
+    claims = claude["installs"]["claims@acme"][0]["installPath"]
+    with open(os.path.join(claims, "manifest.json"), "w") as f:
+        json.dump({"name": "claims", "playbook": {"for": "a claim, from first notice to settlement", "skill": "lead-claim"}}, f)
+    project = _project(claude)
+    capsys.readouterr()
+    assert main(["status", "--project", project.data]) == 0
+    assert "(playbook: lead-claim)" in capsys.readouterr().out
+    assert main(["status", "--json", "--project", project.data]) == 0
+    offered = {p["name"]: p for p in json.loads(capsys.readouterr().out)["packs"]["plugins"]}
+    assert offered["claims"]["playbook"]["for"] == "a claim, from first notice to settlement"

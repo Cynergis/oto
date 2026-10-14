@@ -51,6 +51,7 @@ Quote the output. Then add one sentence for the station it names:
 | `up to date` | Serve it or query it. |
 | `packs` lists plugins | The packs and tools this project uses (declared in its `.claude/settings.json`) and the skills each brings: the routes beyond OTO's own skills. `oto status --json` says what each skill does. A plugin marked `NOT INSTALLED` offers nothing here yet: give the install line it prints. |
 | `packs none` | The project uses no pack: only OTO's own skills apply until one is declared. |
+| a pack marked `(playbook: <skill>)` | The project's journey is that playbook's (`/<pack>:<skill>`): it leads it scene by scene and asks you where the project is. Name it when the person wants to go on with that journey; never run its scenes yourself. |
 
 A `next:` line is the engine's recommendation. Do not contradict it; if the person wants
 something else, show the fork below and say what the recommendation assumes.
@@ -90,7 +91,7 @@ oto bench validate --project <root>      # the gold set's shape
 
 | Decision | Options | Recommend | Commands |
 |---|---|---|---|
-| Nothing yet | a specification or brief; a folder of documents; an expert; an ontology or pack that is close | the start skill (`/oto:start`): it asks which, and runs the first phase | `oto init`, then the start skill |
+| Nothing yet | a journey a pack leads from start to end (a product, with its playbook); a specification or brief; a folder of documents; an expert; an ontology or pack that is close | the playbook when one fits what the person wants (`oto pack list --playbooks` says what each is for); otherwise the start skill (`/oto:start`): it asks which, and runs the first phase | `oto pack list --playbooks`, then the playbook's skill; or `oto init`, then the start skill |
 | Where the vocabulary comes from | a pack; an ontology; the documents by interview; a file you own | a pack or an ontology if one fits, then the interview to prune it | `oto pack list`, `oto init --pack <name>`, `oto ontology list`, `oto init --ontology <name>`, `oto ontology import --file <path>`, the ontology-interview skill |
 | How facts get in | author proposals by reading; a model drafts them (`draft` extra); a conversation captured; an interview against the capture form | reading, for anything that will be believed; `oto draft` for volume, still through the gates | `oto curate start`, `oto curate add --from <proposal> --dry-run`, `oto draft <slug>`, the capture skill, `oto curate propose --from <capture>` and the capture-form skill |
 | Where apply happens | locally by a person; in a repository, by pull request | local for one author; repository mode for a team | `oto curate apply --by <you> --note <why>`; `oto init --repo` and the workflows it writes |
@@ -127,6 +128,11 @@ gives each skill's command (`/<pack>:<skill>`) and what it does: when the person
 pack's skill does (model a part with DDD, design a pipeline, define a report, build a template),
 name that skill; it is the domain's own way, and the table below is what OTO offers every project.
 Never name a skill of a plugin the project does not list, nor one marked `NOT INSTALLED`.
+
+A playbook (a pack marked `(playbook: <skill>)`; `oto pack list --playbooks` before there is a
+project) leads a whole journey, a product from an idea to its readers, say. When the person wants
+that journey, name the playbook and stop: it runs the scenes, and it comes back to you for "where
+are we". You orient; it leads.
 
 | When the person wants to | Load | They tend to say |
 |---|---|---|

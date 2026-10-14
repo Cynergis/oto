@@ -46,12 +46,16 @@ START_SKILL = "start"
 ENGINE_PLUGIN = "oto"
 NAME_OK = re.compile(r"^[a-z][a-z0-9-]*$")
 DATE_OK = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-FIELDS = ("name", "title", "release", "domain", "product_type", "pattern", "summary", "ontology", "engine", "maintainer",
+FIELDS = ("name", "title", "release", "domain", "product_type", "pattern", "playbook", "summary", "ontology", "engine", "maintainer",
           "license", "changelog")
 #: A pattern pack declares what it is a design pattern of, for which part, and the skill that models
 #: that part: {"of": "software-architecture", "for": "a part designed with DDD", "skill": "model-domain"}.
 #: An architecture skill finds the patterns a project composes from this, never by their names.
 PATTERN_KEYS = ("of", "for", "skill")
+#: A playbook pack declares the journey one of its skills leads, from start to end: {"for": "a product,
+#: from an idea to a published knowledge base", "skill": "atlas"}. The concierge offers the playbooks
+#: it finds (`oto status`, `oto pack list --playbooks`), never by their names.
+PLAYBOOK_KEYS = ("for", "skill")
 ONTOLOGY_FIELDS = ("name", "release", "registry", "source", "ref", "path", "commit", "embedded_at")
 #: Written by `oto pack add`, never by an author: where a fetched pack came from.
 PROVENANCE = ("registry", "source", "ref", "path", "commit", "fetched_at")
@@ -311,6 +315,11 @@ def plugin_files(directory, registry_name=None):
                   % (pattern["of"], pattern["for"].rstrip("."), pattern["of"]),
                   "with this pack's **%s** skill (`/%s:%s`); `oto status` lists the project's patterns."
                   % (pattern["skill"], manifest["name"], pattern["skill"]), ""]
+    playbook = manifest.get("playbook")
+    if isinstance(playbook, dict) and all(isinstance(playbook.get(k), str) for k in PLAYBOOK_KEYS):
+        lines += ["**A playbook**: for %s. This pack's **%s** skill (`/%s:%s`) leads it from start to end; OTO's"
+                  % (playbook["for"].rstrip("."), playbook["skill"], manifest["name"], playbook["skill"]),
+                  "concierge offers it, and says where the project is at any point.", ""]
     lines += [
              "1. **Start a project from this pack.**", "", "   ```bash",
              '   oto init --name "<project name>" --pack "${CLAUDE_PLUGIN_ROOT}" --project <root>',
@@ -494,6 +503,11 @@ def _manifest_problems(directory):
                                 or not all(isinstance(pattern[k], str) and pattern[k].strip() for k in PATTERN_KEYS)):
         out.append("%s pattern must be {\"of\": <the ontology it is a pattern of>, \"for\": <which part, in a phrase>, "
                    "\"skill\": <this pack's skill that models it>}" % MANIFEST_NAME)
+    playbook = declared.get("playbook")
+    if playbook is not None and (not isinstance(playbook, dict) or set(playbook) != set(PLAYBOOK_KEYS)
+                                 or not all(isinstance(playbook[k], str) and playbook[k].strip() for k in PLAYBOOK_KEYS)):
+        out.append("%s playbook must be {\"for\": <which journey, in a phrase>, \"skill\": <this pack's skill that "
+                   "leads it>}" % MANIFEST_NAME)
     changelog = declared.get("changelog", [])
     if not isinstance(changelog, list):
         out.append("%s changelog must be a list" % MANIFEST_NAME)
@@ -530,6 +544,9 @@ def check(directory):
         if pattern["of"] not in composed_of[:-1]:
             problems.append("pattern: the pack's ontology %r does not extend %r, so it is no pattern of it"
                             % (embedded_name(directory), pattern["of"]))
+    playbook = manifest.get("playbook")
+    if isinstance(playbook, dict) and isinstance(playbook.get("skill"), str) and playbook["skill"] not in skills(directory):
+        problems.append("playbook: the skill %r is not one of this pack's (skills/%s/SKILL.md)" % (playbook["skill"], playbook["skill"]))
     embedded = _ontologies.manifest_dir(onto_dir)
     onto = manifest.get("ontology") or {}
     if onto.get("name") and embedded["name"] != onto["name"]:
@@ -646,4 +663,5 @@ def summary(name):
     return {"name": manifest["name"], "release": manifest["release"], "domain": manifest.get("domain"),
             "about": (manifest.get("summary") or "").strip(), "ontology": onto.get("name"),
             "ontology_release": onto.get("release"), "views": sorted(views(directory)),
-            "skills": sorted(skills(directory)), "origin": origin(name), "pattern": manifest.get("pattern")}
+            "skills": sorted(skills(directory)), "origin": origin(name), "pattern": manifest.get("pattern"),
+            "playbook": manifest.get("playbook")}

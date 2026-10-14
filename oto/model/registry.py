@@ -676,8 +676,9 @@ def publish_pack(to, pack, note=None, summary=None, ref=None, registry_name=None
             entries[name]["domain"] = manifest["domain"]
         if manifest.get("product_type"):
             entries[name]["product_type"] = manifest["product_type"]
-        if manifest.get("pattern"):
-            entries[name]["pattern"] = manifest["pattern"]
+        for key in ("pattern", "playbook"):
+            if manifest.get(key):
+                entries[name][key] = manifest[key]
         index["packs"] = [entries[k] for k in sorted(entries)]
         _write_index(work, index)
         _path, plugins = write_marketplace(work, index)

@@ -4,6 +4,16 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.21 — 2026-10-14
+
+**A playbook pack says which journey it leads, and the concierge offers it.** A pack manifest may
+declare `playbook`: `{"for": "a product, from an idea to a published knowledge base", "skill":
+"atlas"}`. `oto pack check` refuses one whose skill the pack does not ship; the start skill says
+it; `oto status` marks the project's playbook (`--json` carries it); the registry index records it;
+`oto pack list --playbooks` lists them. The concierge offers a playbook when a person starts and one
+fits, names the project's playbook when they want to go on with its journey, and never runs its
+scenes: it orients, the playbook leads. It names none: a playbook is found, as a pattern is.
+
 ## 0.11.20 — 2026-10-14
 
 **capture-form carries the confirmation menu.** At every confirmation the capture-form skill offers

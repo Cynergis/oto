@@ -569,3 +569,11 @@ def test_a_retired_pack_published_again_goes_on_after_its_last_release(home, cap
     assert "published pack arch @3" in capsys.readouterr().out, "after v2, not v1 again"
     tags = subprocess.run(["git", "--git-dir", bare, "tag", "--list"], capture_output=True, text=True).stdout.split()
     assert sorted(t for t in tags if t.startswith("arch--")) == ["arch--v1.0.0", "arch--v2.0.0", "arch--v3.0.0"]
+
+
+def test_capture_form_carries_the_confirmation_menu():
+    """The menu every pack's interview offers is capture-form's own: no pack keeps an elicit skill for it."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    text = open(os.path.join(root, "skills", "capture-form", "SKILL.md"), encoding="utf-8").read()
+    assert "**[A] Advanced elicitation · [P] Perspectives · [C] Continue & contribute**" in text
+    assert "Contribute only on **C**" in text and "studio" not in text.lower()

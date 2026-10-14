@@ -5,16 +5,17 @@ description: >-
   vocabulary asks, grouped by who asks them, and the items each needs), ask in small groups, draft
   the items, and send every confirmed group through the curate gates as a capture file (propose,
   add, check, apply), reporting which questions the graph now answers. Guided interview, or
-  structure-from-notes. Use when someone wants to "capture against a pack", "fill the form",
-  "interview me for this pack", or when a pack's or a studio's skill says to run the capture form.
+  structure-from-notes, with a menu at every confirmation ([A] advanced elicitation, [P]
+  perspectives, [C] continue). Use when someone wants to "capture against a pack", "fill the form",
+  "interview me for this pack", or when a pack's skill says to run the capture form.
 ---
 
 # Fill the capture form
 
 The vocabulary knows what to ask. This skill asks it and contributes what the person confirms,
 group by group, never at the end. You are a facilitator; never invent content the person has not
-confirmed. A pack's or a studio's skill usually runs this one and adds what its domain needs on top
-(the order of the groups, what you draft yourself, a menu at each confirmation, when to close).
+confirmed. A pack's skill usually runs this one and adds what its domain needs on top (the order of
+the groups, what you draft yourself, when to close); the menu at each confirmation is this skill's own.
 
 This is not the **capture** skill: that one writes a spoken statement into the inbox as a source
 document. This one turns answers into facts through a form.
@@ -56,7 +57,15 @@ Take the sections in the order the form lists them. For each ask:
 3. If the person does not know, do not guess and do not block: leave the item out and go on. The
    check carries it as an open question; note who can answer it if they say.
 4. Draft the items and show them as items: type, id, label, fields, links, and where it was said.
-   Correct what the person changes. Contribute only what they confirm.
+   Correct what the person changes. Then offer the menu:
+
+   **[A] Advanced elicitation · [P] Perspectives · [C] Continue & contribute**
+
+   - **A**: probe deeper: edge cases, missing actors, weak measures, counter-examples.
+   - **P**: re-examine the group from the other askers the form names (the data team, compliance…).
+   - **C**: contribute the group (section 4), then the next question.
+
+   Contribute only on **C**, and only what the person confirmed.
 
 ## 4. Contribute each confirmed group
 

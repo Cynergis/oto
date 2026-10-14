@@ -151,7 +151,10 @@ def test_check_runs_from_inside_the_pack_and_the_deny_terms_apply(home, monkeypa
         f.write("\nMade for Globex.\n")
     monkeypatch.setenv("OTO_DENY_TERMS", "globex")
     problems = packs.check(directory)
-    assert any(p.startswith("README.md names a deny term (globex)") for p in problems)
+    assert any(p == "README.md names a client term; a pack must not" for p in problems)
+    assert not any("globex" in p.lower() for p in problems), "the term is never printed: CI logs are public"
+    monkeypatch.setenv("OTO_DENY_TERMS", "lob")
+    assert not any("client term" in p for p in packs.check(directory)), "a term inside a word (Globex) is no match"
 
 
 def test_refresh_re_embeds_a_newer_ontology_and_regenerates(home, capsys):

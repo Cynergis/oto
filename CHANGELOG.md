@@ -4,6 +4,19 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.19 — 2026-10-14
+
+**Client terms match whole words, and are never printed.** The client-name gate of `oto pack check`
+and an ontology's self-check matched a term anywhere in the text, so a term found inside an unrelated
+word failed the `product` pack's site, and the finding named the term in a public CI log. Both
+gates now match whole words, as `oto publishable` does, and a finding names the file only.
+
+**The marketplaces Claude Code knows are registries too.** `oto pack list`, `--patterns`,
+`oto ontology list` and `oto registry list --product-types` also read every Claude Code marketplace
+whose copy holds `registry.json`: a machine that added the marketplace in Claude Code sees its packs,
+patterns and product types without `oto registry add`, so Atlas finds them on a fresh machine.
+`oto registry list` says which.
+
 ## 0.11.18 — 2026-10-14
 
 **A retired pack published again goes on after its last release.** A pack removed from a

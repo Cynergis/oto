@@ -579,26 +579,27 @@ def check(directory):
 
 def publishability_problems(directory):
     """Deny terms in any text file of the pack, and personal data in the embedded sample."""
+    from ..validate.publishable import env_terms, names_a_term, term_patterns
     out = []
-    terms = sorted({t.strip().lower() for t in os.environ.get("OTO_DENY_TERMS", "").split(",") if t.strip()})
-    if terms:
+    patterns = term_patterns(env_terms())
+    if patterns:
         for dirpath, dirnames, filenames in os.walk(directory):
             dirnames[:] = sorted(d for d in dirnames if d not in (".git", "__pycache__"))
             for filename in sorted(filenames):
                 path = os.path.join(dirpath, filename)
                 try:
                     with open(path, encoding="utf-8") as f:
-                        text = f.read().lower()
+                        text = f.read()
                 except (OSError, UnicodeDecodeError):
                     continue
-                hits = [t for t in terms if t in text]
-                if hits:
-                    out.append("%s names a deny term (%s); a pack must not" % (os.path.relpath(path, directory), ", ".join(hits)))
+                if names_a_term(text, patterns):
+                    # never which term: this message is printed in public CI logs
+                    out.append("%s names a client term; a pack must not" % os.path.relpath(path, directory))
     name = embedded_name(directory)
     if name and embedded_dir(directory):
         try:
             for problem in _ontologies.publishability_problems(name, roots=[embedded_root(directory)]):
-                if "deny term" not in problem:
+                if "client term" not in problem:
                     out.append("ontology: %s" % problem)
         except (KeyError, _ontologies.OntologyError):
             pass

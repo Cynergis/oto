@@ -308,7 +308,8 @@ def test_publish_a_ontology_from_this_machine_and_refuse_an_unpublishable_one(ho
         monkeypatch.setenv("OTO_DENY_TERMS", "acmecorp")
         assert main(["ontology", "publish", "--project", root, "--to", bare, "--name", "leaky"]) == 1
         err = capsys.readouterr().err
-        assert "not publishable (nothing was pushed)" in err and "deny term (acmecorp)" in err
+        assert "not publishable (nothing was pushed)" in err and "names a client term" in err
+        assert "acmecorp" not in err.lower(), "the term is never printed"
         assert _tags(bare) == ["software-architecture/v1"], "nothing was pushed"
 
 
@@ -409,3 +410,32 @@ def test_a_plugin_in_its_own_repository_is_listed_in_the_marketplace_and_the_eng
     plugins = json.load(open(os.path.join(work, ".claude-plugin", "marketplace.json"), encoding="utf-8"))["plugins"]
     assert [p["name"] for p in plugins] == ["oto"]
     assert main(["registry", "check", work]) == 0
+
+
+def test_a_registry_claude_code_knows_as_a_marketplace_is_listed_without_registry_add(home, monkeypatch, capsys):
+    """A machine that added the registry in Claude Code (`claude plugin marketplace add`) lists its
+    packs, their patterns and the product types, as if it had run `oto registry add`."""
+    market = os.path.join(home, "market-copy")
+    os.makedirs(market)
+    with open(os.path.join(market, "registry.json"), "w", encoding="utf-8") as f:
+        json.dump({"name": "acme", "summary": "", "ontologies": [], "packs": [
+            {"name": "dddp", "release": 2, "summary": "DDD.", "path": "packs/dddp", "ontology": {"name": "ddd", "release": 1},
+             "pattern": {"of": "software-architecture", "for": "a part designed with DDD", "skill": "model-domain"}},
+            {"name": "product-claims", "release": 1, "summary": "A claims product.", "path": "packs/product-claims",
+             "ontology": {"name": "product-claims", "release": 1}, "product_type": "claims"}]}, f)
+    config = os.path.join(home, "claude")
+    os.makedirs(os.path.join(config, "plugins"))
+    with open(os.path.join(config, "plugins", "known_marketplaces.json"), "w", encoding="utf-8") as f:
+        json.dump({"acme": {"source": {"source": "github", "repo": "Acme/registry"}, "installLocation": market},
+                   "other": {"source": {"source": "github", "repo": "Other/plugins"}, "installLocation": os.path.join(home, "nope")}}, f)
+    monkeypatch.setenv(ontologies.CLAUDE_CONFIG_ENV, config)
+    assert [r["name"] for r in registry.claude_marketplaces()] == ["acme"]
+    capsys.readouterr()
+    assert main(["pack", "list", "--patterns"]) == 0
+    out = capsys.readouterr().out
+    assert "dddp" in out and "pattern of software-architecture: for a part designed with DDD (skill model-domain)" in out
+    assert "product-claims" not in out
+    assert main(["registry", "list", "--product-types"]) == 0
+    assert "product-claims" in capsys.readouterr().out
+    assert main(["registry", "list"]) == 0
+    assert "known to Claude Code as marketplaces" in capsys.readouterr().out

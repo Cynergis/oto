@@ -77,7 +77,8 @@ Everything in this section is for you. None of it is said to the person unless t
 3. When you do not understand an item, `kg_define <term>` (or `oto query define <term>`).
 4. A source for what is said: the person's brief, notes or transcript in `inbox/` and `oto ingest`
    if there is one; otherwise the session itself, written as a dated document with the **capture**
-   skill. Every fact cites a document.
+   skill and ingested **before** the topic is saved, so the person's words are there to quote. Every
+   fact cites a document, and the sentence in it that says the fact.
 
 ### Modes
 
@@ -97,6 +98,15 @@ Write the confirmed items as a capture file against the form:
             "links": {"governs": ["report.monthly-statement"]},
             "where": "§3.2", "quote": "The product reads finished columns; it never computes."}]}
 ```
+
+**Every item quotes its own sentence.** `quote` is the sentence of the document that says this item,
+copied word for word (in an interview, the person's words as the session document holds them, not
+your summary); `where` is the section or page. A fact said across a passage quotes its parts in order,
+joined by `…`. A value read from a table or a diagram has no sentence: `where` names the table and
+row, or the figure, and `quote` is left out. Never put the item's name or a paraphrase in `quote`:
+`oto curate check` looks every quote up in its document and refuses one it cannot find there, and
+reports, document by document, the items that quote nothing. To tighten an item saved earlier,
+restate it unchanged with its exact `quote`: the new evidence is added beside the old.
 
 Ids are stable (`FR3`, `P1`, `ADR-04`): a changed item keeps its id, so the change is a supersession,
 not a second fact. Then:

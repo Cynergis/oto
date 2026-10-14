@@ -13,7 +13,8 @@ each with a stable id, a label, fields and links, and where in the source it was
 `propose` checks it against the schema (an unknown type, field, link or choice is refused, named)
 and writes an ordinary proposal: one node per item, id `<type>.<id>` (`<type>.<scope>.<id>` when
 the capture names the product it is about, so two products' `FR1` stay apart), cited to the document with
-the section and the quote as evidence; one edge per link, to another item of the capture by its
+the section and the quote as evidence (only what the capture gives: `oto curate check` looks the quote
+up in the document, so a quote is the sentence word for word, and an item with none is reported); one edge per link, to another item of the capture by its
 id or to a node of the graph by its node id. The proposal then goes through `oto curate add`
 and `oto curate check` like any other: the tool contributes, the gates decide.
 """
@@ -29,6 +30,18 @@ def node_id(kind, item_id, prefix=None, scope=None):
     local = SLUG.sub("-", str(item_id).lower()).strip("-.")
     middle = SLUG.sub("-", str(scope).lower()).strip("-.") + "." if scope else ""
     return "%s.%s%s" % (prefix or kind.lower(), middle, local)
+
+
+def _evidence(doc, item):
+    """Where the item was said, as the capture says it: the document, the place and the sentence when
+    given, never stand-ins (an item's id is no place, its name no quote); `oto curate check` looks the
+    quote up in the document."""
+    out = {"doc": doc}
+    for key in ("where", "quote"):
+        value = (item.get(key) or "").strip() if isinstance(item.get(key), str) else item.get(key)
+        if value:
+            out[key] = value
+    return out
 
 
 def problems(capture, schema):
@@ -104,7 +117,7 @@ def propose(capture, schema, graph_ids=None):
                 "summary": (item.get("summary") or item["label"]).strip(), "attributes": attributes, "tags": list(item.get("tags") or []),
                 "source_doc": doc, "as_of": item.get("as_of") or as_of, "valid_from": item.get("valid_from") or item.get("as_of") or as_of,
                 "status": "current", "sources": [doc],
-                "evidence": [{"doc": doc, "where": item.get("where") or item["id"], "quote": item.get("quote") or item["label"]}]}
+                "evidence": [_evidence(doc, item)]}
         nodes.append(node)
         for relation, targets in (item.get("links") or {}).items():
             for target in targets:

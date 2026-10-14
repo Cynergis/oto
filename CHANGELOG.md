@@ -4,7 +4,34 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
-## 0.11.23 — 2026-10-14
+## 0.11.24 — 2026-10-14
+
+**The platform binding: where a product runs, and who decides.** The design (the architecture and
+its patterns) says what the product does and never which platform runs it; nothing recorded where it
+runs, so an implementing agent could not deploy or test end to end, and nothing stopped it. The
+built-in `platform` ontology, on `software-architecture`, records it as facts:
+
+- where it runs: the platform, its accounts (an AWS account, a GCP project, an Azure subscription),
+  and each environment's purpose, region, console, logs and the repository that provisions it;
+- what it runs on and is built with: the managed service under each component or store, each
+  component's technologies at their versions;
+- its secrets by name and where they are kept (the form has no field for a value), and the pipelines
+  that deploy each part, to which environments;
+- who decides: each choice the design needs is decided by a named person, or left to the builder
+  within limits (the options allowed, the constraints and decisions that bound it); the builder's
+  pick is a proposed decision a person accepts. Decisions carry their option, alternatives and
+  consequences.
+
+Its rules refuse a builder's pick outside its allowed options, a choice left to the builder with no
+limits, and a decision accepted with nobody named. Three briefs stop an implementing agent by name on
+any missing detail: `implement-component`, `deploy-component` and `test-end-to-end`. The sample binds
+the payments platform to Google Cloud.
+
+**A pack may declare itself a binding** (`binding`: `of`, `for`, `skill` in its manifest), like a
+pattern: `oto pack check` validates it, `oto status` marks it `(binding of <ontology>)`, `oto pack list
+--bindings` lists the ones on the machine and in the registries, and the registry index carries it.
+The concierge says what a binding is for.
+
 
 **A third pattern: the agent.** People increasingly give work to agents through plugins rather than
 use screens, so a product's part can now be an agent, beside an application (`ddd`) and a data

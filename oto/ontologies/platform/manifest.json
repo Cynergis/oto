@@ -1,0 +1,30 @@
+{
+  "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
+  "name": "platform",
+  "release": 1,
+  "domain": "software",
+  "summary": "The platform binding of a product's architecture: where each part runs (platforms, accounts, environments with their region, console, logs and provisioning), what it runs on and is built with (managed services, technologies at their versions), its secrets by where they are kept, the pipelines that deploy it, and who decides each choice: a named person, or the builder within limits. Briefs stop an implementing agent that lacks any of it.",
+  "extends": [
+    "software-architecture"
+  ],
+  "namespace": "https://cynergis.ai/ont/platform#",
+  "engine": ">=0.11.24",
+  "carries": [
+    "vocabulary",
+    "rationale",
+    "rules",
+    "questions",
+    "briefs",
+    "sample",
+    "readme",
+    "guide"
+  ],
+  "maintainer": "OTO",
+  "changelog": [
+    {
+      "release": 1,
+      "at": "2026-10-14",
+      "note": "The platform binding (decided with Chiheb Dkhil, 2026-10-14): what the original studio's architecture asked for (decision records for the platform, the tech stack with versions, resources, infrastructure per environment, links to code and pipelines), as facts; every choice decided by a named person or left to the builder within limits; briefs to implement, deploy and test end to end. A sample on the payments platform."
+    }
+  ]
+}

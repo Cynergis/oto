@@ -1,0 +1,219 @@
+{
+  "_about": "The platform binding of a product's architecture: where each part runs and what it is built with, and who decides each choice. The design (software-architecture and its patterns) says what the product does; the binding says how it runs on a given platform, with every detail an implementing agent needs to build, deploy and test it end to end.",
+  "_summary": "Where a product's parts run and what they are built with: platforms and accounts, each environment's purpose, region, console, logs and provisioning, the managed service under each part, technologies with versions, secrets by where they are kept, pipelines, and who decides each choice: a named person, or the builder within limits.",
+  "name": "Platform binding",
+  "ontology_version": 1,
+  "strict_domains": false,
+  "languages": [
+    "en"
+  ],
+  "classes": {
+    "Platform": {
+      "definition": "Where the product's parts are hosted: a cloud provider, or the organisation's own data centres."
+    },
+    "Account": {
+      "definition": "The container on a platform where an environment's resources live and are billed: an AWS account, a GCP project, an Azure subscription."
+    },
+    "PlatformService": {
+      "definition": "A managed service of a platform that a component or a data store runs on: a container runtime, a managed database, object storage, a queue, a secret manager."
+    },
+    "Technology": {
+      "definition": "A language, framework, library, runtime or engine a component is built with, at a version."
+    },
+    "Choice": {
+      "definition": "A choice the design needs made before it can be built: the cloud, a region, a service, a framework. Either a named person decides it, or it is left to the builder within limits: the options allowed, and the constraints and decisions that bound it."
+    },
+    "SecretRef": {
+      "definition": "A secret a component needs, recorded by its name and where it is kept, never by its value."
+    },
+    "Pipeline": {
+      "definition": "What builds and deploys a component or a store to its environments: a CI/CD pipeline, at a place people can open."
+    }
+  },
+  "properties": {
+    "on_platform": {
+      "domain": "Account|PlatformService",
+      "range": "Platform",
+      "definition": "The platform an account or a service belongs to.",
+      "inverse": "platform_of"
+    },
+    "hosted_in": {
+      "domain": "Environment",
+      "range": "Account",
+      "definition": "The platform account an environment's resources live in.",
+      "inverse": "hosts_environment"
+    },
+    "provisioned_by": {
+      "domain": "Environment",
+      "range": "Repository",
+      "definition": "The infrastructure-as-code repository that creates the environment.",
+      "inverse": "provisions"
+    },
+    "runs_on": {
+      "domain": "Component|DataStore",
+      "range": "PlatformService",
+      "definition": "The managed service a component or a store runs on.",
+      "inverse": "runs"
+    },
+    "built_with": {
+      "domain": "Component",
+      "range": "Technology",
+      "definition": "A technology the component is built with.",
+      "inverse": "used_to_build"
+    },
+    "needs_secret": {
+      "domain": "Component",
+      "range": "SecretRef",
+      "definition": "A secret the component needs to run.",
+      "inverse": "needed_by"
+    },
+    "kept_in": {
+      "domain": "SecretRef",
+      "range": "PlatformService",
+      "definition": "The service the secret is kept in: a secret manager or a vault.",
+      "inverse": "keeps"
+    },
+    "deploys": {
+      "domain": "Pipeline",
+      "range": "Component|DataStore",
+      "definition": "A component or store the pipeline builds and deploys.",
+      "inverse": "deployed_by"
+    },
+    "deploys_to": {
+      "domain": "Pipeline",
+      "range": "Environment",
+      "definition": "An environment the pipeline deploys to.",
+      "inverse": "target_of"
+    },
+    "shapes": {
+      "domain": "Choice",
+      "range": "System|Component|DataStore|Interface|Environment",
+      "definition": "The part of the design the choice is about.",
+      "inverse": "shaped_by"
+    },
+    "settled_by": {
+      "domain": "Choice",
+      "range": "Decision",
+      "definition": "The decision that settles the choice: a person's, or the builder's pick a person confirmed.",
+      "inverse": "settles"
+    },
+    "bounded_by": {
+      "domain": "Choice",
+      "range": "Constraint|Decision|Policy",
+      "definition": "A constraint, earlier decision or policy the choice must keep to.",
+      "inverse": "bounds"
+    },
+    "about": {
+      "domain": "Decision|OpenQuestion",
+      "range": "Product|ValueProposition|Objective|SuccessCriterion|Requirement|Release|Feature|UserJourney|JourneyStep|Scenario|Constraint|Policy|Risk|Persona|System|Component|Interface|DataStore|Environment|Platform|Account|PlatformService|Technology|Choice|Pipeline",
+      "definition": "What a decision or an open question concerns. Widened to the binding: an environment, the platform, its accounts and services, a technology, a choice, a pipeline.",
+      "inverse": "subject_of"
+    }
+  },
+  "attributes": {
+    "Platform": {
+      "provider": {
+        "type": "enum:aws|gcp|azure|on_premises|other",
+        "definition": "Which provider it is."
+      }
+    },
+    "Account": {
+      "account_kind": {
+        "type": "enum:aws_account|gcp_project|azure_subscription|other",
+        "definition": "What sort of account it is on its platform."
+      },
+      "identifier": {
+        "type": "string",
+        "definition": "The account's id on its platform: the AWS account number, the GCP project id, the subscription id."
+      }
+    },
+    "Environment": {
+      "purpose": {
+        "type": "enum:production|staging|test|development",
+        "definition": "What the environment is for."
+      },
+      "region": {
+        "type": "string",
+        "definition": "The platform region it runs in."
+      },
+      "console_url": {
+        "type": "string",
+        "definition": "Where people open it on the platform."
+      },
+      "logs_url": {
+        "type": "string",
+        "definition": "Where its logs are read."
+      }
+    },
+    "PlatformService": {
+      "service_kind": {
+        "type": "enum:compute|database|storage|queue|cache|cdn|secrets|identity|monitoring|other",
+        "definition": "What the service does."
+      }
+    },
+    "Technology": {
+      "technology_kind": {
+        "type": "enum:language|framework|library|runtime|engine|tool",
+        "definition": "What sort of technology it is."
+      },
+      "version": {
+        "type": "string",
+        "definition": "The version the component is built with."
+      }
+    },
+    "Choice": {
+      "category": {
+        "type": "enum:platform|region|service|technology|security|data|other",
+        "definition": "What the choice is about."
+      },
+      "authority": {
+        "type": "enum:decided|delegated",
+        "definition": "Who makes it: a named person decides it, or it is left to the builder within limits."
+      },
+      "allowed": {
+        "type": "list",
+        "definition": "The options the builder may pick from, when the choice is left to the builder."
+      },
+      "settled": {
+        "type": "boolean",
+        "definition": "Whether an accepted decision settles the choice; derived, never captured."
+      }
+    },
+    "Decision": {
+      "status": {
+        "type": "enum:proposed|accepted|rejected|superseded",
+        "definition": "Where the decision stands: proposed (by the builder, or a person) until someone accepts it."
+      },
+      "option": {
+        "type": "string",
+        "definition": "What was chosen, in a few words."
+      },
+      "alternatives": {
+        "type": "list",
+        "definition": "The other options that were considered."
+      },
+      "consequences": {
+        "type": "string",
+        "definition": "What follows from the choice: what it makes easy, what it makes hard."
+      }
+    },
+    "Component": {
+      "deployable": {
+        "type": "boolean",
+        "definition": "Whether the component has a service to run on and a pipeline that deploys it; derived, never captured."
+      }
+    },
+    "SecretRef": {
+      "reference": {
+        "type": "string",
+        "definition": "The secret's name in the place it is kept. Never its value."
+      }
+    },
+    "Pipeline": {
+      "url": {
+        "type": "string",
+        "definition": "Where people open the pipeline."
+      }
+    }
+  }
+}

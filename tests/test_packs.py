@@ -637,3 +637,33 @@ def test_the_concierge_offers_playbooks_and_never_runs_them():
     assert "oto pack list --playbooks" in text and "(playbook: <skill>)" in text
     assert "never run its scenes yourself" in text and "You orient; it leads." in text
     assert "atlas" not in text.lower(), "a playbook is found, never named"
+
+
+def _binding_pack(home_name="plat", skill="bind", of="software-architecture"):
+    assert main(["pack", "new", home_name, "--ontology", "platform", "--maintainer", "Cynergis"]) == 0
+    directory = packs.dir_for(home_name)
+    os.makedirs(os.path.join(directory, "skills", "bind"))
+    with open(os.path.join(directory, "skills", "bind", "SKILL.md"), "w", encoding="utf-8") as f:
+        f.write("---\nname: bind\ndescription: >-\n  Bind the architecture to a platform.\n---\n\n# Bind\n")
+    manifest = packs.read(directory)
+    manifest["binding"] = {"of": of, "for": "where each part runs and what it is built with", "skill": skill}
+    packs.write(directory, manifest)
+    packs.plugin_files(directory)
+    return directory
+
+
+def test_a_binding_pack_says_what_it_binds_and_is_listed(home, capsys):
+    directory = _binding_pack()
+    assert packs.check(directory) == []
+    start = open(os.path.join(directory, "skills", "start", "SKILL.md"), encoding="utf-8").read()
+    assert "**A binding of `software-architecture`**: for where each part runs and what it is built with." in start
+    assert "this pack's **bind** skill (`/plat:bind`)" in start
+    capsys.readouterr()
+    assert main(["pack", "list", "--bindings"]) == 0
+    assert "binding of software-architecture: for where each part runs and what it is built with (skill bind)" in capsys.readouterr().out
+    assert any("binding: the skill 'nope'" in p for p in packs.check(_binding_pack("plat2", skill="nope")))
+    assert any("does not extend 'ddd', so it binds nothing of it" in p for p in packs.check(_binding_pack("plat3", of="ddd")))
+    manifest = json.load(open(os.path.join(directory, "manifest.json"), encoding="utf-8"))
+    manifest["binding"] = {"for": "x"}
+    json.dump(manifest, open(os.path.join(directory, "manifest.json"), "w", encoding="utf-8"))
+    assert any("binding must be" in p for p in packs.check(directory))

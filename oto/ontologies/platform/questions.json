@@ -1,0 +1,761 @@
+{
+  "_about": "The questions the platform binding exists to answer: where each part runs and what it is built with, and who decided each choice. `no_gaps` questions are unanswered while a detail is missing; the briefs require them, so an implementing agent stops by name.",
+  "questions": {
+    "PL1": {
+      "who": "an architect",
+      "question": "Which platforms and accounts does the product use, and which environments does each host?",
+      "why": "The first thing anyone needs to reach the running product: which cloud, which account or project.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "a",
+            "type": "Account"
+          },
+          {
+            "edge": [
+              "a",
+              "on_platform",
+              "p"
+            ]
+          },
+          {
+            "node": "p",
+            "type": "Platform"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "e",
+                  "hosted_in",
+                  "a"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "p.label",
+          "p.provider",
+          "a.label",
+          "a.account_kind",
+          "a.identifier",
+          "e.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": [
+        {
+          "when": [
+            {
+              "node": "a",
+              "type": "Account"
+            },
+            {
+              "not_edge": [
+                "a",
+                "on_platform",
+                "*"
+              ]
+            }
+          ],
+          "say": "an account on no platform"
+        }
+      ]
+    },
+    "PL2": {
+      "who": "an on-call engineer",
+      "question": "What is environment $ENVIRONMENT: what it is for, which account and region it is in, where its console and logs are, and which repository provisions it?",
+      "why": "An environment nobody can open, read the logs of or rebuild cannot be tested in or recovered.",
+      "validated_by": "",
+      "params": {
+        "ENVIRONMENT": {
+          "type": "Environment"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$ENVIRONMENT",
+                  "hosted_in",
+                  "a"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$ENVIRONMENT",
+                  "provisioned_by",
+                  "r"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "$ENVIRONMENT.purpose",
+          "a.label",
+          "$ENVIRONMENT.region",
+          "$ENVIRONMENT.console_url",
+          "$ENVIRONMENT.logs_url",
+          "r.label"
+        ]
+      },
+      "gate": "no_gaps",
+      "gaps": [
+        {
+          "when": [
+            {
+              "not_edge": [
+                "$ENVIRONMENT",
+                "hosted_in",
+                "*"
+              ]
+            }
+          ],
+          "say": "it is in no platform account"
+        },
+        {
+          "when": [
+            {
+              "node": "$ENVIRONMENT",
+              "where": {
+                "region": {
+                  "exists": false
+                }
+              }
+            }
+          ],
+          "say": "nobody has said which region it is in"
+        },
+        {
+          "when": [
+            {
+              "node": "$ENVIRONMENT",
+              "where": {
+                "purpose": {
+                  "exists": false
+                }
+              }
+            }
+          ],
+          "say": "nobody has said what it is for"
+        },
+        {
+          "when": [
+            {
+              "not_edge": [
+                "$ENVIRONMENT",
+                "provisioned_by",
+                "*"
+              ]
+            }
+          ],
+          "say": "no repository provisions it"
+        }
+      ]
+    },
+    "PL3": {
+      "who": "a builder",
+      "question": "Where does $COMPONENT run: in which environments, which accounts and which regions?",
+      "why": "Deploying a component starts from where it goes.",
+      "validated_by": "",
+      "params": {
+        "COMPONENT": {
+          "type": "Component"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$COMPONENT",
+              "runs_in",
+              "e"
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "e",
+                  "hosted_in",
+                  "a"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "e.label",
+          "e.region",
+          "a.label"
+        ]
+      },
+      "gate": "no_gaps",
+      "gaps": [
+        {
+          "when": [
+            {
+              "not_edge": [
+                "$COMPONENT",
+                "runs_in",
+                "*"
+              ]
+            }
+          ],
+          "say": "it runs in no environment"
+        },
+        {
+          "when": [
+            {
+              "edge": [
+                "$COMPONENT",
+                "runs_in",
+                "e"
+              ]
+            },
+            {
+              "not_edge": [
+                "e",
+                "hosted_in",
+                "*"
+              ]
+            }
+          ],
+          "say": "an environment it runs in is in no platform account"
+        },
+        {
+          "when": [
+            {
+              "edge": [
+                "$COMPONENT",
+                "runs_in",
+                "e"
+              ]
+            },
+            {
+              "node": "e",
+              "where": {
+                "region": {
+                  "exists": false
+                }
+              }
+            }
+          ],
+          "say": "an environment it runs in has no region"
+        }
+      ]
+    },
+    "PL4": {
+      "who": "a builder",
+      "question": "What does $COMPONENT run on: which platform service, of what kind, on which platform?",
+      "why": "The managed service decides how the component is packaged, configured and deployed.",
+      "validated_by": "",
+      "params": {
+        "COMPONENT": {
+          "type": "Component"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$COMPONENT",
+              "runs_on",
+              "s"
+            ]
+          },
+          {
+            "node": "s",
+            "type": "PlatformService"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "s",
+                  "on_platform",
+                  "p"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "s.label",
+          "s.service_kind",
+          "p.label"
+        ]
+      },
+      "gate": "no_gaps",
+      "gaps": [
+        {
+          "when": [
+            {
+              "not_edge": [
+                "$COMPONENT",
+                "runs_on",
+                "*"
+              ]
+            }
+          ],
+          "say": "nobody has said what it runs on"
+        }
+      ]
+    },
+    "PL5": {
+      "who": "security",
+      "question": "Which secrets does $COMPONENT need, and where is each kept?",
+      "why": "A secret is found by its name in its store at deploy time, never pasted into code or a document.",
+      "validated_by": "",
+      "params": {
+        "COMPONENT": {
+          "type": "Component"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$COMPONENT",
+              "needs_secret",
+              "k"
+            ]
+          },
+          {
+            "node": "k",
+            "type": "SecretRef"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "k",
+                  "kept_in",
+                  "s"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "k.label",
+          "k.reference",
+          "s.label"
+        ]
+      },
+      "gate": "no_gaps",
+      "gaps": [
+        {
+          "when": [
+            {
+              "edge": [
+                "$COMPONENT",
+                "needs_secret",
+                "k"
+              ]
+            },
+            {
+              "not_edge": [
+                "k",
+                "kept_in",
+                "*"
+              ]
+            }
+          ],
+          "say": "a secret it needs is kept nowhere on record"
+        }
+      ]
+    },
+    "PL6": {
+      "who": "a builder",
+      "question": "Which pipeline deploys $COMPONENT, to which environments, and where can it be opened?",
+      "why": "A component nothing deploys is deployed by hand, once, and never the same way again.",
+      "validated_by": "",
+      "params": {
+        "COMPONENT": {
+          "type": "Component"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "p",
+              "deploys",
+              "$COMPONENT"
+            ]
+          },
+          {
+            "node": "p",
+            "type": "Pipeline"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "p",
+                  "deploys_to",
+                  "e"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "p.label",
+          "p.url",
+          "e.label"
+        ]
+      },
+      "gate": "no_gaps",
+      "gaps": [
+        {
+          "when": [
+            {
+              "not_edge": [
+                "*",
+                "deploys",
+                "$COMPONENT"
+              ]
+            }
+          ],
+          "say": "no pipeline deploys it"
+        }
+      ]
+    },
+    "PL7": {
+      "who": "a builder",
+      "question": "What is $COMPONENT built with: which languages, frameworks and libraries, at which versions?",
+      "why": "The builder needs the stack and its versions before the first line of code.",
+      "validated_by": "",
+      "params": {
+        "COMPONENT": {
+          "type": "Component"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$COMPONENT",
+              "built_with",
+              "t"
+            ]
+          },
+          {
+            "node": "t",
+            "type": "Technology"
+          }
+        ],
+        "select": [
+          "t.label",
+          "t.technology_kind",
+          "t.version"
+        ]
+      },
+      "gate": "no_gaps",
+      "gaps": [
+        {
+          "when": [
+            {
+              "not_edge": [
+                "$COMPONENT",
+                "built_with",
+                "*"
+              ]
+            }
+          ],
+          "say": "nothing says what it is built with"
+        },
+        {
+          "when": [
+            {
+              "edge": [
+                "$COMPONENT",
+                "built_with",
+                "t"
+              ]
+            },
+            {
+              "node": "t",
+              "where": {
+                "version": {
+                  "exists": false
+                }
+              }
+            }
+          ],
+          "say": "a technology it is built with has no version"
+        }
+      ]
+    },
+    "PL8": {
+      "who": "a builder",
+      "question": "Which choices about $COMPONENT are not settled yet?",
+      "why": "A builder that meets an unsettled choice either stops or guesses; it should stop.",
+      "validated_by": "",
+      "params": {
+        "COMPONENT": {
+          "type": "Component"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "node": "c",
+            "type": "Choice",
+            "where": {
+              "settled": {
+                "exists": false
+              }
+            }
+          },
+          {
+            "edge": [
+              "c",
+              "shapes",
+              "$COMPONENT"
+            ]
+          }
+        ],
+        "select": [
+          "c.label",
+          "c.authority"
+        ]
+      },
+      "gate": "empty"
+    },
+    "PL9": {
+      "who": "an architect",
+      "question": "Which choices does the design need, who makes each (a named person, or the builder within limits), within which limits, and how was each settled?",
+      "why": "The decision record of the binding: what was decided by whom, what was left to the builder and within what.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "c",
+            "type": "Choice"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "c",
+                  "settled_by",
+                  "d"
+                ]
+              },
+              {
+                "node": "d",
+                "type": "Decision"
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "c",
+                  "bounded_by",
+                  "b"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "c.label",
+          "c.category",
+          "c.authority",
+          "c.allowed",
+          "c.settled",
+          "d.label",
+          "d.option",
+          "d.status",
+          "b.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "PL10": {
+      "who": "anyone",
+      "question": "How was choice $CHOICE settled: what was chosen, what else was considered, what follows from it, and who accepted it?",
+      "why": "A decision is revisited from its record: the option, its alternatives, its consequences and whose call it was.",
+      "validated_by": "",
+      "params": {
+        "CHOICE": {
+          "type": "Choice"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$CHOICE",
+              "settled_by",
+              "d"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Decision"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "d",
+                  "decided_by",
+                  "w"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "d.option",
+          "d.status",
+          "d.alternatives",
+          "d.consequences",
+          "w.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": [
+        {
+          "when": [
+            {
+              "not_edge": [
+                "$CHOICE",
+                "settled_by",
+                "*"
+              ]
+            }
+          ],
+          "say": "nothing settles it yet"
+        }
+      ]
+    },
+    "PL11": {
+      "who": "a tester",
+      "question": "Which components that run in $ENVIRONMENT cannot be deployed there yet: nothing to run on, or no pipeline?",
+      "why": "An end-to-end test needs every part of the product in place.",
+      "validated_by": "",
+      "params": {
+        "ENVIRONMENT": {
+          "type": "Environment"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "node": "c",
+            "type": "Component",
+            "where": {
+              "deployable": {
+                "exists": false
+              }
+            }
+          },
+          {
+            "edge": [
+              "c",
+              "runs_in",
+              "$ENVIRONMENT"
+            ]
+          }
+        ],
+        "select": [
+          "c.label"
+        ]
+      },
+      "gate": "empty"
+    },
+    "PL12": {
+      "who": "a tester",
+      "question": "Which secrets needed in $ENVIRONMENT are kept nowhere on record?",
+      "why": "A test that stops at a missing secret has tested nothing.",
+      "validated_by": "",
+      "params": {
+        "ENVIRONMENT": {
+          "type": "Environment"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "c",
+              "runs_in",
+              "$ENVIRONMENT"
+            ]
+          },
+          {
+            "edge": [
+              "c",
+              "needs_secret",
+              "k"
+            ]
+          },
+          {
+            "not_edge": [
+              "k",
+              "kept_in",
+              "*"
+            ]
+          }
+        ],
+        "select": [
+          "c.label",
+          "k.label"
+        ]
+      },
+      "gate": "empty"
+    },
+    "PL13": {
+      "who": "a tester",
+      "question": "Which choices about $ENVIRONMENT are not settled yet?",
+      "why": "An environment built before its choices are settled is built twice.",
+      "validated_by": "",
+      "params": {
+        "ENVIRONMENT": {
+          "type": "Environment"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "node": "c",
+            "type": "Choice",
+            "where": {
+              "settled": {
+                "exists": false
+              }
+            }
+          },
+          {
+            "edge": [
+              "c",
+              "shapes",
+              "$ENVIRONMENT"
+            ]
+          }
+        ],
+        "select": [
+          "c.label",
+          "c.authority"
+        ]
+      },
+      "gate": "empty"
+    }
+  }
+}

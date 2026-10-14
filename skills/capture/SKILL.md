@@ -19,6 +19,14 @@ log for a curator who is editing the graph locally right now. **This skill is th
 document in the inbox, for everyone else and for a project that lives in a repository. Prefer it
 unless you are already inside a curate session.
 
+## Talking with the person
+
+- **Plain, natural language, in the person's words.** Never say question numbers, ids, class or
+  field names, file names or commands, and never paste what a command printed.
+- **Technical details only when the person asks for them.** Never offer them, not even as a choice.
+- **The same clear shape every time:** say what we are about to do, ask a few questions at a time,
+  read back what you understood in plain sentences, confirm, then say what is next.
+
 ## 1. Recap, in their words *(gate)*
 
 Before writing anything, say back what you are about to record:

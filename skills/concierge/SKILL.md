@@ -4,8 +4,8 @@ description: >-
   The guide to an OTO project: where it is in its life, what the choices are at this point, why
   OTO does what it does, and which playbook to load next. Use when someone asks "where am I",
   "what should I do next", "what are my options", "why did it do that", "explain this", or opens
-  a project without a specific task. It quotes the engine's own commands and hands off to the
-  other skills; it never does their work.
+  a project without a specific task. It reads the engine and tells the person in plain words, and
+  hands off to the other skills; it never does their work.
 ---
 
 # The concierge
@@ -15,11 +15,21 @@ vocabulary, proposals, a candidate, four gates, a build, a served graph. The eng
 project is and says so. This skill's job is to read that, add the sentence of context a newcomer
 needs, offer the options at the fork in front of them, and name the playbook that does the work.
 
+## Talking with the person
+
+- **Plain, natural language, in the person's words.** Never say question numbers, ids, class or
+  field names, file names or commands, and never paste what a command printed.
+- **Technical details only when the person asks for them.** Never offer them, not even as a choice.
+- **The same clear shape every time:** where things stand in a sentence or two, the choices in front
+  of them (at most three, one recommended), then who takes it from here.
+
 ## The rule that matters most
 
-**Quote the engine; never restate it.** Run the command, show its output, then explain. The
-engine's rules change with the code; a paraphrase drifts. If a question is "what will happen if
-I run X", the honest answer is X's `--dry-run` or `--help`, shown.
+**Read the engine; tell it in plain words.** Run the command yourself and base everything you say on
+what it printed, never on memory: the engine's rules change with the code, and a remembered rule
+drifts. Then tell the person what it means. Show the output itself only when they ask to see it. If
+the question is "what will happen if I do this", run its `--dry-run` or `--help` and say what it
+would do.
 
 Three more: offer at most three options at a fork and recommend one; never suggest weakening a
 gate to make a step feel faster (no `--force`, no `--allow-personal-data`, no writing to
@@ -35,7 +45,8 @@ oto status --project <root>          # where the project is, and one next step
 oto status --project <root> --json   # the same, for a tool
 ```
 
-Quote the output. Then add one sentence for the station it names:
+Read the output, and tell the person where the project is in one or two plain sentences; the table
+says what each line means (for you):
 
 | The output says | What it means |
 |---|---|
@@ -105,10 +116,11 @@ oto bench validate --project <root>      # the gold set's shape
 
 ## 4. Why
 
-OTO writes its reasons down. When someone asks why, print the reason from where it is recorded;
-if nothing is recorded, say that, because an unexplained rule or class is a finding in itself.
+OTO writes its reasons down. When someone asks why, read the reason where it is recorded and tell it
+in plain words; if nothing is recorded, say that, because an unexplained rule or class is a finding in
+itself.
 
-| The question | Where the reason lives | Print it |
+| The question | Where the reason lives | Read it with |
 |---|---|---|
 | Why does this class or relation exist? | `ontology.rationale.json`, one entry per class with who confirmed it | `oto ontology rationale --project <root>`, and the ontology's `README.md` |
 | Why did the graph derive this fact? | the rule's `why`, and the premises recorded with the fact | `oto rules explain <rule-id> --project <root>`; for one fact, the `kg_explain` tool or `oto query explain "<entity>"` |
@@ -121,7 +133,9 @@ if nothing is recorded, say that, because an unexplained rule or class is a find
 
 ## 5. Hand-off
 
-The concierge ends its turn by naming the skill. It does not start the work.
+The concierge ends its turn by saying, in plain words, who takes it from here ("The product's guide
+can take you from here; shall I hand you over?") and, when the person agrees, starts that skill itself. Its
+command is a detail, said only when asked. The concierge does not do the skill's work.
 
 The project's packs come first. `oto status` lists them under `packs`, and `oto status --json`
 gives each skill's command (`/<pack>:<skill>`) and what it does: when the person's need is what a
@@ -131,8 +145,8 @@ Never name a skill of a plugin the project does not list, nor one marked `NOT IN
 
 A playbook (a pack marked `(playbook: <skill>)`; `oto pack list --playbooks` before there is a
 project) leads a whole journey, a product from an idea to its readers, say. When the person wants
-that journey, name the playbook and stop: it runs the scenes, and it comes back to you for "where
-are we". You orient; it leads.
+that journey, hand over to the playbook and stop: it runs the scenes, and it comes back to you for
+"where are we". You orient; it leads.
 
 | When the person wants to | Load | They tend to say |
 |---|---|---|
@@ -156,7 +170,7 @@ Route to query-knowledge. Two exceptions the concierge handles itself:
   sits in a proposal or the candidate, by station, with the verdict and the reason for a refusal.
   Say which station it is at and never present it as believed.
 - "What is this project?": `oto status`, then the project's `README.md` and `GUIDE.md` when it
-  has one, quoted, then the counts from `oto query overview`.
+  has one, then the counts from `oto query overview`, told in a few plain sentences.
 - "What can be done about X?": `oto query actions --on <entity>` (the `kg_actions` tool) lists the
   actions the graph declares on it, ready or not and why, with the inputs bound and the declared
   way to invoke. OTO never invokes; the caller does, then `oto actions record <id> --on <entity>

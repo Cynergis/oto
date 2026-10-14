@@ -16,6 +16,14 @@ server describes a tool and bound to the graph. OTO lists actions, says which ar
 entities, binds their inputs from the entity, and turns a recorded response into evidence. The
 invocation is yours, with the tools you already have. This skill is the protocol.
 
+## Talking with the person
+
+- **Plain, natural language, in the person's words.** Never say question numbers, ids, class or
+  field names, file names or commands, and never paste what a command printed.
+- **Technical details only when the person asks for them.** Never offer them, not even as a choice.
+- **The same clear shape every time:** say what we are about to do, ask a few questions at a time,
+  read back what you understood in plain sentences, confirm, then say what is next.
+
 ## The rules that matter most
 
 1. **OTO never invokes.** No command here runs an action. You call the MCP server, the command,
@@ -38,7 +46,8 @@ oto query --project <root> actions --on <entity id>     # the actions on one ent
 oto actions show <action.id> --on <entity id> --project <root>   # the invocation you will perform
 ```
 
-Quote the output. An action that is `not ready` says which precondition fails; do not work around
+Read the output and say plainly whether the action is ready and what it would do (the output itself
+only when asked). An action that is `not ready` says which precondition fails; do not work around
 it. An entity whose status is `intended` is a plan the graph holds, not something that exists:
 the action that realises it is the one whose `then` moves it to `current`.
 

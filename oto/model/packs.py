@@ -56,6 +56,14 @@ PATTERN_KEYS = ("of", "for", "skill")
 #: from an idea to a published knowledge base", "skill": "atlas"}. The concierge offers the playbooks
 #: it finds (`oto status`, `oto pack list --playbooks`), never by their names.
 PLAYBOOK_KEYS = ("for", "skill")
+#: How every skill talks with the person: the engine's skills carry it, and so does every pack's
+#: generated start skill. Technical details (ids, commands, output) are the record's, not the talk's.
+TALKING = ["## Talking with the person", "",
+           "- **Plain, natural language, in the person's words.** Never say question numbers, ids, class or",
+           "  field names, file names or commands, and never paste what a command printed.",
+           "- **Technical details only when the person asks for them.** Never offer them, not even as a choice.",
+           "- **The same clear shape every time:** say what we are about to do, ask a few questions at a time,",
+           "  read back what you understood in plain sentences, confirm, then say what is next."]
 ONTOLOGY_FIELDS = ("name", "release", "registry", "source", "ref", "path", "commit", "embedded_at")
 #: Written by `oto pack add`, never by an author: where a fetched pack came from.
 PROVENANCE = ("registry", "source", "ref", "path", "commit", "fetched_at")
@@ -308,7 +316,7 @@ def plugin_files(directory, registry_name=None):
              "# %s" % title, "",
              (manifest.get("summary") or "").strip(), "",
              "This skill comes with the `%s` pack. The ontology is inside the pack, so nothing is fetched."
-             % manifest["name"], ""]
+             % manifest["name"], ""] + TALKING + [""]
     pattern = manifest.get("pattern")
     if isinstance(pattern, dict) and all(isinstance(pattern.get(k), str) for k in PATTERN_KEYS):
         lines += ["**A design pattern of `%s`**: for %s. In a project that composes `%s`, such a part is modelled"

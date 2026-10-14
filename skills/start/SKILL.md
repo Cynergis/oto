@@ -16,6 +16,14 @@ person from nothing to a confirmed list of them, by whichever door they came in,
 the playbook that turns the list into a vocabulary. It does not design classes; the
 **ontology-interview** skill does.
 
+## Talking with the person
+
+- **Plain, natural language, in the person's words.** Never say question numbers, ids, class or
+  field names, file names or commands, and never paste what a command printed.
+- **Technical details only when the person asks for them.** Never offer them, not even as a choice.
+- **The same clear shape every time:** say what we are about to do, ask a few questions at a time,
+  read back what you understood in plain sentences, confirm, then say what is next.
+
 ## 1. The project
 
 If there is no project yet:
@@ -78,7 +86,8 @@ lacks). Say which combination you are running.
   classes. A class with no question behind it does not go in, and the engine refuses it later.
 - **The person confirms the list.** A derived question is a guess at what matters; it becomes
   the contract only when someone who knows the domain says so.
-- **Quote the engine.** Show `oto status`, `oto ingest` and `oto survey` as they print; do not
-  paraphrase a station or invent a command.
+- **Read the engine; tell it in plain words.** Base what you say on `oto status`, `oto ingest` and
+  `oto survey` as they print, never on memory; show their output only when asked; never invent a
+  command.
 - **Never invent facts from a specification.** It says what the system should know, not what is
   true of any instance; the graph is authored later, from documents, through the curate gates.

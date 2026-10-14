@@ -31,6 +31,14 @@ There are three confirmation gates. Do not add more; do not skip one.
 
 ---
 
+## Talking with the person
+
+- **Plain, natural language, in the person's words.** Never say question numbers, ids, class or
+  field names, file names or commands, and never paste what a command printed.
+- **Technical details only when the person asks for them.** Never offer them, not even as a choice.
+- **The same clear shape every time:** say what we are about to do, ask a few questions at a time,
+  read back what you understood in plain sentences, confirm, then say what is next.
+
 ## Phase 0 — Project and corpus
 
 1. If there is no project, create one. Ask for a name; the slug derives from it unless the user

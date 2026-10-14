@@ -14,6 +14,14 @@ description: >-
 The graph does the retrieval. Your job is to ask it the right thing, refuse to bluff, and frame
 the answer. This skill changes nothing; a correction goes to the **curate** skill.
 
+## Talking with the person
+
+- **Plain, natural language, in the person's words.** Never say question numbers, ids, class or
+  field names, file names or commands, and never paste what a command printed.
+- **Technical details only when the person asks for them.** Never offer them, not even as a choice.
+- **The same clear shape every time:** say what we are about to do, ask a few questions at a time,
+  read back what you understood in plain sentences, confirm, then say what is next.
+
 ## The tools
 
 Prefer the `kg_*` tools if the project's server is registered with your host (the OTO plugin
@@ -63,8 +71,9 @@ it: the chain ends in documents, and that is what you cite.
 3. **Check the date before answering.** Every fact carries `as_of` and `valid_from`; state them when
    precision matters ("current as of 2026-03-01"). A superseded fact is history: mention it only if
    the question is about history.
-4. **Answer, then cite.** The entity ids and the `sources` or `source_doc` of every fact you used.
-   An uncited number is not an answer here.
+4. **Answer, then say where it comes from**: the documents behind every fact you used, by their
+   title, and their date (`sources`, `source_doc`); the entity ids only when the person asks. An
+   unsourced number is not an answer here.
 5. **Frame it.** After the direct answer:
    - *So what:* what it implies, if anything.
    - *Open:* what the graph does not say. Name the missing fact, the undated fact, or the document
@@ -89,7 +98,8 @@ trustworthy if it says what it rests on.
    > *A reading of the graph as of <the overview's most recent fact date>, drawn from <N> entities
    > and <M> notes. It is a synthesis, not a fact; every theme below names the facts it rests on.*
    >
-   > **Theme.** One or two sentences. *Rests on:* entity ids and the documents they cite.
+   > **Theme.** One or two sentences. *Rests on:* the documents it draws on, by title (the facts'
+   > ids are recorded in the note, and given when asked).
    > (repeat)
    >
    > **Not covered:** what the corpus does not reach, and what the question assumed that the

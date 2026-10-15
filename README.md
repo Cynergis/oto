@@ -183,6 +183,14 @@ prints the script that rebuilds the same tools on a fresh machine or in a contai
 declares the plugins the project uses in its `.claude/settings.json`, so whoever opens it in Claude
 Code is offered the same; `oto lock --use` adds a tool.
 
+`oto lock --sandbox` gives the project a Docker sandbox ([Docker Sandboxes](https://docs.docker.com/ai/sandboxes/),
+the `sbx` CLI): `sbxenv.yaml` and `.sandbox/setup.sh`, committed with it. `sbx env run`, in the project
+folder, creates a small virtual machine with Claude Code and the project folder shared with it, sets up
+the locked plugins and engine inside (with LibreOffice, Chromium for pdf-to-template, and what the
+plugins need), and opens Claude there; the network is closed but for what the sbx policy allows, and an
+API key (`sbx secret set anthropic`) is added on the way out, never inside. A Claude subscription logs in
+once inside (`/login`). `oto lock` keeps both files in step with the lock.
+
 A **pack** is what a person installs into Claude Code: one ontology, embedded with what it extends,
 the skills that know how to use it, and the views that show its graph. `oto pack new claims
 --ontology acme-claims` scaffolds one, `oto pack check` validates it, `oto pack publish --to

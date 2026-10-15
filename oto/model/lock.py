@@ -22,11 +22,20 @@ rebuilds the locked tools on a fresh machine or in a container: each marketplace
 locked commit and added from that directory (Claude Code pins a marketplace to a branch or a tag,
 never a commit), each plugin installed from it, and the engine pinned by its release tag through
 OTO_SOURCE, which the engine plugin's server and hook read.
+
+`sandbox_files` writes the project's Docker sandbox (Docker Sandboxes, the `sbx` CLI): Claude Code
+in a small virtual machine of its own, the project folder shared with it, the network closed but
+for what the person's sbx policy allows, an API key added on the way out and never inside.
+`sbxenv.yaml` names it and pins OTO_SOURCE; once, when the sandbox is created, it runs
+`.sandbox/setup.sh` inside it: the same restore, plus what Docker's Claude image lacks (LibreOffice
+and fonts for older Office files, Chromium for pdf-to-template, the `uvx` the engine plugin calls,
+GitHub over HTTPS, since the sandbox closes SSH). `oto lock` rewrites both while they are its own.
 """
 import datetime
 import functools
 import json
 import os
+import re
 import subprocess
 
 from . import ontologies as _ontologies
@@ -392,20 +401,20 @@ def _clone_url(source):
     return None
 
 
-def restore_script(lock, project_name=None):
-    """A POSIX shell script that rebuilds the locked tools: run it in a fresh environment (a
-    container, a test profile with CLAUDE_CONFIG_DIR set). Needs git, uv and Claude Code."""
+def engine_pin(lock):
+    """What installs the locked engine: `oto-kg[intake] @ git+<repo>@<commit or tag>`."""
     eng = lock.get("engine") or {}
     ref = eng.get("commit") or eng.get("tag") or "main"
     source = eng.get("source") if str(eng.get("source") or "").startswith(("http", "git@")) else ENGINE_REPO
     source = source[:-4] if source.endswith(".git") else source
-    lines = ["#!/bin/sh",
-             "# The tools of %s as locked on %s (oto.lock.json). Needs git, uv and Claude Code."
-             % (project_name or "this project", lock.get("locked_at")),
-             "# Run it where they should live: a container, or a profile of its own (CLAUDE_CONFIG_DIR).",
-             "set -e",
-             'DIR="${OTO_LOCK_DIR:-$HOME/.oto/locked}"',
-             'mkdir -p "$DIR"', ""]
+    return "oto-kg[intake] @ git+%s@%s" % (source, ref)
+
+
+def _restore_lines(lock):
+    """The body of a restore: each marketplace at its commit, each plugin, the engine."""
+    eng = lock.get("engine") or {}
+    pin = engine_pin(lock)
+    lines = ['DIR="${OTO_LOCK_DIR:-$HOME/.oto/locked}"', 'mkdir -p "$DIR"', ""]
     for market in lock.get("marketplaces") or []:
         url, commit = _clone_url(market.get("source")), market.get("commit")
         if not url or not commit:
@@ -419,10 +428,104 @@ def restore_script(lock, project_name=None):
     for plugin in lock.get("plugins") or []:
         if plugin.get("installed"):
             lines.append("claude plugin install %s    # locked at %s" % (plugin["id"], plugin.get("version")))
-    pin = "oto-kg[intake] @ git+%s@%s" % (source, ref)
     lines += ["",
               "# the engine at %s %s: its plugin's server and hook read OTO_SOURCE, the oto command is installed from it"
-              % (eng.get("version"), ref),
-              'uv tool install --force "%s"' % pin,
-              "echo 'add to the environment: export OTO_SOURCE=\"%s\"'" % pin.replace("[intake]", "")]
+              % (eng.get("version"), pin.rsplit("@", 1)[1]),
+              'uv tool install --force "%s"' % pin]
+    return lines
+
+
+def restore_script(lock, project_name=None):
+    """A POSIX shell script that rebuilds the locked tools: run it in a fresh environment (a
+    container, a test profile with CLAUDE_CONFIG_DIR set). Needs git, uv and Claude Code."""
+    lines = ["#!/bin/sh",
+             "# The tools of %s as locked on %s (oto.lock.json). Needs git, uv and Claude Code."
+             % (project_name or "this project", lock.get("locked_at")),
+             "# Run it where they should live: a container, or a profile of its own (CLAUDE_CONFIG_DIR).",
+             "set -e"] + _restore_lines(lock)
+    lines.append("echo 'add to the environment: export OTO_SOURCE=\"%s\"'" % engine_pin(lock).replace("[intake]", ""))
     return "\n".join(lines) + "\n"
+
+
+# ---- the project's Docker sandbox ----
+
+SANDBOX_FILE = "sbxenv.yaml"
+SANDBOX_SETUP = os.path.join(".sandbox", "setup.sh")
+SANDBOX_MARK = "Written by `oto lock --sandbox`"
+
+
+def sandbox_name(slug):
+    """The sandbox's name: oto-<slug>, in the letters a sandbox name takes."""
+    return "oto-" + (re.sub(r"[^a-z0-9]+", "-", str(slug or "project").lower()).strip("-") or "project")
+
+
+def sandbox_files(lock, slug, project_name=None):
+    """{relative path: text} for the project's Docker sandbox: sbxenv.yaml and .sandbox/setup.sh."""
+    name = sandbox_name(slug)
+    pin = engine_pin(lock)
+    env = """# The Docker sandbox %(project)s runs in (Docker Sandboxes, the `sbx` CLI): Claude Code in a small
+# virtual machine of its own, this folder shared with it, the network closed but for what your sbx
+# policy allows. %(mark)s from oto.lock.json; `oto lock` rewrites it.
+# Start it here with `sbx env run`: the first run creates it, asks you to approve once, and sets up the
+# locked tools inside it (.sandbox/setup.sh); later runs reopen it.
+schemaVersion: "1"
+name: %(name)s
+agent: claude
+workspace: .
+env:
+  OTO_SOURCE: "%(source)s"
+lifecycle:
+  postCreate:
+    - name: oto-tools
+      command: sbx exec "$SBX_SANDBOX_NAME" -- sh "$SBX_WORKSPACE/.sandbox/setup.sh"
+      timeout: 30m
+""" % {"project": project_name or "this project", "mark": SANDBOX_MARK, "name": name, "source": pin.replace("[intake]", "")}
+    setup = ["#!/bin/sh",
+             "# Sets up, inside the Docker sandbox of %s, the tools oto.lock.json records (locked %s)."
+             % (project_name or "this project", lock.get("locked_at")),
+             "# %s; sbxenv.yaml runs it once, when the sandbox is created." % SANDBOX_MARK,
+             "set -e",
+             'cd "$(dirname "$0")/.."',
+             "",
+             'echo "== LibreOffice and fonts, for older Office files at intake"',
+             "# the sandbox may still be updating its own packages when this starts: wait for it",
+             "n=0; while pgrep -x apt-get >/dev/null || pgrep -x dpkg >/dev/null; do n=$((n+1)); [ $n -gt 300 ] && break; sleep 2; done",
+             "sudo apt-get -o DPkg::Lock::Timeout=600 update -qq",
+             "sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=600 install -y -qq --no-install-recommends \\",
+             "  libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui fonts-liberation fonts-dejavu-core >/dev/null",
+             "",
+             'echo "== uvx, which the oto plugin calls, and GitHub over HTTPS (the sandbox closes SSH)"',
+             "command -v uvx >/dev/null || { printf '#!/bin/sh\\nexec uv tool run \"$@\"\\n' | sudo tee /usr/local/bin/uvx >/dev/null; "
+             "sudo chmod 755 /usr/local/bin/uvx; }",
+             'git config --global url."https://github.com/".insteadOf git@github.com:',
+             'git config --global --add url."https://github.com/".insteadOf ssh://git@github.com/',
+             "",
+             'echo "== the locked marketplace, plugins and engine"'] + _restore_lines(lock) + [
+             "",
+             'echo "== Chromium, for pdf-to-template\'s renderer"',
+             "uv tool run --from playwright playwright install --with-deps chromium >/tmp/oto-chromium.log 2>&1 \\",
+             '  || echo "Chromium was not installed (see /tmp/oto-chromium.log); pdf-to-template\'s doctor installs it on first use"',
+             "",
+             "oto lock --check --project ."]
+    return {SANDBOX_FILE: env, SANDBOX_SETUP: "\n".join(setup) + "\n"}
+
+
+def sandbox_written(root):
+    """Whether the project's sbxenv.yaml is the one `oto lock --sandbox` wrote (so `oto lock` may rewrite it)."""
+    try:
+        return SANDBOX_MARK in open(os.path.join(root, SANDBOX_FILE), encoding="utf-8").read()
+    except OSError:
+        return False
+
+
+def write_sandbox(project, lock):
+    """Write the sandbox files under the project; returns their relative paths."""
+    files = sandbox_files(lock, project.config().get("slug"), project.config().get("name"))
+    for rel, text in files.items():
+        where = os.path.join(project.data, rel)
+        os.makedirs(os.path.dirname(where) or ".", exist_ok=True)
+        with open(where, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+        if rel.endswith(".sh"):
+            os.chmod(where, 0o755)
+    return sorted(files)

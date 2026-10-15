@@ -98,7 +98,9 @@ def _lock(project):
         differences = _lockfile.drift(project, locked)
     except Exception:                                                 # noqa: BLE001 - advisory only
         differences = []
-    return {"locked_at": locked.get("locked_at"), "differences": differences}
+    return {"locked_at": locked.get("locked_at"), "differences": differences,
+            "sandbox": _lockfile.sandbox_name(project.config().get("slug"))
+            if os.path.exists(os.path.join(project.data, _lockfile.SANDBOX_FILE)) else None}
 
 
 def _ontology(project):
@@ -270,6 +272,9 @@ def cmd_status(args):
     else:
         print("  tools       oto.lock.json (%s): %d difference(s) here, %s; oto lock --check"
               % (lock["locked_at"], len(lock["differences"]), lock["differences"][0]))
+    if lock and lock.get("sandbox"):
+        print("  sandbox     %s: the Docker sandbox %s runs in, with these tools; sbx env run opens it"
+              % ("sbxenv.yaml", lock["sandbox"]))
     if s["classes"] == 0 or s["properties"] == 0:
         print("              none declared yet. Four ways to get one, usually combined (the start skill, /oto:start, asks which):")
         print("                1. from an ontology:       oto ontology import --from <name>[,<name>]   (oto ontology list)")

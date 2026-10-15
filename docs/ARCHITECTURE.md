@@ -542,6 +542,16 @@ every version gets when it reaches main (`.github/workflows/tag-release.yml`), a
 is written: a plugin listed from its own repository's default branch, a marketplace that is a
 directory on one machine, an engine checkout with uncommitted changes.
 
+`oto lock --sandbox` writes the project's Docker sandbox from the lock. `sbxenv.yaml` (Docker
+Sandboxes' environment file) names it `oto-<slug>`, runs Docker's Claude agent on the project folder,
+and pins `OTO_SOURCE`. Its one host command, after the sandbox is created, runs `.sandbox/setup.sh`
+inside it with `sbx exec "$SBX_SANDBOX_NAME"`, so nothing the agent can edit runs on the host. The
+script is the restore script plus what Docker's Claude image lacks: LibreOffice and fonts, Chromium
+for pdf-to-template, a `uvx` that runs `uv tool run` (the engine plugin's server and hook call it),
+and git reaching GitHub over HTTPS, since the sandbox closes SSH; it ends with `oto lock --check`.
+No kit is built: building one needs Docker's image builder on the host, which a sandbox does not.
+`oto lock` rewrites both files while `sbxenv.yaml` is the one it wrote, and leaves a hand-written one.
+
 ## Rules, and what a derived fact is
 
 A rule is declared like a class, with a reason and a place for who confirmed it, and versioned in

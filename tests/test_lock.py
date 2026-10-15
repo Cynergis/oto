@@ -384,3 +384,47 @@ def test_status_marks_the_projects_binding(claude, capsys):
     assert main(["status", "--json", "--project", project.data]) == 0
     offered = {p["name"]: p for p in json.loads(capsys.readouterr().out)["packs"]["plugins"]}
     assert offered["claims"]["binding"]["skill"] == "bind-platform" and offered["tool"]["binding"] is None
+
+
+def test_lock_sandbox_writes_the_projects_docker_sandbox_and_lock_keeps_it_current(claude, capsys):
+    """sbxenv.yaml names the sandbox and pins the engine; .sandbox/setup.sh restores the locked tools inside it,
+    with what Docker's Claude image lacks. A plain `oto lock` rewrites both while they are its own."""
+    project = _project(claude)
+    capsys.readouterr()
+    assert main(["lock", "--sandbox", "--project", project.data]) == 0
+    out = capsys.readouterr().out
+    assert "wrote .sandbox/setup.sh and sbxenv.yaml: the Docker sandbox oto-p" in out and "sbx env run" in out
+    env = open(os.path.join(project.data, "sbxenv.yaml"), encoding="utf-8").read()
+    pin = lockfile.engine_pin(lockfile.read(project))
+    assert "name: oto-p\nagent: claude\nworkspace: .\n" in env
+    assert 'OTO_SOURCE: "%s"' % pin.replace("[intake]", "") in env
+    assert 'command: sbx exec "$SBX_SANDBOX_NAME" -- sh "$SBX_WORKSPACE/.sandbox/setup.sh"' in env, "whatever name it is created under"
+    setup_path = os.path.join(project.data, ".sandbox", "setup.sh")
+    setup = open(setup_path, encoding="utf-8").read()
+    assert os.access(setup_path, os.X_OK)
+    for needed in ("libreoffice-writer-nogui", "exec uv tool run", 'insteadOf git@github.com:', "claude plugin install oto@acme",
+                   'uv tool install --force "%s"' % pin, "playwright install --with-deps chromium", "oto lock --check --project ."):
+        assert needed in setup, needed
+    assert setup.index("claude plugin marketplace add") < setup.index("claude plugin install"), "the marketplace comes first"
+    subprocess.run(["sh", "-n", setup_path], check=True)
+
+    _install(claude, "tool@acme", "0.5.0")
+    assert main(["lock", "--project", project.data]) == 0
+    assert "the Docker sandbox oto-p" in capsys.readouterr().out
+    assert "claude plugin install tool@acme    # locked at 0.5.0" in open(setup_path, encoding="utf-8").read()
+    assert main(["status", "--project", project.data]) == 0
+    assert "sandbox     sbxenv.yaml: the Docker sandbox oto-p runs in" in capsys.readouterr().out
+
+    with open(os.path.join(project.data, "sbxenv.yaml"), "w", encoding="utf-8") as f:
+        f.write('schemaVersion: "1"\nagent: claude\n')
+    assert main(["lock", "--project", project.data]) == 0
+    assert "sbxenv.yaml is not the one oto lock --sandbox writes, so it was left as it is" in capsys.readouterr().out
+    assert open(os.path.join(project.data, "sbxenv.yaml"), encoding="utf-8").read() == 'schemaVersion: "1"\nagent: claude\n'
+
+
+def test_lock_sandbox_needs_a_lock(tmp_path, capsys):
+    root = str(tmp_path / "p")
+    init(root, slug="p", name="P", ontology="auto-claims")
+    os.remove(os.path.join(root, "oto.lock.json")) if os.path.exists(os.path.join(root, "oto.lock.json")) else None
+    assert main(["lock", "--sandbox", "--project", root]) == 1
+    assert "no oto.lock.json yet" in capsys.readouterr().err

@@ -4,6 +4,33 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.29 — 2026-10-15
+
+**A project runs in a Docker sandbox with its locked tools.** `oto lock --sandbox` writes `sbxenv.yaml`
+and `.sandbox/setup.sh` from `oto.lock.json`, to commit with the project. In the project folder,
+`sbx env run` ([Docker Sandboxes](https://docs.docker.com/ai/sandboxes/)) creates a small virtual
+machine running Claude Code on the project folder, sets up the locked marketplace, plugins and engine
+inside it, and opens Claude there.
+
+- **What the setup adds to Docker's Claude image:**
+  - LibreOffice and fonts, for older Office files at intake;
+  - Chromium, for pdf-to-template;
+  - a `uvx`, which the engine plugin's server and hook call;
+  - git reaching GitHub over HTTPS, since the sandbox closes SSH.
+
+  It ends with `oto lock --check`.
+- **The setup runs inside the sandbox.** The one host command runs the script inside the new sandbox
+  under the name it was created with.
+- **The network and credentials stay under the person's control.** The network is closed except for
+  what the person's sbx policy allows. An API key (`sbx secret set anthropic`) is added to requests on
+  their way out, never inside the sandbox. A Claude subscription logs in once inside.
+- **`oto lock` keeps both files in step with the lock** while they are its own. A hand-written
+  `sbxenv.yaml` is left as it is. `oto status` names the sandbox.
+
+Tried on macOS with sbx 0.48.0: a fresh sandbox sets itself up in under a minute; inside it, the lock
+check matches, the plugins load, LibreOffice runs and Chromium renders a PDF. The Claude Code panel in
+VS Code reaches it over SSH (`sbx setup ssh`).
+
 ## 0.11.28 — 2026-10-14
 
 **A release moves its registry pin by itself.** Until now, after the engine or a listed plugin tagged a

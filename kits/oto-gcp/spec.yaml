@@ -1,0 +1,45 @@
+# A Docker Sandboxes kit (v2): see kits/README.md. Published as ghcr.io/cynergis/oto-gcp:<engine version>.
+schemaVersion: "2"
+kind: sandbox
+name: oto-gcp
+version: "0.11.29"
+displayName: OTO on Google Cloud
+description: >-
+  Claude Code with OTO's marketplace and plugins, the OTO engine 0.11.29, the Google Cloud CLI, LibreOffice
+  and Chromium, for building OTO products that run on Google Cloud.
+sourceURL: https://github.com/Cynergis/oto/tree/main/kits/oto-gcp
+licenses: [Apache-2.0]
+extends: claude
+environment:
+  variables:
+    OTO_SOURCE: "oto-kg @ git+https://github.com/Cynergis/oto@v0.11.29"
+permissions:
+  network:
+    allow:
+      - github.com
+      - "*.github.com"
+      - "*.githubusercontent.com"
+      - pypi.org
+      - files.pythonhosted.org
+      - dl.google.com
+      - "*.googleapis.com"
+      - cdn.playwright.dev
+      - playwright.download.prss.microsoft.com
+setup:
+  install:
+    - command: |
+        n=0; while pgrep -x apt-get >/dev/null || pgrep -x dpkg >/dev/null; do n=$((n+1)); [ $n -gt 300 ] && break; sleep 2; done
+        apt-get -o DPkg::Lock::Timeout=600 update -qq
+        DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=600 install -y -qq --no-install-recommends \
+          libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui fonts-liberation fonts-dejavu-core >/dev/null
+    - command: |
+        case "$(uname -m)" in aarch64|arm64) arch=arm ;; *) arch=x86_64 ;; esac
+        curl -fsSL -o /tmp/gcloud.tgz "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-$arch.tar.gz"
+        tar -xzf /tmp/gcloud.tgz -C /opt && rm /tmp/gcloud.tgz
+        /opt/google-cloud-sdk/install.sh --quiet --usage-reporting=false --path-update=false --command-completion=false >/dev/null 2>&1
+        ln -sf /opt/google-cloud-sdk/bin/gcloud /opt/google-cloud-sdk/bin/bq /usr/local/bin/
+    - command: |
+        command -v uvx >/dev/null || { printf '#!/bin/sh\nexec uv tool run "$@"\n' > /usr/local/bin/uvx && chmod 755 /usr/local/bin/uvx; }
+        uv tool run --from playwright playwright install-deps chromium >/tmp/chromium-deps.log 2>&1 || true
+  startup:
+    - command: ["sh", "/home/agent/.oto/init.sh"]

@@ -29,12 +29,22 @@ mkdir -p ~/oto-test/project ~/oto-test/code
 sbx run ghcr.io/cynergis/oto-gcp:0.11.29 ~/oto-test/project ~/oto-test/code --name oto-test -e PROJECT
 ```
 
-**Publish it** (the version is the engine's, in `spec.yaml` and in the tag):
+**Releasing it.** The kit's version is the engine's. A version bump moves it in the same change, in
+four places: `version`, `OTO_SOURCE` and the description in `spec.yaml`, the engine `init.sh` installs, and
+the example above. `tests/test_kits.py` fails until they all say the new version.
+
+When the release workflow tags `v<version>` (`tag-release.yml`), it publishes the kit from that tag as
+`ghcr.io/cynergis/oto-gcp:<version>`, signed (`kit-publish.yml`). It needs:
+
+- the secrets `DOCKER_SBX_USERNAME` and `DOCKER_SBX_TOKEN`, a Docker account and one of its personal access
+  tokens, because `sbx` publishes only when signed in to Docker;
+- the package to grant this repository write access (package settings, Manage Actions access).
+
+Without the secrets the release still tags, and the run says how to publish by hand. The Actions tab runs
+`kit publish` by hand, to publish a version again. By hand, from a checkout of the tag:
 
 ```bash
 sbx kit validate kits/oto-gcp
 gh auth token | sbx secret set --registry ghcr.io --password-stdin     # a token with write:packages
-sbx kit push kits/oto-gcp ghcr.io/cynergis/oto-gcp:<version>
+sbx kit push kits/oto-gcp ghcr.io/cynergis/oto-gcp:<version> --sign
 ```
-
-A new engine release moves `OTO_SOURCE`, `version` and the tag together.

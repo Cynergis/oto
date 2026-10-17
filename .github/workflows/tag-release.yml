@@ -3,7 +3,8 @@ name: tag release
 # Every version that reaches main gets its tag, v<version>, so a project's oto.lock.json can pin the
 # engine it was built with: `oto lock --script` installs oto-kg from that tag. A new tag then opens the
 # registry pull request that moves the engine's pin to it (registry-pin.yml): a tag pushed by this
-# workflow starts no other workflow, so that is a job here, not a workflow on tags.
+# workflow starts no other workflow, so that is a job here, not a workflow on tags. The same tag
+# publishes the sandbox kit at that version (kit-publish.yml).
 
 on:
   push:
@@ -53,3 +54,17 @@ jobs:
       engine_ref: ${{ needs.tag.outputs.tag }}
     secrets:
       OTO_REGISTRY_TOKEN: ${{ secrets.OTO_REGISTRY_TOKEN }}
+
+  kit:
+    needs: tag
+    if: needs.tag.outputs.created == 'true'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/kit-publish.yml
+    with:
+      version: ${{ needs.tag.outputs.version }}
+    secrets:
+      DOCKER_SBX_USERNAME: ${{ secrets.DOCKER_SBX_USERNAME }}
+      DOCKER_SBX_TOKEN: ${{ secrets.DOCKER_SBX_TOKEN }}

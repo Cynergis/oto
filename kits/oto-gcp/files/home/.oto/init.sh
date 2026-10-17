@@ -11,7 +11,7 @@ log=/tmp/oto-init.log
   for p in product software-architecture product-report report flow medallion report-medallion platform work pdf-to-template; do
     echo "$have" | grep -q "$p@cynergis" || claude plugin install "$p@cynergis"
   done
-  command -v oto >/dev/null || uv tool install "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v0.11.29"
+  command -v oto >/dev/null || uv tool install "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v0.11.30"
   [ -d "$HOME/.cache/ms-playwright" ] || uv tool run --from playwright playwright install chromium
 } >>"$log" 2>&1
 echo "OTO ready: $(claude plugin list 2>/dev/null | grep -c enabled) plugins" >>"$log"

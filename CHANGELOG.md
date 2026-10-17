@@ -4,6 +4,38 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.11.30 — 2026-10-17
+
+**A sandbox for Claude Desktop in one command.** `oto sandbox up` starts Claude Code with OTO in a Docker
+sandbox, from the published kit `ghcr.io/cynergis/oto-gcp:<engine version>`, ready to drive from Claude
+Desktop's Code tab over SSH or from a terminal.
+
+- **What it does, on the person's computer:**
+  - checks that `sbx` is installed and signed in to Docker, and that a network policy is set
+    (`--init-policy` sets one the person chose);
+  - lets `sbx` run kits from OTO's registry (`kit.allowedSources`);
+  - records the person's approval for the kit to use their Anthropic sign-in, with
+    `--approve-anthropic` only;
+  - creates the project and code folders and the sandbox, with the Google Cloud project as `PROJECT`
+    (`--project-id`), and waits until OTO is ready inside;
+  - sets up SSH, so `<name>.sbx` reaches the sandbox, and says the one step left in Claude Desktop.
+- **The approval is why.** `sbx` asks whether a third-party kit may use the person's Anthropic sign-in only
+  at a terminal. A sandbox created from a tool got no credential, and Claude Code in it asked to sign in
+  at every message. `up` writes the same binding `sbx` writes, next to the ones already there, and only
+  when the person said yes.
+- **Again, it reuses.** A second `up` starts the sandbox if it is stopped and says when it differs from
+  what was asked (other folders, another project); `--recreate` replaces it. It refuses a sandbox of
+  that name not made from the kit. `--check` says what it would do and changes nothing; `--json` is for
+  a skill.
+- **`oto sandbox status`** says where everything stands, without starting anything.
+- **The `sandbox` skill** (`/oto:sandbox`) runs both in plain words: it asks for the name, the folder,
+  the Google Cloud project and the approvals, then says how to add the SSH connection in Claude Desktop.
+
+The kit is released at 0.11.30 with the engine.
+
+Tried on macOS with sbx 0.48.0: from nothing to OTO ready in about two minutes, most of it downloading the
+kit; over SSH, Claude in the sandbox answered without asking to sign in. A second `up` takes two seconds.
+
 ## 0.11.29 — 2026-10-15
 
 **A project runs in a Docker sandbox with its locked tools.** `oto lock --sandbox` writes `sbxenv.yaml`

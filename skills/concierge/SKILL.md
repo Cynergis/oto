@@ -111,6 +111,7 @@ oto bench validate --project <root>      # the gold set's shape
 | What a served view shows | live (believed facts, the pending lane beside them); preview, on command; watch, on every change | live for readers; watch while authoring | `oto serve --http <port>`, `oto preview`, `oto serve --http <port> --preview`, `oto serve --http <port> --watch` |
 | How people read it | the explorer; the reader; a custom view | the explorer | `oto serve --http <port>`, `--view reader`, `--view <name|dir>` |
 | Server or static site | a server on this machine; a static site to host anywhere | a server for a person at the keyboard; the site for a team | `oto serve --http <port>`, `oto build --target site`, `oto publish --repo <url> --site` |
+| Where Claude works | on this computer; in a Docker sandbox made from OTO's kit, driven from Claude Desktop's Code tab or a terminal | the sandbox for a tester or a newcomer, or when the work runs commands on a cloud project | the sandbox skill (`/oto:sandbox`): `oto sandbox status`, `oto sandbox up` |
 | Beyond this machine | do not; or bind wider with a token | localhost, unless a team needs it | `OTO_SERVE_TOKEN` in the environment, `oto serve --http 0.0.0.0:<port>`, `--cors <origin>` |
 | Readers without the documents | a query repository they sync; a static site | the query repository | `oto publish --repo <url>`, `oto sync --repo <url>` |
 | Measuring answers | none; a gold set per document | a gold set, a few questions per document | `oto bench start`, `oto bench add --from <questions>`, `oto bench run`, `oto feedback` |

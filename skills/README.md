@@ -16,6 +16,7 @@ matches its description.
 | [capture](capture/SKILL.md) | What someone said in conversation, written into the inbox as a dated source document. |
 | [capture-form](capture-form/SKILL.md) | A person answers the project's capture form (`capture.json`); every confirmed group goes through `oto curate propose`, `add`, `check` and `apply`. Packs' and studios' interviews run it. |
 | [act](act/SKILL.md) | Do something about an entity: list the actions the graph declares, confirm before anything that changes the world, invoke through the declared transport with your own tools, record the response as evidence. OTO never invokes. |
+| [sandbox](sandbox/SKILL.md) | Claude Code with OTO in a Docker sandbox made from OTO's kit, driven from Claude Desktop's Code tab or a terminal: checks the computer, asks the person what only they can answer, runs `oto sandbox up`, says the one step left in Desktop. `/oto:sandbox`. |
 | [spec](spec/SKILL.md) | A product spec, ADR or design brief drawn from the graph, every claim cited, and its decisions recorded back as `DecisionRecord` facts ([the convention](spec/references/decisions.md)). |
 
 They are discovered two ways: as a Claude Code plugin (`claude --plugin-dir <this repo>`, via the

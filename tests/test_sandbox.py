@@ -1,0 +1,272 @@
+"""`oto sandbox`: everything a person would type to get OTO's kit running in a Docker sandbox, against a
+fake `sbx` and `ssh` that keep their state in a JSON file. The person's approval of the kit's use of
+their Anthropic sign-in is written only when they gave it, and only next to what is already there."""
+import json
+import os
+import stat
+import sys
+
+import pytest
+
+from oto import __version__, sandbox
+from oto.cli import main
+
+pytestmark = pytest.mark.skipif(os.name == "nt", reason="the fakes are scripts run through their #! line")
+
+FAKE_SBX = r'''
+import json, os, sys
+path = os.environ["FAKE_SBX_STATE"]
+state = json.load(open(path))
+args = sys.argv[1:]
+state["calls"].append(args)
+out, err, code = "", "", 0
+def save():
+    json.dump(state, open(path, "w"))
+if args[:1] == ["version"]:
+    out = "sbx version v0.48.0 5caf923e\n"
+elif not state["signed_in"] and args[:1] in (["ls"], ["create"]):
+    err, code = "error: not signed in to Docker\ntry: sbx login\n", 1
+elif args == ["ls", "--json"]:
+    out = json.dumps([{"name": name, "id": "x", "agent": box["agent"], "status": "running" if box["running"] else "stopped",
+                       "workspaces": box["folders"]} for name, box in state["sandboxes"].items()])
+elif args[:1] == ["ls"]:
+    out = "SANDBOX   AGENT   STATUS   PORTS   WORKSPACE   CREATED\n"
+elif args[:2] == ["policy", "ls"]:
+    if state["policy"]:
+        out = "NAME   TYPE\nbalanced network\n"
+    else:
+        err, code = "error: global network policy has not been initialized\n", 1
+elif args[:2] == ["policy", "init"]:
+    state["policy"] = args[2]
+elif args[:3] == ["settings", "get", "kit.allowedSources"]:
+    out = json.dumps(state["sources"], separators=(",", ":")) + "\n"
+elif args[:3] == ["settings", "set", "kit.allowedSources"]:
+    state["sources"] = json.loads(args[3])
+elif args == ["secret", "ls", "--json"]:
+    out = json.dumps({"secrets": [{"scope": "global", "type": "service", "name": "anthropic", "secret": "(oauth configured)"}]
+                      if state["anthropic_secret"] else [], "custom_secrets": []})
+elif args[:1] == ["create"]:
+    kit, rest = args[1], args[2:]
+    folders, env, name = [], {}, None
+    while rest:
+        a = rest.pop(0)
+        if a == "--name":
+            name = rest.pop(0)
+        elif a == "-e":
+            k, v = rest.pop(0).split("=", 1)
+            env[k] = v
+        elif not a.startswith("--"):
+            folders.append(a)
+    state["sandboxes"][name] = {"agent": kit.split("/")[-1].split(":")[0], "running": True, "folders": folders,
+                                "env": env, "init": state["init_line"]}
+elif args[:1] == ["exec"]:
+    box = state["sandboxes"][args[1]]
+    box["running"] = True
+    command = args[3:]
+    if command[:1] == ["printenv"]:
+        out = box["env"].get(command[1], "") + "\n"
+    elif "oto-init.log" in command[-1]:
+        out = box["init"] + "\n"
+elif args[:1] == ["rm"]:
+    state["sandboxes"].pop(args[-1], None)
+elif args[:2] == ["setup", "ssh"]:
+    state["ssh"] = True
+save()
+sys.stdout.write(out)
+sys.stderr.write(err)
+sys.exit(code)
+'''
+
+FAKE_SSH = r'''
+import json, os, sys
+state = json.load(open(os.environ["FAKE_SBX_STATE"]))
+host = sys.argv[-1]
+print("host %s" % host)
+if state["ssh"] and host[:-4] in state["sandboxes"]:
+    print('proxycommand "/opt/homebrew/bin/sbx" ssh proxy %n')
+'''
+
+
+def _script(path, body):
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("#!%s\n%s" % (sys.executable, body))
+    os.chmod(path, os.stat(path).st_mode | stat.S_IXUSR)
+    return path
+
+
+@pytest.fixture
+def fake(tmp_path, monkeypatch):
+    """A computer with sbx installed and signed in, a balanced policy, nothing else."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    state_file = tmp_path / "sbx.json"
+    monkeypatch.setenv("FAKE_SBX_STATE", str(state_file))
+    monkeypatch.setenv("OTO_SBX", _script(str(tmp_path / "sbx"), FAKE_SBX))
+    monkeypatch.setenv("OTO_SSH", _script(str(tmp_path / "ssh"), FAKE_SSH))
+
+    class Fake(object):
+        path = state_file
+        credentials = home / ".config" / "sbx" / "credentials.yaml"
+
+        def __init__(self):
+            self.write(signed_in=True, policy="balanced", sources=["docker.io/"], anthropic_secret=True, ssh=False,
+                       sandboxes={}, init_line="OTO ready: 11 plugins", calls=[])
+
+        def read(self):
+            return json.loads(state_file.read_text())
+
+        def write(self, **changes):
+            state = self.read() if state_file.exists() else {}
+            state.update(changes)
+            state_file.write_text(json.dumps(state))
+
+        def calls(self, verb):
+            return [c for c in self.read()["calls"] if c[:1] == [verb]]
+
+    return Fake()
+
+
+def test_without_the_sandbox_tool_it_says_how_to_install_it(fake, monkeypatch, tmp_path):
+    monkeypatch.setenv("OTO_SBX", str(tmp_path / "nowhere"))
+    with pytest.raises(sandbox.SandboxError) as e:
+        sandbox.up(approve=True)
+    assert "not installed" in str(e.value) and "brew install docker/tap/sbx" in e.value.fix and "winget" in e.value.fix
+    assert sandbox.status()["sbx"] is None
+
+
+def test_signed_out_it_sends_the_person_to_sbx_login(fake):
+    fake.write(signed_in=False)
+    with pytest.raises(sandbox.SandboxError) as e:
+        sandbox.up(approve=True)
+    assert "sbx login" in e.value.fix
+    assert not fake.calls("create")
+
+
+def test_the_network_policy_is_set_only_when_the_person_chose_one(fake, tmp_path):
+    fake.write(policy=None)
+    with pytest.raises(sandbox.SandboxError) as e:
+        sandbox.up(approve=True, directory=str(tmp_path / "w"))
+    assert "--init-policy balanced" in e.value.fix and not fake.calls("policy")[1:]
+    report = sandbox.up(approve=True, directory=str(tmp_path / "w"), init_policy="balanced")
+    assert ["policy", "init", "balanced"] in fake.read()["calls"]
+    assert "set the network policy for sandboxes to balanced" in report["done"]
+
+
+def test_kits_from_otos_registry_are_allowed_next_to_the_others(fake, tmp_path):
+    fake.write(sources=["docker.io/", "example.org/"])
+    report = sandbox.up(approve=True, directory=str(tmp_path / "w"))
+    assert fake.read()["sources"] == ["docker.io/", "example.org/", "ghcr.io/cynergis/"]
+    assert "let sbx run kits from ghcr.io/cynergis/" in report["done"]
+    sandbox.up(directory=str(tmp_path / "w"))
+    assert len([c for c in fake.calls("settings") if c[1] == "set"]) == 1, "once allowed, left alone"
+
+
+def test_the_anthropic_approval_is_written_only_with_the_persons_yes(fake, tmp_path):
+    with pytest.raises(sandbox.SandboxError) as e:
+        sandbox.up(directory=str(tmp_path / "w"))
+    assert "--approve-anthropic" in e.value.fix and "ask them" in e.value.fix
+    assert not fake.credentials.exists() and not fake.calls("create")
+    sandbox.up(directory=str(tmp_path / "w"), approve=True)
+    text = fake.credentials.read_text()
+    for domain in ("api.anthropic.com", "claude.ai", "console.anthropic.com", "mcp-proxy.anthropic.com", "platform.claude.com"):
+        assert "- %s\n" % domain in text
+    assert sandbox.anthropic_bound(str(fake.credentials))
+    assert not sandbox.approve_anthropic(str(fake.credentials)), "a second approval writes nothing"
+    assert fake.credentials.read_text() == text
+
+
+def test_the_approval_keeps_the_other_bindings_and_their_indentation(tmp_path):
+    path = tmp_path / "credentials.yaml"
+    path.write_text("bindings:\n  github:\n    token:\n      domains:\n        - api.github.com\nother: 1\n")
+    assert not sandbox.anthropic_bound(str(path))
+    assert sandbox.approve_anthropic(str(path))
+    text = path.read_text()
+    assert text.startswith("bindings:\n  anthropic:\n    apiKey:\n      domains:\n        - api.anthropic.com\n")
+    assert "  github:\n    token:\n      domains:\n        - api.github.com\nother: 1\n" in text
+    assert sandbox.anthropic_bound(str(path))
+    path.write_text("bindings: {}\n")
+    sandbox.approve_anthropic(str(path))
+    assert path.read_text().count("bindings:") == 1 and sandbox.anthropic_bound(str(path))
+    path.write_text("bindings:\n    other:\n        anthropic: no\n")
+    assert not sandbox.anthropic_bound(str(path)), "only a binding named anthropic counts"
+
+
+def test_up_creates_the_folders_and_the_sandbox_waits_for_oto_and_sets_up_ssh(fake, tmp_path):
+    work = tmp_path / "work"
+    report = sandbox.up(name="oto-try", directory=str(work), project_id="my-project", approve=True)
+    assert (work / "project").is_dir() and (work / "code").is_dir()
+    create = fake.calls("create")[0]
+    assert create[:6] == ["create", "ghcr.io/cynergis/oto-gcp:%s" % __version__, str(work / "project"),
+                          str(work / "code"), "--name", "oto-try"]
+    assert "-e" in create and "PROJECT=my-project" in create
+    assert report["oto"] == "OTO ready: 11 plugins" and report["ssh"]
+    assert ["setup", "ssh"] in fake.read()["calls"]
+    steps = "\n".join(sandbox.next_steps(report))
+    assert "oto-try.sbx" in steps and str(work / "project") in steps and "sbx run --name oto-try" in steps
+
+
+def test_up_again_reuses_the_sandbox_and_says_when_it_differs(fake, tmp_path):
+    sandbox.up(name="oto-try", directory=str(tmp_path / "w"), project_id="one", approve=True)
+    report = sandbox.up(name="oto-try", directory=str(tmp_path / "w"), project_id="two")
+    assert len(fake.calls("create")) == 1
+    assert "reused the sandbox oto-try (running)" in report["done"]
+    assert any("has one as its Google Cloud project, not two" in w for w in report["warnings"])
+    report = sandbox.up(name="oto-try", directory=str(tmp_path / "elsewhere"))
+    assert any("already works on" in w and "--recreate" in w for w in report["warnings"])
+    assert report["project"] == str(tmp_path / "w" / "project"), "the next steps name the folder it works on"
+    assert len(fake.calls("setup")) == 1, "SSH, once set up, is left alone"
+
+
+def test_a_sandbox_of_that_name_not_made_from_the_kit_is_replaced_only_when_asked(fake, tmp_path):
+    fake.write(sandboxes={"oto-try": {"agent": "claude", "running": False, "folders": ["/x"], "env": {}, "init": ""}})
+    with pytest.raises(sandbox.SandboxError) as e:
+        sandbox.up(name="oto-try", directory=str(tmp_path / "w"), approve=True)
+    assert "made from claude" in str(e.value) and "--recreate" in e.value.fix
+    report = sandbox.up(name="oto-try", directory=str(tmp_path / "w"), recreate=True)
+    calls = fake.read()["calls"]
+    assert calls.index(["rm", "-f", "oto-try"]) < calls.index(fake.calls("create")[0])
+    assert fake.read()["sandboxes"]["oto-try"]["agent"] == "oto-gcp" and report["oto"].startswith("OTO ready")
+
+
+def test_oto_not_ready_inside_says_where_to_look(fake, tmp_path):
+    fake.write(init_line="uv tool install failed")
+    with pytest.raises(sandbox.SandboxError) as e:
+        sandbox.up(name="oto-try", directory=str(tmp_path / "w"), approve=True, wait=5)
+    assert "uv tool install failed" in str(e.value) and "/tmp/oto-init.log" in e.value.fix
+
+
+def test_check_changes_nothing(fake, tmp_path):
+    fake.write(policy=None)
+    report = sandbox.up(directory=str(tmp_path / "w"), approve=True, init_policy="balanced", check=True)
+    assert report["done"] == ["set the network policy for sandboxes to balanced", "let sbx run kits from ghcr.io/cynergis/",
+                              "recorded the approval for the kit to use the Anthropic sign-in (%s)" % fake.credentials,
+                              "would create the sandbox oto-sandbox from ghcr.io/cynergis/oto-gcp:%s" % __version__]
+    state = fake.read()
+    assert state["policy"] is None and state["sources"] == ["docker.io/"] and not state["sandboxes"]
+    assert not fake.credentials.exists() and not (tmp_path / "w").exists()
+
+
+def test_status_reads_without_starting_a_stopped_sandbox(fake, tmp_path):
+    sandbox.up(name="oto-try", directory=str(tmp_path / "w"), approve=True)
+    state = fake.read()
+    state["sandboxes"]["oto-try"]["running"] = False
+    fake.write(sandboxes=state["sandboxes"], calls=[])
+    s = sandbox.status("oto-try")
+    assert s["sandbox"] == "stopped" and s["from_kit"] and s["oto"] is None and s["ssh"]
+    assert s["folders"] == [str(tmp_path / "w" / "project"), str(tmp_path / "w" / "code")]
+    assert not fake.calls("exec")
+    assert sandbox.status("nothing")["sandbox"] is None
+
+
+def test_the_command_reports_in_json_for_a_skill(fake, tmp_path, capsys):
+    assert main(["sandbox", "up", "--dir", str(tmp_path / "w"), "--json"]) == 2
+    out = json.loads(capsys.readouterr().out)
+    assert out["ok"] is False and "Anthropic sign-in" in out["problem"] and "--approve-anthropic" in out["fix"]
+    assert main(["sandbox", "up", "--dir", str(tmp_path / "w"), "--approve-anthropic", "--json"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["ok"] and out["ssh"] and any("oto-sandbox.sbx" in line for line in out["next"])
+    assert main(["sandbox", "status"]) == 0
+    printed = capsys.readouterr().out
+    assert "running, made from oto-gcp; OTO ready: 11 plugins" in printed and "oto-sandbox.sbx" in printed

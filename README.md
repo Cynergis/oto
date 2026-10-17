@@ -191,6 +191,15 @@ plugins need), and opens Claude there; the network is closed but for what the sb
 API key (`sbx secret set anthropic`) is added on the way out, never inside. A Claude subscription logs in
 once inside (`/login`). `oto lock` keeps both files in step with the lock.
 
+`oto sandbox up` starts a sandbox from OTO's published kit instead, with no project files: Claude Code,
+OTO's marketplace and plugins, the engine and the Google Cloud tools, ready to drive from Claude
+Desktop's Code tab over SSH or from a terminal. It checks the computer (the `sbx` CLI, the Docker
+sign-in, a network policy), lets `sbx` run the kit, records the person's approval for the kit to use
+their Anthropic sign-in when they give it (`--approve-anthropic`), creates the project and code folders
+and the sandbox (`--project-id` gives it the Google Cloud project), waits for OTO inside and sets up
+SSH, then says the one step left in Claude Desktop. `oto sandbox status` says where it stands; the
+engine plugin's `sandbox` skill runs both conversationally.
+
 A **pack** is what a person installs into Claude Code: one ontology, embedded with what it extends,
 the skills that know how to use it, and the views that show its graph. `oto pack new claims
 --ontology acme-claims` scaffolds one, `oto pack check` validates it, `oto pack publish --to

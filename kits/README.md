@@ -20,13 +20,20 @@ System packages are installed once, when the sandbox is created (`setup.install`
 agent user at every start (`files/home/.oto/init.sh`): the first start installs it, later ones find it and
 take a few seconds. Inside the sandbox, `/tmp/oto-init.log` says what the start did.
 
-**Run it:**
+**Run it.** `oto sandbox up` does all of it, checks first, and sets up SSH for Claude Desktop's Code tab:
+
+```bash
+oto sandbox up --name oto-test --project-id <your Google Cloud project id> --approve-anthropic
+```
+
+`--approve-anthropic` records your approval for the kit to use your Anthropic sign-in, which `sbx` asks for
+only when run at a terminal. By hand:
 
 ```bash
 sbx settings set kit.allowedSources '["docker.io/","ghcr.io/cynergis/"]'   # once per machine
 export PROJECT=<your Google Cloud project id>
 mkdir -p ~/oto-test/project ~/oto-test/code
-sbx run ghcr.io/cynergis/oto-gcp:0.11.29 ~/oto-test/project ~/oto-test/code --name oto-test -e PROJECT
+sbx run ghcr.io/cynergis/oto-gcp:0.11.30 ~/oto-test/project ~/oto-test/code --name oto-test -e PROJECT
 ```
 
 **Releasing it.** The kit's version is the engine's. A version bump moves it in the same change, in

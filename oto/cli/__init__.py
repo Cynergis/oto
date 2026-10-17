@@ -17,6 +17,7 @@ One module per command, in the order a project moves through them:
     query.py       oto query, oto serve         ask, or serve over JSON-RPC
     status.py      oto status                   where the project is, and the next step
     lock.py        oto lock                     the engine, plugins and ontologies a project is built with
+    sandbox.py     oto sandbox                  Claude Code with OTO in a Docker sandbox, for Claude Desktop or a terminal
     bench.py       oto bench                    measure answer quality
     feedback.py    oto feedback                 a complaint becomes a gold question
     publishable.py oto publishable              no client name or credential in a repository about to be published
@@ -29,9 +30,9 @@ import sys
 
 from .. import __version__
 from ..project import ProjectError
-from . import actions, bench, build, capture, curate, draft, feedback, ingest, init, lock, ontology, pack, preview, publish, publishable, query, registry, rules, status, vet
+from . import actions, bench, build, capture, curate, draft, feedback, ingest, init, lock, ontology, pack, preview, publish, publishable, query, registry, rules, sandbox, status, vet
 
-COMMANDS = (init, status, lock, ingest, capture, ontology, pack, registry, rules, actions, curate, draft, vet, build, preview, query, publish, publishable, bench, feedback)
+COMMANDS = (init, status, lock, sandbox, ingest, capture, ontology, pack, registry, rules, actions, curate, draft, vet, build, preview, query, publish, publishable, bench, feedback)
 
 
 def cmd_version(args):

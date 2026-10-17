@@ -552,6 +552,16 @@ and git reaching GitHub over HTTPS, since the sandbox closes SSH; it ends with `
 No kit is built: building one needs Docker's image builder on the host, which a sandbox does not.
 `oto lock` rewrites both files while `sbxenv.yaml` is the one it wrote, and leaves a hand-written one.
 
+`oto sandbox up` ([sandbox.py](../oto/sandbox.py)) starts a sandbox from the published kit
+(`kits/oto-gcp`, `ghcr.io/cynergis/oto-gcp:<engine version>`) and does on the host what a person would
+type: `sbx` installed and signed in, a network policy, `kit.allowedSources` naming OTO's registry, the
+Anthropic binding in `sbx`'s `credentials.yaml`, the folders, `sbx create` with `PROJECT`, a wait on the
+kit's start log through `sbx exec`, and `sbx setup ssh`. The binding is what `sbx` records when a person
+approves a third-party kit's use of their Anthropic credential; `sbx` asks only at a terminal, so a
+sandbox created from a tool gets no credential without it. It is written only with
+`--approve-anthropic`, next to the bindings already there. Everything else is read from `sbx` (its
+JSON listings), and nothing inside the sandbox is touched but through `sbx exec`.
+
 ## Rules, and what a derived fact is
 
 A rule is declared like a class, with a reason and a place for who confirmed it, and versioned in

@@ -198,7 +198,9 @@ sign-in, a network policy), lets `sbx` run the kit, records the person's approva
 their Anthropic sign-in when they give it (`--approve-anthropic`), creates the project and code folders
 and the sandbox (`--project-id` gives it the Google Cloud project), waits for OTO inside and sets up
 SSH, then says the one step left in Claude Desktop. `oto sandbox status` says where it stands; the
-engine plugin's `sandbox` skill runs both conversationally.
+engine plugin's `sandbox` skill runs both conversationally. In the sandbox only its own plugins load:
+those Claude Desktop brings from the computer, and the claude.ai account's plugins, skills and
+connectors, are switched off at every start and session start (`--allow-outside-plugins` keeps them).
 
 A **pack** is what a person installs into Claude Code: one ontology, embedded with what it extends,
 the skills that know how to use it, and the views that show its graph. `oto pack new claims

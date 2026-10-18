@@ -38,3 +38,16 @@ def test_the_release_workflow_publishes_the_kit_after_the_tag():
     assert "packages: write" in release and "id-token: write" in release, "the calling job grants what the push and the signature need"
     assert 'sbx kit push kits/oto-gcp "ghcr.io/cynergis/oto-gcp:$VERSION" --sign' in publish
     assert "sbx login --username" in publish and "--password-stdin" in publish
+
+
+def test_the_kit_keeps_the_sandbox_to_its_own_plugins():
+    """kits/oto-gcp/files/home/.oto/lock-plugins runs at every start, blocked unless the person allowed
+    outside plugins; the engine reads the same switch and the same hook (tests/test_plugin_lock.py)."""
+    from oto import sandbox
+    spec = _read("kits", "oto-gcp", "spec.yaml")
+    assert re.search(r"^    %s: blocked$" % sandbox.OUTSIDE, spec, re.M), "the kit blocks outside plugins by default"
+    assert 'python3 "$HOME/.oto/lock-plugins"' in _read("kits", "oto-gcp", "files", "home", ".oto", "init.sh"), \
+        "init.sh runs the lock at every start, through python3: kit files carry no exec bit"
+    script = _read("kits", "oto-gcp", "files", "home", ".oto", "lock-plugins")
+    assert sandbox.OUTSIDE in script and '"allowed"' in script and ".oto/lock-plugins" in sandbox.LOCK_CHECK
+    assert "disableSideloadFlags" not in script, "the managed setting would refuse Desktop's --plugin-dir launch"

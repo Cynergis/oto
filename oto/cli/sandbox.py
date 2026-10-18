@@ -5,7 +5,7 @@ import json
 import sys
 
 
-def _print_status(s):
+def _print_status(s, _sandbox):
     yes = lambda ok: "yes" if ok else "no"  # noqa: E731
     print("sandbox %s (kit %s)" % (s["name"], s["kit"]))
     print("  sbx            %s" % ("not installed" if not s["sbx"] else "v%s, signed in: %s" % (s["sbx"], yes(s["signed_in"]))))
@@ -20,6 +20,8 @@ def _print_status(s):
             else "oto sandbox up starts it")))
         if s["folders"]:
             print("  folders        %s" % ", ".join(s["folders"]))
+        if s["sandbox"] == "running" and s["from_kit"]:
+            print("  outside plugins %s" % _sandbox.describe_lock(s["outside_plugins"]))
         print("  SSH            %s" % ("%s.sbx" % s["name"] if s["ssh"] else "not set up"))
     elif s["sbx"] and s["signed_in"]:
         print("  sandbox        not created: oto sandbox up --name %s" % s["name"])
@@ -33,14 +35,14 @@ def cmd_sandbox(args):
         if args.json:
             print(json.dumps(s, indent=2))
         else:
-            _print_status(s)
+            _print_status(s, _sandbox)
         return 0 if s["sandbox"] and s["oto"] and _sandbox.READY in s["oto"] and s["ssh"] else 1
 
     say = (lambda line: None) if args.json else (lambda line: print("  ... " + line, flush=True))
     try:
         report = _sandbox.up(name=args.name, directory=args.dir, project_id=args.project_id, kit=args.kit,
                              approve=args.approve_anthropic, init_policy=args.init_policy, recreate=args.recreate,
-                             check=args.check, wait=args.wait, say=say)
+                             check=args.check, wait=args.wait, say=say, allow_outside=args.allow_outside_plugins)
     except _sandbox.SandboxError as e:
         if args.json:
             print(json.dumps({"ok": False, "problem": str(e), "fix": e.fix}, indent=2))
@@ -63,6 +65,7 @@ def cmd_sandbox(args):
     else:
         print("  folders: %s" % " and ".join(f for f in (report["project"], report["code"]) if f))
         print("  %s" % report["oto"])
+        print("  outside plugins: %s" % _sandbox.describe_lock(report["outside_plugins"]))
         for line in report["warnings"]:
             print("  warning: %s" % line)
         if not report["anthropic_signed_in"]:
@@ -85,6 +88,9 @@ def register(sub):
                    help="record the person's approval for the kit to use their Anthropic sign-in (ask them first)")
     p.add_argument("--init-policy", choices=["balanced", "deny-all", "allow-all"],
                    help="when no network policy is set yet, set this one (ask the person first)")
+    p.add_argument("--allow-outside-plugins", action="store_true",
+                   help="create the sandbox so that plugins from this computer, Claude Desktop and the claude.ai "
+                        "account load in it too (by default only the sandbox's own plugins load)")
     p.add_argument("--recreate", action="store_true", help="remove an existing sandbox of that name and create it again")
     p.add_argument("--check", action="store_true", help="say what up would do, change nothing")
     p.add_argument("--wait", type=int, default=600, help="seconds to wait for OTO to be ready inside (default 600)")

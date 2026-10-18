@@ -65,6 +65,12 @@ elif args[:1] == ["exec"]:
     command = args[3:]
     if command[:1] == ["printenv"]:
         out = box["env"].get(command[1], "") + "\n"
+    elif command[:2] == ["python3", "-c"]:
+        allowed = box["env"].get("OTO_OUTSIDE_PLUGINS") == "allowed"
+        out = json.dumps(box.get("lock") or {"mode": "allowed" if allowed else "blocked", "script": True, "settings": "ok",
+                                             "forwarded": [] if allowed else ["engineering"], "loading": [],
+                                             "account_plugins_off": not allowed, "account_skills_off": not allowed,
+                                             "connectors_off": not allowed, "hook": not allowed, "locked": not allowed}) + "\n"
     elif "oto-init.log" in command[-1]:
         out = box["init"] + "\n"
 elif args[:1] == ["rm"]:
@@ -267,6 +273,35 @@ def test_the_command_reports_in_json_for_a_skill(fake, tmp_path, capsys):
     assert main(["sandbox", "up", "--dir", str(tmp_path / "w"), "--approve-anthropic", "--json"]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out["ok"] and out["ssh"] and any("oto-sandbox.sbx" in line for line in out["next"])
+    assert out["outside_plugins"]["locked"]
     assert main(["sandbox", "status"]) == 0
     printed = capsys.readouterr().out
     assert "running, made from oto-gcp; OTO ready: 11 plugins" in printed and "oto-sandbox.sbx" in printed
+    assert "outside plugins blocked: only the sandbox's own plugins load (1 from your computer switched off)" in printed
+
+
+def test_outside_plugins_are_blocked_unless_the_person_allows_them_at_creation(fake, tmp_path, capsys):
+    report = sandbox.up(name="oto-try", directory=str(tmp_path / "w"), approve=True)
+    assert not any("OTO_OUTSIDE_PLUGINS" in a for a in fake.calls("create")[0]), "blocked is the kit's default"
+    assert report["outside_plugins"]["locked"]
+    report = sandbox.up(name="oto-try", allow_outside=True)
+    assert any("blocks plugins from outside it" in w and "--recreate" in w for w in report["warnings"])
+    assert main(["sandbox", "up", "--name", "oto-open", "--dir", str(tmp_path / "o"), "--allow-outside-plugins"]) == 0
+    assert ["-e", "OTO_OUTSIDE_PLUGINS=allowed"] == fake.calls("create")[-1][-2:]
+    assert "outside plugins: allowed, by choice" in capsys.readouterr().out
+    assert sandbox.status("oto-open")["outside_plugins"]["mode"] == "allowed"
+
+
+def test_status_says_what_would_load_when_the_lock_is_not_in_place(fake, tmp_path, capsys):
+    sandbox.up(name="oto-old", directory=str(tmp_path / "w"), approve=True)
+    state = fake.read()
+    state["sandboxes"]["oto-old"]["lock"] = {"mode": "blocked", "script": False, "settings": "ok", "forwarded": ["engineering", "bmad"],
+                                              "loading": ["bmad"], "account_plugins_off": True, "account_skills_off": False,
+                                              "connectors_off": True, "hook": False, "locked": False}
+    fake.write(sandboxes=state["sandboxes"])
+    main(["sandbox", "status", "--name", "oto-old"])
+    assert "outside plugins NOT blocked: bmad, your claude.ai skills would load in a new session" in capsys.readouterr().out
+    state["sandboxes"]["oto-old"]["lock"].update(loading=[], account_skills_off=True, locked=True)
+    fake.write(sandboxes=state["sandboxes"])
+    main(["sandbox", "status", "--name", "oto-old"])
+    assert "blocked, but without the check at each session start" in capsys.readouterr().out

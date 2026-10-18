@@ -20,6 +20,35 @@ System packages are installed once, when the sandbox is created (`setup.install`
 agent user at every start (`files/home/.oto/init.sh`): the first start installs it, later ones find it and
 take a few seconds. Inside the sandbox, `/tmp/oto-init.log` says what the start did.
 
+**Only the sandbox's own plugins load.** A Claude Desktop SSH session brings the plugins of the person's
+computer along: Desktop copies each into `~/.claude/remote/plugins/<run>/<hash>` and starts Claude Code
+with one `--plugin-dir` per plugin, so each loads as `<name>@inline`. The Claude sign-in brings the
+plugins, skills and connectors of the person's claude.ai account. `files/home/.oto/lock-plugins` keeps
+all of them out by merging into the sandbox's `~/.claude/settings.json`:
+
+| Setting | Keeps out |
+|---|---|
+| `"<name>@inline": false` under `enabledPlugins`, one per plugin Desktop copied in (named by its manifest, or its folder) | the computer's plugins; there is no wildcard |
+| `syncClaudeAiPlugins: false` | the claude.ai account's plugins (`<name>@synced`) |
+| `syncClaudeAiSkills: false` | the claude.ai account's skills (`anthropic-skills:<name>`) |
+| `disableClaudeAiConnectors: true` | the claude.ai account's connectors (Gmail, Drive, Calendar…) |
+
+It leaves every other key as it is, the sandbox's own `<name>@cynergis` plugins among them, so a plugin of
+the computer with the same name as one of the sandbox's is switched off and the sandbox's copy still loads.
+The `@builtin` plugins and the `mcp-gateway` server `sbx` declares stay. It keeps a copy of the file as it
+was, once (`settings.json.before-oto-plugin-lock`), and changes nothing the second time.
+
+It runs at every start (`init.sh`) and, through a `SessionStart` hook it adds, at every session start.
+**What it cannot do:** the session that brings a plugin of the computer for the first time has it
+loaded, because Desktop starts Claude Code with it. The hook switches it off then, and tells the person
+in a sentence; the next session, or `/reload-plugins` in that one, works without it.
+
+To keep the computer's and the account's plugins in the sandbox, create it with
+`oto sandbox up --allow-outside-plugins` (or `sbx run … -e OTO_OUTSIDE_PLUGINS=allowed`): the lock then
+changes nothing. The choice is made when the sandbox is created. `oto sandbox status` says which way a
+sandbox is, and what would load in it. It does not use the managed setting `disableSideloadFlags`, which
+refuses `--plugin-dir` and so would most likely stop Desktop's sessions from starting.
+
 **Run it.** `oto sandbox up` does all of it, checks first, and sets up SSH for Claude Desktop's Code tab:
 
 ```bash

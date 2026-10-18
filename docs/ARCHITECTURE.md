@@ -562,6 +562,18 @@ sandbox created from a tool gets no credential without it. It is written only wi
 `--approve-anthropic`, next to the bindings already there. Everything else is read from `sbx` (its
 JSON listings), and nothing inside the sandbox is touched but through `sbx exec`.
 
+Inside, the kit's `lock-plugins` keeps the sandbox to its own plugins. Desktop's SSH sessions start
+Claude Code with `--setting-sources=user,project,local` and one `--plugin-dir` per plugin of the
+computer, each loading as `<name>@inline`, and the sign-in brings the claude.ai account's plugins,
+skills and connectors. The script merges `"<name>@inline": false` for each copied plugin (no wildcard
+exists), `syncClaudeAiPlugins` and `syncClaudeAiSkills` off and `disableClaudeAiConnectors` on into the
+sandbox's user settings, from `init.sh` at every start and from a `SessionStart` hook it adds. A
+plugin copied in for the first time is loaded in that session; the hook switches it off for the next
+one and says so. `OTO_OUTSIDE_PLUGINS=allowed`, set when the sandbox is created, turns it off. The
+managed setting `disableSideloadFlags` is not used: it refuses `--plugin-dir` at start-up, which Desktop's
+sessions depend on. `oto sandbox status` reads the same file with its own read-only check
+(`LOCK_CHECK`), so it also answers for a sandbox made before the kit carried the lock.
+
 ## Rules, and what a derived fact is
 
 A rule is declared like a class, with a reason and a place for who confirmed it, and versioned in

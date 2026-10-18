@@ -1,0 +1,163 @@
+#!/usr/bin/env python3
+"""Keep this sandbox to the plugins installed inside it.
+
+Claude Desktop's SSH sessions bring the plugins of the person's computer along (each loads as
+<name>@inline, from ~/.claude/remote/plugins/<run>/<hash>), and the Claude sign-in brings the person's
+claude.ai plugins (<name>@synced), skills (anthropic-skills:<name>) and connectors. In this sandbox
+only its own plugins load: this merges into ~/.claude/settings.json
+
+- syncClaudeAiPlugins: false, syncClaudeAiSkills: false and disableClaudeAiConnectors: true;
+- "<name>@inline": false for every plugin Desktop has copied in, named by its manifest, or by its
+  folder when it has none (no wildcard exists, so each name is listed);
+- a SessionStart hook that runs this again, so a plugin Desktop copies in for the first time is
+  switched off from the next session on (the session that brought it has it loaded already).
+
+Every other key is left as it is, the sandbox's own <name>@cynergis plugins among them. It runs at
+every sandbox start (init.sh) and at every session start (--hook), and changes nothing the second
+time. With OTO_OUTSIDE_PLUGINS=allowed it changes nothing at all: the person chose to keep them.
+"""
+import glob
+import json
+import os
+import shutil
+import sys
+import tempfile
+
+HOOK_COMMAND = 'python3 "$HOME/.oto/lock-plugins" --hook'
+HOOK_MARK = ".oto/lock-plugins"
+BACKUP = ".before-oto-plugin-lock"
+
+
+def _home():
+    return os.path.expanduser("~")
+
+
+def forwarded():
+    """The plugins Desktop has copied in, by the name each loads under."""
+    names = []
+    for folder in sorted(glob.glob(os.path.join(_home(), ".claude", "remote", "plugins", "*", "*"))):
+        if not os.path.isdir(folder):
+            continue
+        name = None
+        try:
+            with open(os.path.join(folder, ".claude-plugin", "plugin.json"), encoding="utf-8") as f:
+                name = json.load(f).get("name")
+        except (OSError, ValueError, AttributeError):
+            pass
+        if not isinstance(name, str) or not name.strip():
+            name = os.path.basename(folder)
+        if name.strip() not in names:
+            names.append(name.strip())
+    return names
+
+
+def lock(settings, names):
+    """Switch off what does not belong to the sandbox. Returns what was newly switched off, in words,
+    the forwarded plugins among them by name, and whether the hook was added."""
+    off, plugins = [], []
+    if settings.get("syncClaudeAiPlugins") is not False:
+        settings["syncClaudeAiPlugins"] = False
+        off.append("the plugins of your claude.ai account")
+    if settings.get("syncClaudeAiSkills") is not False:
+        settings["syncClaudeAiSkills"] = False
+        off.append("the skills of your claude.ai account")
+    if settings.get("disableClaudeAiConnectors") is not True:
+        settings["disableClaudeAiConnectors"] = True
+        off.append("the connectors of your claude.ai account")
+    for name in names:
+        enabled = settings.setdefault("enabledPlugins", {})
+        if enabled.get(name + "@inline") is not False:
+            enabled[name + "@inline"] = False
+            plugins.append(name)
+    if plugins:
+        off.insert(0, ("the plugin %s from your computer" % plugins[0]) if len(plugins) == 1 else
+                   "%d plugins from your computer (%s)" % (len(plugins), ", ".join(plugins)))
+    starts = settings.setdefault("hooks", {}).setdefault("SessionStart", [])
+    hooked = any(HOOK_MARK in str(hook.get("command", "")) for entry in starts if isinstance(entry, dict)
+                 for hook in entry.get("hooks", []) if isinstance(hook, dict))
+    if not hooked:
+        starts.append({"hooks": [{"type": "command", "command": HOOK_COMMAND}]})
+    return off, plugins, not hooked
+
+
+def _indent(text):
+    for line in text.splitlines()[1:]:
+        stripped = line.lstrip(" \t")
+        if stripped:
+            return line[:len(line) - len(stripped)] or 2
+    return 2
+
+
+def _write(path, text):
+    folder = os.path.dirname(path)
+    os.makedirs(folder, exist_ok=True)
+    fd, temp = tempfile.mkstemp(prefix=".settings.", dir=folder)
+    with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+    if os.path.exists(path):
+        shutil.copymode(path, temp)
+    os.replace(temp, path)
+
+
+def run():
+    """Returns (newly switched off, the forwarded plugins among them, hook added, problem)."""
+    if os.environ.get("OTO_OUTSIDE_PLUGINS", "").strip().lower() == "allowed":
+        return [], [], False, None
+    path = os.path.join(_home(), ".claude", "settings.json")
+    names = forwarded()
+    try:
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+    except FileNotFoundError:
+        text = None
+    except OSError as e:
+        return [], [], False, "cannot read %s: %s" % (path, e)
+    try:
+        settings = json.loads(text) if text and text.strip() else {}
+    except ValueError as e:
+        return [], [], False, "%s is not valid JSON (%s): left as it is" % (path, e)
+    hooks = settings.get("hooks", {}) if isinstance(settings, dict) else None
+    if not (isinstance(settings, dict) and isinstance(settings.get("enabledPlugins", {}), dict)
+            and isinstance(hooks, dict) and isinstance(hooks.get("SessionStart", []), list)):
+        return [], [], False, "%s is not shaped as Claude Code's settings: left as it is" % path
+    off, plugins, hooked = lock(settings, names)
+    if not off and not hooked:
+        return [], [], False, None
+    if text is not None and not os.path.exists(path + BACKUP):
+        _write(path + BACKUP, text)
+    _write(path, json.dumps(settings, indent=_indent(text or ""), ensure_ascii=False) + "\n")
+    return off, plugins, hooked, None
+
+
+def sentence(off, plugins=0):
+    """What the person is told when a session starts with something it has just switched off."""
+    many = len(off) > 1 or plugins > 1
+    what = " and ".join(off)
+    return "%s%s %s just switched off in this sandbox, but %s still loaded in this session: start a new session, or type /reload-plugins, to work without %s." % (
+        what[0].upper(), what[1:], "were" if many else "was", "they are" if many else "it is", "them" if many else "it")
+
+
+def main(argv):
+    hook = "--hook" in argv
+    try:
+        off, plugins, hooked, problem = run()
+    except Exception as e:  # never stop a session from starting
+        off, plugins, hooked, problem = [], [], False, "unexpected: %s" % e
+    if hook:
+        if off:
+            print(json.dumps({"systemMessage": sentence(off, len(plugins))}))
+        return 0
+    if problem:
+        print("plugin lock: %s" % problem)
+        return 1
+    if os.environ.get("OTO_OUTSIDE_PLUGINS", "").strip().lower() == "allowed":
+        print("plugin lock: off, by choice (OTO_OUTSIDE_PLUGINS=allowed)")
+    if off:
+        print("plugin lock: switched off %s" % "; ".join(off))
+    if hooked:
+        print("plugin lock: added the check at the start of every session")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

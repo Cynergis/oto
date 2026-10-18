@@ -16,6 +16,11 @@ holds and may reach, and sets OTO up inside it. `up` does everything a person wo
   `PROJECT`, and waits until OTO is ready inside it;
 - sets up SSH, so `<name>.sbx` reaches the sandbox (Claude Desktop's Code tab, VS Code, a terminal).
 
+Inside, only the plugins installed in the sandbox load: the kit's `lock-plugins` switches off what
+Claude Desktop brings from the person's computer and what their claude.ai account brings, at every
+start and every session start. `allow_outside` (`--allow-outside-plugins`) creates a sandbox that
+keeps them. `status` and `up` read where the lock stands (`plugin_lock`), never change it.
+
 What only the person can do is said, never guessed: installing `sbx`, signing in to Docker, and
 adding the SSH connection in Claude Desktop. Everything is read from `sbx` itself; nothing in a
 sandbox is touched but through `sbx exec`.
@@ -37,6 +42,47 @@ ANTHROPIC_BINDING = {"apiKey": ["api.anthropic.com", "claude.ai", "console.anthr
                      "oauth": ["platform.claude.com"]}
 POLICIES = ("balanced", "deny-all", "allow-all")
 READY = "OTO ready"
+#: the kit's switch for the plugin lock: `allowed` keeps outside plugins, anything else blocks them
+OUTSIDE = "OTO_OUTSIDE_PLUGINS"
+
+#: Run inside the sandbox by `plugin_lock`: reads what the kit's lock-plugins writes, changes nothing.
+#: Read on its own, so it also answers for a sandbox made before the kit carried the lock.
+LOCK_CHECK = r"""
+import glob, json, os
+home = os.path.expanduser("~")
+out = {"mode": "allowed" if os.environ.get("OTO_OUTSIDE_PLUGINS", "").strip().lower() == "allowed" else "blocked",
+       "script": os.path.isfile(os.path.join(home, ".oto", "lock-plugins")), "settings": "ok"}
+try:
+    with open(os.path.join(home, ".claude", "settings.json"), encoding="utf-8") as f:
+        settings = json.load(f)
+except FileNotFoundError:
+    settings, out["settings"] = {}, "missing"
+except (OSError, ValueError):
+    settings, out["settings"] = {}, "unreadable"
+if not isinstance(settings, dict):
+    settings, out["settings"] = {}, "unreadable"
+enabled = settings.get("enabledPlugins") if isinstance(settings.get("enabledPlugins"), dict) else {}
+names = []
+for folder in sorted(glob.glob(os.path.join(home, ".claude", "remote", "plugins", "*", "*"))):
+    if not os.path.isdir(folder):
+        continue
+    try:
+        with open(os.path.join(folder, ".claude-plugin", "plugin.json"), encoding="utf-8") as f:
+            name = json.load(f).get("name")
+    except (OSError, ValueError, AttributeError):
+        name = None
+    name = name.strip() if isinstance(name, str) and name.strip() else os.path.basename(folder)
+    if name not in names:
+        names.append(name)
+hooks = settings.get("hooks") if isinstance(settings.get("hooks"), dict) else {}
+out.update(forwarded=names, loading=[n for n in names if enabled.get(n + "@inline") is not False],
+           account_plugins_off=settings.get("syncClaudeAiPlugins") is False,
+           account_skills_off=settings.get("syncClaudeAiSkills") is False,
+           connectors_off=settings.get("disableClaudeAiConnectors") is True,
+           hook=".oto/lock-plugins" in json.dumps(hooks.get("SessionStart", [])))
+out["locked"] = not out["loading"] and out["account_plugins_off"] and out["account_skills_off"] and out["connectors_off"]
+print(json.dumps(out))
+"""
 
 
 class SandboxError(Exception):
@@ -175,7 +221,8 @@ def status(name=DEFAULT_NAME):
     sbx = Sbx()
     out = {"name": name, "kit": kit_ref(), "credentials": credentials_path(), "sbx": None, "signed_in": False,
            "policy": False, "kit_allowed": False, "anthropic_approved": anthropic_bound(), "anthropic_signed_in": False,
-           "sandbox": None, "made_from": None, "from_kit": False, "folders": [], "oto": None, "ssh": False}
+           "sandbox": None, "made_from": None, "from_kit": False, "folders": [], "oto": None, "outside_plugins": None,
+           "ssh": False}
     if not sbx.path:
         return out
     out["sbx"] = _version(sbx) or "unknown"
@@ -191,6 +238,7 @@ def status(name=DEFAULT_NAME):
         out["from_kit"] = found["agent"] == _kit_name(out["kit"])
         if found["status"] == "running":     # `sbx exec` would start a stopped one
             out["oto"] = _oto_line(sbx, name, wait=0)
+            out["outside_plugins"] = plugin_lock(sbx, name)
         out["ssh"] = _ssh_ready(name)
     return out
 
@@ -237,8 +285,39 @@ def approve_anthropic(path=None):
     return True
 
 
+def plugin_lock(sbx, name):
+    """Where the plugin lock stands in a running sandbox, read through `sbx exec`; None when it cannot be read."""
+    code, out, err = sbx("exec", name, "--", "python3", "-c", LOCK_CHECK, timeout=60)
+    try:
+        found = json.loads(out.strip().splitlines()[-1]) if code == 0 and out.strip() else None
+    except ValueError:
+        found = None
+    return found if isinstance(found, dict) else None
+
+
+def describe_lock(lock):
+    """The plugin lock in a sentence, for a person."""
+    if not lock:
+        return "unknown: the sandbox could not be read"
+    if lock["mode"] == "allowed":
+        return "allowed, by choice: plugins from your computer and your claude.ai account load in the sandbox too"
+    if not lock["locked"]:
+        loading = list(lock["loading"])
+        loading += [what for off, what in ((lock["account_plugins_off"], "your claude.ai plugins"),
+                                           (lock["account_skills_off"], "your claude.ai skills"),
+                                           (lock["connectors_off"], "your claude.ai connectors")) if not off]
+        return "NOT blocked: %s would load in a new session" % ", ".join(loading)
+    count = len(lock["forwarded"])
+    done = ("only the sandbox's own plugins load (%d from your computer switched off)" % count if count else
+            "only the sandbox's own plugins load (nothing has come from your computer yet)")
+    if not lock["hook"]:
+        return "blocked, but without the check at each session start: a plugin your computer adds later would load once " \
+               "a session starts with it; " + done
+    return "blocked: " + done
+
+
 def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=False, init_policy=None,
-       recreate=False, check=False, wait=600, say=None):
+       recreate=False, check=False, wait=600, say=None, allow_outside=False):
     """Make the sandbox ready. Returns a report: what was found, what was done, what is next.
     Raises SandboxError, with what the person does about it, when a step cannot go on."""
     say = say or (lambda line: None)
@@ -318,6 +397,8 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         args = ["create", kit, project_dir, code_dir, "--name", name, "--no-progress"]
         if project_id:
             args += ["-e", "PROJECT=%s" % project_id]
+        if allow_outside:
+            args += ["-e", "%s=allowed" % OUTSIDE]
         code, out, err = sbx(*args, timeout=1800)
         if code != 0:
             raise SandboxError("sbx could not create the sandbox: %s" % (err or out).strip()[-600:])
@@ -330,6 +411,11 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         if out.strip() != project_id:
             report["warnings"].append("the sandbox %s has %s as its Google Cloud project, not %s: run again with "
                                       "--recreate to change it" % (name, out.strip() or "no project", project_id))
+    if existing and allow_outside:
+        code, out, err = sbx("exec", name, "--", "printenv", OUTSIDE)
+        if out.strip().lower() != "allowed":
+            report["warnings"].append("the sandbox %s blocks plugins from outside it: run again with --recreate to "
+                                      "make one that allows them" % name)
     if not line or READY not in line:
         raise SandboxError("OTO is not ready in the sandbox: %s" % (line or "it says nothing yet"),
                            "`sbx exec %s -- tail -20 /tmp/oto-init.log` shows how far it got" % name)
@@ -340,6 +426,7 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
                                "run `sbx setup ssh` in a terminal")
         report["done"].append("set up SSH, so %s.sbx reaches the sandbox" % name)
     report["ssh"] = True
+    report["outside_plugins"] = plugin_lock(sbx, name)
     return report
 
 

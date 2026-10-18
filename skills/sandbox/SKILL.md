@@ -59,6 +59,7 @@ and say in a sentence or two what is there and what is missing:
 | `anthropic_approved` false | the kit needs their approval to use their Claude sign-in: ask (§2). |
 | `sandbox` set, `from_kit` true, `oto` says ready, `ssh` true | it is ready: go to §4. |
 | `sandbox` set, `from_kit` false | a sandbox of that name exists but is not OTO's: ask for another name, or whether to replace it (what is only inside it is lost). |
+| `outside_plugins.locked` false, `mode` blocked | things from outside would load in the sandbox (§5): say what, and that a sandbox made again from the current kit keeps them out. |
 
 ## 2. Ask, a few at a time
 
@@ -78,6 +79,9 @@ Ask only what is still open, in one message:
   when started from a terminal; started from here it cannot ask, and without it Claude in the
   sandbox asks them to sign in at every message. Ask for a plain yes.
 
+Only if the person says they want their own plugins or connectors in the sandbox too, explain §5 and
+ask whether to make it that way. Never offer it otherwise.
+
 Read the answers back in a sentence and confirm.
 
 ## 3. Set it up
@@ -90,7 +94,8 @@ oto sandbox up --name <name> [--dir <folder>] [--project-id <id>] [--init-policy
 ```
 
 Pass `--init-policy` only with the policy they chose, `--approve-anthropic` only with their yes,
-`--recreate` only when they agreed to replace an existing sandbox. Tell them it takes about a minute
+`--allow-outside-plugins` only when they asked for their own plugins in the sandbox (§5), `--recreate`
+only when they agreed to replace an existing sandbox. Tell them it takes about a minute
 the first time, more on a slow connection; the second run takes seconds.
 
 `ok: false` comes with a `problem` and a `fix`: say both in plain words, and do what the fix says
@@ -113,3 +118,19 @@ From a terminal instead: `sbx run --name <name>`.
 
 Later, `oto sandbox status` says whether it is still ready; `oto sandbox up` starts it again after a
 restart of the computer.
+
+## 5. What the sandbox uses
+
+Say this once, when the sandbox is ready, in a sentence or two: the sandbox uses only the OTO tools
+installed inside it. What Claude Desktop brings from their computer, and the plugins, skills and
+connectors of their claude.ai account, are switched off there, so the work in the sandbox does not
+depend on what happens to be on their computer, and the sandbox cannot reach their mail, files or
+calendar through those connectors.
+
+One thing to know: when they add a new plugin on their computer, the first session in the sandbox
+afterwards still has it. Claude says so at the start of that session and switches it off; a new
+session, or typing `/reload-plugins`, works without it.
+
+If they want their own plugins and connectors in the sandbox, it is made that way from the start
+(`--allow-outside-plugins`); an existing sandbox is made again for it (`--recreate`, after their yes).
+`status` says which way a sandbox is (`outside_plugins`).

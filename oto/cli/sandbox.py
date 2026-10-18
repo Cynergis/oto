@@ -5,7 +5,7 @@ import json
 import sys
 
 
-def _print_status(s, _sandbox):
+def _print_status(s):
     yes = lambda ok: "yes" if ok else "no"  # noqa: E731
     print("sandbox %s (kit %s)" % (s["name"], s["kit"]))
     print("  sbx            %s" % ("not installed" if not s["sbx"] else "v%s, signed in: %s" % (s["sbx"], yes(s["signed_in"]))))
@@ -21,7 +21,7 @@ def _print_status(s, _sandbox):
         if s["folders"]:
             print("  folders        %s" % ", ".join(s["folders"]))
         if s["sandbox"] == "running" and s["from_kit"]:
-            print("  outside plugins %s" % _sandbox.describe_lock(s["outside_plugins"]))
+            print("  outside plugins %s" % s["outside_plugins_summary"])
         print("  SSH            %s" % ("%s.sbx" % s["name"] if s["ssh"] else "not set up"))
     elif s["sbx"] and s["signed_in"]:
         print("  sandbox        not created: oto sandbox up --name %s" % s["name"])
@@ -35,7 +35,7 @@ def cmd_sandbox(args):
         if args.json:
             print(json.dumps(s, indent=2))
         else:
-            _print_status(s, _sandbox)
+            _print_status(s)
         return 0 if s["sandbox"] and s["oto"] and _sandbox.READY in s["oto"] and s["ssh"] else 1
 
     say = (lambda line: None) if args.json else (lambda line: print("  ... " + line, flush=True))
@@ -65,7 +65,7 @@ def cmd_sandbox(args):
     else:
         print("  folders: %s" % " and ".join(f for f in (report["project"], report["code"]) if f))
         print("  %s" % report["oto"])
-        print("  outside plugins: %s" % _sandbox.describe_lock(report["outside_plugins"]))
+        print("  outside plugins: %s" % report["outside_plugins_summary"])
         for line in report["warnings"]:
             print("  warning: %s" % line)
         if not report["anthropic_signed_in"]:

@@ -18,13 +18,16 @@ holds and may reach, and sets OTO up inside it. `up` does everything a person wo
 
 Inside, only the plugins installed in the sandbox load: the kit's `lock-plugins` switches off what
 Claude Desktop brings from the person's computer and what their claude.ai account brings, at every
-start and every session start. `allow_outside` (`--allow-outside-plugins`) creates a sandbox that
-keeps them. `status` and `up` read where the lock stands (`plugin_lock`), never change it.
+start and every session start. `up` also passes it the plugins Claude Desktop would bring from this
+computer (`desktop_plugins`), so the first session starts without them too. `allow_outside`
+(`--allow-outside-plugins`) creates a sandbox that keeps them. `status` reads where the lock stands
+(`plugin_lock`), never changes it.
 
 What only the person can do is said, never guessed: installing `sbx`, signing in to Docker, and
 adding the SSH connection in Claude Desktop. Everything is read from `sbx` itself; nothing in a
 sandbox is touched but through `sbx exec`.
 """
+import glob
 import json
 import os
 import re
@@ -75,7 +78,7 @@ for folder in sorted(glob.glob(os.path.join(home, ".claude", "remote", "plugins"
     if name not in names:
         names.append(name)
 hooks = settings.get("hooks") if isinstance(settings.get("hooks"), dict) else {}
-out.update(forwarded=names, loading=[n for n in names if enabled.get(n + "@inline") is not False],
+out.update(forwarded=names, switched_off=sorted(k[:-len("@inline")] for k, v in enabled.items() if k.endswith("@inline") and v is False), loading=[n for n in names if enabled.get(n + "@inline") is not False],
            account_plugins_off=settings.get("syncClaudeAiPlugins") is False,
            account_skills_off=settings.get("syncClaudeAiSkills") is False,
            connectors_off=settings.get("disableClaudeAiConnectors") is True,
@@ -221,7 +224,7 @@ def status(name=DEFAULT_NAME):
     sbx = Sbx()
     out = {"name": name, "kit": kit_ref(), "credentials": credentials_path(), "sbx": None, "signed_in": False,
            "policy": False, "kit_allowed": False, "anthropic_approved": anthropic_bound(), "anthropic_signed_in": False,
-           "sandbox": None, "made_from": None, "from_kit": False, "folders": [], "oto": None, "outside_plugins": None,
+           "sandbox": None, "made_from": None, "from_kit": False, "folders": [], "oto": None, "outside_plugins": None, "outside_plugins_summary": None,
            "ssh": False}
     if not sbx.path:
         return out
@@ -239,6 +242,7 @@ def status(name=DEFAULT_NAME):
         if found["status"] == "running":     # `sbx exec` would start a stopped one
             out["oto"] = _oto_line(sbx, name, wait=0)
             out["outside_plugins"] = plugin_lock(sbx, name)
+            out["outside_plugins_summary"] = describe_lock(out["outside_plugins"], coming(out["outside_plugins"]))
         out["ssh"] = _ssh_ready(name)
     return out
 
@@ -285,6 +289,34 @@ def approve_anthropic(path=None):
     return True
 
 
+def desktop_plugins():
+    """The plugins Claude Desktop on this computer hands to an SSH session, each loading there as
+    <name>@inline: the claude.ai account's plugins it keeps in ~/.claude/plugins/synced, and its bundle
+    of the account's skills. These are Desktop's own folders, which it does not document: what is
+    missed here, the kit's session-start check still switches off, one session late."""
+    home = os.path.expanduser("~")
+    apps = [os.path.join(home, "Library", "Application Support", "Claude"), os.path.join(home, ".config", "Claude")]
+    if os.environ.get("APPDATA"):
+        apps.append(os.path.join(os.environ["APPDATA"], "Claude"))
+    patterns = [os.path.join(home, ".claude", "plugins", "synced", "*", "*")]
+    patterns += [os.path.join(app, "local-agent-mode-sessions", "skills-plugin", "*", "*") for app in apps]
+    names = []
+    for pattern in patterns:
+        for folder in sorted(glob.glob(pattern)):
+            if not os.path.isdir(folder):
+                continue
+            try:
+                with open(os.path.join(folder, ".claude-plugin", "plugin.json"), encoding="utf-8") as f:
+                    name = json.load(f).get("name")
+            except (OSError, ValueError, AttributeError):
+                name = None
+            if not isinstance(name, str) or not name.strip():
+                name = re.sub(r"~g\d+$", "", os.path.basename(folder))   # synced copies are suffixed ~g2, ~g3
+            if name.strip() not in names:
+                names.append(name.strip())
+    return names
+
+
 def plugin_lock(sbx, name):
     """Where the plugin lock stands in a running sandbox, read through `sbx exec`; None when it cannot be read."""
     code, out, err = sbx("exec", name, "--", "python3", "-c", LOCK_CHECK, timeout=60)
@@ -295,21 +327,36 @@ def plugin_lock(sbx, name):
     return found if isinstance(found, dict) else None
 
 
-def describe_lock(lock):
+def coming(lock, names=None):
+    """Plugins on this computer that Desktop would hand to the next session and the lock has not
+    switched off yet: they would load once, in that session."""
+    if not lock or lock.get("mode") != "blocked":
+        return []
+    names = desktop_plugins() if names is None else names
+    return [n for n in names if n not in lock.get("switched_off", []) and n not in lock.get("loading", [])]
+
+
+def describe_lock(lock, next_session=()):
     """The plugin lock in a sentence, for a person."""
     if not lock:
         return "unknown: the sandbox could not be read"
     if lock["mode"] == "allowed":
         return "allowed, by choice: plugins from your computer and your claude.ai account load in the sandbox too"
     if not lock["locked"]:
-        loading = list(lock["loading"])
+        loading = list(lock["loading"]) + list(next_session)
         loading += [what for off, what in ((lock["account_plugins_off"], "your claude.ai plugins"),
                                            (lock["account_skills_off"], "your claude.ai skills"),
                                            (lock["connectors_off"], "your claude.ai connectors")) if not off]
-        return "NOT blocked: %s would load in a new session" % ", ".join(loading)
-    count = len(lock["forwarded"])
+        said = "NOT blocked: %s would load in a new session" % ", ".join(loading)
+        if not lock["script"]:
+            said += "; the sandbox was made from a kit without the plugin lock: make it again from the current kit to lock it"
+        return said
+    if next_session:
+        return "blocked, but %s from this computer would load once in the next session: oto sandbox up switches %s " \
+               "off now" % (", ".join(next_session), "it" if len(next_session) == 1 else "them")
+    count = len(lock.get("switched_off", []))
     done = ("only the sandbox's own plugins load (%d from your computer switched off)" % count if count else
-            "only the sandbox's own plugins load (nothing has come from your computer yet)")
+            "only the sandbox's own plugins load")
     if not lock["hook"]:
         return "blocked, but without the check at each session start: a plugin your computer adds later would load once " \
                "a session starts with it; " + done
@@ -426,7 +473,20 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
                                "run `sbx setup ssh` in a terminal")
         report["done"].append("set up SSH, so %s.sbx reaches the sandbox" % name)
     report["ssh"] = True
-    report["outside_plugins"] = plugin_lock(sbx, name)
+    lock = plugin_lock(sbx, name)
+    new = coming(lock) if lock and lock.get("script") else []
+    if new:
+        code, out, err = sbx("exec", name, "--", "sh", "-c", 'python3 "$HOME/.oto/lock-plugins" --names "$@"', "sh", *new)
+        if code == 0:
+            report["done"].append("switched off in the sandbox the %d plugin%s Claude Desktop would bring from this "
+                                  "computer" % (len(new), "" if len(new) == 1 else "s"))
+        lock = plugin_lock(sbx, name)
+    if lock and lock["mode"] == "blocked" and not lock["locked"] and not lock["script"]:
+        report["warnings"].append("the sandbox %s was made from a kit without the plugin lock: plugins from this computer "
+                                  "and your claude.ai account load in it. Run again with --recreate to make it from the "
+                                  "current kit" % name)
+    report["outside_plugins"] = lock
+    report["outside_plugins_summary"] = describe_lock(lock, coming(lock))
     return report
 
 

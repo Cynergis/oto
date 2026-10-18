@@ -69,8 +69,11 @@ elif args[:1] == ["exec"]:
         allowed = box["env"].get("OTO_OUTSIDE_PLUGINS") == "allowed"
         out = json.dumps(box.get("lock") or {"mode": "allowed" if allowed else "blocked", "script": True, "settings": "ok",
                                              "forwarded": [] if allowed else ["engineering"], "loading": [],
+                                             "switched_off": [] if allowed else ["engineering"] + box.get("given", []),
                                              "account_plugins_off": not allowed, "account_skills_off": not allowed,
                                              "connectors_off": not allowed, "hook": not allowed, "locked": not allowed}) + "\n"
+    elif command[:2] == ["sh", "-c"] and "lock-plugins\" --names" in command[2]:
+        box["given"] = box.get("given", []) + command[4:]
     elif "oto-init.log" in command[-1]:
         out = box["init"] + "\n"
 elif args[:1] == ["rm"]:
@@ -305,3 +308,59 @@ def test_status_says_what_would_load_when_the_lock_is_not_in_place(fake, tmp_pat
     fake.write(sandboxes=state["sandboxes"])
     main(["sandbox", "status", "--name", "oto-old"])
     assert "blocked, but without the check at each session start" in capsys.readouterr().out
+
+
+def _desktop(home, synced=(), skills_bundle=None):
+    """Claude Desktop's plugins on this computer, where it keeps them."""
+    for folder, name in synced:
+        path = home / ".claude" / "plugins" / "synced" / "org_account" / folder / ".claude-plugin"
+        path.mkdir(parents=True)
+        if name:
+            (path / "plugin.json").write_text(json.dumps({"name": name}))
+    if skills_bundle:
+        path = home / "Library" / "Application Support" / "Claude" / "local-agent-mode-sessions" / "skills-plugin" / "org" / "acct" / ".claude-plugin"
+        path.mkdir(parents=True)
+        (path / "plugin.json").write_text(json.dumps({"name": skills_bundle}))
+
+
+def test_desktops_plugins_are_read_where_desktop_keeps_them(fake, tmp_path):
+    home = tmp_path / "home"
+    _desktop(home, synced=[("engineering~g2", "engineering"), ("bmad", "bmad"), ("productivity~g3", None)],
+             skills_bundle="anthropic-skills")
+    assert sandbox.desktop_plugins() == ["bmad", "engineering", "productivity", "anthropic-skills"]
+
+
+def test_up_switches_off_desktops_plugins_before_the_first_session(fake, tmp_path):
+    _desktop(tmp_path / "home", synced=[("engineering", "engineering"), ("bmad", "bmad")], skills_bundle="anthropic-skills")
+    report = sandbox.up(name="oto-try", directory=str(tmp_path / "w"), approve=True)
+    given = [c for c in fake.calls("exec") if c[3:5] == ["sh", "-c"] and "lock-plugins\" --names" in c[5]]
+    assert len(given) == 1 and given[0][7:] == ["bmad", "anthropic-skills"], "engineering is switched off already"
+    assert "switched off in the sandbox the 2 plugins Claude Desktop would bring from this computer" in report["done"]
+    assert report["outside_plugins_summary"] == "blocked: only the sandbox's own plugins load (3 from your computer switched off)"
+    again = sandbox.up(name="oto-try")
+    assert len([c for c in fake.calls("exec") if "lock-plugins\" --names" in " ".join(c)]) == 1, "nothing new: nothing passed"
+    assert not any("Claude Desktop would bring" in line for line in again["done"])
+    _desktop(tmp_path / "home", synced=[("diagram-design", "diagram-design")])
+    assert "diagram-design from this computer would load once in the next session: oto sandbox up switches it off now" \
+        in sandbox.status("oto-try")["outside_plugins_summary"]
+    sandbox.up(name="oto-try")
+    assert "blocked: only" in sandbox.status("oto-try")["outside_plugins_summary"]
+
+
+def test_up_passes_nothing_when_outside_plugins_are_allowed(fake, tmp_path):
+    _desktop(tmp_path / "home", synced=[("bmad", "bmad")])
+    sandbox.up(name="oto-open", directory=str(tmp_path / "o"), approve=True, allow_outside=True)
+    assert not [c for c in fake.calls("exec") if "lock-plugins\" --names" in " ".join(c)]
+
+
+def test_up_warns_about_a_sandbox_made_from_a_kit_without_the_lock(fake, tmp_path, capsys):
+    sandbox.up(name="oto-old", directory=str(tmp_path / "w"), approve=True)
+    state = fake.read()
+    state["sandboxes"]["oto-old"]["lock"] = {"mode": "blocked", "script": False, "settings": "ok", "forwarded": [], "loading": [],
+                                              "switched_off": [], "account_plugins_off": False, "account_skills_off": False,
+                                              "connectors_off": False, "hook": False, "locked": False}
+    fake.write(sandboxes=state["sandboxes"])
+    assert main(["sandbox", "up", "--name", "oto-old", "--json"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert any("made from a kit without the plugin lock" in w and "--recreate" in w for w in out["warnings"])
+    assert "NOT blocked" in out["outside_plugins_summary"] and "kit without the plugin lock" in out["outside_plugins_summary"]

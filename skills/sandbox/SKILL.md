@@ -59,7 +59,7 @@ and say in a sentence or two what is there and what is missing:
 | `anthropic_approved` false | the kit needs their approval to use their Claude sign-in: ask (§2). |
 | `sandbox` set, `from_kit` true, `oto` says ready, `ssh` true | it is ready: go to §4. |
 | `sandbox` set, `from_kit` false | a sandbox of that name exists but is not OTO's: ask for another name, or whether to replace it (what is only inside it is lost). |
-| `outside_plugins.locked` false, `mode` blocked | things from outside would load in the sandbox (§5): say what, and that a sandbox made again from the current kit keeps them out. |
+| `outside_plugins_summary` does not start with "blocked" or "allowed" | things from outside would load in the sandbox (§5): say what, in its words, and what it says fixes it. |
 
 ## 2. Ask, a few at a time
 
@@ -98,6 +98,9 @@ Pass `--init-policy` only with the policy they chose, `--approve-anthropic` only
 only when they agreed to replace an existing sandbox. Tell them it takes about a minute
 the first time, more on a slow connection; the second run takes seconds.
 
+When it is done, read `outside_plugins_summary` back in plain words (§5): it says whether the sandbox
+uses only its own plugins. Never say the sandbox is ready without it.
+
 `ok: false` comes with a `problem` and a `fix`: say both in plain words, and do what the fix says
 only if it is theirs to agree to (ask) or theirs to do (wait for them). Never work around it.
 `warnings` say an existing sandbox differs from what they asked (other folders, another project):
@@ -127,9 +130,11 @@ connectors of their claude.ai account, are switched off there, so the work in th
 depend on what happens to be on their computer, and the sandbox cannot reach their mail, files or
 calendar through those connectors.
 
-One thing to know: when they add a new plugin on their computer, the first session in the sandbox
-afterwards still has it. Claude says so at the start of that session and switches it off; a new
-session, or typing `/reload-plugins`, works without it.
+Setting up switches off the plugins Claude Desktop has on their computer before the first session,
+so even that one starts with only the sandbox's own. One thing to know: a plugin they add on their
+computer later is still there in the first session after that. Claude says so at the start of that
+session and switches it off; a new session, or typing `/reload-plugins`, works without it. Running
+the setup again before that session switches it off in advance.
 
 If they want their own plugins and connectors in the sandbox, it is made that way from the start
 (`--allow-outside-plugins`); an existing sandbox is made again for it (`--recreate`, after their yes).

@@ -190,6 +190,19 @@ def test_the_file_keeps_its_indentation(tmp_path):
     assert settings_file(tmp_path).read_text().startswith('{\n    "enabledPlugins": {\n        "oto@cynergis": true\n    },\n    "syncClaudeAiPlugins"')
 
 
+def test_names_given_before_desktop_copies_them_in_are_switched_off(tmp_path):
+    write_settings(tmp_path, {"enabledPlugins": {"oto@cynergis": True}})
+    forward(tmp_path, "aaa", "engineering")
+    done = run(tmp_path, "--names", "bmad", "engineering", "anthropic-skills")
+    assert "3 plugins from your computer (engineering, bmad, anthropic-skills)" in done.stdout
+    enabled = read_settings(tmp_path)["enabledPlugins"]
+    assert enabled == {"oto@cynergis": True, "engineering@inline": False, "bmad@inline": False, "anthropic-skills@inline": False}
+    text = settings_file(tmp_path).read_text()
+    forward(tmp_path, "bbb", "bmad")                 # Desktop's first session brings it: nothing new to say
+    assert run(tmp_path, "--hook").stdout == "" and settings_file(tmp_path).read_text() == text
+    assert run(tmp_path, "--names", "bmad").stdout == ""
+
+
 def test_the_engines_check_reads_what_the_script_writes(tmp_path):
     write_settings(tmp_path, {"enabledPlugins": {"oto@cynergis": True}})
     forward(tmp_path, "aaa", "engineering")
@@ -200,6 +213,7 @@ def test_the_engines_check_reads_what_the_script_writes(tmp_path):
     run(tmp_path)
     after = check(tmp_path)
     assert after["locked"] and after["hook"] and after["loading"] == [] and after["forwarded"] == ["engineering", "bbb"]
+    assert after["switched_off"] == ["bbb", "engineering"]
     assert "blocked: only the sandbox's own plugins load (2 from your computer switched off)" == sandbox.describe_lock(after)
     assert sandbox.describe_lock(before).startswith("NOT blocked: engineering, bbb, your claude.ai plugins")
     assert check(tmp_path, OTO_OUTSIDE_PLUGINS="allowed")["mode"] == "allowed"

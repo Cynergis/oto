@@ -567,9 +567,11 @@ Claude Code with `--setting-sources=user,project,local` and one `--plugin-dir` p
 computer, each loading as `<name>@inline`, and the sign-in brings the claude.ai account's plugins,
 skills and connectors. The script merges `"<name>@inline": false` for each copied plugin (no wildcard
 exists), `syncClaudeAiPlugins` and `syncClaudeAiSkills` off and `disableClaudeAiConnectors` on into the
-sandbox's user settings, from `init.sh` at every start and from a `SessionStart` hook it adds. A
-plugin copied in for the first time is loaded in that session; the hook switches it off for the next
-one and says so. `OTO_OUTSIDE_PLUGINS=allowed`, set when the sandbox is created, turns it off. The
+sandbox's user settings, from `init.sh` at every start and from a `SessionStart` hook it adds. `up`
+passes it, beforehand, the names of the plugins Desktop would hand over (`desktop_plugins`: the
+account's synced plugins and Desktop's skills bundle, read where Desktop keeps them on the computer).
+A plugin copied in that was not known beforehand is loaded in that session; the hook switches it off
+for the next one and says so. `OTO_OUTSIDE_PLUGINS=allowed`, set when the sandbox is created, turns it off. The
 managed setting `disableSideloadFlags` is not used: it refuses `--plugin-dir` at start-up, which Desktop's
 sessions depend on. `oto sandbox status` reads the same file with its own read-only check
 (`LOCK_CHECK`), so it also answers for a sandbox made before the kit carried the lock.

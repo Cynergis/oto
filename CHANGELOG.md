@@ -4,7 +4,7 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
-## Unreleased
+## 0.11.31 — 2026-10-18
 
 **A sandbox loads only its own plugins.** A Claude Desktop SSH session brought the plugins of the
 person's computer into a sandbox made from the oto-gcp kit, and the Claude sign-in brought their
@@ -18,19 +18,25 @@ OTO plugins installed in the sandbox load.
   - `disableClaudeAiConnectors: true`.
 
   Every other key is left as it is, and a second run changes nothing.
-- **When it runs:** at every sandbox start, and at every session start through a hook. A plugin the
-  computer adds is loaded in the first session that brings it. The hook switches it off and tells the
-  person to start a new session or type `/reload-plugins`.
+- **When it runs:** at every sandbox start, and at every session start through a hook.
+- **Before the first session.** `oto sandbox up` reads the plugins Claude Desktop would hand over from
+  this computer, and switches them off in the sandbox beforehand: the account's synced plugins, and
+  Desktop's bundle of the account's skills. So even a new sandbox's first session has only its own.
+- **A plugin added on the computer later** is loaded in the first session that brings it. The hook
+  switches it off and tells the person to start a new session or type `/reload-plugins`. Running
+  `oto sandbox up` again before that session switches it off in advance.
 - **`oto sandbox up --allow-outside-plugins`** creates a sandbox that keeps them
   (`OTO_OUTSIDE_PLUGINS=allowed`).
-- **`oto sandbox status`** says whether the lock is in place and what would load.
+- **`oto sandbox status`** says whether the lock is in place and what would load. `up` and `status` give it
+  as a sentence (`outside_plugins_summary`), which the `sandbox` skill reads back. `up` warns about a
+  sandbox made from a kit without the lock.
 
 Tried in a sandbox made from this kit, with Desktop's Claude Code 2.1.299 and its flags. After the lock:
 - only the `@cynergis` and `@builtin` plugins loaded, with `plugin:oto:oto` and `mcp-gateway`;
 - none of the computer's or the account's skills loaded;
-- a forwarded `oto` gave way to the sandbox's own.
-
-The published kit gets this at the next release.
+- a forwarded `oto` gave way to the sandbox's own;
+- a new sandbox set up by `oto sandbox up` started its first session, with Desktop's 9 plugins handed
+  over, with only its own.
 
 ## 0.11.30 — 2026-10-17
 

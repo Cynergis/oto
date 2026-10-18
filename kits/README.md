@@ -39,9 +39,14 @@ The `@builtin` plugins and the `mcp-gateway` server `sbx` declares stay. It keep
 was, once (`settings.json.before-oto-plugin-lock`), and changes nothing the second time.
 
 It runs at every start (`init.sh`) and, through a `SessionStart` hook it adds, at every session start.
-**What it cannot do:** the session that brings a plugin of the computer for the first time has it
-loaded, because Desktop starts Claude Code with it. The hook switches it off then, and tells the person
-in a sentence; the next session, or `/reload-plugins` in that one, works without it.
+`oto sandbox up`, which runs on the computer, also reads the plugins Desktop would hand over (the
+claude.ai account's plugins in `~/.claude/plugins/synced`, and Desktop's bundle of the account's
+skills) and passes their names (`lock-plugins --names`), so the first session starts without them.
+**What it cannot do:** a plugin added on the computer after that is loaded in the first session that
+brings it, because Desktop starts Claude Code with it. The hook switches it off then, and tells the
+person in a sentence; the next session, or `/reload-plugins` in that one, works without it, and so does
+running `oto sandbox up` again before that session. Desktop's folders are its own and undocumented: if
+they move, the hook still catches what they hand over, one session late.
 
 To keep the computer's and the account's plugins in the sandbox, create it with
 `oto sandbox up --allow-outside-plugins` (or `sbx run … -e OTO_OUTSIDE_PLUGINS=allowed`): the lock then
@@ -62,7 +67,7 @@ only when run at a terminal. By hand:
 sbx settings set kit.allowedSources '["docker.io/","ghcr.io/cynergis/"]'   # once per machine
 export PROJECT=<your Google Cloud project id>
 mkdir -p ~/oto-test/project ~/oto-test/code
-sbx run ghcr.io/cynergis/oto-gcp:0.11.30 ~/oto-test/project ~/oto-test/code --name oto-test -e PROJECT
+sbx run ghcr.io/cynergis/oto-gcp:0.11.31 ~/oto-test/project ~/oto-test/code --name oto-test -e PROJECT
 ```
 
 **Releasing it.** The kit's version is the engine's. A version bump moves it in the same change, in

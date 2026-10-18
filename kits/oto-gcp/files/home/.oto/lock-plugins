@@ -14,7 +14,8 @@ only its own plugins load: this merges into ~/.claude/settings.json
 
 Every other key is left as it is, the sandbox's own <name>@cynergis plugins among them. It runs at
 every sandbox start (init.sh) and at every session start (--hook), and changes nothing the second
-time. With OTO_OUTSIDE_PLUGINS=allowed it changes nothing at all: the person chose to keep them.
+time. `--names <name>...` switches those off too before Desktop has copied them in: `oto sandbox up`
+passes the plugins Desktop would bring from the computer, so the first session starts without them. With OTO_OUTSIDE_PLUGINS=allowed it changes nothing at all: the person chose to keep them.
 """
 import glob
 import json
@@ -99,12 +100,14 @@ def _write(path, text):
     os.replace(temp, path)
 
 
-def run():
-    """Returns (newly switched off, the forwarded plugins among them, hook added, problem)."""
+def run(given=()):
+    """Returns (newly switched off, the forwarded plugins among them, hook added, problem). `given` are
+    names to switch off as well, of plugins Desktop has not copied in yet."""
     if os.environ.get("OTO_OUTSIDE_PLUGINS", "").strip().lower() == "allowed":
         return [], [], False, None
     path = os.path.join(_home(), ".claude", "settings.json")
     names = forwarded()
+    names += [name for name in given if name not in names]
     try:
         with open(path, encoding="utf-8") as f:
             text = f.read()
@@ -137,10 +140,23 @@ def sentence(off, plugins=0):
         what[0].upper(), what[1:], "were" if many else "was", "they are" if many else "it is", "them" if many else "it")
 
 
+def _given(argv):
+    """The names after --names, up to the next option."""
+    if "--names" not in argv:
+        return []
+    names = []
+    for arg in argv[argv.index("--names") + 1:]:
+        if arg.startswith("--"):
+            break
+        if arg.strip() and arg.strip() not in names:
+            names.append(arg.strip())
+    return names
+
+
 def main(argv):
     hook = "--hook" in argv
     try:
-        off, plugins, hooked, problem = run()
+        off, plugins, hooked, problem = run(_given(argv))
     except Exception as e:  # never stop a session from starting
         off, plugins, hooked, problem = [], [], False, "unexpected: %s" % e
     if hook:

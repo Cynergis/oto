@@ -74,6 +74,41 @@ def test_neighbors_traverses_a_declared_relation():
         assert "North Plant" in _query(root, "neighbors", "Press 01")
 
 
+def test_a_name_shared_with_a_superseded_fact_resolves_to_the_current_one():
+    """A supersession keeps the old fact under its own id, usually with the same label. A question
+    asked by that label is about what is true now, so it binds the current node; an as-of lookup
+    still reaches the old one. The retired id sorts first here, as `pm.pm-b` does before
+    `pm.pm-b-2025-09`."""
+    with tempfile.TemporaryDirectory() as root:
+        init(root, slug="kb", name="Test KB")
+        sites = [dict(id=sid, type="Site", label=label, aliases=[], summary="", attributes={}, tags=[], **STAMP)
+                 for sid, label in (("s.1", "North Plant"), ("s.2", "South Plant"))]
+        old = dict(id="m.1", type="Machine", label="Press 01", aliases=[], summary="The press, at North Plant.",
+                   attributes={}, tags=[], **dict(STAMP, status="superseded", valid_to="2026-03-01",
+                                                  superseded_by="m.1-v2"))
+        new = dict(id="m.1-v2", type="Machine", label="Press 01", aliases=[], summary="The press, moved to South Plant.",
+                   attributes={}, tags=[], supersedes="m.1", **dict(STAMP, as_of="2026-03-01", valid_from="2026-03-01"))
+        graph = {"nodes": [old, new] + sites,
+                 "edges": [{"from": "m.1", "rel": "installed_at", "to": "s.1"},
+                           {"from": "m.1-v2", "rel": "installed_at", "to": "s.2"}]}
+        questions = {"Q1": {"question": "Where is machine $MACHINE installed?", "why": "To find the press.",
+                            "params": {"MACHINE": {"type": "Machine"}},
+                            "ask": {"when": [{"edge": ["$MACHINE", "installed_at", "s"]}, {"node": "s", "type": "Site"}],
+                                    "select": ["s.label"]},
+                            "gate": "any"}}
+        for name, payload in (("ontology.config.json", ONTOLOGY), ("graph.json", graph),
+                              ("questions.json", {"questions": questions})):
+            with open(os.path.join(root, name), "w", encoding="utf-8") as f:
+                json.dump(payload, f)
+        build(Project.standard(root))
+
+        answer = _query(root, "ask", "Q1", "MACHINE=Press 01")
+        assert "status: answered" in answer and "South Plant" in answer, answer
+        assert "North Plant" not in answer, "the retired fact answered a question about now"
+        assert "closest entity: Press 01  (m.1-v2)  [current]" in _query(root, "resolve", "Press 01")
+        assert "North Plant" in _query(root, "entity", "Press 01", "--as-of", "2026-02-01"), "history stays reachable"
+
+
 def test_server_exposes_its_tools_over_json_rpc():
     with tempfile.TemporaryDirectory() as root:
         _built_project(root)

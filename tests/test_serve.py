@@ -105,7 +105,7 @@ def test_a_name_shared_with_a_superseded_fact_resolves_to_the_current_one():
         answer = _query(root, "ask", "Q1", "MACHINE=Press 01")
         assert "status: answered" in answer and "South Plant" in answer, answer
         assert "North Plant" not in answer, "the retired fact answered a question about now"
-        assert "closest entity: Press 01  (m.1-v2)  [current]" in _query(root, "resolve", "Press 01")
+        assert "entity: Press 01  (m.1-v2)  [current], matched by label" in _query(root, "resolve", "Press 01")
         assert "North Plant" in _query(root, "entity", "Press 01", "--as-of", "2026-02-01"), "history stays reachable"
 
 

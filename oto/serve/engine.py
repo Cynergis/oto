@@ -308,17 +308,78 @@ def label(nid):
     return STORE.label(nid)
 
 
-def resolve(term, prefer_current=True):
+#: The grades a name binds to an entity by. A full-text hit is not among them: it is a near miss, said
+#: as one, so an answer never rests on a name that only resembles the one asked about.
+EXACT_GRADES = ("id", "label", "alias", "lexicon")
+
+
+def match(term, as_of=None):
+    """How a name points at an entity: {"id", "grade", "others", "candidates"}.
+
+    `grade` is one of EXACT_GRADES when `id` is set; "ambiguous" when several entities answer to the
+    name (`others` lists them); "text" when no name matches and full-text search found `candidates`;
+    None when nothing does. Among the versions of one name, the current one is chosen, or with
+    `as_of` the one valid on that date.
+    """
+    term = str(term or "").strip()
+    out = {"id": None, "grade": None, "others": [], "candidates": []}
+    if not term:
+        return out
     if node(term):
-        return term, []
-    ids = STORE.by_name(term)
-    if ids:
-        if prefer_current:
-            # A successor usually keeps its predecessor's label; by_name orders by id, which can put the retired one first.
-            ids = sorted(ids, key=lambda nid: node(nid)["status"] != "current")
-        return ids[0], ids[1:6]
-    ids = STORE.by_text(term, 6)
-    return (ids[0], ids[1:]) if ids else (None, [])
+        out.update(id=term, grade="id")
+        return out
+    ids, grade = STORE.by_name(term), "name"
+    if not ids:
+        ids = sorted({r["target"] for r in STORE.lexicon(term.lower())
+                      if r["target"] and r["status"] != "not_ingested" and node(r["target"])})
+        grade = "lexicon"
+    if not ids:
+        candidates = STORE.by_text(term, 6)
+        out.update(grade="text" if candidates else None, candidates=candidates)
+        return out
+    if as_of:
+        pool = [i for i in ids if valid_on(node(i), as_of)]
+    else:
+        pool = [i for i in ids if node(i)["status"] == "current"]
+    pool = pool or ids[:1]
+    if len(pool) > 1:
+        out.update(grade="ambiguous", others=pool)
+        return out
+    if grade == "name":
+        grade = "label" if (node(pool[0])["label"] or "").lower() == term.lower() else "alias"
+    out.update(id=pool[0], grade=grade, others=[i for i in ids if i != pool[0]][:5])
+    return out
+
+
+def unmatched(term, m):
+    """Why a name did not bind to one entity, in words: the reply instead of a guess."""
+    if m["grade"] == "ambiguous":
+        return (f"'{term}' is ambiguous: it names {len(m['others'])} entities: "
+                + ", ".join(f"{label(a)} ({a})" for a in m["others"]) + ". Say which one, by id.")
+    found = vocabulary().find(term)
+    if found:
+        kind, key = found[0]
+        out = f"'{term}' is a {kind} of the vocabulary, not an entity: kg_define {term} says what it means"
+        return out + (f"; kg_by_type {key} lists them." if kind == "class" else ".")
+    out = "Nothing has that id, label, alias or lexicon phrase"
+    known = [r for r in STORE.lexicon(term.lower()) if r["status"] == "not_ingested"]
+    if known:
+        out += "; the lexicon knows it as not ingested" + (f" ({known[0]['note']})" if known[0]["note"] else "")
+    if m["candidates"]:
+        return out + (". Closest by text, not a match: " + ", ".join(f"{label(c)} ({c})" for c in m["candidates"])
+                      + ". Use the id if one of them is meant.")
+    return out + (f", and the vocabulary declares no class, relation or attribute called '{term}': the graph may not "
+                  "record it at all, or calls it something else (kg_define lists the vocabulary; lexicon.json maps other words).")
+
+
+def no_match(term, m, param=None):
+    """The whole reply for a name that bound to nothing: which name, for which parameter, and why."""
+    head = f"No entity matched '{term}'" + (f" for {param}" if param else "") + ". "
+    return ("" if m["grade"] == "ambiguous" and not param else head) + unmatched(term, m)
+
+
+def _matched_line(term, m):
+    return "" if m["grade"] == "id" else f"\n\nmatched by {m['grade']} '{term}'"
 
 
 def valid_on(n, date):
@@ -330,11 +391,12 @@ def valid_on(n, date):
 
 
 def entity_text(term, history=False, as_of=None):
-    nid, alts = resolve(term, prefer_current=(as_of is None))
-    if not nid:
-        return f"No entity matched '{term}'. Try kg_search for passages, or kg_stale."
-    return _card(nid, history, None, as_of) + (
-        ("\n\nOther matches: " + ", ".join(f"{label(a)} ({a})" for a in alts)) if alts else "")
+    m = match(term, as_of=as_of)
+    if not m["id"]:
+        return no_match(term, m)
+    return _card(m["id"], history, None, as_of) + (
+        ("\n\nOther matches: " + ", ".join(f"{label(a)} ({a})" for a in m["others"])) if m["others"] else "") \
+        + _matched_line(term, m)
 
 
 def relation_name(rel):
@@ -349,11 +411,11 @@ def relation_name(rel):
 
 
 def neighbors_text(term, rel=None):
-    nid, _ = resolve(term)
-    if not nid:
-        return f"No entity matched '{term}'."
+    m = match(term)
+    if not m["id"]:
+        return no_match(term, m)
     rels = vocabulary().relation_covers(relation_name(rel)) if rel else None
-    return _card(nid, False, (rels[0] if len(rels) == 1 else rels) if rels else None, None)
+    return _card(m["id"], False, (rels[0] if len(rels) == 1 else rels) if rels else None, None) + _matched_line(term, m)
 
 
 def _card(nid, history, rel, as_of):
@@ -550,9 +612,10 @@ def stale_text():
 
 def explain_text(term, rel=None):
     """Why the graph holds a derived fact: the rule, then each premise down to its evidence."""
-    nid, _alts = resolve(term)
-    if not nid or not node(nid):
-        return f"'{term}' does not resolve to an entity."
+    m = match(term)
+    nid = m["id"]
+    if not nid:
+        return no_match(term, m)
     if "derived" not in STORE.features():
         return "This store predates rules; rebuild to record derivations."
     rows = STORE.derived_edges(nid, rel)
@@ -752,12 +815,17 @@ def resolve_text(term):
                        (f"  — {n['label']}  [{n['status']}]" if n else "  — NOT in the graph (not ingested)"))
         if not targets and status != "not_ingested":
             out.append("    (no entity mapped)")
-    if not rows:                                  # lexicon didn't recognize the phrase — best-effort entity match
-        nid, alts = resolve(term)
-        if nid:
-            out.append(f"• closest entity: {label(nid)}  ({nid})  [{node(nid)['status']}]")
-            if alts:
-                out.append("    other: " + ", ".join(f"{label(a)} ({a})" for a in alts))
+    if not rows:                                  # not jargon the lexicon maps: how the name itself matches
+        m = match(term)
+        if m["id"]:
+            out.append(f"• entity: {label(m['id'])}  ({m['id']})  [{node(m['id'])['status']}], matched by {m['grade']}")
+            if m["others"]:
+                out.append("    other: " + ", ".join(f"{label(a)} ({a})" for a in m["others"]))
+        elif m["grade"] == "ambiguous":
+            out.append("• " + unmatched(term, m))
+        elif m["candidates"]:
+            out.append(f"• no entity is named '{term}'; closest by text, not a match: "
+                       + ", ".join(f"{label(c)} ({c})" for c in m["candidates"]))
     if not out:
         return (f"'{term}' didn't resolve to known jargon or an entity — it may not be ingested, or is "
                 f"phrased differently. Try kg_search, kg_docs, or add it to lexicon.json.")
@@ -839,10 +907,10 @@ def _bind(declared_params, params):
     for name, given in (params or {}).items():
         if name not in declared_params or given in (None, ""):
             continue
-        nid, _alts = resolve(str(given))
-        if not nid:
-            return bound, "No entity matched %r for %s." % (given, name)
-        bound[name] = nid
+        m = match(str(given))
+        if not m["id"]:
+            return bound, no_match(str(given), m, param=name)
+        bound[name] = m["id"]
     return bound, None
 
 
@@ -907,10 +975,10 @@ def ask_data(qid, params=None):
         if given in (None, ""):
             unresolved.append("%s (a %s)" % (name, (spec or {}).get("type") or "node"))
             continue
-        nid, _alts = resolve(str(given))
-        if not nid:
-            return {"error": "No entity matched %r for %s." % (given, name), "rows": []}
-        bound[name] = nid
+        m = match(str(given))
+        if not m["id"]:
+            return {"error": no_match(str(given), m, param=name), "rows": []}
+        bound[name] = m["id"]
     if unresolved:
         return {"error": "Question %s needs %s. Pass it as params." % (qid, ", ".join(unresolved)), "rows": []}
     nodes, edges = _graph_from_store()
@@ -967,9 +1035,10 @@ def actions_data(action=None, on=None, ready=False, due=False):
     definitions = _catalog.definitions_from_nodes(nodes)
     covers = _covers(vocabulary().classes)
     if on:
-        nid, _alts = resolve(on)
-        if not nid:
-            return {"error": f"No entity matched '{on}'.", "actions": []}
+        m = match(on)
+        if not m["id"]:
+            return {"error": no_match(on, m), "actions": []}
+        nid = m["id"]
         subject = next(n for n in nodes if n["id"] == nid)
         return {"on": nid, "actions": _catalog.for_entity(definitions, nodes, edges, subject, covers=covers)}
     if action:
@@ -1019,8 +1088,11 @@ def docs_text(query=None, limit=200):
 # ============================ MCP tool registry ============================
 TOOLS = [
     {"name": "kg_entity",
-     "description": "Look up an entity by id/label/alias and return its current state, provenance "
-                    "(status/as_of/valid_from/source) and relationships. Current-only unless history/as_of given.",
+     "description": "Look up an entity by id/label/alias/lexicon phrase and return its current state, provenance "
+                    "(status/as_of/valid_from/source) and relationships, and how the name matched. Current-only unless "
+                    "history/as_of given. Binds only an exact match: a name two entities share, or one that only "
+                    "resembles an entity in text, is reported instead of answered; ask which is meant rather than "
+                    "picking one.",
      "inputSchema": {"type": "object", "properties": {
          "term": {"type": "string", "description": "Entity id, label, or alias."},
          "history": {"type": "boolean", "description": "Include superseded predecessors."},

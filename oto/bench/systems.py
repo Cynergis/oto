@@ -49,11 +49,43 @@ def _source_slug(path):
     return os.path.splitext(os.path.basename(path or ""))[0]
 
 
-def _blank(system, question_id):
-    return {"system": system, "qid": question_id, "resolved_entity": None,
+def _blank(system, question_id, kind):
+    return {"system": system, "qid": question_id, "answer_kind": kind, "resolved_entity": None,
             "retrieved_entities": [], "retrieved_sources": [], "surfaced_sources": [],
-            "cited_sources": [],
+            "cited_sources": [], "abstained": False, "match": None, "confidence": None,
             "answer_status": None, "answer": None}
+
+
+#: Index folders whose pages the build generates from the graph: one per entity, named after its id.
+GENERATED = ("entities", "cards")
+
+
+def sources_of(connection, path, cache):
+    """The source documents one indexed passage stands for. A document or a note stands for itself;
+    a generated entity page or card stands for the sources of its entity, which is what citing it
+    rests on. Without this, a retriever that found the right entity's card is marked wrong."""
+    slug = _source_slug(path)
+    folder = str(path or "").replace("\\", "/").split("/")[0]
+    if folder not in GENERATED:
+        return [slug]
+    if slug not in cache:
+        import json
+        row = connection.execute("SELECT sources, source_doc FROM nodes WHERE id=?", (slug.replace("__", "."),)).fetchone()
+        found = list(json.loads(row["sources"] or "[]") or []) if row else []
+        if row and row["source_doc"] and row["source_doc"] not in found:
+            found.append(row["source_doc"])
+        cache[slug] = found or [slug]
+    return cache[slug]
+
+
+def credited(connection, paths, cache):
+    """Paths in rank order, as the sources they stand for, each once."""
+    out = []
+    for path in paths:
+        for source in sources_of(connection, path, cache):
+            if source not in out:
+                out.append(source)
+    return out
 
 
 class OtoSystem:
@@ -70,33 +102,66 @@ class OtoSystem:
         elif not use_temporal:
             self.name = "oto-no_temporal"
 
-    def _resolve(self, connection, term):
-        """Id, then label, then alias, then full text. In that order, and the order matters.
+    _names = None
 
-        A gold set identifies an entity by its id, and an id is exact. Skipping straight to search
-        turns a certain answer into a guess, which is what the first version of this did: entity hit
-        collapsed as soon as ranking changed which rows came back.
-        """
-        if not term:
-            return []
-        rows = connection.execute(
-            "SELECT id, label, status, valid_from, valid_to FROM nodes WHERE id=? LIMIT 5", (term,)).fetchall()
-        if not rows:
-            rows = connection.execute(
-                "SELECT id, label, status, valid_from, valid_to FROM nodes WHERE lower(label)=lower(?) LIMIT 5",
-                (term,)).fetchall()
-        if not rows:
-            rows = connection.execute(
-                "SELECT n.id, n.label, n.status, n.valid_from, n.valid_to FROM aliases a JOIN nodes n ON n.id=a.node_id "
-                "WHERE lower(a.alias)=lower(?) LIMIT 5", (term,)).fetchall()
-        if not rows:
+    def _name_index(self, connection):
+        """{lowercased name: (grade, [ids])}: every label, alias and lexicon phrase, read once."""
+        if self._names is None:
+            names = {}
+
+            def add(name, grade, nid):
+                if name and len(name.strip()) > 1:
+                    entry = names.setdefault(name.strip().lower(), (grade, []))
+                    if nid not in entry[1]:
+                        entry[1].append(nid)
+            for row in connection.execute("SELECT id, label FROM nodes ORDER BY id"):
+                add(row["label"], "label", row["id"])
+            for row in connection.execute("SELECT node_id, alias FROM aliases ORDER BY node_id"):
+                add(row["alias"], "alias", row["node_id"])
             try:
-                rows = connection.execute(
-                    "SELECT n.id, n.label, n.status, n.valid_from, n.valid_to FROM node_fts f JOIN nodes n ON n.id=f.id "
-                    "WHERE node_fts MATCH ? ORDER BY rank LIMIT 5", (_fts_query(term),)).fetchall()
+                for row in connection.execute("SELECT phrase, target, status FROM lexicon ORDER BY phrase, target"):
+                    if row["target"] and row["status"] != "not_ingested":
+                        add(row["phrase"], "lexicon", row["target"])
             except sqlite3.Error:
-                rows = []
-        return rows
+                pass
+            self._names = names
+        return self._names
+
+    def _resolve(self, connection, question):
+        """(rows, grade): the entities the question names exactly, by id, label, alias or lexicon
+        phrase, and how. The question's `entity` is the name as asked; without one, the question is
+        scanned for names, longest first. A full-text hit binds nothing: it is a near miss, and an
+        answer built on it is a guess. Its grade is "text", so the report can say what was refused.
+        """
+        names = self._name_index(connection)
+        given = str(question.get("entity") or "").strip()
+        found = {}                                            # id -> the grade of the name that named it
+        if given:
+            if connection.execute("SELECT 1 FROM nodes WHERE id=?", (given,)).fetchone():
+                found[given] = "id"
+            elif given.lower() in names:
+                grade, ids = names[given.lower()]
+                found = {nid: grade for nid in ids}
+        else:
+            text = " " + " ".join(re.findall(r"[\w-]+", str(question.get("question") or "").lower())) + " "
+            for name in sorted(names, key=len, reverse=True):
+                phrase = " " + " ".join(re.findall(r"[\w-]+", name)) + " "
+                if phrase.strip() and phrase in text:
+                    grade, ids = names[name]
+                    for nid in ids:
+                        found.setdefault(nid, grade)
+                    text = text.replace(phrase, " | ")       # a shorter name inside this one is not a second name
+        if not found:
+            try:
+                hit = connection.execute("SELECT 1 FROM node_fts WHERE node_fts MATCH ? LIMIT 1",
+                                         (_fts_query(given or question.get("question")),)).fetchone()
+            except sqlite3.Error:
+                hit = None
+            return [], {}, ("text" if hit else None)
+        marks = ",".join("?" * len(found))
+        rows = connection.execute("SELECT id, label, status, valid_from, valid_to FROM nodes WHERE id IN (%s) ORDER BY id"
+                                  % marks, list(found)).fetchall()
+        return rows, found, None
 
     @staticmethod
     def _valid_at(row, date):
@@ -115,49 +180,58 @@ class OtoSystem:
         return True
 
     def _time_aware(self, connection, rows, question):
-        """(chosen row, status). Status is current, superseded, absent, changed or unchanged."""
+        """(chosen row, status), or (None, "ambiguous") when the name points at more than one entity
+        at the time asked about. Versions of one entity are not ambiguous: at most one is current.
+        Status is current, superseded, absent, changed or unchanged."""
         as_of = question.get("as_of")
         kind = str(question.get("type") or "")
-
+        current = [r for r in rows if r["status"] == "current"]
+        if as_of:
+            valid = [r for r in rows if self._valid_at(r, str(as_of))]
+            if len(valid) > 1 or (not valid and len(current) > 1):
+                return None, "ambiguous"
+            if valid:
+                return valid[0], "current"
+            # It exists now, but it did not then. That is the answer, and it is the one a
+            # time-blind system gets wrong while sounding certain.
+            return (current or rows)[0], "absent"
+        if len(current) > 1:
+            return None, "ambiguous"
+        chosen = (current or rows)[0]
         if kind == "temporal_change":
             # Did this fact ever change? A supersession chain is the record of that.
-            identifier = rows[0]["id"]
+            identifier = chosen["id"]
             chain = connection.execute(
                 "SELECT count(1) FROM nodes WHERE superseded_by=? OR id IN "
                 "(SELECT superseded_by FROM nodes WHERE id=? AND superseded_by IS NOT NULL)",
                 (identifier, identifier)).fetchone()[0]
-            return rows[0], ("changed" if chain else "unchanged")
-
-        if as_of:
-            valid = [r for r in rows if self._valid_at(r, str(as_of))]
-            if not valid:
-                # It exists now, but it did not then. That is the answer, and it is the one a
-                # time-blind system gets wrong while sounding certain.
-                return rows[0], "absent"
-            return valid[0], "current"
-
-        current = [r for r in rows if r["status"] == "current"]
-        chosen = (current or rows)[0]
+            return chosen, ("changed" if chain else "unchanged")
         return chosen, ("current" if current else chosen["status"])
 
     def answer(self, question):
-        result = _blank(self.name, question.get("id"))
+        result = _blank(self.name, question.get("id"), "entity")
         connection = _read_only(self.database)
         try:
-            rows = self._resolve(connection, question.get("entity")) \
-                or self._resolve(connection, question.get("question"))
+            rows, grades, near = self._resolve(connection, question)
             if not rows:
-                result["answer_status"] = "absent"
+                # Nothing is named exactly as asked. Abstaining is the answer; the grade says whether
+                # a text hit was refused, so the report can show what guessing would have bound.
+                result.update(abstained=True, match=near)
                 return result
 
             if self.use_temporal:
                 chosen, status = self._time_aware(connection, rows, question)
+                if chosen is None:
+                    result.update(abstained=True, match="ambiguous")
+                    return result
                 result["answer_status"] = status
             else:
-                # The ablation: no as-of reasoning, no change detection. Whatever is in the row wins.
-                # This is what a time-blind system does, and it should cost it the temporal metric.
+                # The ablation: no as-of reasoning, no change detection, no notion that two entities
+                # share a name. Whatever row sorts first wins: this is what a time-blind system does,
+                # and it should cost it the temporal metric and the precision of its answers.
                 chosen = rows[0]
                 result["answer_status"] = "current"
+            result["match"] = grades.get(chosen["id"])
 
             result["resolved_entity"] = chosen["id"]
             entities = [chosen["id"]]
@@ -186,7 +260,7 @@ class OtoSystem:
             passages = connection.execute(
                 "SELECT path FROM docs_fts WHERE docs_fts MATCH ? ORDER BY rank LIMIT 10",
                 (_fts_query(question.get("question")),)).fetchall()
-            result["retrieved_sources"] = [_source_slug(p["path"]) for p in passages]
+            result["retrieved_sources"] = credited(connection, [p["path"] for p in passages], {})
             # Two different lists, deliberately both reported. `retrieved_sources` is passage search
             # only, which is what a retriever does. `surfaced_sources` is everything this system put
             # in front of the answer, entity sources first because it resolves the entity first.
@@ -217,19 +291,20 @@ class LexicalSystem:
         self.database = database
 
     def answer(self, question):
-        result = _blank(self.name, question.get("id"))
+        result = _blank(self.name, question.get("id"), "passage")
         connection = _read_only(self.database)
         try:
             rows = connection.execute(
                 "SELECT path, title FROM docs_fts WHERE docs_fts MATCH ? ORDER BY rank LIMIT 10",
                 (_fts_query(question.get("question")),)).fetchall()
-            sources = [_source_slug(r["path"]) for r in rows]
+            sources = credited(connection, [r["path"] for r in rows], {})
             result["retrieved_sources"] = sources
             result["surfaced_sources"] = sources        # a passage retriever surfaces only passages
             # A lexical system can only cite the passage it pulled. That is the honest limit, and
             # measuring it is the point of the comparison.
             result["cited_sources"] = sources[:3]
             result["answer"] = rows[0]["title"] if rows else None
+            result["abstained"] = not sources
             # It has no notion of time, so it cannot answer a temporal question correctly except by
             # accident. Recording "unknown" rather than guessing keeps that visible.
             result["answer_status"] = "unknown"
@@ -241,7 +316,7 @@ class LexicalSystem:
         return result
 
 
-def build(database, names, ablations=False, progress=None):
+def build(database, names, ablations=False, progress=None, dense_min_similarity=None):
     """The systems to run.
 
     Returns (systems, unknown, skipped). A system asked for and not built is reported, never dropped
@@ -259,7 +334,7 @@ def build(database, names, ablations=False, progress=None):
             if not usable:
                 skipped.append(("dense", reason))
             else:
-                systems.append(dense.DenseSystem(database, progress=progress))
+                systems.append(dense.DenseSystem(database, progress=progress, min_similarity=dense_min_similarity))
         else:
             unknown.append(name)
     if ablations:

@@ -344,6 +344,7 @@ def test_every_system_declares_both_lists():
     """A system that forgets `surfaced_sources` must fall back, never score None by accident."""
     from oto.bench import systems
 
-    blank = systems._blank("some-system", "q1")
+    blank = systems._blank("some-system", "q1", "passage")
     assert "retrieved_sources" in blank
     assert "surfaced_sources" in blank
+    assert blank["answer_kind"] == "passage" and blank["abstained"] is False and "match" in blank

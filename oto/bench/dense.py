@@ -27,6 +27,8 @@ import tempfile
 MODEL_NAME = "BAAI/bge-small-en-v1.5"
 CHUNK_WORDS = 220
 CHUNK_OVERLAP = 40
+#: What the cache holds: passage paths, so a generated card is credited to its entity's sources.
+CACHE_FORMAT = "paths-v2"
 
 
 def available():
@@ -68,6 +70,7 @@ def _cache_path(database):
     """
     digest = hashlib.sha256()
     digest.update(MODEL_NAME.encode())
+    digest.update(CACHE_FORMAT.encode())
     digest.update(str(CHUNK_WORDS).encode())
     digest.update(str(CHUNK_OVERLAP).encode())
     with open(database, "rb") as f:
@@ -77,9 +80,7 @@ def _cache_path(database):
 
 
 def _passages(database):
-    """(source slug, chunk text) for every document. The same corpus the other systems see."""
-    from .systems import _source_slug
-
+    """(indexed path, chunk text) for every document. The same corpus the other systems see."""
     connection = sqlite3.connect("file:%s?mode=ro" % database, uri=True)
     connection.row_factory = sqlite3.Row
     try:
@@ -88,38 +89,37 @@ def _passages(database):
         connection.close()
     out = []
     for row in rows:
-        slug = _source_slug(row["path"])
         for chunk in _chunks(row["body"]):
-            out.append((slug, chunk))
+            out.append((row["path"], chunk))
     return out
 
 
 def build_index(database, progress=None):
-    """Embed the corpus once and cache it. Returns (slugs, matrix)."""
+    """Embed the corpus once and cache it. Returns (paths, matrix)."""
     import numpy as np
 
     path = _cache_path(database)
     if os.path.exists(path):
         cached = np.load(path, allow_pickle=True)
-        return list(cached["slugs"]), cached["vectors"]
+        return list(cached["paths"]), cached["vectors"]
 
     passages = _passages(database)
     if not passages:
         return [], np.zeros((0, 1), dtype="float32")
     if progress:
         progress("embedding %d passage(s) from %d document(s); this is cached afterwards"
-                 % (len(passages), len({s for s, _ in passages})))
+                 % (len(passages), len({where for where, _ in passages})))
 
     from fastembed import TextEmbedding
 
     model = TextEmbedding(model_name=MODEL_NAME)
-    vectors = np.array(list(model.embed([text for _slug, text in passages])), dtype="float32")
+    vectors = np.array(list(model.embed([text for _where, text in passages])), dtype="float32")
     norms = np.linalg.norm(vectors, axis=1, keepdims=True)
     norms[norms == 0] = 1.0
     vectors = vectors / norms                        # normalize once, so scoring is a dot product
-    slugs = [slug for slug, _text in passages]
-    np.savez_compressed(path, slugs=np.array(slugs, dtype=object), vectors=vectors)
-    return slugs, vectors
+    paths = [where for where, _text in passages]
+    np.savez_compressed(path, paths=np.array(paths, dtype=object), vectors=vectors)
+    return paths, vectors
 
 
 class DenseSystem:
@@ -127,9 +127,12 @@ class DenseSystem:
 
     name = "dense"
 
-    def __init__(self, database, progress=None):
+    def __init__(self, database, progress=None, min_similarity=None):
         self.database = database
-        self.slugs, self.vectors = build_index(database, progress=progress)
+        #: Below this similarity it abstains instead of answering with its nearest passage. None
+        #: answers always, which is what an embedding retriever does unless someone sets a cutoff.
+        self.min_similarity = min_similarity
+        self.paths, self.vectors = build_index(database, progress=progress)
         from fastembed import TextEmbedding
         self._model = TextEmbedding(model_name=MODEL_NAME)
 
@@ -164,10 +167,14 @@ class DenseSystem:
     def answer(self, question):
         import numpy as np
 
-        from .systems import _blank
+        from .systems import _blank, _read_only, credited
 
-        result = _blank(self.name, question.get("id"))
-        if not len(self.slugs):
+        result = _blank(self.name, question.get("id"), "passage")
+        # No notion of entities and no notion of time. Recording that plainly, rather than guessing,
+        # is what keeps the temporal column meaningful.
+        result["answer_status"] = "unknown"
+        if not len(self.paths):
+            result["abstained"] = True
             return result
         query = np.array(list(self._model.embed([question.get("question") or ""]))[0],
                          dtype="float32")
@@ -176,19 +183,25 @@ class DenseSystem:
 
         best = {}
         for index in np.argsort(-scores)[:200]:
-            slug = self.slugs[int(index)]
-            if slug not in best:
-                best[slug] = float(scores[int(index)])
+            where = self.paths[int(index)]
+            if where not in best:
+                best[where] = float(scores[int(index)])
             if len(best) >= 20:
                 break
-        ranked = [slug for slug, _score in sorted(best.items(), key=lambda kv: -kv[1])]
+        ordered = sorted(best.items(), key=lambda kv: -kv[1])
+        result["confidence"] = ordered[0][1] if ordered else None
+        if result["confidence"] is None or (self.min_similarity is not None and result["confidence"] < self.min_similarity):
+            result["abstained"] = True
+            return result
+        connection = _read_only(self.database)
+        try:
+            ranked = credited(connection, [where for where, _score in ordered], {})
+        finally:
+            connection.close()
 
         result["retrieved_sources"] = ranked
         result["surfaced_sources"] = ranked      # a passage retriever surfaces only passages
         # Like any passage retriever, it can only cite what it pulled. That is the honest limit of the
         # approach, and measuring it is the point of the comparison.
         result["cited_sources"] = ranked[:3]
-        # No notion of entities and no notion of time. Recording that plainly, rather than guessing,
-        # is what keeps the temporal column meaningful.
-        result["answer_status"] = "unknown"
         return result

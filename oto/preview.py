@@ -28,8 +28,10 @@ DIR_NAME = "preview"
 META_NAME = "preview.json"
 STAGES = {"knowledge", "rules", "ontology", "semantic", "sqlite"}
 AUTHORED = ("project.config.json", "ontology.config.json", "ontology.rationale.json", "rules.json", "lexicon.json",
-            "changelog.jsonl", "assertions.jsonl")
-WATCHED = ("graph.json", "graph.candidate.json", "ontology.config.json", "rules.json", "lexicon.json", "proposals", "actions")
+            "questions.json", "briefs.json", "changelog.jsonl", "assertions.jsonl")
+AUTHORED_DIRS = ("actions",)
+WATCHED = ("graph.json", "graph.candidate.json", "ontology.config.json", "ontology.rationale.json", "rules.json",
+           "lexicon.json", "questions.json", "briefs.json", "proposals", "actions")
 
 
 def directory(project):
@@ -80,6 +82,10 @@ def build(project, today=None):
             source = os.path.join(root, name)
             if os.path.exists(source):
                 shutil.copyfile(source, os.path.join(scratch, name))
+        for name in AUTHORED_DIRS:
+            source = os.path.join(root, name)
+            if os.path.isdir(source):
+                shutil.copytree(source, os.path.join(scratch, name))
         with open(os.path.join(scratch, "graph.json"), "w", encoding="utf-8") as f:
             json.dump(pending["composed"], f, ensure_ascii=False)
         _link_or_copy(project.layout.corpus, os.path.join(out, "documents"))

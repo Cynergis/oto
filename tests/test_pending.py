@@ -161,6 +161,36 @@ def test_preview_builds_the_graph_as_it_would_be_and_leaves_the_live_store_alone
             live.close()
 
 
+def test_the_preview_carries_the_questions_briefs_and_actions_the_live_store_does():
+    """The preview is read by the same tools as the live store: a question or a brief that runs live
+    runs on the preview, and a declared action is a node in both. Editing them rebuilds the preview."""
+    with tempfile.TemporaryDirectory() as root:
+        project = _project(root)
+        _write(root, "briefs.json", {"briefs": {"review-system": {"description": "Before reviewing a system.",
+                                                                  "params": {"SYSTEM": "System"}, "required": ["SA1"]}}})
+        build(project)
+        _write(root, "proposals/memo.json", {"source_doc": "memo", "nodes": [NEW], "edges": []})
+        _preview.build(project)
+
+        carried = {}
+        for name, db in (("live", project.layout.database), ("preview", _preview.database(project))):
+            store = SqliteStore(db)
+            try:
+                carried[name] = (store.questions(), store.briefs(),
+                                 sorted(n["id"] for n in store.all_nodes() if n["type"] == "Action"))
+            finally:
+                store.close()
+        live_questions, live_briefs, live_actions = carried["live"]
+        assert live_questions and live_briefs and live_actions, "the fixture declares all three"
+        assert carried["preview"] == carried["live"]
+
+        for name in ("questions.json", "briefs.json", "ontology.rationale.json"):
+            before = _preview.signature(root)
+            st = os.stat(os.path.join(root, name))
+            os.utime(os.path.join(root, name), ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000_000))
+            assert _preview.signature(root) != before, "editing %s must rebuild the preview" % name
+
+
 def test_serve_preview_and_watch_rebuild_on_change():
     from oto.serve import http as _http
     with tempfile.TemporaryDirectory() as root:

@@ -313,6 +313,9 @@ def resolve(term, prefer_current=True):
         return term, []
     ids = STORE.by_name(term)
     if ids:
+        if prefer_current:
+            # A successor usually keeps its predecessor's label; by_name orders by id, which can put the retired one first.
+            ids = sorted(ids, key=lambda nid: node(nid)["status"] != "current")
         return ids[0], ids[1:6]
     ids = STORE.by_text(term, 6)
     return (ids[0], ids[1:]) if ids else (None, [])

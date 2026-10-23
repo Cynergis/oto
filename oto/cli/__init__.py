@@ -6,6 +6,7 @@ One module per command, in the order a project moves through them:
     init.py        oto init                     create a project, optionally from an ontology
     ingest.py      oto ingest, oto figures, oto survey   raw documents into the corpus, and a map of it
     ontology.py    oto ontology                 the project's vocabulary, and the catalog (catalog.py)
+    lexicon.py     oto lexicon                  words mapped to entities: suggested by embeddings, accepted by a person
     registry.py    oto registry                 the registries ontologies and packs are fetched from
     pack.py        oto pack                     the extension a person installs: an ontology, skills, views (pack_catalog.py)
     rules.py       oto rules                    validate, dry-run, diff and accept the rules
@@ -30,9 +31,9 @@ import sys
 
 from .. import __version__
 from ..project import ProjectError
-from . import actions, bench, build, capture, curate, draft, feedback, ingest, init, lock, ontology, pack, preview, publish, publishable, query, registry, rules, sandbox, status, vet
+from . import actions, bench, build, capture, curate, draft, feedback, ingest, init, lexicon, lock, ontology, pack, preview, publish, publishable, query, registry, rules, sandbox, status, vet
 
-COMMANDS = (init, status, lock, sandbox, ingest, capture, ontology, pack, registry, rules, actions, curate, draft, vet, build, preview, query, publish, publishable, bench, feedback)
+COMMANDS = (init, status, lock, sandbox, ingest, capture, ontology, lexicon, pack, registry, rules, actions, curate, draft, vet, build, preview, query, publish, publishable, bench, feedback)
 
 
 def cmd_version(args):

@@ -4,9 +4,16 @@
   "entry": "index.html",
   "engine": ">=0.11.31",
   "data": [
-    {"file": "data.json", "format": "json", "root": {"$graph": true}}
+    {
+      "file": "data.json",
+      "format": "json",
+      "root": {
+        "$graph": true
+      }
+    }
   ],
   "requires": {},
   "title": "The workbench",
-  "place": "technical"
+  "place": "technical",
+  "snapshot": "published"
 }

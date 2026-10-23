@@ -267,7 +267,7 @@ jobs:
           if-no-files-found: error
       - name: Build the static site, when an app is named
         if: vars.OTO_QUERY_REPO != '' && vars.OTO_SITE_VIEW != ''
-        run: oto build --project . --only site --target site --app "${{{{ vars.OTO_SITE_VIEW }}}}"
+        run: oto build --project . --only site --target site --view "${{{{ vars.OTO_SITE_VIEW }}}}"
       - name: Publish the store to the query repository, when one is configured
         if: vars.OTO_QUERY_REPO != ''
         env:

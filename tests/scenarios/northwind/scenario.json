@@ -126,6 +126,17 @@
     {"run": ["feedback", "record", "--question", "Is WO-2291 still open?", "--verdict", "wrong",
              "--by", "Dana Reyes, Fleet Manager", "--at", "2025-10-07", "--given", "state: open"],
      "out": ["recorded fb-0003: wrong", "This cannot become a test yet"]},
-    {"run": ["feedback", "promote"], "out": ["promoted 1 question(s)", "fb-0002 -> from-fb-0002"], "snapshot": {"overview": {"facts": 21, "documents": 4, "conversations": 2, "questions": {"declared": 7, "answered": 7}}, "stations.rules.line": "3 rules · 3 warnings", "rules.findings": {"len": 3}, "test.bench.systems.oto.score": {"min": 0}, "test.gold.questions": 15, "open": {"has": "Is WO-2291 still open?"}, "stations.deploy.state": "not_started"}}
+    {"run": ["feedback", "promote"], "out": ["promoted 1 question(s)", "fb-0002 -> from-fb-0002"], "snapshot": {"overview": {"facts": 21, "documents": 4, "conversations": 2, "questions": {"declared": 7, "answered": 7}}, "stations.rules.line": "3 rules · 3 warnings", "rules.findings": {"len": 3}, "test.bench.systems.oto.score": {"min": 0}, "test.gold.questions": 15, "open": {"has": "Is WO-2291 still open?"}, "stations.deploy.state": "not_started"}},
+
+    {"say": "publish: a static copy of the workbench, with what only the project's people should see withheld",
+     "run": ["build", "--target", "site", "--view", "workbench"],
+     "out": ["published snapshot written, 9 part(s) withheld"],
+     "snapshot": {"sources.errors": {"len": 0}, "test.feedback_waiting": 1, "published": false}},
+    {"file": "build/site/snapshot.json",
+     "json": {"published": true, "sources.errors": [], "survey.latest": [], "test.feedback": [],
+              "test.feedback_counts": {"right": 1, "incomplete": 1, "wrong": 1},
+              "vocabulary.classes.PMLevel": {"has": "confirmed"},
+              "open": {"has": "1 reader question waits for its right answer"},
+              "test.gold.authored_by": null, "overview.facts": 21}}
   ]
 }

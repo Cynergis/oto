@@ -63,7 +63,7 @@ def read(directory):
     if not isinstance(declared, dict):
         raise AppError("%s must be a JSON object" % path)
     for key in ("name", "summary", "entry", "engine", "data", "adapter", "requires", "overrides",
-                "title", "place", "shows", "open", "portal"):
+                "title", "place", "shows", "open", "portal", "snapshot"):
         if key in declared and declared[key] not in (None, ""):
             manifest[key] = declared[key]
     manifest["_declared"] = True
@@ -125,6 +125,8 @@ def problems(directory, vocabulary=None):
             out.append("`%s` must be a list of %s" % (key, "class names" if key == "shows" else "question ids or id prefixes"))
     if "portal" in manifest and not isinstance(manifest["portal"], bool):
         out.append("`portal` must be true or false")
+    if "snapshot" in manifest and manifest["snapshot"] != "published":
+        out.append("`snapshot` must be \"published\": a static copy carries the published project snapshot")
     overrides = manifest.get("overrides") or []
     if not isinstance(overrides, list) or not all(isinstance(x, str) and x and "/" not in x and ".." not in x for x in overrides):
         out.append("`overrides` must be a list of file names")

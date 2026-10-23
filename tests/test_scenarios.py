@@ -13,8 +13,9 @@ writes the documents, proposals, vocabulary files, a gold set). A step does one 
                bench     floors per system on the strict answers table; `beats` names the systems
                          each must outscore
     snapshot the workbench snapshot after the step (`oto status --snapshot`): {path: expected}, where a
-             path is dotted keys, a station by its id (`stations.curate.state`), and expected is a
+             path is dotted keys, a list item by its id or name (`stations.curate.state`), and expected is a
              value, or {"len": n}, {"min": x} or {"has": text} (in the value's JSON)
+    file     a JSON file the project holds, checked like a snapshot: {"file": path, "json": {path: expected}}
     inbox    copy source documents into the inbox
     write    write a file into the project (`text`)
     put      copy a scenario file or folder into the project (`to`, default its root)
@@ -132,7 +133,7 @@ def _expect(step, code, text, where):
 def _at(value, path):
     for key in path.split("."):
         if isinstance(value, list):
-            value = next(item for item in value if isinstance(item, dict) and item.get("id") == key) \
+            value = next(item for item in value if isinstance(item, dict) and key in (item.get("id"), item.get("name"))) \
                 if not key.isdigit() else value[int(key)]
         else:
             value = value[key]
@@ -142,13 +143,23 @@ def _at(value, path):
 def _snapshot(step, ctx, where):
     code, text = _cli(["status", "--project", ctx["root"], "--snapshot"])
     assert code == 0, "%s: no snapshot\n%s" % (where, text)
-    snap = json.loads(text)
-    for path, wanted in step["snapshot"].items():
+    _match(json.loads(text), step["snapshot"], where + ": snapshot")
+
+
+def _json_file(step, ctx, where):
+    path = os.path.join(ctx["root"], step["file"])
+    assert os.path.exists(path), "%s: no %s" % (where, step["file"])
+    with open(path, encoding="utf-8") as f:
+        _match(json.load(f), step["json"], "%s: %s" % (where, step["file"]))
+
+
+def _match(snap, expected, where):
+    for path, wanted in expected.items():
         try:
             got = _at(snap, path)
         except (KeyError, IndexError, StopIteration):
-            raise AssertionError("%s: the snapshot has no %s" % (where, path))
-        said = "%s: snapshot %s is %s" % (where, path, json.dumps(got, ensure_ascii=False)[:600])
+            raise AssertionError("%s has no %s" % (where, path))
+        said = "%s %s is %s" % (where, path, json.dumps(got, ensure_ascii=False)[:600])
         if isinstance(wanted, dict) and set(wanted) <= {"len", "min", "has"}:
             if "len" in wanted:
                 assert len(got) == wanted["len"], said
@@ -188,6 +199,8 @@ def _play(name, ctx, through=None, done=None):
             _expect(step, code, text, where)
         if "snapshot" in step:
             _snapshot(step, ctx, where)
+        if "file" in step:
+            _json_file(step, ctx, where)
         if through and step.get("id") == through:
             return
     assert not through, "%s has no step with id %r" % (name, through)

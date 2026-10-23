@@ -25,8 +25,28 @@ project gives the same snapshot.
     deploy      {backend, targets, site}
     open        [{station, what, detail}]: what waits on a person, in plain words
 
+    published   false here; true in the copy a static site carries (see `published`)
+    withheld    what the published copy left out, as dotted paths; [] here
+
 Words in `line`, `what` and `detail` are for a reader, not an operator: no commands, no file names
 beyond a document's own.
+
+A published copy (GitHub Pages, any static host) carries `published(snapshot)`: the same contract, with
+what the site already publishes kept and what only the project's people should see withheld.
+
+    kept        the overview and stations; the vocabulary with each class's reason and whether it is
+                confirmed; the questions; the documents' titles (data.json has them); the changelog
+                (data.json's ledger has it); rules, their reasons and findings; gold-set size and audit;
+                bench results; deploy
+    withheld    the files waiting or refused, and why (a refused file is often refused for what it
+                holds); survey decisions (rejected terms are often people's names); who confirmed a
+                class or a rule ("confirmed" stays); who wrote the gold set; feedback, which is people's
+                questions in their words (counts by verdict stay)
+
+Text an analyst wrote for readers (a class's reason, a change's note) is published as written, names
+included: no rule takes a name out of a sentence, so write it for readers. Only the fields whose purpose
+is to name someone are withheld. What waits on a person is said again from the counts, without names. What is kept is then scanned
+(validate/privacy.py) and a blocking finding refuses the published copy: `refusals` says why.
 """
 import hashlib
 import json
@@ -38,6 +58,7 @@ STATIONS = (("sources", "Sources"), ("survey", "Survey"), ("vocabulary", "Vocabu
             ("build", "Build"), ("rules", "Rules"), ("test", "Test"), ("deploy", "Deploy"))
 CHANGES_SHOWN = 20
 BENCH_FILE = os.path.join("bench", "latest.json")
+PUBLISHED_NAME = "snapshot.json"
 
 
 def _read_json(path, default=None):
@@ -68,19 +89,23 @@ def _title(path, fallback):
 def _sources(project):
     from .intake import pipeline as _pipeline
     layout = project.layout
+    # A refusal is resolved once a file of that name was ingested and archived (fixed, dropped back in).
+    archived = set(_read_json(os.path.join(layout.runs, _pipeline.INDEX_NAME), {}) or {})
     errors = []
     if os.path.isdir(layout.errors):
         for run in sorted(os.listdir(layout.errors)):
             for name in _files(os.path.join(layout.errors, run)):
                 if name.endswith(_pipeline.ERROR_SUFFIX):
                     record = _read_json(os.path.join(layout.errors, run, name), {}) or {}
-                    errors.append({"file": record.get("file") or name[:-len(_pipeline.ERROR_SUFFIX)],
-                                   "reason": record.get("reason") or record.get("outcome"), "run": run})
+                    refused = record.get("file") or name[:-len(_pipeline.ERROR_SUFFIX)]
+                    if refused not in archived:
+                        errors.append({"file": refused, "reason": record.get("reason") or record.get("outcome"), "run": run})
     open_runs = [m["run_id"] for m in _pipeline.open_runs(project)]
     documents = [{"slug": n[:-3], "title": _title(os.path.join(layout.corpus, n), n[:-3])}
                  for n in _files(layout.corpus) if n.endswith(".md")]
-    return {"inbox": _files(layout.inbox), "processing": _files(layout.processing), "errors": errors,
-            "documents": documents, "open_runs": open_runs}
+    inbox, processing = _files(layout.inbox), _files(layout.processing)
+    return {"inbox": inbox, "processing": processing, "errors": errors, "documents": documents, "open_runs": open_runs,
+            "waiting": {"inbox": len(inbox), "processing": len(processing), "errors": len(errors), "open_runs": len(open_runs)}}
 
 
 def _survey(project):
@@ -170,8 +195,16 @@ def _test(project):
     feedback = [{"id": e.get("id"), "verdict": e.get("verdict"), "question": e.get("question"), "by": e.get("by"),
                  "at": e.get("at"), "expected": e.get("expected"), "promoted": e.get("id") in promoted} for e in entries]
     bench = _read_json(os.path.join(project.src, BENCH_FILE))
+    counts = {}
+    for f in feedback:
+        counts[f["verdict"]] = counts.get(f["verdict"], 0) + 1
     return {"gold": gold, "bench": {"at": bench.get("at"), "systems": bench.get("systems")} if bench else None,
-            "feedback": feedback}
+            "feedback": feedback, "feedback_counts": counts, "feedback_waiting": len([f for f in feedback if _waits(f)])}
+
+
+def _waits(f):
+    """A complaint nobody can grade a fix against yet: not right, not a test, no right answer known."""
+    return f["verdict"] != "right" and not f["promoted"] and not f["expected"]
 
 
 def _questions_answered(project, vocabulary, graph):
@@ -207,7 +240,7 @@ def _stations(s):
                   "%s · %s" % (_plural(bld["current"], "fact"), _plural(bld["links"], "link")) if bld["built"] else "not built"),
         "rules": ("not_started" if not rul["rules"] else "attention" if rul["findings"] or any(not r["validated_by"] for r in rul["rules"]) else "done",
                   "%s · %s" % (_plural(len(rul["rules"]), "rule"), _plural(len(rul["findings"]), "warning")) if rul["rules"] else "no rules"),
-        "test": ("not_started" if not tst["gold"] else "attention" if not tst["bench"] or any(f["verdict"] != "right" and not f["promoted"] and not f["expected"] for f in tst["feedback"]) else "done",
+        "test": ("not_started" if not tst["gold"] else "attention" if not tst["bench"] or tst["feedback_waiting"] else "done",
                  ("%s" % _plural(tst["gold"]["questions"], "gold question")) if tst["gold"] else "no gold set"),
         "deploy": ("done" if dep["site"] else "not_started", "site built" if dep["site"] else "site not built"),
     }
@@ -216,10 +249,14 @@ def _stations(s):
 
 def _open(s):
     out = []
-    for e in s["sources"]["errors"]:
-        out.append({"station": "sources", "what": "%s could not be read" % e["file"], "detail": e["reason"]})
-    if s["sources"]["inbox"]:
-        out.append({"station": "sources", "what": "%s waiting in the inbox" % _plural(len(s["sources"]["inbox"]), "document"), "detail": None})
+    waiting = s["sources"]["waiting"]
+    if s["sources"]["errors"]:
+        for e in s["sources"]["errors"]:
+            out.append({"station": "sources", "what": "%s could not be read" % e["file"], "detail": e["reason"]})
+    elif waiting["errors"]:
+        out.append({"station": "sources", "what": "%s could not be read" % _plural(waiting["errors"], "document"), "detail": None})
+    if waiting["inbox"]:
+        out.append({"station": "sources", "what": "%s waiting in the inbox" % _plural(waiting["inbox"], "document"), "detail": None})
     voc = s["vocabulary"]
     if voc["classes"] and not voc["accepted"]:
         out.append({"station": "vocabulary", "what": "The vocabulary is not accepted yet", "detail": None})
@@ -239,12 +276,18 @@ def _open(s):
     unvalidated = [r["id"] for r in s["rules"]["rules"] if not r["validated_by"]]
     if unvalidated:
         out.append({"station": "rules", "what": "%s nobody has confirmed" % _plural(len(unvalidated), "rule"), "detail": None})
-    for f in s["test"]["feedback"]:
-        if f["verdict"] != "right" and not f["promoted"] and not f["expected"]:
-            out.append({"station": "test", "what": f["question"], "detail": "%s said the answer was %s; the right answer is not known yet." % (f["by"], f["verdict"])})
+    if s["test"]["feedback"]:
+        for f in s["test"]["feedback"]:
+            if _waits(f):
+                out.append({"station": "test", "what": f["question"], "detail": "%s said the answer was %s; the right answer is not known yet." % (f["by"], f["verdict"])})
+    elif s["test"]["feedback_waiting"]:
+        n = s["test"]["feedback_waiting"]
+        out.append({"station": "test", "what": "%s %s for %s right answer" % (_plural(n, "reader question"), "waits" if n == 1 else "wait",
+                                                                             "its" if n == 1 else "their"), "detail": None})
     gold = s["test"]["gold"]
     if gold and not gold.get("audited_fraction"):
-        out.append({"station": "test", "what": "Nobody has audited the gold questions", "detail": "Written by %s." % (gold.get("authored_by") or "an unknown author")})
+        out.append({"station": "test", "what": "Nobody has audited the gold questions",
+                    "detail": "Written by %s." % gold["authored_by"] if gold.get("authored_by") else None})
     return out
 
 
@@ -263,7 +306,7 @@ def build(project):
     answered = _questions_answered(project, vocabulary, graph)
     cfg = project.config()
 
-    s = {"snapshot": SNAPSHOT, "project": {"name": cfg.get("name"), "slug": cfg.get("slug")}}
+    s = {"snapshot": SNAPSHOT, "project": {"name": cfg.get("name"), "slug": cfg.get("slug")}, "published": False, "withheld": []}
     s["sources"] = _sources(project)
     s["survey"] = _survey(project)
     s["vocabulary"] = _vocabulary(project, vocabulary, graph, answered)
@@ -283,6 +326,38 @@ def build(project):
     s["open"] = _open(s)
     s["token"] = token(s)
     return s
+
+
+WITHHELD = ("rules.rules.validated_by", "sources.errors", "sources.inbox", "sources.open_runs", "sources.processing",
+            "survey.latest", "test.feedback", "test.gold.authored_by", "vocabulary.classes.validated_by")
+
+
+def published(live):
+    """The copy a static site carries: what the site already publishes kept, the rest withheld (see the
+    module's docstring). Deterministic: the same live snapshot gives the same published one."""
+    import copy
+    out = copy.deepcopy(live)
+    for key in ("errors", "inbox", "open_runs", "processing"):
+        out["sources"][key] = []
+    out["survey"]["latest"] = []
+    for c in out["vocabulary"]["classes"]:
+        c["validated_by"] = "confirmed" if c["validated_by"] else None
+    for r in out["rules"]["rules"]:
+        r["validated_by"] = "confirmed" if r["validated_by"] else None
+    if out["test"]["gold"]:
+        out["test"]["gold"]["authored_by"] = None
+    out["test"]["feedback"] = []
+    out["published"], out["withheld"] = True, list(WITHHELD)
+    out["open"] = _open(out)
+    out["token"] = token(out)
+    return out
+
+
+def refusals(snapshot):
+    """Why a snapshot must not be published: the privacy scan's blocking findings on its text."""
+    from .validate import privacy as _privacy
+    findings = _privacy.scan(json.dumps(snapshot, ensure_ascii=False))
+    return sorted({f.kind for f in _privacy.blocking(findings)})
 
 
 def _captured(project, slug):

@@ -169,7 +169,8 @@ def claim(inbox, processing, move=True):
     layout exists to prevent.
 
     Files already in processing are leftovers from a run that did not finish. They are claimed
-    again: extraction is idempotent, so re-running them is the recovery. An inbox file whose name
+    again: extraction is idempotent, so re-running them is the recovery, and the run that held
+    them before is closed as superseded by this one. An inbox file whose name
     is already in processing stays where it is and is reported, because writing over the leftover
     would lose one of the two.
     """
@@ -274,6 +275,7 @@ def ingest(project, inbox=None, allow_personal_data=False, strict_privacy=False,
         manifest["finished"] = _now()
         manifest["summary"] = _summary(manifest["files"])
         _write_json(os.path.join(runs_dir, run_id + ".json"), manifest)
+        _close_superseded(project, run_id, claimed)
 
     s = manifest["summary"]
     print("\nrun %s: extracted %d, blocked %d, unsupported %d, missing parser %d, failed %d"
@@ -356,6 +358,25 @@ def open_runs(project):
             if not m.get("completed") and any(e.get("outcome") == EXTRACTED for e in m.get("files", []))]
 
 
+def _close_superseded(project, run_id, taken):
+    """Close every earlier open run none of whose extracted files still waits for it.
+
+    A leftover in processing/ belongs to the run that claimed it last, so a run whose files a later
+    run took over (or that are gone from processing/) has nothing left to archive. It is marked
+    completed, with `superseded_by` naming the run that took them, so it does not stay open forever.
+    """
+    layout, taken = project.layout, set(taken)
+    for m in open_runs(project):
+        if m.get("run_id") == run_id:
+            continue
+        names = [e["file"] for e in m.get("files", []) if e.get("outcome") == EXTRACTED]
+        if all(n in taken or not os.path.exists(os.path.join(layout.processing, n)) for n in names):
+            m["completed"] = True
+            m["completed_at"] = _now()
+            m["superseded_by"] = run_id
+            _write_json(os.path.join(layout.runs, m["run_id"] + ".json"), m)
+
+
 def _corpus_newer_than_database(layout, slugs):
     if not os.path.exists(layout.database):
         return True
@@ -382,6 +403,9 @@ def complete(project, run_id=None, force=False):
         if not matching:
             raise NotReady("no run %s" % run_id)
         manifest = matching[0]
+        if manifest.get("superseded_by"):
+            raise NotReady("run %s was superseded by %s, which took over its files"
+                           % (run_id, manifest["superseded_by"]))
         if manifest.get("completed"):
             raise NotReady("run %s is already complete" % run_id)
     elif candidates:
@@ -442,6 +466,7 @@ def complete(project, run_id=None, force=False):
         manifest["completed_at"] = _now()
         _write_json(os.path.join(layout.runs, manifest["run_id"] + ".json"), manifest)
         _write_json(index_path, index)
+        _close_superseded(project, manifest["run_id"], archived)
 
     return {"run_id": manifest["run_id"], "archived": archived, "versioned": versioned,
             "missing": missing, "remaining": _files(layout.processing)}

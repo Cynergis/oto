@@ -75,7 +75,11 @@
     {"run": ["query", "ask", "CQ6", "ROUTE=Route 12"], "out": ["status: answered", "4127"]},
     {"say": "history: what was believed before the change", "run": ["query", "entity", "PM-B", "--as-of", "2025-08-15"],
      "out": ["(pm.pm-b)", "status=superseded", "valid_to=2025-09-01", "interval km: 24000"]},
-    {"id": "pm-b-built", "run": ["ingest", "complete"], "out": ["5 file(s) archived"]},
+    {"id": "pm-b-built", "run": ["ingest", "complete"], "out": ["5 file(s) archived"],
+     "snapshot": {"sources.open_runs": [], "sources.processing": []}},
+    {"say": "the runs whose leftovers a later run took over are closed, not open forever",
+     "run": ["ingest", "runs", "--open"], "not_out": ["2"]},
+    {"run": ["ingest", "runs"], "out": ["superseded"], "not_out": ["OPEN"]},
 
     {"say": "Priya Nair reports a work order: as first said, it dates itself by 'today' and names a retired fact",
      "run": ["capture", "--title", "WO-2304 PM-B at East Garage", "--by", "Priya Nair, Maintenance Supervisor, East Garage",

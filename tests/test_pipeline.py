@@ -180,6 +180,43 @@ def test_complete_archives_and_closes_the_run():
             pipeline.complete(project, run_id)
 
 
+def test_a_run_whose_leftovers_a_later_run_claims_is_closed_and_points_at_it():
+    """Leftovers belong to the run that claimed them last: the earlier run has nothing left waiting."""
+    with tempfile.TemporaryDirectory() as root:
+        project = _project(root)
+        _drop(project, "a.md", "# A\n\nText.\n")
+        first = pipeline.ingest(project)["run_id"]
+        second = _ingest_and_build(project, "b.md", "# B\n\nText.\n")
+        assert [m["run_id"] for m in pipeline.open_runs(project)] == [second]
+        earlier = [m for m in pipeline.runs(project) if m["run_id"] == first][0]
+        assert earlier["completed"] is True and earlier["superseded_by"] == second
+        with pytest.raises(pipeline.NotReady, match="superseded by %s" % second):
+            pipeline.complete(project, first)
+        done = pipeline.complete(project)
+        assert done["run_id"] == second and sorted(done["archived"]) == ["a.md", "b.md"]
+        assert pipeline.open_runs(project) == []
+
+
+def test_complete_closes_an_earlier_run_with_nothing_left_in_processing():
+    """A manifest written before runs were superseded on claim is closed by the run that archives its files."""
+    with tempfile.TemporaryDirectory() as root:
+        project = _project(root)
+        _drop(project, "a.md", "# A\n\nText.\n")
+        first = pipeline.ingest(project)["run_id"]
+        second = _ingest_and_build(project, "b.md", "# B\n\nText.\n")
+        path = os.path.join(project.layout.runs, first + ".json")
+        stale = json.load(open(path, encoding="utf-8"))
+        stale["completed"] = False
+        del stale["superseded_by"], stale["completed_at"]
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(stale, f)
+        assert [m["run_id"] for m in pipeline.open_runs(project)] == [first, second]
+        pipeline.complete(project, second)
+        assert pipeline.open_runs(project) == []
+        earlier = [m for m in pipeline.runs(project) if m["run_id"] == first][0]
+        assert earlier["completed"] is True and earlier["superseded_by"] == second
+
+
 def test_a_new_version_of_an_archived_document_is_flagged_and_kept_apart():
     with tempfile.TemporaryDirectory() as root:
         project = _project(root)

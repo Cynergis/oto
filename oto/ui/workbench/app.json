@@ -1,0 +1,12 @@
+{
+  "name": "workbench",
+  "summary": "One app for a project: what the knowledge base knows (Overview, Knowledge, with the explorer's graph) and where the project is (Project: its stations). Read-only; served live beside the agent, it follows every change.",
+  "entry": "index.html",
+  "engine": ">=0.11.31",
+  "data": [
+    {"file": "data.json", "format": "json", "root": {"$graph": true}}
+  ],
+  "requires": {},
+  "title": "The workbench",
+  "place": "technical"
+}

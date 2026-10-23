@@ -1,0 +1,54 @@
+/* The workbench's styles: Tailwind, with shadcn's tokens set to direction A's palette. No fonts fetched:
+ * IBM Plex where installed, the system face otherwise. Light and dark follow the reader's setting. */
+@import "tailwindcss";
+@source "./";
+
+:root {
+  --background: #f4f6f8; --foreground: #18212b;
+  --card: #ffffff; --card-foreground: #18212b;
+  --primary: #0b5563; --primary-foreground: #ffffff;
+  --secondary: #e8f2f4; --secondary-foreground: #0b3c46;
+  --muted: #eceff2; --muted-foreground: #4b5866;
+  --accent: #e8f2f4; --accent-foreground: #0b3c46;
+  --border: #d9dee4; --input: #c9d0d8; --ring: #0b5563;
+  --done: #1c5e36; --done-soft: #e3f1ea; --done-dot: #24804a;
+  --attention: #7a4300; --attention-soft: #fff1dc; --attention-dot: #b86e00;
+  --idle-dot: #8c96a3;
+  --bar-right: #2e8b57; --bar-abstained: #a9b3be; --bar-wrong: #c8551e;
+  --radius: 0.625rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #0e151c; --foreground: #e4ebf1;
+    --card: #16212b; --card-foreground: #e4ebf1;
+    --primary: #7fd3e0; --primary-foreground: #0b2a31;
+    --secondary: #1f3340; --secondary-foreground: #d3e7ec;
+    --muted: #1a2530; --muted-foreground: #a7b6c4;
+    --accent: #1f3340; --accent-foreground: #e4ebf1;
+    --border: #22303c; --input: #2c3b48; --ring: #7fd3e0;
+    --done: #9fe3c0; --done-soft: #173a2a; --done-dot: #4fbf85;
+    --attention: #f4c27a; --attention-soft: #3b2e17; --attention-dot: #e0a55a;
+    --idle-dot: #6f7d8b;
+    --bar-right: #4fbf85; --bar-abstained: #4a5a69; --bar-wrong: #f08a5d;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background); --color-foreground: var(--foreground);
+  --color-card: var(--card); --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary); --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary); --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted); --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent); --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border); --color-input: var(--input); --color-ring: var(--ring);
+  --color-done: var(--done); --color-done-soft: var(--done-soft);
+  --color-attention: var(--attention); --color-attention-soft: var(--attention-soft);
+  --radius-lg: var(--radius); --radius-md: calc(var(--radius) - 2px); --radius-sm: calc(var(--radius) - 4px);
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@layer base {
+  * { border-color: var(--border); }
+  body { background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
+}

@@ -82,3 +82,10 @@ cd ui-src && npm install && npm run build
 
 Commit the rebuilt `oto/ui/explorer/explorer.js` and `explorer.css` with the source change. A user
 never runs this; the engine ships the built files and serves them with the standard library.
+
+The workbench under `oto/ui/workbench/` is built the same way, from `ui-src/workbench/`: React and
+TypeScript, shadcn/ui components copied into `components/ui/` (shadcn's way: the source is ours), Tailwind
+for their styles, and the explorer's graph mounted as a component. `npm run build` writes both apps;
+`npm run typecheck` checks the workbench. Commit the rebuilt `workbench.js` and `workbench.css` with the
+source change. What the workbench shows comes from one object, the snapshot (`oto/snapshot.py`): change
+its contract there, in `ui-src/workbench/types.ts`, and in the scenarios that check it, together.

@@ -123,8 +123,10 @@ Read all four sections:
 
 - **blocking** — undeclared types or relations, edges pointing nowhere, bad dates, duplicate ids,
   a supersession chain that does not point both ways or retires nothing, a node that breaks a
-  declared shape (`shape min: Claim claim.c-9 has 0 claims_under; at least 1 declared`). Fix every
-  one: the shapes are the vocabulary's contract, and what breaks them does not enter the graph.
+  declared shape (`shape min: Claim claim.c-9 has 0 claims_under; at least 1 declared`), a quote
+  that is not in its document, a number, date or code its cited documents never state
+  (`interval_km = 2000 appears nowhere in …`: misread or invented). Fix every one: the shapes are
+  the vocabulary's contract, and what breaks them does not enter the graph.
 - **contradiction** — a value changed with no supersession record. Fix it, or explain why it is a
   correction rather than a change.
 - **gap** — a required competency question the candidate leaves unanswered (`question AC1
@@ -132,7 +134,8 @@ Read all four sections:
   that arrived first — what must refuse is a policy; a node with no date, no source, no citation or no evidence locator; a date handoff
   that does not match; an edge whose endpoints do not fit the declared domain or range; a fact
   pending re-attestation; a `warn` policy rule the candidate would violate (a `blocking` one is
-  blocking). Fix these too. They are not blocking because a build must not fail on
+  blocking); a number, date or code its document states but its quotes do not (quote the sentence
+  that states it). Fix these too. They are not blocking because a build must not fail on
   them, but a fact with no source is not knowledge and a fact nobody can locate is not checkable.
 - **privacy** — personal data in the text you are about to add. Read the note below.
 

@@ -102,7 +102,28 @@ def cmd_survey(args):
             return 1
         print(_json.dumps(result, indent=2, ensure_ascii=False) if args.json else brief_report(result))
         return 0
-    result = survey(corpus, top=args.top, min_count=args.min_count)
+    off = [f.strip() for f in (args.off or "").split(",") if f.strip()]
+    from ..intake.survey import FIXES
+    unknown = [f for f in off if f not in FIXES]
+    if unknown:
+        print("oto: --off takes %s (got %s)" % (", ".join(FIXES), ", ".join(unknown)))
+        return 1
+    result = survey(corpus, top=args.top, min_count=args.min_count, off=off)
+    if args.score or args.ablations:
+        from ..intake import termscore
+        gold_path = args.gold or os.path.join(project.data, "gold", "terms.jsonl")
+        if not os.path.exists(gold_path):
+            print("no gold term list at %s: write one (JSON Lines, `_meta` first, then {\"term\", \"aka\"}) to "
+                  "measure what the survey surfaces." % gold_path)
+            return 1
+        try:
+            meta, gold = termscore.load(gold_path)
+        except ValueError as exc:
+            print("oto: %s: %s" % (os.path.basename(gold_path), exc))
+            return 1
+        rows = termscore.ablations(corpus, gold, top=args.top, min_count=args.min_count) if args.ablations else None
+        print(termscore.report(meta, result, gold, rows))
+        return 0
     if args.json:
         print(_json.dumps(result, indent=2, ensure_ascii=False))
     else:
@@ -145,4 +166,11 @@ def register(sub):
     survey.add_argument("--min-count", type=int, default=2,
                         help="a phrase must occur this often to be listed")
     survey.add_argument("--json", action="store_true", help="machine-readable")
+    survey.add_argument("--score", action="store_true",
+                        help="measure the candidates against the gold term list: recall, precision, review load")
+    survey.add_argument("--ablations", action="store_true",
+                        help="with --score: the same with each fix off in turn, and with none of them")
+    survey.add_argument("--gold", default=None, help="the gold term list (default: <project>/gold/terms.jsonl)")
+    survey.add_argument("--off", default=None,
+                        help="fixes to leave out, comma-separated: header, codes, openers, plurals, lowercase, expansions")
     survey.set_defaults(func=cmd_survey)

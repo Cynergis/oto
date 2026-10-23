@@ -12,6 +12,9 @@ writes the documents, proposals, vocabulary files, a gold set). A step does one 
                rows      `query ask`'s answer rows, exactly these (each a subset of a row's fields)
                bench     floors per system on the strict answers table; `beats` names the systems
                          each must outscore
+    snapshot the workbench snapshot after the step (`oto status --snapshot`): {path: expected}, where a
+             path is dotted keys, a station by its id (`stations.curate.state`), and expected is a
+             value, or {"len": n}, {"min": x} or {"has": text} (in the value's JSON)
     inbox    copy source documents into the inbox
     write    write a file into the project (`text`)
     put      copy a scenario file or folder into the project (`to`, default its root)
@@ -126,6 +129,37 @@ def _expect(step, code, text, where):
                 assert table[system]["score"] > table[other]["score"], "%s does not beat %s: %s" % (system, other, said)
 
 
+def _at(value, path):
+    for key in path.split("."):
+        if isinstance(value, list):
+            value = next(item for item in value if isinstance(item, dict) and item.get("id") == key) \
+                if not key.isdigit() else value[int(key)]
+        else:
+            value = value[key]
+    return value
+
+
+def _snapshot(step, ctx, where):
+    code, text = _cli(["status", "--project", ctx["root"], "--snapshot"])
+    assert code == 0, "%s: no snapshot\n%s" % (where, text)
+    snap = json.loads(text)
+    for path, wanted in step["snapshot"].items():
+        try:
+            got = _at(snap, path)
+        except (KeyError, IndexError, StopIteration):
+            raise AssertionError("%s: the snapshot has no %s" % (where, path))
+        said = "%s: snapshot %s is %s" % (where, path, json.dumps(got, ensure_ascii=False)[:600])
+        if isinstance(wanted, dict) and set(wanted) <= {"len", "min", "has"}:
+            if "len" in wanted:
+                assert len(got) == wanted["len"], said
+            if "min" in wanted:
+                assert got >= wanted["min"], said
+            if "has" in wanted:
+                assert wanted["has"] in json.dumps(got, ensure_ascii=False), said
+        else:
+            assert got == wanted, "%s, expected %s" % (said, json.dumps(wanted, ensure_ascii=False))
+
+
 def _play(name, ctx, through=None, done=None):
     scenario = _load(name)
     ctx = dict(ctx, scenario=os.path.join(HERE, name))
@@ -152,6 +186,8 @@ def _play(name, ctx, through=None, done=None):
             args = [_fill(a, ctx) for a in step["run"]]
             code, text = _cli(args[:1] + ["--project", ctx["root"]] + args[1:])
             _expect(step, code, text, where)
+        if "snapshot" in step:
+            _snapshot(step, ctx, where)
         if through and step.get("id") == through:
             return
     assert not through, "%s has no step with id %r" % (name, through)

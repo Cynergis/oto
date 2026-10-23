@@ -30,7 +30,7 @@
                   "about 'garage': no such id or name in the graph; closest by name, not a match: garage.central, garage.east"]},
     {"run": ["ingest"], "out": ["extracted 1"]},
     {"say": "the run cannot close while a candidate is open and the build predates the note",
-     "run": ["ingest", "complete"], "exit": 1, "out": ["a curate candidate is open", "the build predates this run's documents"]},
+     "run": ["ingest", "complete"], "exit": 1, "out": ["a curate candidate is open", "the build predates this run's documents"], "snapshot": {"curate.candidate": true, "sources.open_runs": {"len": 1}, "sources.processing": ["2025-10-07-tyres-on-bus-4127.md"], "stations.curate.state": "attention"}},
 
     {"say": "the curator starts again with the statement read right", "run": ["curate", "abort"]},
     {"run": ["curate", "start"]},

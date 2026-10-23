@@ -219,6 +219,10 @@ def cmd_status(args):
     if _publish.is_store(root):
         return _store_status(root)
     project = _resolve(args)
+    if args.snapshot:
+        from .. import snapshot as _snapshot
+        print(json.dumps(_snapshot.build(project), indent=2, sort_keys=True, ensure_ascii=False))
+        return 0
     s = gather(project)
     if args.json:
         print(json.dumps(s, indent=2, sort_keys=True))
@@ -317,4 +321,6 @@ def register(sub):
     status = sub.add_parser("status", help="where the project is in its life, and the next step")
     project_arguments(status)
     status.add_argument("--json", action="store_true", help="machine-readable")
+    status.add_argument("--snapshot", action="store_true",
+                        help="the workbench snapshot: everything the workbench shows, as one JSON object")
     status.set_defaults(func=cmd_status)

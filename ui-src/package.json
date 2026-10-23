@@ -1,16 +1,28 @@
 {
   "name": "oto-ui-src",
   "private": true,
-  "description": "Source of the engine's built-in apps that need a bundle. `npm run build` writes the committed static files under oto/ui/; a user never runs this.",
+  "description": "Source of the engine's built-in apps that need a bundle (the explorer, the workbench). `npm run build` writes the committed static files under oto/ui/; a user never runs this.",
   "scripts": {
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "typecheck": "tsc -p workbench"
   },
   "devDependencies": {
-    "esbuild": "^0.24.0"
+    "@tailwindcss/cli": "^4.3.3",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "esbuild": "^0.24.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.5.0",
+    "@radix-ui/react-tabs": "^1.2.1",
     "@xyflow/react": "^12.3.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.460.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.6.1"
   }
 }

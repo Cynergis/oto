@@ -9,7 +9,7 @@
                                                            "Parts Inventory Q3.xlsx", "Vendor Integration Notes.txt"]},
     {"say": "ingest: the notes carry a credential and are blocked", "run": ["ingest"], "exit": 1,
      "out": ["BLOCKED Vendor Integration Notes.txt", "credential: AWS access key id", "personal data: email address",
-             "extracted 3, blocked 1"]},
+             "extracted 3, blocked 1"], "snapshot": {"sources.errors": {"len": 1}, "sources.errors.0.file": "Vendor Integration Notes.txt", "stations.sources.state": "attention", "stations.build.state": "not_started"}},
     {"say": "the analyst redacts the key and drops the notes back", "write": "inbox/Vendor Integration Notes.txt",
      "text": "Telematics vendor integration notes\n\nThe telematics feed posts odometer readings for every Bus nightly.\nTest credentials used during setup: [REDACTED]\nThe PM Schedule alert reads the odometer from this feed.\n"},
     {"run": ["ingest"], "out": ["Vendor Integration Notes.txt -> documents/vendor-integration-notes.md", "blocked 0"]},
@@ -31,7 +31,7 @@
     {"put": "vocabulary/interview"},
     {"run": ["ontology", "check"], "out": ["questions: 6 declared"]},
     {"id": "vocabulary-accepted", "run": ["ontology", "accept"],
-     "out": ["accepted vocabulary version 1 (9 classes, 11 relations, 0 rules, 6 questions)"]},
+     "out": ["accepted vocabulary version 1 (9 classes, 11 relations, 0 rules, 6 questions)"], "snapshot": {"vocabulary.accepted": true, "stations.vocabulary.line": "v1 · 2 of 9 confirmed", "stations.survey.line": "6 accepted · 2 rejected", "open": {"has": "7 of 9 kinds of thing are unconfirmed"}}},
 
     {"say": "Dana Reyes tells the analyst PM-B changed; the graph is empty, so the names cannot resolve yet",
      "run": ["capture", "--title", "PM-B interval change", "--by", "Dana Reyes, Fleet Manager", "--at", "2025-09-01",
@@ -49,7 +49,7 @@
     {"run": ["curate", "add", "--from", "{scenario}/proposals/incident-review-bus-4127.draft.json"]},
     {"run": ["curate", "add", "--from", "{scenario}/proposals/parts-inventory-q3.json"]},
     {"say": "the value check: WO-2291's date is in the review, not in the sentence quoted", "run": ["curate", "check"],
-     "findings": {"gap": [["wo.wo-2291", "opened_on = '2025-08-02' is in incident-review-bus-4127 but not in the quotes it cites"]]}},
+     "findings": {"gap": [["wo.wo-2291", "opened_on = '2025-08-02' is in incident-review-bus-4127 but not in the quotes it cites"]]}, "snapshot": {"curate.candidate": true, "stations.curate.state": "attention", "open": {"has": "A change is open and not applied"}}},
     {"say": "the drafter quotes the sentence that states the date", "run": ["curate", "add", "--from", "{scenario}/proposals/incident-review-bus-4127.json"]},
     {"run": ["curate", "check"], "findings": {}, "out": ["ready to apply"]},
     {"run": ["curate", "apply", "--by", "Sam Lee, analyst", "--note", "Policy, Bus 4127 incident review and Q3 stock."]},
@@ -61,7 +61,7 @@
     {"run": ["curate", "add", "--from", "{scenario}/proposals/2025-09-01-pm-b-interval-change.json"]},
     {"run": ["curate", "check"], "findings": {}, "out": ["ready to apply"]},
     {"run": ["curate", "apply", "--by", "Sam Lee, analyst", "--note", "PM-B is 20,000 km from 2025-09-01; the 24,000 km fact is retired."]},
-    {"run": ["build"], "out": ["21 nodes, 24 edges (0 derived)", "6 questions"]},
+    {"run": ["build"], "out": ["21 nodes, 24 edges (0 derived)", "6 questions"], "snapshot": {"build.built": true, "build.current": 20, "build.superseded": 1, "overview.questions": {"declared": 6, "answered": 6}, "curate.changes.0.retired.0.id": "pm.pm-b", "curate.changes.0.retired.0.superseded_by": "pm.pm-b-2025-09"}},
 
     {"say": "the competency questions", "run": ["query", "ask", "CQ1", "GARAGE=East Garage"], "out": ["status: answered"],
      "rows": [{"wo.number": "WO-2291", "wo.opened_on": "2025-08-02", "b.fleet_number": "4127"}]},
@@ -125,6 +125,6 @@
     {"run": ["feedback", "record", "--question", "Is WO-2291 still open?", "--verdict", "wrong",
              "--by", "Dana Reyes, Fleet Manager", "--at", "2025-10-07", "--given", "state: open"],
      "out": ["recorded fb-0003: wrong", "This cannot become a test yet"]},
-    {"run": ["feedback", "promote"], "out": ["promoted 1 question(s)", "fb-0002 -> from-fb-0002"]}
+    {"run": ["feedback", "promote"], "out": ["promoted 1 question(s)", "fb-0002 -> from-fb-0002"], "snapshot": {"overview": {"facts": 21, "documents": 4, "conversations": 2, "questions": {"declared": 7, "answered": 7}}, "stations.rules.line": "3 rules · 3 warnings", "rules.findings": {"len": 3}, "test.bench.systems.oto.score": {"min": 0}, "test.gold.questions": 15, "open": {"has": "Is WO-2291 still open?"}, "stations.deploy.state": "not_started"}}
   ]
 }

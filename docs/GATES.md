@@ -15,6 +15,7 @@ tools/run_gates.sh                            # or PYTHON=.venv/bin/python tools
 | publishability | no client name, private repository reference or credential | `tools/check_publishable.py --strict` (the engine), `oto publishable --strict` (any repository) |
 | dependency-free compile | a bare install pulls in nothing third-party, and still ingests Markdown | the `bare` CI job |
 | module compilation | valid syntax on the oldest supported Python | `compileall` |
+| UI bundles | the committed explorer and workbench under `oto/ui/` are what `ui-src/` builds, and the workbench typechecks | the `ui-bundle` CI job (`cd ui-src && npm ci && npm run typecheck && npm run build`, then `git status oto/ui`) |
 
 The dependency-free gate matters more than it looks. The compile path is stdlib-only on purpose, so a
 project can build in a locked-down environment. One convenience import would end that quietly.

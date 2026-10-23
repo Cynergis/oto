@@ -1,0 +1,46 @@
+{
+  "source_doc": "2025-10-02-wo-2304-pm-b-at-east-garage",
+  "as_of": "2025-10-02",
+  "nodes": [
+    {
+      "id": "wo.wo-2304",
+      "type": "WorkOrder",
+      "label": "WO-2304",
+      "attributes": {
+        "number": "WO-2304",
+        "state": "open",
+        "opened_on": "2025-10-02"
+      },
+      "summary": "PM-B service on Bus 4127 at East Garage.",
+      "evidence": [
+        {
+          "doc": "2025-10-02-wo-2304-pm-b-at-east-garage",
+          "where": "Statements, 1",
+          "quote": "I opened WO-2304 on 2 October for the PM-B service on Bus 4127, here at East Garage."
+        },
+        {
+          "doc": "2025-10-02-wo-2304-pm-b-at-east-garage",
+          "where": "Statements, 2",
+          "quote": "The job needs an FLT-010 filter."
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "wo.wo-2304",
+      "rel": "for_bus",
+      "to": "bus.4127"
+    },
+    {
+      "from": "wo.wo-2304",
+      "rel": "raised_at",
+      "to": "garage.east"
+    },
+    {
+      "from": "wo.wo-2304",
+      "rel": "uses_part",
+      "to": "part.flt-010"
+    }
+  ]
+}

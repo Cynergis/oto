@@ -1,0 +1,296 @@
+{
+  "questions": {
+    "CQ1": {
+      "who": "Maintenance Supervisor",
+      "question": "Which work orders are open at garage $GARAGE, and for which bus?",
+      "why": "The supervisor assigns and closes work orders per garage; an open order nobody sees is a bus off the road.",
+      "validated_by": "",
+      "params": {
+        "GARAGE": {
+          "type": "Garage"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "wo",
+              "raised_at",
+              "$GARAGE"
+            ]
+          },
+          {
+            "node": "wo",
+            "type": "WorkOrder",
+            "where": {
+              "state": "open"
+            }
+          },
+          {
+            "edge": [
+              "wo",
+              "for_bus",
+              "b"
+            ]
+          },
+          {
+            "node": "b",
+            "type": "Bus"
+          }
+        ],
+        "select": [
+          "wo.number",
+          "wo.opened_on",
+          "b.fleet_number"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "node": "$GARAGE",
+            "type": "Garage"
+          }
+        ],
+        "say": "no open work order at this garage"
+      }
+    },
+    "CQ2": {
+      "who": "Safety Officer",
+      "question": "Which incident reports concern bus $BUS, when did they happen, and which role reviews them?",
+      "why": "The policy requires every incident report to be reviewed within five working days; repeated incidents on one bus are the signal to act on.",
+      "validated_by": "",
+      "params": {
+        "BUS": {
+          "type": "Bus"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "ir",
+              "about_bus",
+              "$BUS"
+            ]
+          },
+          {
+            "node": "ir",
+            "type": "IncidentReport"
+          },
+          {
+            "edge": [
+              "ir",
+              "reviewed_by",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Role"
+          }
+        ],
+        "select": [
+          "ir.label",
+          "ir.occurred_on",
+          "r.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "node": "$BUS",
+            "type": "Bus"
+          }
+        ],
+        "say": "no incident has been reported for this bus"
+      }
+    },
+    "CQ3": {
+      "who": "Fleet Manager",
+      "question": "Which work orders were raised from incident report $IR, and which parts did they use?",
+      "why": "The Bus 4127 review needed to trace an incident to the repair and the part that was missing; without the link it took three people.",
+      "validated_by": "",
+      "params": {
+        "IR": {
+          "type": "IncidentReport"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "wo",
+              "raised_from",
+              "$IR"
+            ]
+          },
+          {
+            "node": "wo",
+            "type": "WorkOrder"
+          },
+          {
+            "edge": [
+              "wo",
+              "uses_part",
+              "p"
+            ]
+          },
+          {
+            "node": "p",
+            "type": "Part"
+          }
+        ],
+        "select": [
+          "wo.number",
+          "p.part_number"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "node": "$IR",
+            "type": "IncidentReport"
+          }
+        ],
+        "say": "no work order cites this incident yet"
+      }
+    },
+    "CQ4": {
+      "who": "Fleet Manager",
+      "question": "What is the interval of PM level $PM, which garages may perform it, and which role approves a change to it?",
+      "why": "The PM-B alert failure on Bus 4127 raised exactly this question, and the answer changed on 2025-09-01; it must be answerable as of any date.",
+      "validated_by": "",
+      "params": {
+        "PM": {
+          "type": "PMLevel"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$PM",
+              "performed_at",
+              "g"
+            ]
+          },
+          {
+            "node": "g",
+            "type": "Garage"
+          },
+          {
+            "edge": [
+              "$PM",
+              "approved_by",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Role"
+          }
+        ],
+        "select": [
+          "$PM.interval_km",
+          "g.label",
+          "r.label"
+        ]
+      },
+      "gate": "non_empty"
+    },
+    "CQ5": {
+      "who": "Maintenance Supervisor",
+      "question": "How many of each part does garage $GARAGE hold, and at what level must it reorder?",
+      "why": "East Garage had no BRK-221 when Bus 4127 came in; the supervisor needs stock against reorder points per garage before work is scheduled.",
+      "validated_by": "",
+      "params": {
+        "GARAGE": {
+          "type": "Garage"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "s",
+              "held_at",
+              "$GARAGE"
+            ]
+          },
+          {
+            "node": "s",
+            "type": "StockLevel"
+          },
+          {
+            "edge": [
+              "s",
+              "of_part",
+              "p"
+            ]
+          },
+          {
+            "node": "p",
+            "type": "Part"
+          }
+        ],
+        "select": [
+          "p.part_number",
+          "s.quantity",
+          "s.reorder_at"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "node": "$GARAGE",
+            "type": "Garage"
+          }
+        ],
+        "say": "no stock count recorded at this garage"
+      }
+    },
+    "CQ6": {
+      "who": "Fleet Manager",
+      "question": "Which buses run route $ROUTE?",
+      "why": "Incidents and repairs are reviewed per route; Route 12 is where Bus 4127 failed.",
+      "validated_by": "",
+      "params": {
+        "ROUTE": {
+          "type": "Route"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "b",
+              "operates_on",
+              "$ROUTE"
+            ]
+          },
+          {
+            "node": "b",
+            "type": "Bus"
+          }
+        ],
+        "select": [
+          "b.fleet_number"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "node": "$ROUTE",
+            "type": "Route"
+          }
+        ],
+        "say": "no bus is assigned to this route"
+      }
+    }
+  }
+}

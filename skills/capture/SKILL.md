@@ -52,7 +52,16 @@ oto capture --project <root> --title "<what it is about>" \
 
 This writes `inbox/<date>-<title>.md` with a fixed header: captured on, by, recorded by, about;
 the statements numbered and attributed; the context. It refuses a missing author or a non-date,
-and warns about an id the graph does not hold.
+and warns, without changing the note:
+
+- **a statement dated by "today", "last week", "the same day"**: a fact can only quote a date its
+  statement's words state, so the date in the header does not count. Ask the speaker for the date
+  and record the statement again as they say it ("I opened it on 2 October"). Never put a date in
+  their mouth.
+- **an `--about` that is not a current id**: a retired fact (it names the current version), a
+  label, alias or lexicon word (it names the id), a name of several entities (it lists them), or a
+  near name (no match). Give the id it names, or ask which one is meant, and write the note again
+  with `--force`.
 
 ## 3. Send it into the pipeline
 

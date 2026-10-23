@@ -115,6 +115,16 @@ def cmd_curate(args):
             if report["edges_dangling"]:
                 print("    %d edge(s) point at a node not in the candidate yet; `oto curate check` "
                       "blocks until it arrives" % len(report["edges_dangling"]))
+        if args.duplicates:
+            from ..curate import duplicates as _duplicates
+            usable, reason = _duplicates.available()
+            if not usable:
+                print("duplicates by meaning: not run (%s)" % reason)
+            else:
+                added = [nid for _path, report in reports for nid in report["added"]]
+                for match in _duplicates.find(graph, added, min_similarity=args.duplicate_similarity):
+                    print("    MAYBE    %-28s close in meaning to %s: one entity or two? Reuse an id, or add an alias"
+                          % (match["id"], _duplicates.describe(match)))
         if args.dry_run:
             print("dry run: the candidate is unchanged. Drop --dry-run to merge.")
         else:
@@ -247,6 +257,19 @@ def cmd_curate(args):
     for severity, subject, message in _evidence.check(live, proposed, project.layout.corpus) + \
             _values.check(live, proposed, project.layout.corpus):
         findings.append(_diff.Finding(_diff.Finding.BLOCKING if severity == "blocking" else _diff.Finding.GAP, subject, message))
+    not_run = None
+    if args.duplicates:
+        from ..curate import duplicates as _duplicates
+        usable, reason = _duplicates.available()
+        if not usable:
+            not_run = "duplicates by meaning: not run (%s)" % reason
+        else:
+            live_ids = {n.get("id") for n in live.get("nodes") or []}
+            new_ids = [n["id"] for n in proposed.get("nodes") or [] if n.get("id") and n["id"] not in live_ids]
+            for match in _duplicates.find(proposed, new_ids, min_similarity=args.duplicate_similarity):
+                findings.append(_diff.Finding(_diff.Finding.GAP, match["id"],
+                                              "possible duplicate by meaning of %s: one entity or two? Reuse its id, "
+                                              "or add an alias" % _duplicates.describe(match)))
 
     from ..reason import engine as _engine, rules as _rules
     declared_rules = _rules.load(project)
@@ -303,6 +326,8 @@ def cmd_curate(args):
         if len(items) > args.show:
             print("  ... and %d more" % (len(items) - args.show))
 
+    if not_run:
+        print("\n" + not_run)
     if privacy_findings:
         print("\nprivacy scan of the text this change introduces:")
         print(_privacy.summarize(privacy_findings))
@@ -375,6 +400,11 @@ def register(sub):
     curate.add_argument("--show", type=int, default=10, help="how many items to list per section")
     curate.add_argument("--force", action="store_true",
                         help="overwrite an existing candidate, or apply despite blocking problems")
+    curate.add_argument("--duplicates", action="store_true",
+                        help="for add and check: also list new entities close in meaning to one of the same class "
+                             "(an embedding model, the bench extra; downloaded once, about 67 MB): advisory, never refuses")
+    curate.add_argument("--duplicate-similarity", dest="duplicate_similarity", type=float, default=0.88,
+                        help="with --duplicates: list matches at or above this cosine similarity (default 0.88)")
     curate.add_argument("--allow-personal-data", action="store_true",
                         help="apply even when the privacy scan finds blocking items")
     curate.set_defaults(func=cmd_curate)

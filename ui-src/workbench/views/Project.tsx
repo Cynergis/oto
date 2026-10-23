@@ -4,7 +4,7 @@ import * as React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
-import { AskAgent, Dot, Empty, STATE_WORDS } from "../components/common";
+import { AskAgent, Dot, Empty, STATE_WORDS, Withheld } from "../components/common";
 import type { Snapshot, StationId } from "../types";
 import { cn } from "../lib/utils";
 
@@ -84,7 +84,8 @@ function Sources({ s }: { s: Snapshot }) {
         <Card>
           <CardHeader><CardTitle>Could not be read</CardTitle></CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm">
-            {src.errors.length === 0 ? <span className="text-muted-foreground">Nothing.</span> : src.errors.map((e, i) => (
+            {s.published && src.waiting.errors ? <Withheld>{src.waiting.errors} document{src.waiting.errors === 1 ? "" : "s"} could not be read.</Withheld> :
+             src.errors.length === 0 ? <span className="text-muted-foreground">Nothing.</span> : src.errors.map((e, i) => (
               <div key={i}><strong className="font-medium">{e.file}</strong><br /><span className="text-muted-foreground">{e.reason}</span></div>
             ))}
           </CardContent>
@@ -92,7 +93,7 @@ function Sources({ s }: { s: Snapshot }) {
         <Card>
           <CardHeader><CardTitle>Waiting</CardTitle></CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            {src.inbox.length} in the inbox · {src.processing.length} being worked on · {src.open_runs.length} run{src.open_runs.length === 1 ? "" : "s"} open
+            {src.waiting.inbox} in the inbox · {src.waiting.processing} being worked on · {src.waiting.open_runs} run{src.waiting.open_runs === 1 ? "" : "s"} open
           </CardContent>
         </Card>
       </div>
@@ -105,7 +106,8 @@ function Survey({ s }: { s: Snapshot }) {
     <Card>
       <CardHeader><CardTitle>Terms decided</CardTitle><CardDescription>{s.survey.accepted} accepted · {s.survey.rejected} rejected, each by a named person</CardDescription></CardHeader>
       <CardContent>
-        {s.survey.latest.length === 0 ? <Empty>No term has been decided yet.</Empty> : (
+        {s.published ? <Withheld>Each decision names a term and who decided it, and a rejected term is often a person's name.</Withheld> :
+         s.survey.latest.length === 0 ? <Empty>No term has been decided yet.</Empty> : (
           <Table>
             <TableHeader><TableRow><TableHead>Term</TableHead><TableHead>Decision</TableHead><TableHead>As</TableHead><TableHead>By</TableHead><TableHead>Why</TableHead></TableRow></TableHeader>
             <TableBody>
@@ -299,6 +301,9 @@ function Test({ s }: { s: Snapshot }) {
           <CardHeader><CardTitle>Gold set and feedback</CardTitle></CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm">
             {t.gold ? <p>{t.gold.questions} gold questions, written by {t.gold.authored_by || "an unknown author"}; {Math.round((t.gold.audited_fraction || 0) * 100)}% audited by a person.</p> : <p className="text-muted-foreground">No gold set.</p>}
+            {s.published && Object.keys(t.feedback_counts).length ? (
+              <Withheld>Readers' feedback, by verdict: {Object.entries(t.feedback_counts).map(([v, n]) => n + " " + v).join(" · ")}. It is their questions, in their words.</Withheld>
+            ) : null}
             {t.feedback.map(f => (
               <div key={f.id} className="flex items-start gap-2">
                 <Badge variant={f.verdict === "right" ? "done" : f.promoted ? "secondary" : "attention"}>{f.promoted ? "now a test" : f.verdict}</Badge>

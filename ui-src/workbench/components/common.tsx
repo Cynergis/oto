@@ -53,3 +53,8 @@ export function SectionTitle({ children, aside }: { children: React.ReactNode; a
 export function Empty({ children }: { children: React.ReactNode }) {
   return <p className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">{children}</p>;
 }
+
+/* Where a published copy left something out: say so, and what it kept instead. */
+export function Withheld({ children }: { children: React.ReactNode }) {
+  return <p className="rounded-md border border-dashed bg-muted/50 p-4 text-sm text-muted-foreground">{children} The details stay with the project and its people; this published copy does not carry them.</p>;
+}

@@ -54,7 +54,7 @@ def test_workflows_install_the_engine_from_its_repository_and_run_the_gates():
         assert gate in checks, gate
     assert "upload-artifact" in deploy and "build/acme.db" in deploy
     assert "query repository" in deploy and 'if: vars.OTO_QUERY_REPO != \'\'' in deploy
-    assert "oto build --project . --only site --target site --app \"${{ vars.OTO_SITE_VIEW }}\"" in deploy
+    assert "oto build --project . --only site --target site --view \"${{ vars.OTO_SITE_VIEW }}\"" in deploy
     assert "vars.OTO_SITE_VIEW != '' && '--site' || ''" in deploy, "the site goes beside the store only when an app is named"
     assert '"oto author" workflow follows' in ingest, "the authoring workflow follows the ingest"
 

@@ -5,6 +5,8 @@ Runs when the project targets it (`"targets": [..., "site"]`, or `oto build --ta
 writes `build/site/`:
 
     data.json           the graph payload (serve/payload.py), the same object `/api/graph` serves
+    snapshot.json       for a view whose app.json says `"snapshot": "published"` (the workbench): the
+                        published project snapshot (snapshot.py), what the site may show of the project
     <the app's files>   copied as they are: `"site": {"view": "<name or path>"}` in project.config.json,
                         `oto build --target site --view <name or path>`, or the built-in explorer
 
@@ -86,6 +88,25 @@ def _write_app(project, app_dir, dest, payload):
             f.write(text)
     for name, source in _apps.override_files(manifest, os.path.dirname(project.src)).items():
         shutil.copyfile(source, os.path.join(dest, name))
+    if manifest.get("snapshot") == "published":
+        _write_snapshot(project, dest)
+
+
+def _write_snapshot(project, dest):
+    """The published project snapshot beside data.json, for a view that asks for it (`"snapshot":
+    "published"` in its app.json). A copy the privacy scan refuses is not written: the view then says
+    it carries the graph only, and the build says why."""
+    from .. import snapshot as _snapshot
+    copy = _snapshot.published(_snapshot.build(project))
+    refused = _snapshot.refusals(copy)
+    if refused:
+        print("site: published snapshot NOT written: the scan found %s in what it would show. Remove it from "
+              "the project, then build again." % ", ".join(refused))
+        return
+    with open(os.path.join(dest, _snapshot.PUBLISHED_NAME), "w", encoding="utf-8", newline="\n") as f:
+        json.dump(copy, f, ensure_ascii=False, separators=(",", ":"))
+        f.write("\n")
+    print("site: published snapshot written, %d part(s) withheld: %s" % (len(copy["withheld"]), ", ".join(copy["withheld"])))
 
 
 def _write_studio(project, site, views, payload):

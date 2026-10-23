@@ -9,12 +9,16 @@ export interface Snapshot {
   snapshot: number;
   token: string;
   project: { name: string | null; slug: string | null };
+  /* true in the copy a static site carries; `withheld` names, as dotted paths, what it left out */
+  published: boolean;
+  withheld: string[];
   overview: { facts: number; documents: number; conversations: number; questions: { declared: number; answered: number } };
   stations: { id: StationId; title: string; state: StationState; line: string }[];
   sources: {
     inbox: string[]; processing: string[]; open_runs: string[];
     errors: { file: string; reason: string | null; run: string }[];
     documents: { slug: string; title: string }[];
+    waiting: { inbox: number; processing: number; errors: number; open_runs: number };
   };
   survey: { accepted: number; rejected: number; latest: { term: string; verdict: string; as: string | null; by: string; at: string; note: string | null }[] };
   vocabulary: {
@@ -37,6 +41,8 @@ export interface Snapshot {
     gold: { questions: number; authored_by: string | null; audited_fraction: number | null } | null;
     bench: { at: string; systems: Record<string, { right: number; wrong: number; abstained: number; precision: number | null; coverage: number | null; score: number | null }> } | null;
     feedback: { id: string; verdict: string; question: string; by: string; at: string; expected: string | null; promoted: boolean }[];
+    feedback_counts: Record<string, number>;
+    feedback_waiting: number;
   };
   deploy: { backend: string; targets: string[]; site: boolean };
   open: { station: StationId; what: string; detail: string | null }[];

@@ -1,0 +1,37 @@
+{
+  "source_doc": "interview-2025-10-07",
+  "as_of": "2025-10-07",
+  "nodes": [
+    {
+      "id": "wo.wo-2310",
+      "type": "WorkOrder",
+      "label": "WO-2310",
+      "summary": "Tyre change on Bus 4127.",
+      "attributes": {
+        "number": "WO-2310",
+        "state": "open",
+        "opened_on": "2025-10-07"
+      },
+      "evidence": [
+        {
+          "doc": "interview-2025-10-07",
+          "where": "q4",
+          "quote": "We opened WO-2310 for the tyres on the 7th."
+        }
+      ],
+      "as_of": "2025-10-07",
+      "valid_from": "2025-10-07",
+      "source_doc": "interview-2025-10-07",
+      "sources": [
+        "interview-2025-10-07"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "wo.wo-2310",
+      "rel": "for_bus",
+      "to": "bus.4127"
+    }
+  ]
+}

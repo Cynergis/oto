@@ -1,0 +1,29 @@
+{
+  "rules": [
+    {"id": "garage-stocks-part", "kind": "derive",
+     "when": [{"edge": ["s", "held_at", "g"]},
+              {"node": "s", "type": "StockLevel"},
+              {"edge": ["s", "of_part", "p"]}],
+     "then": {"edge": ["g", "stocks", "p"]},
+     "why": "A stock count of a part at a garage means the garage stocks it. The sheet states counts only; the link is what scheduling asks about.",
+     "validated_by": ""},
+
+    {"id": "stock-at-reorder-point", "kind": "policy", "severity": "warn",
+     "when": [{"edge": ["s", "held_at", "g"]},
+              {"node": "s", "type": "StockLevel", "where": {"quantity": {"<=": "$s.reorder_at"}}},
+              {"edge": ["s", "of_part", "p"]}],
+     "then": {"flag": "stock is at or below its reorder point: reorder"},
+     "why": "The reorder point is set so a garage is never out of a part when a job needs it; East Garage ran out of BRK-221 during the Bus 4127 repair.",
+     "answers": "CQ5",
+     "validated_by": ""},
+
+    {"id": "open-work-order-part-not-stocked", "kind": "policy", "severity": "warn",
+     "when": [{"edge": ["wo", "raised_at", "g"]},
+              {"node": "wo", "type": "WorkOrder", "where": {"state": "open"}},
+              {"edge": ["wo", "uses_part", "p"]},
+              {"not_edge": ["g", "stocks", "p"]}],
+     "then": {"flag": "an open work order uses a part its garage does not stock: the job waits on a transfer"},
+     "why": "WO-2291 at East Garage needed BRK-221, which only Central Garage stocks; the bus waited for the transfer.",
+     "validated_by": ""}
+  ]
+}

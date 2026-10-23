@@ -1,0 +1,22 @@
+{
+  "source_doc": "2025-09-01-pm-b-interval-change",
+  "as_of": "2025-09-01",
+  "nodes": [
+    {"id": "pm.pm-b", "status": "superseded", "valid_to": "2025-09-01", "superseded_by": "pm.pm-b-2025-09",
+     "change_note": "Fleet Manager: \"From 1 September the PM-B interval is 20,000 km, not 24,000.\""},
+    {"id": "pm.pm-b-2025-09", "type": "PMLevel", "label": "PM-B", "attributes": {"interval_km": 20000},
+     "summary": "Preventive maintenance every 20,000 km, at Central Garage or East Garage.",
+     "valid_from": "2025-09-01", "supersedes": "pm.pm-b",
+     "change_note": "Interval shortened from 24,000 to 20,000 km and East Garage added, after the Bus 4127 brake incident.",
+     "evidence": [
+       {"doc": "2025-09-01-pm-b-interval-change", "where": "Statements, 1",
+        "quote": "From 1 September the PM-B interval is 20,000 km, not 24,000."},
+       {"doc": "2025-09-01-pm-b-interval-change", "where": "Statements, 2",
+        "quote": "PM-B can now also be done at East Garage."}]}
+  ],
+  "edges": [
+    {"from": "pm.pm-b-2025-09", "rel": "performed_at", "to": "garage.central"},
+    {"from": "pm.pm-b-2025-09", "rel": "performed_at", "to": "garage.east"},
+    {"from": "pm.pm-b-2025-09", "rel": "approved_by", "to": "role.fleet-manager"}
+  ]
+}

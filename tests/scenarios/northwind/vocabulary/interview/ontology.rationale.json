@@ -1,0 +1,65 @@
+{
+  "classes": {
+    "Bus": {
+      "question": "Which work orders and incidents concern bus 4127?",
+      "why": "Every maintenance question ends at a bus. It has an identity (its fleet number), a history of work and incidents, and is referred to across the policy, the incident review and the work orders.",
+      "alternatives": "Considered keeping the bus as a text field on the work order; rejected because the incident review and the work orders must point at the same bus to be compared.",
+      "validated_by": ""
+    },
+    "Garage": {
+      "question": "Which work orders are open at East Garage, and what stock does it hold?",
+      "why": "Work, stock and PM permissions are all per garage, and the Bus 4127 incident turned on East Garage lacking a part Central Garage had.",
+      "alternatives": "A plain location string; rejected because PM levels, stock and work orders all need to point at the same garage.",
+      "validated_by": ""
+    },
+    "WorkOrder": {
+      "question": "Which work orders are open at a garage, and which parts did WO-2291 use?",
+      "why": "The work order is the unit the Maintenance Supervisor assigns and closes; it has its own number, dates and state, and links a bus, a garage, parts and sometimes an incident.",
+      "alternatives": "Folding repairs into the incident report; rejected because PM work orders have no incident, and one incident can lead to several work orders.",
+      "validated_by": ""
+    },
+    "IncidentReport": {
+      "question": "Which incidents involved bus 4127, and which work orders came from them?",
+      "why": "The policy requires the Safety Officer to review every incident report, and a work order raised after an incident must cite it: the report is what both point at.",
+      "alternatives": "Modelling the incident (the event) and its report separately; deferred: no question yet distinguishes when it happened from when it was written beyond the occurred_on date.",
+      "validated_by": ""
+    },
+    "PMLevel": {
+      "question": "What is the PM-B interval, and which garages may perform it?",
+      "why": "Intervals and permitted garages change over time (PM-B moved to 20,000 km and to East Garage in September 2025), so each level must be a node whose facts can be superseded with dates.",
+      "alternatives": "A status field on each bus saying which PM is due; rejected because a status keeps no history and no reason for a change.",
+      "validated_by": "Dana Reyes, Fleet Manager, 2025-10-20"
+    },
+    "Part": {
+      "question": "Which parts did a work order use?",
+      "why": "The Bus 4127 review turned on one part number (BRK-221): which work orders used it and where it was stocked. A part has an identity shared by work orders and stock counts.",
+      "alternatives": "Part numbers as free text on the work order; rejected because the stock count and the work order must name the same part to be joined.",
+      "validated_by": ""
+    },
+    "StockLevel": {
+      "question": "How many BRK-221 does East Garage hold, and when must it reorder?",
+      "why": "Stock is a fact about a part AT a garage, counted on a date. Putting quantities on Part would merge two things: the same part has different counts and reorder points at each garage.",
+      "alternatives": "Quantities as attributes of Part; rejected by the 'one thing or two merged' test. Quantities on a stocked_at edge; rejected because the count needs its own date and source to be superseded each quarter.",
+      "validated_by": ""
+    },
+    "Role": {
+      "question": "Who must review an incident report, and who approves a change to a PM level?",
+      "why": "The policy assigns duties to positions (Fleet Manager, Safety Officer, Maintenance Supervisor), not to named people. People move; the role and its duties stay.",
+      "alternatives": "A Person class for Dana Reyes and others; rejected for now: no question needs an individual's decisions traced. The person who said something is recorded on the captured source instead.",
+      "validated_by": "Dana Reyes, Fleet Manager, 2025-10-20"
+    },
+    "Route": {
+      "question": "Which buses run route 12, and which work orders touched them?",
+      "why": "Dana wants incidents and repairs grouped by route: a route with hills wears brakes faster, and Bus 4127 failed on Route 12.",
+      "alternatives": "Route as a text attribute on Bus; rejected because buses change routes and the assignment needs its own dates.",
+      "validated_by": ""
+    }
+  },
+  "properties": {
+    "raised_at": {
+      "question": "Which work orders are open at East Garage?",
+      "why": "This is where the work is carried out, which is not always the bus's home garage: Bus 4127 was repaired at East Garage with parts from Central Garage.",
+      "validated_by": ""
+    }
+  }
+}

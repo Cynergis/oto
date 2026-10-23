@@ -1,0 +1,44 @@
+{
+  "source_doc": "assertion:a-0001",
+  "as_of": "2025-10-02",
+  "nodes": [
+    {
+      "id": "pm.pm-c",
+      "status": "superseded",
+      "valid_to": "2025-10-02",
+      "superseded_by": "pm.pm-c-2025-10",
+      "change_note": "Dana Reyes: the PM-C interval is now 60,000 km."
+    },
+    {
+      "id": "pm.pm-c-2025-10",
+      "type": "PMLevel",
+      "label": "PM-C",
+      "aliases": [],
+      "summary": "Preventive maintenance every 60,000 km.",
+      "attributes": {
+        "interval_km": 60000
+      },
+      "as_of": "2025-10-02",
+      "valid_from": "2025-10-02",
+      "supersedes": "pm.pm-c",
+      "change_note": "Dana Reyes: the PM-C interval is now 60,000 km.",
+      "source_type": "human_assertion",
+      "source_doc": "assertion:a-0001",
+      "sources": [
+        "assertion:a-0001"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "pm.pm-c-2025-10",
+      "rel": "approved_by",
+      "to": "role.fleet-manager"
+    },
+    {
+      "from": "pm.pm-c-2025-10",
+      "rel": "performed_at",
+      "to": "garage.central"
+    }
+  ]
+}

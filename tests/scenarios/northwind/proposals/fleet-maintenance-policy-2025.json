@@ -1,0 +1,42 @@
+{
+  "source_doc": "fleet-maintenance-policy-2025",
+  "as_of": "2025-01-15",
+  "nodes": [
+    {"id": "role.fleet-manager", "type": "Role", "label": "Fleet Manager",
+     "summary": "Owns the maintenance policy and approves every change to the PM Schedule.",
+     "evidence": [{"doc": "fleet-maintenance-policy-2025", "where": "Roles",
+                   "quote": "The Fleet Manager owns this policy and approves every change to the PM Schedule."}]},
+    {"id": "role.maintenance-supervisor", "type": "Role", "label": "Maintenance Supervisor",
+     "summary": "At each garage, assigns work orders to technicians and closes them once the inspection passes.",
+     "evidence": [{"doc": "fleet-maintenance-policy-2025", "where": "Roles",
+                   "quote": "The Maintenance Supervisor at each Garage assigns Work Orders to technicians and closes them once the Inspection passes."}]},
+    {"id": "role.safety-officer", "type": "Role", "label": "Safety Officer",
+     "summary": "Reviews every incident report within five working days.",
+     "evidence": [{"doc": "fleet-maintenance-policy-2025", "where": "Roles",
+                   "quote": "The Safety Officer reviews every Incident Report within five working days."}]},
+    {"id": "garage.central", "type": "Garage", "label": "Central Garage",
+     "summary": "The garage that performs PM-B and PM-C.",
+     "evidence": [{"doc": "fleet-maintenance-policy-2025", "where": "Preventive Maintenance, table",
+                   "quote": "PM-B every 24,000 km Central Garage"}]},
+    {"id": "pm.pm-a", "type": "PMLevel", "label": "PM-A", "attributes": {"interval_km": 6000},
+     "summary": "Preventive maintenance every 6,000 km, at any garage.",
+     "evidence": [{"doc": "fleet-maintenance-policy-2025", "where": "Preventive Maintenance, table",
+                   "quote": "PM-A every 6,000 km any Garage"}]},
+    {"id": "pm.pm-b", "type": "PMLevel", "label": "PM-B", "attributes": {"interval_km": 24000},
+     "summary": "Preventive maintenance every 24,000 km, at Central Garage.",
+     "evidence": [{"doc": "fleet-maintenance-policy-2025", "where": "Preventive Maintenance, table",
+                   "quote": "PM-B every 24,000 km Central Garage"}]},
+    {"id": "pm.pm-c", "type": "PMLevel", "label": "PM-C", "attributes": {"interval_km": 96000},
+     "summary": "Preventive maintenance every 96,000 km, at Central Garage.",
+     "evidence": [{"doc": "fleet-maintenance-policy-2025", "where": "Preventive Maintenance, table",
+                   "quote": "PM-C every 96,000 km Central Garage"}]}
+  ],
+  "edges": [
+    {"from": "pm.pm-a", "rel": "performed_at", "to": "garage.central"},
+    {"from": "pm.pm-b", "rel": "performed_at", "to": "garage.central"},
+    {"from": "pm.pm-c", "rel": "performed_at", "to": "garage.central"},
+    {"from": "pm.pm-a", "rel": "approved_by", "to": "role.fleet-manager"},
+    {"from": "pm.pm-b", "rel": "approved_by", "to": "role.fleet-manager"},
+    {"from": "pm.pm-c", "rel": "approved_by", "to": "role.fleet-manager"}
+  ]
+}

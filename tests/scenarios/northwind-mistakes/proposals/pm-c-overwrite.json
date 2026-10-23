@@ -1,0 +1,3 @@
+{"source_doc": "fleet-maintenance-policy-2025", "as_of": "2025-10-02",
+ "nodes": [{"id": "pm.pm-c", "attributes": {"interval_km": 60000}}],
+ "edges": []}

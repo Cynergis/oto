@@ -1,0 +1,49 @@
+{
+  "name": "Northwind Fleet, with mistakes",
+  "about": "The Northwind project after the PM-B change, then the mistakes an analyst or a drafting agent makes: overwriting a fact, misreading a number someone said, a class and a relation nobody declared, a value quoted from a transcript the project does not hold, a statement dated by 'today', a near name. Each step expects the gate that must stop it; the corrected change then passes.",
+  "requires": ["docx", "openpyxl"],
+  "steps": [
+    {"say": "the reference project, through the PM-B change", "replay": "northwind", "through": "pm-b-built"},
+
+    {"say": "a changed value written over the old fact is refused before it reaches the candidate", "run": ["curate", "start"]},
+    {"run": ["curate", "add", "--from", "{scenario}/proposals/pm-c-overwrite.json"], "exit": 1,
+     "out": ["pm.pm-c: attributes differ from the candidate. A changed fact is a supersession"]},
+
+    {"say": "Dana says PM-C is now 60,000 km; the curator records it", "run": ["curate", "assert",
+     "--text", "The PM-C interval is now 60,000 km.", "--by", "Dana Reyes, Fleet Manager", "--at", "2025-10-02"],
+     "out": ["a-0001"]},
+    {"say": "the supersession misreads it as 6000, and the draft invents a class and a relation",
+     "run": ["curate", "add", "--from", "{scenario}/proposals/pm-c-misread.json"]},
+    {"run": ["curate", "add", "--from", "{scenario}/proposals/vocabulary-gaps.json"]},
+    {"run": ["curate", "check"], "exit": 1,
+     "findings": {"blocking": [["pm.pm-c-2025-10", "interval_km = 6000 appears nowhere in assertion a-0001"],
+                               ["depot.north", "type 'Depot' is not declared in the vocabulary"],
+                               ["garage.east", "reports_to"]]}},
+    {"say": "the gate holds: nothing is applied, and the graph still answers 96,000 km",
+     "run": ["curate", "apply", "--by", "Sam Lee, analyst", "--note", "PM-C change"], "exit": 1, "out": ["Refusing to apply"]},
+    {"run": ["query", "entity", "PM-C"], "out": ["(pm.pm-c)", "interval km: 96000"], "not_out": ["status=superseded"]},
+
+    {"say": "a statement dated by 'yesterday' about 'garage' is captured and ingested while the candidate is open",
+     "run": ["capture", "--title", "Tyres on Bus 4127", "--by", "Priya Nair, Maintenance Supervisor, East Garage",
+             "--at", "2025-10-07", "--statement", "We changed the tyres on Bus 4127 yesterday.", "--about", "bus.4127,garage"],
+     "warnings": ["statement 1 dates itself by 'yesterday' (2025-10-06",
+                  "about 'garage': no such id or name in the graph; closest by name, not a match: garage.central, garage.east"]},
+    {"run": ["ingest"], "out": ["extracted 1"]},
+    {"say": "the run cannot close while a candidate is open and the build predates the note",
+     "run": ["ingest", "complete"], "exit": 1, "out": ["a curate candidate is open", "the build predates this run's documents"]},
+
+    {"say": "the curator starts again with the statement read right", "run": ["curate", "abort"]},
+    {"run": ["curate", "start"]},
+    {"run": ["curate", "add", "--from", "{scenario}/proposals/pm-c-asserted.json"]},
+    {"say": "a work order quoted from an interview transcript nobody ingested",
+     "run": ["curate", "add", "--from", "{scenario}/proposals/wo-2310-from-transcript.json"]},
+    {"run": ["curate", "check"],
+     "findings": {"gap": [["interview-2025-10-07", "the knowledge base does not hold this document, so the quotes of 1 fact(s) cannot be checked: wo.wo-2310"]]},
+     "out": ["values not checked: 2 on 1 fact, with nothing to check them against: wo.wo-2310 (quotes interview-2025-10-07, which the project does not hold)"]},
+    {"run": ["curate", "apply", "--by", "Sam Lee, analyst", "--note", "PM-C is 60,000 km from 2025-10-02, as Dana Reyes said."]},
+    {"run": ["build"]},
+    {"run": ["query", "entity", "PM-C"], "out": ["(pm.pm-c-2025-10)", "interval km: 60000"]},
+    {"run": ["query", "entity", "PM-C", "--as-of", "2025-09-15"], "out": ["(pm.pm-c)", "interval km: 96000", "status=superseded"]},
+    {"run": ["curate", "assertions"], "out": ["human_assertion  1"]}
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "source_doc": "fleet-maintenance-policy-2025",
+  "as_of": "2025-10-02",
+  "nodes": [
+    {
+      "id": "depot.north",
+      "type": "Depot",
+      "label": "North Depot",
+      "summary": "A depot.",
+      "evidence": [
+        {
+          "doc": "fleet-maintenance-policy-2025",
+          "where": "Purpose",
+          "quote": "It applies to every Bus in the fleet and to every Garage that maintains one."
+        }
+      ],
+      "as_of": "2025-10-02",
+      "valid_from": "2025-10-02",
+      "source_doc": "fleet-maintenance-policy-2025",
+      "sources": [
+        "fleet-maintenance-policy-2025"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "garage.east",
+      "rel": "reports_to",
+      "to": "garage.central"
+    }
+  ]
+}

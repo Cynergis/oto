@@ -1,0 +1,184 @@
+{
+  "_about": "Your domain vocabulary. This file is the ONLY source of it: the build fails if the graph uses a class or relation declared nowhere here. A class is {definition}; a relation is {domain, range, inverse, definition}. Use A|B for a union. Raise `ontology_version` when a change breaks existing data, then run `oto ontology accept`. Set `strict_domains` to true once every edge respects its declared domain and range.",
+  "name": "Northwind Fleet",
+  "ontology_version": 1,
+  "strict_domains": false,
+  "classes": {
+    "Bus": {
+      "definition": "A vehicle in the Northwind fleet, identified by its fleet number."
+    },
+    "Garage": {
+      "definition": "A depot that maintains buses and holds parts stock."
+    },
+    "WorkOrder": {
+      "definition": "An authorised job to repair or service one bus at one garage."
+    },
+    "IncidentReport": {
+      "definition": "The written review of an incident involving a bus."
+    },
+    "PMLevel": {
+      "definition": "A preventive maintenance level (PM-A, PM-B, PM-C): its distance interval and the garages allowed to perform it."
+    },
+    "Part": {
+      "definition": "A stocked spare part, identified by its part number."
+    },
+    "StockLevel": {
+      "definition": "How many units of one part one garage holds, and when to reorder."
+    },
+    "Role": {
+      "definition": "A position with responsibilities under the maintenance policy."
+    },
+    "Route": {
+      "definition": "A scheduled bus line, e.g. Route 12."
+    }
+  },
+  "properties": {
+    "for_bus": {
+      "domain": "WorkOrder",
+      "range": "Bus",
+      "inverse": "has_work_order",
+      "definition": "The bus a work order is about."
+    },
+    "raised_at": {
+      "domain": "WorkOrder",
+      "range": "Garage",
+      "definition": "The garage where the work order is carried out."
+    },
+    "raised_from": {
+      "domain": "WorkOrder",
+      "range": "IncidentReport",
+      "inverse": "led_to",
+      "definition": "The incident report a work order was opened in response to."
+    },
+    "uses_part": {
+      "domain": "WorkOrder",
+      "range": "Part",
+      "inverse": "used_in",
+      "definition": "A part consumed by the work order."
+    },
+    "about_bus": {
+      "domain": "IncidentReport",
+      "range": "Bus",
+      "inverse": "has_incident",
+      "definition": "The bus an incident report concerns."
+    },
+    "reviewed_by": {
+      "domain": "IncidentReport",
+      "range": "Role",
+      "definition": "The role that must review the incident report."
+    },
+    "performed_at": {
+      "domain": "PMLevel",
+      "range": "Garage",
+      "min": 1,
+      "definition": "A garage allowed to perform this PM level."
+    },
+    "approved_by": {
+      "domain": "PMLevel",
+      "range": "Role",
+      "definition": "The role that approves changes to this PM level."
+    },
+    "of_part": {
+      "domain": "StockLevel",
+      "range": "Part",
+      "definition": "The part a stock level counts."
+    },
+    "held_at": {
+      "domain": "StockLevel",
+      "range": "Garage",
+      "definition": "The garage holding the stock."
+    },
+    "operates_on": {
+      "domain": "Bus",
+      "range": "Route",
+      "inverse": "served_by",
+      "definition": "A route the bus is assigned to run."
+    },
+    "stocks": {
+      "domain": "Garage",
+      "range": "Part",
+      "inverse": "stocked_at",
+      "definition": "The garage holds a stock count for this part. Derived from stock levels by rule, never asserted."
+    }
+  },
+  "temporal": {
+    "asOf": {
+      "type": "date",
+      "definition": "When this fact was recorded or observed (transaction time)."
+    },
+    "validFrom": {
+      "type": "date",
+      "definition": "When the fact became true in the world (valid time)."
+    },
+    "validTo": {
+      "type": "date",
+      "definition": "When the fact stopped being true. Absent means it still holds."
+    },
+    "status": {
+      "type": "string",
+      "definition": "current | superseded | proposed | intended."
+    },
+    "supersedes": {
+      "type": "ref",
+      "definition": "The fact this one replaces."
+    },
+    "supersededBy": {
+      "type": "ref",
+      "definition": "The newer fact that retired this one."
+    },
+    "sourceDoc": {
+      "type": "string",
+      "definition": "Slug of the document that introduced or changed this fact."
+    }
+  },
+  "attributes": {
+    "Bus": {
+      "fleet_number": {
+        "type": "string",
+        "definition": "The number painted on the bus."
+      }
+    },
+    "WorkOrder": {
+      "number": {
+        "type": "string",
+        "definition": "The work order number, e.g. WO-2291."
+      },
+      "state": {
+        "type": "enum:open|closed",
+        "definition": "Whether the work order is still being worked."
+      },
+      "opened_on": {
+        "type": "date",
+        "definition": "When the work order was opened."
+      }
+    },
+    "IncidentReport": {
+      "occurred_on": {
+        "type": "date",
+        "definition": "When the incident happened."
+      }
+    },
+    "PMLevel": {
+      "interval_km": {
+        "type": "integer",
+        "definition": "Distance between two services at this level."
+      }
+    },
+    "Part": {
+      "part_number": {
+        "type": "string",
+        "definition": "The catalogue number, e.g. BRK-221."
+      }
+    },
+    "StockLevel": {
+      "reorder_at": {
+        "type": "integer",
+        "definition": "Stock level at or below which the garage reorders."
+      },
+      "quantity": {
+        "type": "integer",
+        "definition": "Units in stock when counted."
+      }
+    }
+  }
+}

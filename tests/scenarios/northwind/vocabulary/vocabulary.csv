@@ -1,0 +1,29 @@
+kind,name,description,domain,range,inverse
+class,Bus,"A vehicle in the Northwind fleet, identified by its fleet number.",,,
+class,Garage,"A depot that maintains buses and holds parts stock.",,,
+class,WorkOrder,"An authorised job to repair or service one bus at one garage.",,,
+class,IncidentReport,"The written review of an incident involving a bus.",,,
+class,PMLevel,"A preventive maintenance level (PM-A, PM-B, PM-C) with its distance interval.",,,
+class,Part,"A stocked spare part, identified by its part number.",,,
+class,StockLevel,"How many units of one part one garage holds, and when to reorder.",,,
+class,Role,"A position with responsibilities under the maintenance policy.",,,
+relation,based_at,"The garage a bus is assigned to.",Bus,Garage,houses
+relation,for_bus,"The bus a work order is about.",WorkOrder,Bus,has_work_order
+relation,raised_at,"The garage where the work order is carried out.",WorkOrder,Garage,
+relation,raised_from,"The incident report a work order was opened in response to.",WorkOrder,IncidentReport,led_to
+relation,uses_part,"A part consumed by the work order.",WorkOrder,Part,used_in
+relation,about_bus,"The bus an incident report concerns.",IncidentReport,Bus,has_incident
+relation,reviewed_by,"The role that must review the incident report.",IncidentReport,Role,
+relation,performed_at,"A garage allowed to perform this PM level.",PMLevel,Garage,
+relation,approved_by,"The role that approves changes to this PM level.",PMLevel,Role,
+relation,of_part,"The part a stock level counts.",StockLevel,Part,
+relation,held_at,"The garage holding the stock.",StockLevel,Garage,
+attribute,fleet_number,"The number painted on the bus.",Bus,string,
+attribute,number,"The work order number, e.g. WO-2291.",WorkOrder,string,
+attribute,state,"Whether the work order is still being worked.",WorkOrder,enum:open|closed,
+attribute,opened_on,"When the work order was opened.",WorkOrder,date,
+attribute,occurred_on,"When the incident happened.",IncidentReport,date,
+attribute,interval_km,"Distance between two services at this level.",PMLevel,integer,
+attribute,part_number,"The catalogue number, e.g. BRK-221.",Part,string,
+attribute,on_hand,"Units in stock when counted.",StockLevel,integer,
+attribute,reorder_at,"Stock level at or below which the garage reorders.",StockLevel,integer,

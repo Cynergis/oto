@@ -142,6 +142,11 @@ Read all four sections:
   them, but a fact with no source is not knowledge and a fact nobody can locate is not checkable.
 - **privacy** — personal data in the text you are about to add. Read the note below.
 
+Below them, `values not checked: N on M facts` names facts whose numbers, dates or codes nothing
+could check: no quote, a quote from a document the project does not hold, or an assertion not on
+record. A clean check said nothing about those values. Quote a held document for them, or say in the
+recap that they rest on the source's word alone.
+
 ## Phase 5 — Apply *(Gate 4)*
 
 **Show the diff and ask.** Then:
@@ -222,7 +227,9 @@ Every fact derived from the statement carries:
 ```
 
 A fact citing an assertion that is not in the log is a **blocking** error. That check is what makes the
-citation mean something.
+citation mean something. Its numbers, dates and codes are checked against the assertion's words, as a
+document's are against its quotes: a value the statement never says blocks, and a date that is only
+the assertion's own `--at` is a gap. So record the statement with the values in it, as they were said.
 
 If it contradicts what the graph believes, and it usually does, that is a supersession: the three edits
 above. Put their reason in `change_note`, in their words.

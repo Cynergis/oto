@@ -108,6 +108,11 @@ row, or the figure, and `quote` is left out. Never put the item's name or a para
 reports, document by document, the items that quote nothing. To tighten an item saved earlier,
 restate it unchanged with its exact `quote`: the new evidence is added beside the old.
 
+**Quote only a document the project holds.** A quote from a transcript or a draft that was never
+ingested cannot be checked: `oto curate check` reports its quote as a gap and lists its numbers, dates
+and codes under `values not checked`. Save the session with the **capture** skill and ingest it first,
+then quote the note.
+
 Ids are stable (`FR3`, `P1`, `ADR-04`): a changed item keeps its id, so the change is a supersession,
 not a second fact. Then:
 

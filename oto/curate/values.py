@@ -18,6 +18,12 @@ configured rather than quoted. A number is matched in its usual written forms ("
 "1,800.5", "12%"), a date as ISO, with slashes, or written out with or without its year ("5 August
 2025", "August 5", "28 Au-gust" broken across a line): documents often leave the year to their own
 date, but a year that is written must be the value's.
+
+A fact citing a recorded assertion (`source_type: human_assertion`) is checked against the assertion's
+words, the whole of its source: absent from them, the value blocks; equal only to the assertion's own
+date, it is a gap, as a captured note's header date is. A value that cannot be checked at all (no
+quote, or a quote from a document the project does not hold, or an assertion not on record) is not a
+finding, but `unchecked` counts it, so a check that passed is never mistaken for one that ran.
 """
 import datetime
 import os
@@ -96,38 +102,89 @@ def _changed(node, live_node):
     return {k: v for k, v in (node.get("attributes") or {}).items() if k not in before or before[k] != v}
 
 
-def check(live, candidate, corpus_dir):
-    """[(severity, subject, message)] about the literal values this candidate brings."""
+def _review(live, candidate, corpus_dir, assertions=None):
+    """(status, node id, attribute, value, detail) for each literal value this candidate brings; status is
+    "ok", "gap", "blocking" or "unchecked"."""
+    from .assertions import cited_ids
     from .diff import index_nodes
     live_by_id = index_nodes(live or {})
     corpus = _Corpus(corpus_dir)
     raw = {}
-    out = []
     for node in (candidate or {}).get("nodes") or []:
         nid = node.get("id")
-        if not nid or node.get("source_type") == "human_assertion":
+        if not nid:
+            continue
+        changed = [(k, v) for k, v in sorted(_changed(node, live_by_id.get(nid)).items()) if _kind(v) is not None]
+        if not changed:
+            continue
+        if node.get("source_type") == "human_assertion":
+            cited = sorted(cited_ids(node))
+            entries = [(assertions or {}).get(i) for i in cited]
+            if not cited or not all(entries):
+                why = "cites no assertion on record" if not cited else \
+                    "cites assertion %s, not on record" % ", ".join(i for i, e in zip(cited, entries) if not e)
+                for name, value in changed:
+                    yield "unchecked", nid, name, value, why
+                continue
+            for name, value in changed:
+                if any(stated(value, e.get("text"), normalise(e.get("text"))) for e in entries):
+                    yield "ok", nid, name, value, ""
+                elif any(e.get("at") == value for e in entries):
+                    yield ("gap", nid, name, value, "%s = %r is the date of assertion %s, not in its words: confirm when "
+                           "it became true" % (name, value, ", ".join(cited)))
+                else:
+                    yield ("blocking", nid, name, value, "%s = %r appears nowhere in assertion %s: a value its source "
+                           "never states was misread or invented" % (name, value, ", ".join(cited)))
             continue
         evidence = [e for e in node.get("evidence") or [] if isinstance(e, dict) and e.get("doc") and e.get("quote")]
-        if not evidence:
-            continue
         docs = sorted({e["doc"] for e in evidence if corpus.text(e["doc"]) is not None})
         if not docs:
+            why = "no quote" if not evidence else \
+                "quotes %s, which the project does not hold" % ", ".join(sorted({e["doc"] for e in evidence}))
+            for name, value in changed:
+                yield "unchecked", nid, name, value, why
             continue
         for doc in docs:
             if doc not in raw:
                 with open(os.path.join(corpus.dir, "%s.md" % doc), encoding="utf-8", errors="replace") as f:
                     raw[doc] = f.read()
         quotes = [e["quote"] for e in evidence]
-        for name, value in sorted(_changed(node, live_by_id.get(nid)).items()):
-            if _kind(value) is None:
-                continue
+        for name, value in changed:
             if any(stated(value, q, normalise(q)) for q in quotes):
+                yield "ok", nid, name, value, ""
                 continue
             holding = [doc for doc in docs if stated(value, raw[doc], corpus.text(doc))]
             if holding:
-                out.append(("gap", nid, "%s = %r is in %s but not in the quotes it cites: quote the sentence that "
-                                        "states it" % (name, value, ", ".join(holding))))
+                yield ("gap", nid, name, value, "%s = %r is in %s but not in the quotes it cites: quote the sentence "
+                       "that states it" % (name, value, ", ".join(holding)))
             else:
-                out.append(("blocking", nid, "%s = %r appears nowhere in %s: a value its source never states was "
-                                             "misread or invented" % (name, value, ", ".join(docs))))
-    return out
+                yield ("blocking", nid, name, value, "%s = %r appears nowhere in %s: a value its source never states "
+                       "was misread or invented" % (name, value, ", ".join(docs)))
+
+
+def check(live, candidate, corpus_dir, assertions=None):
+    """[(severity, subject, message)] about the literal values this candidate brings. `assertions` maps
+    an assertion id to its entry in the log."""
+    return [(status, nid, detail) for status, nid, _, _, detail in _review(live, candidate, corpus_dir, assertions)
+            if status in ("gap", "blocking")]
+
+
+def unchecked(live, candidate, corpus_dir, assertions=None):
+    """[(node id, attribute, why)] for each literal value nothing could check."""
+    return [(nid, name, detail) for status, nid, name, _, detail in _review(live, candidate, corpus_dir, assertions)
+            if status == "unchecked"]
+
+
+def describe_unchecked(items, show=5):
+    """One line for the check's report: how many values went unchecked, and on which facts."""
+    facts = []
+    for nid, _, _ in items:
+        if nid not in facts:
+            facts.append(nid)
+    why = {}
+    for nid, _, detail in items:
+        why.setdefault(nid, detail)
+    shown = ", ".join("%s (%s)" % (nid, why[nid]) for nid in facts[:show])
+    return "values not checked: %d on %d fact%s, with nothing to check them against: %s%s" % (
+        len(items), len(facts), "" if len(facts) == 1 else "s", shown,
+        ", and %d more" % (len(facts) - show) if len(facts) > show else "")

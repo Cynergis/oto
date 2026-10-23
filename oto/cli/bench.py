@@ -86,7 +86,8 @@ def cmd_bench(args):
 
     names = [n.strip() for n in args.systems.split(",") if n.strip()]
     built, unknown, skipped = _systems.build(database, names, ablations=args.ablations,
-                                             progress=lambda m: print("  %s" % m))
+                                             progress=lambda m: print("  %s" % m),
+                                             dense_min_similarity=args.dense_min_similarity)
     for name in unknown:
         print("oto: unknown system %r, skipped" % name, file=sys.stderr)
     if not built:
@@ -95,7 +96,7 @@ def cmd_bench(args):
 
     rows = _run.run(database, questions, built, k=args.k)
     summary = _run.aggregate(rows)
-    text = _run.report(meta, questions, summary, args.k, skipped=skipped)
+    text = _run.report(meta, questions, summary, args.k, skipped=skipped, rows=rows)
     print(text)
 
     if args.out:
@@ -125,6 +126,9 @@ def register(sub):
                        help="also run OTO with the graph off and with time off, to show each pillar "
                             "defends the metric it claims to")
     bench.add_argument("--k", type=int, default=5, help="k for coverage")
+    bench.add_argument("--dense-min-similarity", dest="dense_min_similarity", type=float, default=None,
+                       help="the dense baseline abstains below this cosine similarity (default: never abstains; "
+                            "the report's sweep shows the trade, chosen on held-out questions)")
     bench.add_argument("--out", default=None, help="write machine-readable results here")
     bench.add_argument("--force", action="store_true", help="run despite gold-set problems")
     bench.set_defaults(func=cmd_bench)

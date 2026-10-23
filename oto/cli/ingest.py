@@ -23,7 +23,7 @@ def cmd_ingest(args):
             return 0
         for m in manifests:
             s = m.get("summary") or {}
-            state = "complete" if m.get("completed") else ("OPEN" if s.get(pipeline.EXTRACTED) else "no extractions")
+            state = "superseded" if m.get("superseded_by") else "complete" if m.get("completed") else ("OPEN" if s.get(pipeline.EXTRACTED) else "no extractions")
             print("  %-18s %-10s extracted %d, errors %d   started %s"
                   % (m.get("run_id"), state, s.get(pipeline.EXTRACTED, 0),
                      sum(v for k, v in s.items() if k != pipeline.EXTRACTED), m.get("started", "?")))

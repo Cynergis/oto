@@ -127,3 +127,24 @@ def test_a_name_may_end_in_a_number():
     """Machine names, lines and quarters: "Press 01" is one term, not a word and a stray number."""
     counts = sv.phrases("Every shift starts at Press 01. The Line 3 crew reports to the Claims Manager.")
     assert counts["Press 01"] == 1 and counts["Line 3"] == 1 and counts["Claims Manager"] == 1
+
+
+def test_the_brief_of_a_captured_note_applies_the_survey_fixes(tmp_path):
+    """A note written by `oto capture` carries OTO's own header and its section headings; the brief,
+    like the corpus survey, counts what the speaker said and nothing of the frame around it."""
+    from oto.capture import note
+    corpus = _corpus(str(tmp_path))
+    with open(os.path.join(corpus, "pm-b-change.md"), "w", encoding="utf-8") as f:
+        f.write(note("PM-B interval change",
+                     ["As of 1 September the PM-B interval at the East Garage moves to 90 days.",
+                      "Dana Reyes, the Fleet Manager, signs off PM-B work at the East Garage."],
+                     "Dana Reyes, Fleet Manager", "2026-09-01", about=["garage.east"],
+                     context="Said in the weekly review."))
+    result = sv.brief(corpus, "pm-b-change", {"nodes": [], "edges": []})
+    terms = {r["term"] for r in result["terms"]}
+    assert {"Dana Reyes", "Fleet Manager", "East Garage"} <= terms
+    assert not terms & {"About", "Recorded", "Captured", "Statements", "Context", "Context Said", "Statements 1"}
+    assert not any("PM-B" in t for t in terms), "a code is one identifier, not part of a phrase"
+    assert [r["term"] for r in result["codes"]] == ["PM-B"]
+    assert "PM" not in {r["term"] for r in result["acronyms"]}
+    assert "PM-B" in sv.brief_report(result)

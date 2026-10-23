@@ -219,41 +219,40 @@ def _boilerplate(docs):
     return {s for s, n in seen.items() if n > 1 and len(WORD.findall(s)) >= BOILERPLATE_WORDS}
 
 
-def survey(corpus_dir, top=40, min_count=2, off=()):
-    """The whole map: documents, and candidates with their evidence. `top` limits each kind; a
-    candidate must occur `min_count` times. `off` names FIXES to leave out (all of them is the
-    survey this stage replaced)."""
-    on = {fix: fix not in off for fix in FIXES}
-    docs = []
-    for slug, text in read_corpus(corpus_dir):
-        docs.append((slug, PROVENANCE_LINE.sub("", text) if on["header"] else text))
-    template = _boilerplate(docs) if on["boilerplate"] else set()
-    documents, forms, sentences, defined = [], defaultdict(Counter), {}, {}
-    for slug, text in docs:
-        documents.append(profile(slug, text))
-        sentences[slug] = _sentences(_clean(text))
-        if on["expansions"]:
-            for acronym, (long_form, quote) in expansions(text).items():
-                defined.setdefault(acronym, {"text": long_form, "doc": slug, "quote": quote[:240]})
-        body = _clean(text)
-        for sentence in template:
-            body = body.replace(sentence, " . ")
-        if on["paragraphs"]:
-            body = _paragraphs(body)
-        if on["codes"]:
-            for code, n in codes(body).items():
-                forms[("code", code)][slug] += n
-            body = CODE.sub(" , ", body)
-        for phrase, n in phrases(body).items():
-            if on["acronyms"] and " " not in phrase and ACRONYM.fullmatch(phrase):
-                continue                              # counted as an acronym below, not twice
-            forms[("phrase", phrase)][slug] += n
-        if on["lowercase"]:
-            for phrase, n in lowercase_terms(body).items():
-                forms[("lower", phrase)][slug] += n
-        for token, n in acronyms(body).items():
-            forms[("acronym", token)][slug] += n
+def _read(corpus_dir, on):
+    """The corpus as the survey reads it: OTO's own lines gone, and the templates it repeats."""
+    docs = [(slug, PROVENANCE_LINE.sub("", text) if on["header"] else text) for slug, text in read_corpus(corpus_dir)]
+    return docs, (_boilerplate(docs) if on["boilerplate"] else set())
 
+
+def _count(slug, text, template, on, forms, defined):
+    """One document's forms, counted into `forms` per (kind, surface), with the fixes in `on` applied."""
+    if on["expansions"]:
+        for acronym, (long_form, quote) in expansions(text).items():
+            defined.setdefault(acronym, {"text": long_form, "doc": slug, "quote": quote[:240]})
+    body = _clean(text)
+    for sentence in template:
+        body = body.replace(sentence, " . ")
+    if on["paragraphs"]:
+        body = _paragraphs(body)
+    if on["codes"]:
+        for code, n in codes(body).items():
+            forms[("code", code)][slug] += n
+        body = CODE.sub(" , ", body)
+    for phrase, n in phrases(body).items():
+        if on["acronyms"] and " " not in phrase and ACRONYM.fullmatch(phrase):
+            continue                              # counted as an acronym below, not twice
+        forms[("phrase", phrase)][slug] += n
+    if on["lowercase"]:
+        for phrase, n in lowercase_terms(body).items():
+            forms[("lower", phrase)][slug] += n
+    for token, n in acronyms(body).items():
+        forms[("acronym", token)][slug] += n
+
+
+def _group(forms, defined, on):
+    """Forms of one candidate gathered under one key: case and plural variants, and an acronym with
+    its expansion."""
     groups = defaultdict(lambda: {"forms": Counter(), "docs": Counter(), "kinds": set()})
     for (kind, surface), per_doc in forms.items():
         key = (kind if kind in ("code", "acronym") else "phrase",
@@ -268,6 +267,28 @@ def survey(corpus_dir, top=40, min_count=2, off=()):
         if target is not None and source is not None:
             target["forms"].update(source["forms"])
             target["docs"].update(source["docs"])
+    return groups
+
+
+def _term(kind, normal, group):
+    """The form a candidate is listed under: an acronym as written, else its most frequent capitalised form."""
+    if kind == "acronym":
+        return normal
+    return sorted(group["forms"], key=lambda f: (not f[:1].isupper(), -group["forms"][f], len(f), f))[0]
+
+
+def survey(corpus_dir, top=40, min_count=2, off=()):
+    """The whole map: documents, and candidates with their evidence. `top` limits each kind; a
+    candidate must occur `min_count` times. `off` names FIXES to leave out (all of them is the
+    survey this stage replaced)."""
+    on = {fix: fix not in off for fix in FIXES}
+    docs, template = _read(corpus_dir, on)
+    documents, forms, sentences, defined = [], defaultdict(Counter), {}, {}
+    for slug, text in docs:
+        documents.append(profile(slug, text))
+        sentences[slug] = _sentences(_clean(text))
+        _count(slug, text, template, on, forms, defined)
+    groups = _group(forms, defined, on)
 
     candidates = {"phrase": [], "code": [], "acronym": []}
     for (kind, normal), group in groups.items():
@@ -276,9 +297,7 @@ def survey(corpus_dir, top=40, min_count=2, off=()):
             continue
         if group["kinds"] == {"lower"} and len(group["docs"]) < 2:
             continue                                  # a lowercase run in one document is prose, not yet a term
-        term = sorted(group["forms"], key=lambda f: (not f[:1].isupper(), -group["forms"][f], len(f), f))[0]
-        if kind == "acronym":
-            term = normal
+        term = _term(kind, normal, group)
         documents_in = sorted(group["docs"])
         quotes = []
         for slug in documents_in:
@@ -369,9 +388,19 @@ def brief(corpus_dir, slug, live, candidate=None, top=30):
     path = os.path.join(corpus_dir, slug + ".md")
     if not os.path.exists(path):
         raise FileNotFoundError(path)
-    with open(path, encoding="utf-8") as f:
-        text = f.read()
+    # The survey's own candidate stage and fixes, so the brief lists what `oto survey` would count
+    # in this document: no capture header, no headings run into text, codes whole.
+    on = {fix: True for fix in FIXES}
+    docs, template = _read(corpus_dir, on)
+    text = dict(docs)[slug]
     document = profile(slug, text)
+    forms, defined = defaultdict(Counter), {}
+    _count(slug, text, template, on, forms, defined)
+    found = {"phrase": [], "code": [], "acronym": []}
+    for (kind, normal), group in _group(forms, defined, on).items():
+        if group["kinds"] == {"lower"}:
+            continue                                  # a lowercase run in one document is prose, not yet a term
+        found[kind].append((_term(kind, normal, group), sum(group["forms"].values())))
 
     live_ids = {n.get("id") for n in (live.get("nodes") or [])}
 
@@ -389,11 +418,11 @@ def brief(corpus_dir, slug, live, candidate=None, top=30):
                                      else "live"})
         return out
 
-    terms = [{"term": t, "count": n, "matches": matches(t)}
-             for t, n in sorted(phrases(text).items(), key=lambda kv: (-kv[1], kv[0]))[:top]]
-    acros = [{"term": t, "count": n, "matches": matches(t)}
-             for t, n in sorted(acronyms(text).items(), key=lambda kv: (-kv[1], kv[0]))[:top]]
-    return {"document": document, "terms": terms, "acronyms": acros,
+    def rows(kind):
+        return [{"term": t, "count": n, "matches": matches(t)}
+                for t, n in sorted(found[kind], key=lambda kv: (-kv[1], kv[0]))[:top]]
+
+    return {"document": document, "terms": rows("phrase"), "codes": rows("code"), "acronyms": rows("acronym"),
             "candidate_open": candidate is not None}
 
 
@@ -406,7 +435,7 @@ def brief_report(result):
         lines.append("    - %s" % h[:70])
     where = "the candidate and the live graph" if result["candidate_open"] else "the live graph"
     lines += ["", "Terms in this document, and what %s already holds for them:" % where]
-    for section in (result["terms"], result["acronyms"]):
+    for section in (result["terms"], result.get("codes", []), result["acronyms"]):
         for row in section:
             if row["matches"]:
                 hits = "; ".join("%s (%s%s)" % (m["id"], m["type"], ", " + m["where"] if m["where"] != "live" else "")

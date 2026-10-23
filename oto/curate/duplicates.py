@@ -14,8 +14,18 @@ scored 0.91-0.97 against their originals, four genuinely new entities of the sam
 starting point from eight examples, not a calibration. A runner-up margin is not required: a real
 duplicate may have a close sibling (the rear pads are near the front pads), so every match above the
 floor is listed rather than only the best.
+
+Siblings told apart only by an identifier code are not listed: PM-A, PM-B and PM-C (descriptions the
+same but for the code) scored 0.90-0.94 against each other, and "BRK-220 at Central Garage" 0.94
+against "BRK-221 at Central Garage". A model reads a code as a token or two of noise; the code is
+what names the thing. So when both labels (or, failing a label's, both ids) carry a code, as
+`oto survey` reads one (`CODE`), and they share none, the two are different things and are not
+compared. A code on one side only, or the same code on both, says nothing, and the pair is judged
+by meaning as before.
 """
 import sys
+
+from ..intake.survey import CODE
 
 DEFAULT_MIN_SIMILARITY = 0.88
 SHOWN = 3
@@ -40,9 +50,20 @@ def _links(node):
     return out
 
 
+def _codes(node):
+    """The identifier codes a node is named by: its label's, else its id's."""
+    return set(CODE.findall(node.get("label") or "")) or set(CODE.findall(node.get("id") or ""))
+
+
+def _distinct_codes(a, b):
+    ca, cb = _codes(a), _codes(b)
+    return bool(ca and cb) and not ca & cb
+
+
 def find(graph, new_ids, embed=None, min_similarity=DEFAULT_MIN_SIMILARITY, limit=SHOWN):
     """[{id, label, type, matches: [{id, label, similarity}]}] for each new id with a same-class entity at
-    or above the floor. Versions of one fact (a supersession) are not duplicates of each other."""
+    or above the floor. Versions of one fact (a supersession) are not duplicates of each other, and nor
+    are two entities named by different identifier codes."""
     from ..model.lexicon import _describe, _unit
     nodes = [n for n in (graph or {}).get("nodes") or [] if n.get("id") and n.get("status", "current") == "current"]
     by_id = {n["id"]: n for n in nodes}
@@ -58,7 +79,8 @@ def find(graph, new_ids, embed=None, min_similarity=DEFAULT_MIN_SIMILARITY, limi
         related = _links(node) | {other["id"] for other in pool if node["id"] in _links(other)}
         matches = []
         for other in pool:
-            if other["id"] == node["id"] or other.get("type") != node.get("type") or other["id"] in related:
+            if other["id"] == node["id"] or other.get("type") != node.get("type") or other["id"] in related \
+                    or _distinct_codes(node, other):
                 continue
             similarity = sum(a * b for a, b in zip(vector[node["id"]], vector[other["id"]]))
             if similarity >= min_similarity:

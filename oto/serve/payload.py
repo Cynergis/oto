@@ -150,11 +150,12 @@ def tool_data(engine, name, args):
     """The structured counterpart of a tool's text, where the store has one. None otherwise."""
     store = engine.STORE
     if name in ("kg_entity", "kg_neighbors"):
-        nid, alts = engine.resolve(args.get("term", ""))
+        m = engine.match(args.get("term", ""), as_of=args.get("as_of") if name == "kg_entity" else None)
+        nid = m["id"]
         if not nid:
-            return {"resolved": None, "alternatives": []}
+            return {"resolved": None, "match": m["grade"], "alternatives": m["others"], "candidates": m["candidates"]}
         node = store.node(nid)
-        return {"resolved": nid, "alternatives": alts, "node": _node(node, {nid: store.aliases(nid)}),
+        return {"resolved": nid, "match": m["grade"], "alternatives": m["others"], "node": _node(node, {nid: store.aliases(nid)}),
                 "edges_out": [_edge(dict(e, src=nid)) for e in store.edges_out(nid, args.get("rel"))],
                 "edges_in": [_edge(dict(e, dst=nid)) for e in store.edges_in(nid, args.get("rel"))],
                 "derived_attributes": [dict(r, value=_loads(r.get("value"), None), premises=_loads(r.get("premises"), []))
@@ -208,10 +209,11 @@ def tool_data(engine, name, args):
     if name == "kg_docs":
         return {"rows": store.documents(args.get("query"), int(args.get("limit", 200))), "frontier": store.frontier()}
     if name == "kg_explain":
-        nid, _alts = engine.resolve(args.get("term", ""))
+        m = engine.match(args.get("term", ""))
+        nid = m["id"]
         if not nid:
-            return {"resolved": None}
-        return {"resolved": nid,
+            return {"resolved": None, "match": m["grade"], "alternatives": m["others"], "candidates": m["candidates"]}
+        return {"resolved": nid, "match": m["grade"],
                 "derived_edges": [dict(r, premises=_loads(r.get("premises"), [])) for r in store.derived_edges(nid, args.get("rel"))],
                 "derived_attributes": [dict(r, value=_loads(r.get("value"), None), premises=_loads(r.get("premises"), []))
                                        for r in store.derived_attributes(nid)]}

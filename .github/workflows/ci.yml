@@ -96,6 +96,36 @@ jobs:
           NEO4J_PASSWORD: testpassword
         run: python -m pytest -q tests/test_neo4j_target.py tests/test_store_equivalence.py
 
+  ui-bundle:
+    name: committed UI bundles match ui-src
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ui-src/package-lock.json
+      - name: Install from the lockfile
+        working-directory: ui-src
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck the workbench
+        working-directory: ui-src
+        run: npm run typecheck
+      - name: Rebuild and compare with the committed bundles
+        # The explorer and workbench bundles under oto/ui/ are committed so a user needs no Node.
+        # The build is deterministic, so a rebuild from ui-src/ must leave them byte for byte as
+        # they are. If it does not, someone changed ui-src/ without rebuilding, or the reverse.
+        run: |
+          (cd ui-src && npm run build)
+          changed=$(git status --porcelain --untracked-files=all -- oto/ui)
+          if [ -n "$changed" ]; then
+            echo "::error::oto/ui/ differs from a rebuild of ui-src/. Fix with: cd ui-src && npm ci && npm run build, then commit oto/ui/"
+            echo "$changed"; git diff --stat -- oto/ui
+            exit 1
+          fi
+          echo "committed bundles match ui-src/"
+
   syntax:
     name: every module compiles
     runs-on: ubuntu-latest

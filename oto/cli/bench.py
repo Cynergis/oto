@@ -99,8 +99,15 @@ def cmd_bench(args):
     text = _run.report(meta, questions, summary, args.k, skipped=skipped, rows=rows)
     print(text)
 
+    import datetime as _datetime
+    import json as _json
+    from .. import snapshot as _snapshot
+    latest = os.path.join(project.src, _snapshot.BENCH_FILE)
+    os.makedirs(os.path.dirname(latest), exist_ok=True)
+    with open(latest, "w", encoding="utf-8", newline="\n") as f:
+        _json.dump({"at": _datetime.date.today().isoformat(), "questions": len(questions),
+                    "systems": _run.answers(rows), "summary": summary}, f, indent=2, ensure_ascii=False)
     if args.out:
-        import json as _json
         with open(args.out, "w", encoding="utf-8", newline="\n") as f:
             _json.dump({"meta": meta, "k": args.k, "summary": summary, "rows": rows}, f,
                        indent=2, ensure_ascii=False)

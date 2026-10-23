@@ -5,7 +5,8 @@
     GET  /api/tools               the tool list
     GET  /api/<tool>?<args>       one tool: its text, and the rows behind it where the store has them
     GET  /api/graph               the whole graph as data (serve/payload.py), what an app projects from
-    GET  /api/status              build sequence, backend, freshness, the project's stations
+    GET  /api/status              build sequence, backend, freshness, the project's stations, and the
+                                  workbench snapshot (oto/snapshot.py) under `snapshot`
     GET  /api/changes?since=T     whether anything changed since token T (a build sequence, or the
                                   token a payload or an earlier answer carried)
     GET  /data.json               the graph payload as a file, for an app that loads one
@@ -32,6 +33,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import payload as _payload
+from .. import snapshot as _snapshot
 from ..apps import manifest as _apps
 from ..apps import studio as _studio
 
@@ -324,7 +326,8 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
                           "stations": _payload.stations(project_root), "mode": dict(engine.MODE),
                           "app": {"name": by_prefix[""]["manifest"]["name"], "data": sorted(by_prefix[""]["data"])}
                           if "" in by_prefix else None,
-                          "views": [m["prefix"] for m in mounted if m["prefix"]]}
+                          "views": [m["prefix"] for m in mounted if m["prefix"]],
+                          "snapshot": _snapshot.for_root(project_root)}
                 return self._json(200, status)
             if path == "/api/changes":
                 store = engine.STORE
@@ -333,9 +336,10 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
                 ledger = len(store.changelog(1000) or []) if store else 0
                 since = args.get("since")
                 changed = (str(since) not in (token, str(seq))) if since is not None else True
+                current = _snapshot.for_root(project_root)
                 return self._json(200, {"build_seq": seq, "token": token, "ledger": ledger,
                                         "stations": _payload.stations(project_root), "mode": dict(engine.MODE),
-                                        "changed": changed})
+                                        "changed": changed, "snapshot_token": current and current["token"]})
             if engine.STORE is None:
                 return self._json(503, {"error": engine.no_data_message()})
             if path in ("/api/graph", "/data.json"):

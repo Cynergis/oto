@@ -287,9 +287,18 @@ def survey(corpus_dir, top=40, min_count=2, off=()):
                 quotes.append({"doc": slug, "text": text})
         candidate = {"term": term, "kind": kind, "count": total, "documents": documents_in,
                      "variants": sorted(f for f in group["forms"] if f != term), "quotes": quotes,
-                     "evidence": STAGE, "stage": STAGE}
+                     "evidence": STAGE, "stage": STAGE, "via": []}
         if kind == "acronym" and term in defined:
             candidate["expansion"] = defined[term]
+        # Which fixes brought or shaped it, so a person's verdicts can be counted per fix.
+        if kind == "code":
+            candidate["via"].append("codes")
+        if kind == "phrase" and group["kinds"] == {"lower"}:
+            candidate["via"].append("lowercase")
+        if kind == "phrase" and any(f.lower() != term.lower() for f in group["forms"]):
+            candidate["via"].append("plurals")
+        if candidate.get("expansion"):
+            candidate["via"].append("expansions")
         candidates[kind].append(candidate)
 
     def ranked(rows):
@@ -327,7 +336,8 @@ def report(result):
         lines.append(title)
         for r in rows:
             also = ("   also: " + ", ".join(r.get("variants", [])[:4])) if r.get("variants") else ""
-            lines.append("  %2d / %4d  %s%s%s" % (len(r["documents"]), r["count"], r["term"], extra(r), also))
+            decided = ("  [accepted by %s]" % r["decision"]["by"]) if (r.get("decision") or {}).get("verdict") == "accepted" else ""
+            lines.append("  %2d / %4d  %s%s%s%s" % (len(r["documents"]), r["count"], r["term"], decided, extra(r), also))
         if not rows:
             lines.append("  none recur")
         lines.append("")
@@ -336,6 +346,9 @@ def report(result):
     section("Codes (identifiers, usually one entity each):", result.get("codes", []))
     section("Acronyms (each needs an expansion in the lexicon or an alias):", result["acronyms"],
             lambda r: ("  = %s  (defined in %s)" % (r["expansion"]["text"], r["expansion"]["doc"])) if r.get("expansion") else "")
+    if result.get("rejected"):
+        lines.append("%d candidate(s) rejected by a person are not listed (oto survey decisions shows them)."
+                     % len(result["rejected"]))
     lines.append("A phrase here is a candidate, not a fact. Read the documents before declaring a class.")
     return "\n".join(lines)
 

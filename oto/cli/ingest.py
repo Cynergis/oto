@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """`oto ingest`, `oto figures` and `oto survey`: the inbox into the corpus, and a map of what it holds."""
 import os
+import sys
 
 from ._common import project_arguments, resolve as _resolve
 
 
 def cmd_ingest(args):
-    import sys
 
     from ..intake import pipeline
 
@@ -109,6 +109,20 @@ def cmd_survey(args):
         print("oto: --off takes %s (got %s)" % (", ".join(FIXES), ", ".join(unknown)))
         return 1
     result = survey(corpus, top=args.top, min_count=args.min_count, off=off)
+    if args.survey_command in ("accept", "reject", "decisions"):
+        from ..intake import decisions as _decisions
+        if args.survey_command == "decisions":
+            print(_decisions.report(_decisions.read(project), _decisions.stats(_decisions.latest(project), result)))
+            return 0
+        try:
+            entry = _decisions.record(project, result, args.term, args.survey_command + "ed",
+                                      by=args.by, at=args.at, note=args.note, as_=getattr(args, "as"))
+        except ValueError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        print("%s: %s, by %s on %s (stage %s%s)" % (entry["verdict"], entry["term"], entry["by"], entry["at"], entry["stage"],
+                                                    (", via " + ", ".join(entry["via"])) if entry["via"] else ""))
+        return 0
     if args.score or args.ablations:
         from ..intake import termscore
         gold_path = args.gold or os.path.join(project.data, "gold", "terms.jsonl")
@@ -124,10 +138,12 @@ def cmd_survey(args):
         rows = termscore.ablations(corpus, gold, top=args.top, min_count=args.min_count) if args.ablations else None
         print(termscore.report(meta, result, gold, rows))
         return 0
+    from ..intake import decisions as _decisions
+    shown = _decisions.apply(result, _decisions.latest(project))
     if args.json:
-        print(_json.dumps(result, indent=2, ensure_ascii=False))
+        print(_json.dumps(shown, indent=2, ensure_ascii=False))
     else:
-        print(report(result))
+        print(report(shown))
     return 0
 
 
@@ -159,6 +175,9 @@ def register(sub):
     figures.set_defaults(func=cmd_figures)
 
     survey = sub.add_parser("survey", help="map the corpus: documents, headings, recurring terms")
+    survey.add_argument("survey_command", nargs="?", default="map", choices=["map", "accept", "reject", "decisions"],
+                        help="map (default) lists the candidates; accept and reject record a person's decision on one "
+                             "(--term, --by); decisions shows them, with acceptance by stage and by fix")
     project_arguments(survey)
     survey.add_argument("--doc", default=None,
                         help="brief one document by slug: its terms, and which already resolve to entities")
@@ -171,6 +190,12 @@ def register(sub):
     survey.add_argument("--ablations", action="store_true",
                         help="with --score: the same with each fix off in turn, and with none of them")
     survey.add_argument("--gold", default=None, help="the gold term list (default: <project>/gold/terms.jsonl)")
+    survey.add_argument("--term", default=None, help="for accept and reject: the candidate (its term or a variant)")
+    survey.add_argument("--by", default=None, help="for accept and reject: who decided (required)")
+    survey.add_argument("--at", default=None, help="for accept and reject: the date, YYYY-MM-DD (default: today)")
+    survey.add_argument("--note", default=None, help="for accept and reject: why")
+    survey.add_argument("--as", default=None, choices=["class", "entity", "alias", "attribute", "value"],
+                        help="for accept: what the term is for the vocabulary")
     survey.add_argument("--off", default=None,
                         help="fixes to leave out, comma-separated: header, codes, openers, plurals, lowercase, expansions")
     survey.set_defaults(func=cmd_survey)

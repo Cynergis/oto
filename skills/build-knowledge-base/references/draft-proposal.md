@@ -72,7 +72,10 @@ faithful to the document and easy to check.
    not supersede; list it under *Contradictions* and leave the graph's fact alone.
 6. **Every node carries evidence:** `{"doc": <slug>, "where": <page, section or slide>, "quote":
    <the sentence that says it>}`. That is what a reader opens to verify an answer; a fact without
-   one is reported by `oto curate check` and will not pass the gate. Every edge uses a declared
+   one is reported by `oto curate check` and will not pass the gate. Each number, date and code in
+   `attributes` must be stated by one of the node's quotes: quote the sentence that states it, as a
+   second evidence entry if needed (`curate check` blocks a value the document never states, and
+   reports one it states elsewhere than the quotes). Every edge uses a declared
    relation whose domain and range fit the two nodes' classes. Dates are `YYYY-MM-DD` or absent,
    never guessed; `as_of` is the document's own date, and the report says where it came from.
 7. **The report is for the reviewer.** Say what the document does not say that a reader might

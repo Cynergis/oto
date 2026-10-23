@@ -243,7 +243,9 @@ def cmd_curate(args):
     from ..curate import assertions as _assertions
     findings = _diff.check(live, proposed, vocabulary, known_assertions=_assertions.known_ids(project))
     from ..curate import evidence as _evidence
-    for severity, subject, message in _evidence.check(live, proposed, project.layout.corpus):
+    from ..curate import values as _values
+    for severity, subject, message in _evidence.check(live, proposed, project.layout.corpus) + \
+            _values.check(live, proposed, project.layout.corpus):
         findings.append(_diff.Finding(_diff.Finding.BLOCKING if severity == "blocking" else _diff.Finding.GAP, subject, message))
 
     from ..reason import engine as _engine, rules as _rules

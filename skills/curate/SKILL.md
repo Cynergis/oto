@@ -67,7 +67,10 @@ oto curate resolve --project <project> --term "<the term>" # the candidate too, 
 ```
 
 Use the second form inside a batch: an id another document's proposal created is in the candidate
-and not yet in the database, and inventing a second id for it is how a graph rots.
+and not yet in the database, and inventing a second id for it is how a graph rots. Names miss the
+same thing under another name ("Central Depot" beside "Central Garage"): `oto curate check
+--duplicates` lists new entities close in meaning to one of their class. It is advice from an
+embedding model, never a verdict: read both before merging them or keeping both.
 
 Three outcomes, and they lead to different edits:
 

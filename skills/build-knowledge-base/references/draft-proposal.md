@@ -42,8 +42,9 @@ faithful to the document and easy to check.
    The dry run says exactly what the merge would do and refuses what it would refuse, without
    touching the candidate. A **SUSPECT** is a new id whose name matches an existing node: if it is
    the same entity, reuse the existing id; if you cannot tell, keep your id and say so in the
-   report. A **refused** line names a changed fact or a mis-typed id: fix it. Repeat until the dry
-   run reports nothing refused.
+   report. A **MAYBE** line (with `--duplicates`, when the embedding model is installed) names an
+   entity close in meaning under another name: treat it like a SUSPECT. A **refused** line names a
+   changed fact or a mis-typed id: fix it. Repeat until the dry run reports nothing refused.
 
 4. Return the report (below). Do not run `oto curate add` without `--dry-run`, `oto curate apply`,
    `oto build`, or any `oto ontology` command. Never edit `graph.json`, the candidate, or another

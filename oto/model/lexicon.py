@@ -30,9 +30,6 @@ NAME = "lexicon.json"
 SUGGESTIONS = "lexicon.suggestions.json"
 DEFAULT_MIN_SIMILARITY = 0.60
 DEFAULT_MIN_MARGIN = 0.05
-#: The line the intake writes at the top of every extracted document. Its words are the pipeline's,
-#: not the corpus's, and would otherwise be proposed as terms ("Converted", "Markdown").
-PROVENANCE_LINE = re.compile(r"^> \*\*Source:\*\*.*$", re.M)
 
 
 def _today():
@@ -103,7 +100,7 @@ def corpus_terms(project, top=40, min_count=2):
     from ..intake import survey as _survey
     totals, where = {}, {}
     for slug, text in _survey.read_corpus(project.layout.corpus):
-        text = PROVENANCE_LINE.sub("", text)
+        text = _survey.PROVENANCE_LINE.sub("", text)
         for counter in (_survey.phrases(text), _survey.acronyms(text)):
             for term, count in counter.items():
                 totals[term] = totals.get(term, 0) + count

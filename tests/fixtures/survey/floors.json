@@ -1,0 +1,3 @@
+{"_about": "The survey's scores on each sample corpus when this stage was added: a change may raise them, never lower them. tests/test_survey_stage.py holds it.",
+ "fleet": {"recall": 0.571, "precision": 0.8, "review_load": 1.25},
+ "incidents": {"recall": 0.52, "precision": 0.928, "review_load": 1.077}}

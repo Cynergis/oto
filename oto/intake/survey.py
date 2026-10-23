@@ -3,12 +3,30 @@
 
 Designing a vocabulary starts with the words the material uses, and authoring a graph starts with
 the things the material names. Reading every document is still required. This pass gives the reader
-a map before the reading: what each document is, how it is structured, which capitalised phrases
-recur across documents, which acronyms appear, and which dates are mentioned.
+a map before the reading: what each document is, how it is structured, which phrases, codes and
+acronyms recur across documents, and which dates are mentioned.
 
-It is deliberately dumb. No model, no dictionary of the domain, no inference: a recurring
-capitalised phrase is a *candidate* for an entity, and a person or an agent decides. Everything
-here is a count, so two runs over the same corpus agree.
+It is deliberately dumb. No model, no dictionary of the domain, no inference: a recurring phrase is a
+*candidate* for an entity, and a person or an agent decides. Everything here is a count, so two runs
+over the same corpus agree.
+
+The result is a list of candidates, each with the evidence that put it there: its counts, the
+documents it is in, a quote from each, its variants. This is the first stage of a chain (`counted`);
+later stages may add to a candidate, never rewrite what this one counted. Each fix below is named in
+FIXES and can be switched off, so `termscore` can show what each one is worth against a gold list:
+
+    header       OTO's own lines (the intake's provenance line, a capture's header) are not the corpus
+    paragraphs   a name never runs across a blank line or out of a heading into the text below it
+    boilerplate  a sentence repeated word for word in two or more documents is a template, not content
+    codes        PM-B, WO-2291, BRK-221 are one identifier each, not an acronym plus a phrase
+    acronyms     an all-capitals word is counted once, as an acronym, not also as a phrase
+    plurals      Work Order and Work Orders are one candidate (case variants always are)
+    lowercase    "error budget" recurring across documents is a term too
+    expansions   "Mean Time To Recovery (MTTR)" gives MTTR its expansion, quoted, and one row
+
+Each was kept because switching it off lowers recall or precision, or raises the review load, on
+the gold lists of two unrelated corpora (tests/fixtures/survey). One that showed nothing, dropping a
+sentence opener such as "Every" from the name after it, was left out for that reason.
 """
 import os
 import re
@@ -18,9 +36,15 @@ from collections import Counter, defaultdict
 PHRASE = re.compile(r"\b[A-Z][A-Za-z0-9&'\-]+(?:(?:\s+(?:of|and|for|the|de|du|des|von|van|di|da))?"
                     r"\s+(?:[A-Z][A-Za-z0-9&'\-]+|\d[A-Za-z0-9\-]*)){0,4}\b")
 ACRONYM = re.compile(r"\b[A-Z][A-Z0-9]{1,6}\b")
+#: An identifier: capitals or digits, a hyphen, then more ("PM-B", "WO-2291", "SEV-1").
+CODE = re.compile(r"(?<![\w-])[A-Z][A-Z0-9]*-[A-Z0-9][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*(?![\w-])")
 ISO_DATE = re.compile(r"\b(?:19|20)\d{2}-\d{2}-\d{2}\b")
 HEADING = re.compile(r"^(#{1,4})\s+(.*?)\s*$")
 WORD = re.compile(r"[A-Za-z][A-Za-z0-9'\-]*")
+#: The lines OTO writes itself: the intake's provenance line, and a captured note's header.
+PROVENANCE_LINE = re.compile(r"^> \*\*(?:Source|Captured):\*\*.*$", re.M)
+#: The least a repeated sentence must say before it counts as a template rather than a coincidence.
+BOILERPLATE_WORDS = 6
 #: Characters before a single capitalised word that mean "start of a sentence", where the capital
 #: says nothing about the word. Multi-word phrases are kept regardless: "Claims Adjuster" at the
 #: start of a sentence is still a name.
@@ -28,6 +52,10 @@ SENTENCE_START = set(".!?:\n#*-|>\"'(`")
 STOP = set("the a an and or of to in on for with by as at is are be this that these those it its "
            "from into we you they our your their if then than when where how what which who not no "
            "all any each per via may can will shall must should".split())
+CONNECTORS = {"of", "and", "for", "the", "to", "in", "on", "a", "an"}
+FIXES = ("header", "paragraphs", "boilerplate", "codes", "acronyms", "plurals", "lowercase", "expansions")
+STAGE = "counted"
+QUOTES = 2
 
 
 def read_corpus(corpus_dir):
@@ -77,6 +105,8 @@ def phrases(text):
     for m in PHRASE.finditer(text):
         phrase = re.sub(r"\s+", " ", m.group(0))
         single = " " not in phrase
+        before = text[:m.start()].rstrip(" \t")
+        at_start = not before or before[-1] in SENTENCE_START
         # "The Fraud Unit" at the start of a sentence: the article is grammar, the rest is a name.
         tokens = phrase.split(" ")
         while len(tokens) > 1 and tokens[0].lower() in STOP:
@@ -85,8 +115,7 @@ def phrases(text):
         if single:
             if phrase.lower() in STOP or len(phrase) < 3:
                 continue
-            before = text[:m.start()].rstrip(" \t")
-            if not before or before[-1] in SENTENCE_START:
+            if at_start:
                 continue
         counts[phrase] += 1
     return counts
@@ -102,39 +131,187 @@ def acronyms(text):
     return counts
 
 
-def survey(corpus_dir, top=40, min_count=2):
-    """The whole map. `top` limits the term and acronym lists; `min_count` is the floor for both."""
-    docs = read_corpus(corpus_dir)
-    documents, term_total, term_docs, acro_total, acro_docs = [], Counter(), defaultdict(set), Counter(), defaultdict(set)
+def codes(text):
+    return Counter(m.group(0) for m in CODE.finditer(_clean(text)))
+
+
+def lowercase_terms(text):
+    """Two- and three-word runs of lowercase words, none of them a stop word, inside one clause."""
+    counts = Counter()
+    for clause in re.split(r"[.,;:!?()\[\]\n|*>\"`]+", _clean(text)):
+        words = WORD.findall(clause)
+        for size in (2, 3):
+            for i in range(len(words) - size + 1):
+                window = words[i:i + size]
+                if all(w[0].islower() and len(w) > 2 and w.lower() not in STOP for w in window):
+                    counts[" ".join(window)] += 1
+    return counts
+
+
+def singular(word):
+    """A plural's singular, by the regular rules only: what is left is still a variant, never a guess."""
+    lower = word.lower()
+    if len(word) > 4 and lower.endswith("ies"):
+        return word[:-3] + ("Y" if word[-3].isupper() else "y")
+    if lower.endswith(("sses", "ches", "shes", "xes", "uses")):
+        return word[:-2]
+    if len(word) > 3 and lower.endswith("s") and not lower.endswith(("ss", "us", "is")):
+        return word[:-1]
+    return word
+
+
+def _key(phrase, plurals):
+    words = phrase.lower().split()
+    if plurals and words:
+        words[-1] = singular(words[-1])
+    return " ".join(words)
+
+
+def expansions(text):
+    """{acronym: (long form, the sentence it is defined in)} for "Long Form (LF)" and "LF (long form)"."""
+    found = {}
+    text = _clean(text)
+    for sentence in _sentences(text):
+        for m in re.finditer(r"\(([A-Z][A-Z0-9]{1,6})\)", sentence):
+            words = WORD.findall(sentence[:m.start()])
+            for size in range(1, min(len(words), 8) + 1):
+                if _initials_match(m.group(1), words[-size:]):
+                    found.setdefault(m.group(1), (" ".join(words[-size:]), sentence))
+                    break
+        for m in re.finditer(r"\b([A-Z][A-Z0-9]{1,6})\s*\(([^)]{3,80})\)", sentence):
+            words = WORD.findall(m.group(2))
+            if _initials_match(m.group(1), words):
+                found.setdefault(m.group(1), (" ".join(words), sentence))
+    return found
+
+
+def _initials_match(acronym, words):
+    letters = [c.lower() for c in acronym if c.isalpha()]
+    every = [w[0].lower() for w in words]
+    content = [w[0].lower() for w in words if w.lower() not in CONNECTORS]
+    return bool(words) and words[0].lower() not in CONNECTORS and letters in (every, content)
+
+
+def _sentences(text):
+    return [s.strip(" -*#>\t") for s in re.split(r"(?<=[.!?])\s+|\n+", text) if s.strip(" -*#>\t")]
+
+
+def _quote(sentences, forms):
+    pattern = re.compile(r"(?<![\w-])(?:%s)(?![\w-])" % "|".join(re.escape(f) for f in sorted(forms, key=len, reverse=True)),
+                         re.IGNORECASE)
+    for sentence in sentences:
+        if pattern.search(sentence):
+            return sentence[:240]
+    return None
+
+
+def _paragraphs(text):
+    """End every heading and every paragraph with a stop, so a name cannot run across either."""
+    text = re.sub(r"^(#{1,6}[ \t].*)$", r"\1 .", text, flags=re.M)
+    return re.sub(r"\n[ \t]*\n+", "\n.\n", text)
+
+
+def _boilerplate(docs):
+    """Sentences that appear word for word in two or more documents and say enough to be a template."""
+    seen = Counter()
+    for _slug, text in docs:
+        seen.update(set(_sentences(_clean(text))))
+    return {s for s, n in seen.items() if n > 1 and len(WORD.findall(s)) >= BOILERPLATE_WORDS}
+
+
+def survey(corpus_dir, top=40, min_count=2, off=()):
+    """The whole map: documents, and candidates with their evidence. `top` limits each kind; a
+    candidate must occur `min_count` times. `off` names FIXES to leave out (all of them is the
+    survey this stage replaced)."""
+    on = {fix: fix not in off for fix in FIXES}
+    docs = []
+    for slug, text in read_corpus(corpus_dir):
+        docs.append((slug, PROVENANCE_LINE.sub("", text) if on["header"] else text))
+    template = _boilerplate(docs) if on["boilerplate"] else set()
+    documents, forms, sentences, defined = [], defaultdict(Counter), {}, {}
     for slug, text in docs:
         documents.append(profile(slug, text))
-        for phrase, n in phrases(text).items():
-            term_total[phrase] += n
-            term_docs[phrase].add(slug)
-        for token, n in acronyms(text).items():
-            acro_total[token] += n
-            acro_docs[token].add(slug)
+        sentences[slug] = _sentences(_clean(text))
+        if on["expansions"]:
+            for acronym, (long_form, quote) in expansions(text).items():
+                defined.setdefault(acronym, {"text": long_form, "doc": slug, "quote": quote[:240]})
+        body = _clean(text)
+        for sentence in template:
+            body = body.replace(sentence, " . ")
+        if on["paragraphs"]:
+            body = _paragraphs(body)
+        if on["codes"]:
+            for code, n in codes(body).items():
+                forms[("code", code)][slug] += n
+            body = CODE.sub(" , ", body)
+        for phrase, n in phrases(body).items():
+            if on["acronyms"] and " " not in phrase and ACRONYM.fullmatch(phrase):
+                continue                              # counted as an acronym below, not twice
+            forms[("phrase", phrase)][slug] += n
+        if on["lowercase"]:
+            for phrase, n in lowercase_terms(body).items():
+                forms[("lower", phrase)][slug] += n
+        for token, n in acronyms(body).items():
+            forms[("acronym", token)][slug] += n
 
-    def ranked(total, per_doc):
-        rows = [{"term": t, "count": n, "documents": sorted(per_doc[t])}
-                for t, n in total.items() if n >= min_count]
-        rows.sort(key=lambda r: (-len(r["documents"]), -r["count"], r["term"]))
-        return rows[:top]
+    groups = defaultdict(lambda: {"forms": Counter(), "docs": Counter(), "kinds": set()})
+    for (kind, surface), per_doc in forms.items():
+        key = (kind if kind in ("code", "acronym") else "phrase",
+               surface if kind in ("code", "acronym") else _key(surface, on["plurals"]))
+        group = groups[key]
+        group["forms"][surface] += sum(per_doc.values())
+        group["docs"].update(per_doc)
+        group["kinds"].add(kind)
+    for acronym, expansion in defined.items():
+        target = groups.get(("acronym", acronym))
+        source = groups.pop(("phrase", _key(expansion["text"], on["plurals"])), None)
+        if target is not None and source is not None:
+            target["forms"].update(source["forms"])
+            target["docs"].update(source["docs"])
 
+    candidates = {"phrase": [], "code": [], "acronym": []}
+    for (kind, normal), group in groups.items():
+        total = sum(group["forms"].values())
+        if total < min_count:
+            continue
+        if group["kinds"] == {"lower"} and len(group["docs"]) < 2:
+            continue                                  # a lowercase run in one document is prose, not yet a term
+        term = sorted(group["forms"], key=lambda f: (not f[:1].isupper(), -group["forms"][f], len(f), f))[0]
+        if kind == "acronym":
+            term = normal
+        documents_in = sorted(group["docs"])
+        quotes = []
+        for slug in documents_in:
+            text = _quote(sentences[slug], list(group["forms"]))
+            if text and len(quotes) < QUOTES:
+                quotes.append({"doc": slug, "text": text})
+        candidate = {"term": term, "kind": kind, "count": total, "documents": documents_in,
+                     "variants": sorted(f for f in group["forms"] if f != term), "quotes": quotes,
+                     "evidence": STAGE, "stage": STAGE}
+        if kind == "acronym" and term in defined:
+            candidate["expansion"] = defined[term]
+        candidates[kind].append(candidate)
+
+    def ranked(rows):
+        return sorted(rows, key=lambda r: (-len(r["documents"]), -r["count"], r["term"]))[:top]
+
+    terms, code_rows, acronym_rows = ranked(candidates["phrase"]), ranked(candidates["code"]), ranked(candidates["acronym"])
     return {"documents": documents,
-            "terms": ranked(term_total, term_docs),
-            "acronyms": ranked(acro_total, acro_docs),
+            "candidates": terms + code_rows + acronym_rows,
+            "terms": terms, "codes": code_rows, "acronyms": acronym_rows,
+            "stage": STAGE, "fixes": [fix for fix in FIXES if on[fix]],
             "totals": {"documents": len(documents),
                        "words": sum(d["words"] for d in documents),
-                       "distinct_terms": len(term_total),
-                       "distinct_acronyms": len(acro_total)}}
+                       "distinct_terms": sum(1 for k in groups if k[0] == "phrase"),
+                       "distinct_codes": sum(1 for k in groups if k[0] == "code"),
+                       "distinct_acronyms": sum(1 for k in groups if k[0] == "acronym")}}
 
 
 def report(result):
     """Plain text, for a reader planning the vocabulary."""
     t = result["totals"]
-    lines = ["%d document(s), %d words, %d distinct capitalised phrases, %d acronyms"
-             % (t["documents"], t["words"], t["distinct_terms"], t["distinct_acronyms"]), ""]
+    lines = ["%d document(s), %d words, %d distinct phrases, %d codes, %d acronyms"
+             % (t["documents"], t["words"], t["distinct_terms"], t.get("distinct_codes", 0), t["distinct_acronyms"]), ""]
     lines.append("Documents:")
     for d in result["documents"]:
         dates = ("  dates: %s" % ", ".join(d["dates"][:4])) if d["dates"] else ""
@@ -143,19 +320,22 @@ def report(result):
             lines.append("      - %s" % h[:70])
         if len(d["headings"]) > 8:
             lines.append("      ... and %d more heading(s)" % (len(d["headings"]) - 8))
-    lines.append("")
-    lines.append("Recurring phrases (candidates for entities; documents / mentions):")
-    for r in result["terms"]:
-        lines.append("  %2d / %4d  %s" % (len(r["documents"]), r["count"], r["term"]))
-    if not result["terms"]:
-        lines.append("  none recur")
-    lines.append("")
-    lines.append("Acronyms (each needs an expansion in the lexicon or an alias):")
-    for r in result["acronyms"]:
-        lines.append("  %2d / %4d  %s" % (len(r["documents"]), r["count"], r["term"]))
-    if not result["acronyms"]:
-        lines.append("  none recur")
-    lines.append("")
+    lines += ["", "Candidates, counted and quoted in the corpus (stage: %s; fixes: %s)"
+              % (result.get("stage", STAGE), ", ".join(result.get("fixes", FIXES)) or "none"), ""]
+
+    def section(title, rows, extra=lambda r: ""):
+        lines.append(title)
+        for r in rows:
+            also = ("   also: " + ", ".join(r.get("variants", [])[:4])) if r.get("variants") else ""
+            lines.append("  %2d / %4d  %s%s%s" % (len(r["documents"]), r["count"], r["term"], extra(r), also))
+        if not rows:
+            lines.append("  none recur")
+        lines.append("")
+
+    section("Recurring phrases (candidates for entities; documents / mentions):", result["terms"])
+    section("Codes (identifiers, usually one entity each):", result.get("codes", []))
+    section("Acronyms (each needs an expansion in the lexicon or an alias):", result["acronyms"],
+            lambda r: ("  = %s  (defined in %s)" % (r["expansion"]["text"], r["expansion"]["doc"])) if r.get("expansion") else "")
     lines.append("A phrase here is a candidate, not a fact. Read the documents before declaring a class.")
     return "\n".join(lines)
 

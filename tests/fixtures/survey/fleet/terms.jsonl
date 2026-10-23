@@ -1,0 +1,30 @@
+// The terms a person building a vocabulary from these documents would want the survey to surface.
+{"_meta": {"authored_by": "Claude (coding agent), from the documents, before the survey was run on them", "authored_by_kind": "model", "audited_fraction": 0, "audited_by": "", "notes": "A fleet-maintenance corpus: a policy, an incident review, a stock sheet, vendor notes and three captured statements."}}
+{"term": "Bus", "aka": ["buses"]}
+{"term": "Bus 4127"}
+{"term": "Garage", "aka": ["garages"]}
+{"term": "Central Garage"}
+{"term": "East Garage"}
+{"term": "Work Order", "aka": ["work orders", "WO"]}
+{"term": "WO-2291"}
+{"term": "WO-2304"}
+{"term": "Incident Report", "aka": ["incident review", "incident reports"]}
+{"term": "PM", "aka": ["preventive maintenance"]}
+{"term": "PM Schedule"}
+{"term": "PM-A"}
+{"term": "PM-B"}
+{"term": "PM-C"}
+{"term": "Fleet Manager"}
+{"term": "Maintenance Supervisor"}
+{"term": "Safety Officer"}
+{"term": "Route 12", "aka": ["route"]}
+{"term": "Part", "aka": ["parts", "part number"]}
+{"term": "BRK-220"}
+{"term": "BRK-221"}
+{"term": "FLT-010"}
+{"term": "TYR-305"}
+{"term": "Brake pads", "aka": ["brake pad set", "rear brake pads", "rear pads"]}
+{"term": "Inspection"}
+{"term": "Reorder point", "aka": ["reorder at"]}
+{"term": "Telematics feed", "aka": ["telematics"]}
+{"term": "Odometer", "aka": ["odometer readings"]}

@@ -1,0 +1,27 @@
+// The terms a person building a vocabulary from these documents would want the survey to surface.
+{"_meta": {"authored_by": "Claude (coding agent), from the documents, before the survey was run on them", "authored_by_kind": "model", "audited_fraction": 0, "audited_by": "", "notes": "A software-incident corpus: two postmortems and an on-call handbook."}}
+{"term": "Incident", "aka": ["incidents"]}
+{"term": "INC-4471"}
+{"term": "INC-4502"}
+{"term": "SEV-1"}
+{"term": "SEV-2"}
+{"term": "Severity level", "aka": ["severity levels", "severity"]}
+{"term": "Postmortem", "aka": ["postmortems"]}
+{"term": "On-call engineer", "aka": ["on-call"]}
+{"term": "Incident Commander", "aka": ["incident commanders"]}
+{"term": "Communications Lead"}
+{"term": "Release Manager"}
+{"term": "SLO", "aka": ["service level objective"]}
+{"term": "MTTR", "aka": ["mean time to recovery"]}
+{"term": "Error budget"}
+{"term": "Rollback"}
+{"term": "Rollback plan"}
+{"term": "Runbook", "aka": ["runbooks"]}
+{"term": "Checkout Service"}
+{"term": "Search Service"}
+{"term": "Payments API"}
+{"term": "Status Page"}
+{"term": "Deploy pipeline", "aka": ["deploy"]}
+{"term": "Canary stage"}
+{"term": "Index rebuild", "aka": ["index rebuilds"]}
+{"term": "Follow-up action", "aka": ["follow-up actions"]}

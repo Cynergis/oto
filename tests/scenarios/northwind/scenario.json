@@ -137,6 +137,8 @@
               "test.feedback_counts": {"right": 1, "incomplete": 1, "wrong": 1},
               "vocabulary.classes.PMLevel": {"has": "confirmed"},
               "open": {"has": "1 reader question waits for its right answer"},
-              "test.gold.authored_by": null, "overview.facts": 21}}
+              "test.gold.authored_by": null, "overview.facts": 21,
+              "vocabulary.classes.Route.why": {"has": "D.R. wants incidents and repairs grouped by route"},
+              "curate.changes.0.by": "S.L., analyst"}}
   ]
 }

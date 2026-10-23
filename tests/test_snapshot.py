@@ -159,3 +159,26 @@ def test_a_site_built_with_the_workbench_carries_the_published_snapshot_and_the_
 def test_the_generated_deploy_workflow_builds_the_site_with_flags_oto_build_accepts():
     from oto import repo
     assert "--app" not in repo.DEPLOY and '--view "${{{{ vars.OTO_SITE_VIEW }}}}"' in repo.DEPLOY
+
+
+def test_people_the_project_names_are_published_as_their_initials(root):
+    live = _sensitive(root)
+    live["vocabulary"]["classes"][1]["why"] = "Dana wants work grouped by route; Reyes asked for it twice. Bob agreed."
+    live["curate"]["changes"] = [{"at": "2025-10-02", "by": "Sam Lee, analyst", "note": "WO-2304, from Priya Nair's captured statement.",
+                                  "sources": [], "added": 1, "retired": []}]
+    live["test"]["feedback"][1]["by"] = "Priya Nair, Maintenance Supervisor"
+    out = snapshot.published(live)
+    assert out["vocabulary"]["classes"][1]["why"] == "D.R. wants work grouped by route; D.R. asked for it twice. Bob agreed.", \
+        "a first or last name alone is the person too; a name the project never attributes anything to is left"
+    assert out["curate"]["changes"][0]["by"] == "S.L., analyst"
+    assert out["curate"]["changes"][0]["note"] == "WO-2304, from P.N.'s captured statement."
+    text = json.dumps(out, ensure_ascii=False)
+    for name in ("Dana", "Reyes", "Priya", "Nair", "Sam Lee"):
+        assert name not in text, name
+
+
+def test_two_people_with_one_first_name_keep_only_its_initial(root):
+    live = _sensitive(root)
+    live["rules"]["rules"].append({"id": "r2", "kind": "policy", "severity": "warn", "why": "Dana asked.", "validated_by": "Dana Smith"})
+    out = snapshot.published(live)
+    assert out["rules"]["rules"][1]["why"] == "D. asked.", "ambiguous between D.R. and D.S."

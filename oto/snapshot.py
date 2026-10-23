@@ -43,14 +43,19 @@ what the site already publishes kept and what only the project's people should s
                 class or a rule ("confirmed" stays); who wrote the gold set; feedback, which is people's
                 questions in their words (counts by verdict stay)
 
-Text an analyst wrote for readers (a class's reason, a change's note) is published as written, names
-included: no rule takes a name out of a sentence, so write it for readers. Only the fields whose purpose
-is to name someone are withheld. What waits on a person is said again from the counts, without names. What is kept is then scanned
+Text an analyst wrote for readers (a class's reason, a change's note) is published with the people in
+it as their initials: the project knows its people from the fields whose purpose is to name someone (who
+confirmed, decided, applied, wrote the gold set, gave feedback), and each one's full name, or first or
+last name alone, becomes "D.R."; a first name two people share becomes its initial alone, "D.". A name
+the project never attributes anything to is not known to be a person, and is left as written; a role
+written where a name belongs ("Fleet Manager") would be shortened too. Only the fields whose purpose is
+to name someone are withheld. What waits on a person is said again from the counts, without names. What is kept is then scanned
 (validate/privacy.py) and a blocking finding refuses the published copy: `refusals` says why.
 """
 import hashlib
 import json
 import os
+import re
 
 SNAPSHOT = 1
 STATES = ("done", "attention", "not_started")
@@ -349,8 +354,56 @@ def published(live):
     out["test"]["feedback"] = []
     out["published"], out["withheld"] = True, list(WITHHELD)
     out["open"] = _open(out)
+    out = _initialled(out, people(live))
     out["token"] = token(out)
     return out
+
+
+#: A person's name as attribution fields write it: two to four capitalised words.
+PERSON = re.compile(r"^[A-Z][a-z'\u2019-]+(?: [A-Z][a-z'\u2019-]+){1,3}$")
+
+
+def people(live):
+    """The people a project names, from the fields whose purpose is to name someone. Each field is
+    "Name, role, date"; a gold set's author may list several ("X, for Y + feedback from Z")."""
+    t = live["test"]
+    fields = ([c.get("validated_by") for c in live["vocabulary"]["classes"]] + [r.get("validated_by") for r in live["rules"]["rules"]]
+              + [d.get("by") for d in live["survey"]["latest"]] + [c.get("by") for c in live["curate"]["changes"]]
+              + [f.get("by") for f in t["feedback"]] + [(t["gold"] or {}).get("authored_by")])
+    found = set()
+    for field in fields:
+        for part in re.split(r"\s\+\s|\bfor\b|\bfrom\b", field or ""):
+            name = part.split(",")[0].strip()
+            if PERSON.match(name):
+                found.add(name)
+    return sorted(found)
+
+
+def _initialled(value, names):
+    """Every string in `value` with each person's name as initials."""
+    if not names:
+        return value
+    initials = {n: "".join(w[0] + "." for w in n.split()) for n in names}
+    parts = {}
+    for n in names:
+        words = n.split()
+        for word in (words[0], words[-1]):
+            parts.setdefault(word, set()).add(n)
+    swaps = [(re.escape(n), initials[n]) for n in sorted(names, key=len, reverse=True)]
+    swaps += [(re.escape(w), initials[next(iter(owners))] if len(owners) == 1 else w[0] + ".")
+              for w, owners in sorted(parts.items(), key=lambda kv: -len(kv[0]))]
+    pattern = re.compile(r"(?<![\w.])(%s)(?![\w])" % "|".join(p for p, _ in swaps))
+    lookup = {re.sub(r"\\(.)", r"\1", p): r for p, r in swaps}
+
+    def walk(v):
+        if isinstance(v, str):
+            return pattern.sub(lambda m: lookup[m.group(1)], v)
+        if isinstance(v, list):
+            return [walk(x) for x in v]
+        if isinstance(v, dict):
+            return {k: (x if k == "token" else walk(x)) for k, x in v.items()}
+        return v
+    return walk(value)
 
 
 def refusals(snapshot):

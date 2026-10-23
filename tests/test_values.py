@@ -114,3 +114,64 @@ def test_curate_check_blocks_a_misread_number(tmp_path, capsys):
     capsys.readouterr()
     assert main(["curate", "check", "--project", root]) == 1
     assert "interval_km = 2000 appears nowhere in review" in capsys.readouterr().out
+
+
+ASSERTIONS = {"a-0001": {"id": "a-0001", "at": "2025-09-01", "by": "Dana, supervisor",
+                         "text": "From 1 September the PM-B interval is 20,000 km; work order WO-2304 tracks the change."}}
+
+
+def _asserted(attributes):
+    return {"id": "pm.b", "type": "Thing", "label": "PM-B", "attributes": attributes,
+            "source_type": "human_assertion", "sources": ["assertion:a-0001"]}
+
+
+def test_a_fact_citing_an_assertion_is_checked_against_the_words_on_record(corpus):
+    ok = values.check({"nodes": []}, {"nodes": [_asserted({"interval_km": 20000, "order": "WO-2304"})]}, corpus,
+                      assertions=ASSERTIONS)
+    assert ok == []
+    found = values.check({"nodes": []}, {"nodes": [_asserted({"interval_km": 2000})]}, corpus, assertions=ASSERTIONS)
+    assert [s for s, _, _ in found] == ["blocking"]
+    assert "interval_km = 2000 appears nowhere in assertion a-0001" in found[0][2]
+
+
+def test_a_date_that_is_only_the_assertions_own_date_is_a_gap(corpus):
+    found = values.check({"nodes": []}, {"nodes": [_asserted({"changed_on": "2025-09-02"})]}, corpus, assertions=ASSERTIONS)
+    assert [s for s, _, _ in found] == ["blocking"]
+    node = dict(_asserted({"changed_on": "2025-09-01", "recorded_on": "2025-09-01"}), sources=["assertion:a-0002"])
+    on_record = dict(ASSERTIONS, **{"a-0002": {"id": "a-0002", "at": "2025-09-01", "by": "Dana",
+                                              "text": "The interval changed that day."}})
+    found = values.check({"nodes": []}, {"nodes": [node]}, corpus, assertions=on_record)
+    assert [s for s, _, _ in found] == ["gap", "gap"]
+    assert "the date of assertion a-0002, not in its words" in found[0][2]
+
+
+def test_values_that_cannot_be_checked_are_counted_not_silent(corpus):
+    nodes = [_node("pm.b", {"interval_km": 2000, "state": "open"}, ["anything"], doc="elsewhere"),
+             _node("pm.c", {"interval_km": 5}, []),
+             dict(_asserted({"interval_km": 7}), id="pm.d", sources=["assertion:a-0404"]),
+             _node("pm.e", {"interval_km": 20000}, ["From 1 September the PM-B interval is 20,000 km, not 24,000."])]
+    unchecked = values.unchecked({"nodes": []}, {"nodes": nodes}, corpus, assertions=ASSERTIONS)
+    assert [(nid, name) for nid, name, _ in unchecked] == [("pm.b", "interval_km"), ("pm.c", "interval_km"),
+                                                          ("pm.d", "interval_km")]
+    assert "elsewhere" in unchecked[0][2] and "no quote" in unchecked[1][2] and "a-0404" in unchecked[2][2]
+    line = values.describe_unchecked(unchecked)
+    assert line.startswith("values not checked: 3 on 3 facts")
+
+
+def test_curate_check_says_how_many_values_it_could_not_check(tmp_path, capsys):
+    from oto.cli import main
+    from oto.scaffold import init
+    root = str(tmp_path / "kb")
+    init(root, slug="kb", name="KB")
+    with open(os.path.join(root, "ontology.config.json"), "w", encoding="utf-8") as f:
+        json.dump({"classes": {"Level": {"definition": "A level."}}, "properties": {}, "temporal": {},
+                   "attributes": {"Level": {"interval_km": {"type": "integer", "definition": "Distance."}}}}, f)
+    assert main(["curate", "start", "--project", root]) == 0
+    node = dict(_node("pm.b", {"interval_km": 2000}, ["The interval is 20,000 km."], doc="interview-draft"),
+                type="Level", as_of="2025-09-01", valid_from="2025-09-01", source_doc="interview-draft",
+                sources=["interview-draft"], status="current")
+    with open(os.path.join(root, "graph.candidate.json"), "w", encoding="utf-8") as f:
+        json.dump({"nodes": [node], "edges": []}, f)
+    capsys.readouterr()
+    main(["curate", "check", "--project", root])
+    assert "values not checked: 1 on 1 fact" in capsys.readouterr().out

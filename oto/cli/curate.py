@@ -254,8 +254,9 @@ def cmd_curate(args):
     findings = _diff.check(live, proposed, vocabulary, known_assertions=_assertions.known_ids(project))
     from ..curate import evidence as _evidence
     from ..curate import values as _values
+    on_record = {entry["id"]: entry for entry in _assertions.read(project) if entry.get("id")}
     for severity, subject, message in _evidence.check(live, proposed, project.layout.corpus) + \
-            _values.check(live, proposed, project.layout.corpus):
+            _values.check(live, proposed, project.layout.corpus, assertions=on_record):
         findings.append(_diff.Finding(_diff.Finding.BLOCKING if severity == "blocking" else _diff.Finding.GAP, subject, message))
     not_run = None
     if args.duplicates:
@@ -328,6 +329,9 @@ def cmd_curate(args):
 
     if not_run:
         print("\n" + not_run)
+    unchecked = _values.unchecked(live, proposed, project.layout.corpus, assertions=on_record)
+    if unchecked:
+        print("\n" + _values.describe_unchecked(unchecked, show=args.show))
     if privacy_findings:
         print("\nprivacy scan of the text this change introduces:")
         print(_privacy.summarize(privacy_findings))

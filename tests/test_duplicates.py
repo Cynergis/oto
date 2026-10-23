@@ -106,3 +106,23 @@ def test_without_the_model_it_says_not_run(project, capsys, monkeypatch):
     capsys.readouterr()
     assert main(["curate", "add", "--project", root, "--from", path, "--dry-run", "--duplicates"]) == 0
     assert "duplicates by meaning: not run (fastembed is not installed)" in capsys.readouterr().out
+
+
+def test_siblings_whose_identifier_codes_differ_are_distinct_things():
+    """PM-A beside PM-B, BRK-220 beside BRK-221: the descriptions differ only by the code, so a model
+    scores them as near-identical, but two different codes name two different things."""
+    graph = _with(_node("garage.pm-a", "Garage", "PM-A at Central Garage"),
+                  _node("garage.pm-b", "Garage", "PM-B at Central Garage"),
+                  _node("garage.brk-220", "Garage", "BRK-220 at Central Garage"),
+                  _node("garage.brk-221", "Garage", "BRK-221 at Central Garage"))
+    found = duplicates.find(graph, ["garage.pm-b", "garage.brk-221"], embed=fake_embed, min_similarity=0.9)
+    assert {f["id"]: sorted(m["id"] for m in f["matches"]) for f in found} == \
+        {"garage.pm-b": ["garage.central"], "garage.brk-221": ["garage.central"]}, \
+        "a code missing on one side still compares"
+
+
+def test_the_same_code_under_two_names_is_still_a_possible_duplicate():
+    graph = _with(_node("garage.brk-221", "Garage", "BRK-221 at Central Garage"),
+                  _node("garage.brk-221-depot", "Garage", "BRK-221 at Central Depot"))
+    found = duplicates.find(graph, ["garage.brk-221-depot"], embed=fake_embed, min_similarity=0.9)
+    assert "garage.brk-221" in [m["id"] for m in found[0]["matches"]]

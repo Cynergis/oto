@@ -76,11 +76,7 @@ def _sources(project):
                     record = _read_json(os.path.join(layout.errors, run, name), {}) or {}
                     errors.append({"file": record.get("file") or name[:-len(_pipeline.ERROR_SUFFIX)],
                                    "reason": record.get("reason") or record.get("outcome"), "run": run})
-    # A run is open while one of its files still waits in processing/. The pipeline's own list also
-    # keeps a run whose files a later run re-extracted and archived; that one waits on nothing.
-    waiting = set(_files(layout.processing))
-    open_runs = [m["run_id"] for m in _pipeline.open_runs(project)
-                 if any(e.get("file") in waiting for e in m.get("files") or [] if e.get("outcome") == _pipeline.EXTRACTED)]
+    open_runs = [m["run_id"] for m in _pipeline.open_runs(project)]
     documents = [{"slug": n[:-3], "title": _title(os.path.join(layout.corpus, n), n[:-3])}
                  for n in _files(layout.corpus) if n.endswith(".md")]
     return {"inbox": _files(layout.inbox), "processing": _files(layout.processing), "errors": errors,

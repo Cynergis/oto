@@ -16,6 +16,7 @@ matches its description.
 | [capture](capture/SKILL.md) | What someone said in conversation, written into the inbox as a dated source document. |
 | [capture-form](capture-form/SKILL.md) | A person answers the project's capture form (`capture.json`); every confirmed group goes through `oto curate propose`, `add`, `check` and `apply`. Packs' and studios' interviews run it. |
 | [act](act/SKILL.md) | Do something about an entity: list the actions the graph declares, confirm before anything that changes the world, invoke through the declared transport with your own tools, record the response as evidence. OTO never invokes. |
+| [selected-text](selected-text/SKILL.md) | "The selected text", "what I copied": the clipboard, read by `oto clipboard` as data, capped and scanned for credentials; plainly refused where there is none. The plugin's prompt hook does it unasked. |
 | [sandbox](sandbox/SKILL.md) | Claude Code with OTO in a Docker sandbox made from OTO's kit, driven from Claude Desktop's Code tab or a terminal: checks the computer, asks the person what only they can answer, runs `oto sandbox up`, says the one step left in Desktop. `/oto:sandbox`. |
 | [spec](spec/SKILL.md) | A product spec, ADR or design brief drawn from the graph, every claim cited, and its decisions recorded back as `DecisionRecord` facts ([the convention](spec/references/decisions.md)). |
 
@@ -29,7 +30,8 @@ runs them when a step needs them, and `oto status` names the next one at every s
 The plugin also registers `oto serve` as an MCP server for whatever project the host opens
 (`.mcp.json`), so the `kg_*` tools are available to the agent without editing a config file, and
 runs `oto status` at session start (`hooks/hooks.json`) so the agent knows where the project is
-before you say anything. Outside an OTO project the server starts and serves nothing, saying so;
+before you say anything, and `oto clipboard --when-asked` on every prompt, so a prompt that refers to
+the selected text arrives with it. Outside an OTO project the server starts and serves nothing, saying so;
 in a checkout of a published query store (`oto sync`) both serve and report that store.
 
 A pack (`oto pack`) is the other way in: a plugin published from the registry's marketplace that

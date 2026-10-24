@@ -11,6 +11,7 @@ One module per command, in the order a project moves through them:
     pack.py        oto pack                     the extension a person installs: an ontology, skills, views (pack_catalog.py)
     rules.py       oto rules                    validate, dry-run, diff and accept the rules
     capture.py     oto capture                  what someone said, as a dated source document in the inbox
+    clipboard.py   oto clipboard                the selected or copied text, as data for the conversation
     curate.py      oto curate                   gated changes to the curated graph, batches via add
     draft.py       oto draft                    a model drafts one document's proposal (optional extra)
     vet.py         oto vet                      audit citations against the corpus
@@ -31,9 +32,9 @@ import sys
 
 from .. import __version__
 from ..project import ProjectError
-from . import actions, bench, build, capture, curate, draft, feedback, ingest, init, lexicon, lock, ontology, pack, preview, publish, publishable, query, registry, rules, sandbox, status, vet
+from . import actions, bench, build, capture, clipboard, curate, draft, feedback, ingest, init, lexicon, lock, ontology, pack, preview, publish, publishable, query, registry, rules, sandbox, status, vet
 
-COMMANDS = (init, status, lock, sandbox, ingest, capture, ontology, lexicon, pack, registry, rules, actions, curate, draft, vet, build, preview, query, publish, publishable, bench, feedback)
+COMMANDS = (init, status, lock, sandbox, ingest, capture, clipboard, ontology, lexicon, pack, registry, rules, actions, curate, draft, vet, build, preview, query, publish, publishable, bench, feedback)
 
 
 def cmd_version(args):

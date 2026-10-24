@@ -9,6 +9,16 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uvx --from \"${OTO_SOURCE:-oto-kg @ git+https://github.com/Cynergis/oto}\" oto clipboard --when-asked 2>/dev/null || true"
+          }
+        ]
+      }
     ]
   }
 }

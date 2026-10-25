@@ -16,6 +16,7 @@ it, and that the published copy is publishable.
 |---|---|
 | `graph.json` | the facts: the epics, the phases, the person the roadmap belongs to, every transition and message |
 | `assertions.jsonl`, `changelog.jsonl` | what was said and who applied what; the engine appends, nobody edits |
+| `graph.oto-roadmap` | the graph's own descriptor (what it holds, how it is reached); `oto graph describe` prints it for a project that depends on this one |
 | the `Decision` nodes | the repository's ADRs ([docs/adr](../docs/adr/)), compiled in through `oto curate propose --from <adr.md>`; they govern the epics they shaped |
 | `audit.jsonl` | one hash-chained record per write since 2026-10-25, refusals included; `oto audit verify` proves it, `oto audit for <item>` reads it |
 | `archive/`, `runs/`, `build/documents/` | the roadmap document as it arrived, the run that read it, and the corpus the facts quote (committed, as in repository mode: it is an input) |

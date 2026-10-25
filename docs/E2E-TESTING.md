@@ -632,7 +632,27 @@ arguments redacted (`arguments.query` is a size and a hash, never the words), th
 inside `oto.work.set` carries that span's trace id, and no prompt, body, reason or email appears in any
 span's attributes; without `OTO_TRACE`, or without the packages, nothing changes and no span exists.
 
-## 20. The engine's own gates and CI
+## 20. Graphs that know each other: descriptors and dependencies
+
+Exercises: the descriptor `oto init` writes, `oto graph describe`, `oto graph depend`, `oto graph
+dependencies`, CORE4.
+
+```bash
+oto init --name "Policy KB" --slug policy --ontology auto-claims --project policy
+oto graph describe --reach https://kg.example.org/policy --project policy > policy.descriptor.json
+oto graph depend --on policy.descriptor.json --by "<you>" --at 2026-10-27 --project roadmap   # the roadmap now depends on it
+oto build --project roadmap && oto query --project roadmap ask CORE4 GRAPH=graph.oto-roadmap
+oto graph dependencies --project roadmap
+oto graph describe --record --by "<you>" --at 2026-10-27 --project <an older project>   # a project made before descriptors
+```
+
+Pass when a new project's graph holds `graph.<slug>` with its subject, classes, reach and slug (an
+`--empty` project holds that one node; a bare project with no vocabulary holds none); the descriptor
+printed carries what another project needs and nothing of the graph's facts; `depend` adds the other
+graph's node and the edge through the gates and says so when it is already there; CORE4 lists the
+dependency with its reach; a descriptor missing its subject or reach, or a graph's own, is refused.
+
+## 21. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.
 

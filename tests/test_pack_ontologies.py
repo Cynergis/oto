@@ -77,7 +77,7 @@ def test_a_plugin_that_is_not_a_pack_and_a_broken_plugin_list_are_ignored(machin
 def test_a_pack_copy_never_shadows_a_shipped_ontology_or_yours(machine):
     _pack(str(machine / "packs" / "claims"), "auto-claims", {"auto-claims": ("auto-claims", 99), "oto-core": ("oto-core", 99)})
     assert ontologies.origin("auto-claims") == ontologies.BUILTIN
-    assert ontologies.manifest_for("oto-core")["release"] == 6
+    assert ontologies.manifest_for("oto-core")["release"] == 7
     assert ontologies.available().count("auto-claims") == 1
 
 

@@ -858,6 +858,67 @@
         "environment": "prod",
         "event": "github:Cynergis/oto#65"
       }
+    },
+    {
+      "id": "graph.oto-roadmap",
+      "type": "Graph",
+      "label": "OTO Roadmap",
+      "summary": "This graph, described from outside: OTO Roadmap: Messages tied to the item they are about: from whom, to whom, about what, pending until resolved; what waits for a person, what was said about an item, what is overdue.",
+      "attributes": {
+        "subject": "OTO Roadmap: Messages tied to the item they are about: from whom, to whom, about what, pending until resolved; what waits for a person, what was said about an item, what is overdue.",
+        "classes": [
+          "WorkItem",
+          "Transition",
+          "Milestone",
+          "Decision",
+          "Person",
+          "Asset",
+          "Assumption",
+          "Block",
+          "Capability",
+          "Component",
+          "Constraint",
+          "DataStore",
+          "Environment",
+          "Feature",
+          "Interface",
+          "JourneyStep",
+          "Message",
+          "Objective",
+          "OpenQuestion",
+          "Persona",
+          "Policy",
+          "Product",
+          "Release",
+          "Repository",
+          "Requirement",
+          "Risk",
+          "Role",
+          "Runbook",
+          "Scenario",
+          "SuccessCriterion",
+          "System",
+          "Team",
+          "Term",
+          "UserJourney",
+          "ValueProposition",
+          "Document",
+          "Graph",
+          "Tool"
+        ],
+        "reach": "oto-roadmap-kg",
+        "slug": "oto-roadmap"
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "status": "current",
+      "source_type": "inference",
+      "source_doc": "project.config.json",
+      "sources": [
+        "project.config.json"
+      ],
+      "aliases": [],
+      "tags": []
     }
   ],
   "edges": [

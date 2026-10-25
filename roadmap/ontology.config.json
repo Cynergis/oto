@@ -17,6 +17,9 @@
         "Action"
       ]
     },
+    "Graph": {
+      "definition": "A knowledge graph described from outside: what it holds (its subject and main classes) and how it is reached. Every graph holds one about itself, written at init, and one for each graph it depends on, so an agent can list a graph's dependencies, read what each holds and choose which to ask without custom modelling."
+    },
     "Product": {
       "definition": "The thing a project sets out to build, software or not: the root every other class hangs off. The portfolio says where it stands; here is what it must do, for whom, under what rules, why."
     },
@@ -158,6 +161,12 @@
     "executed_by": {
       "domain": "Tool",
       "definition": "Who is accountable for invoking this tool: a team, never a person."
+    },
+    "depends_on_graph": {
+      "domain": "Graph",
+      "range": "Graph",
+      "inverse": "depended_on_by_graph",
+      "definition": "This graph draws on that one: a question here may need an answer from there. The dependency's node is its descriptor, so the agent chooses from what it says it holds."
     },
     "owned_by": {
       "domain": "Product|Objective|Capability|Feature|SuccessCriterion|Risk|Requirement|Release|System|Component|Interface|DataStore|Milestone",
@@ -492,6 +501,26 @@
     }
   },
   "attributes": {
+    "Graph": {
+      "subject": {
+        "type": "string",
+        "definition": "What the graph is about, in one line: what a reader would ask it.",
+        "required": true
+      },
+      "classes": {
+        "type": "list",
+        "definition": "The main classes it holds, by name, so an agent can tell a products graph from a policy graph without opening either."
+      },
+      "reach": {
+        "type": "string",
+        "definition": "How to reach it: the MCP server's name, or the URL of its HTTP server or published site.",
+        "required": true
+      },
+      "slug": {
+        "type": "string",
+        "definition": "The project's slug: the stable name its ids and store derive from."
+      }
+    },
     "Product": {
       "stage": {
         "type": "enum:idea|discovery|specified|building|live|retired",
@@ -893,9 +922,15 @@
       "terms": [
         "Document",
         "Tool",
+        "Graph",
         "cites",
         "acts_on",
-        "executed_by"
+        "executed_by",
+        "depends_on_graph",
+        "subject",
+        "classes",
+        "reach",
+        "slug"
       ],
       "temporal": true
     },

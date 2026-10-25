@@ -399,7 +399,7 @@ def test_init_empty_installs_the_vocabulary_and_no_sample(ontologies_dir):
     with tempfile.TemporaryDirectory() as root:
         init(root, slug="e", name="E", ontology="software-architecture", empty=True)
         graph = json.load(open(os.path.join(root, "graph.json"), encoding="utf-8"))
-        assert graph["nodes"] == [] and graph["edges"] == []
+        assert [n["type"] for n in graph["nodes"]] == ["Graph"] and graph["edges"] == [], "no sample: only the node every graph holds about itself"
         assert not os.path.exists(os.path.join(root, "lexicon.json")), "the seed names the sample"
         config = json.load(open(os.path.join(root, "ontology.config.json"), encoding="utf-8"))
         assert "Component" in config["classes"] and "Requirement" in config["classes"]
@@ -412,7 +412,7 @@ def test_the_shipped_ontologies_extend_oto_core_and_keep_their_vocabulary():
     which sits on the core."""
     assert "oto-core" in ontologies.available()
     core = ontologies.load_raw("oto-core")["config"]
-    assert set(core["classes"]) == {"Document", "Tool"} and "temporal" in core
+    assert set(core["classes"]) == {"Document", "Tool", "Graph"} and "temporal" in core
     chain = {"portfolio": ["oto-core"], "product": ["portfolio"], "software-architecture": ["product"], "ddd": ["software-architecture"], "agent": ["software-architecture"], "platform": ["software-architecture"], "work": ["software-architecture"]}
     for name in ("auto-claims", "organization-process", "professional-services", "portfolio", "product", "software-architecture", "ddd", "agent", "platform", "work"):
         raw = ontologies.load_raw(name)

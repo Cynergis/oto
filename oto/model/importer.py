@@ -148,9 +148,14 @@ def parse_turtle(text):
     attributes, inverse_labels, schemes = {}, {}, {}
     body = text.split(TEMPORAL_PREFIX)[0]        # the temporal block is shared, never imported
     body = "\n".join(line for line in body.splitlines() if not line.lstrip().startswith("#"))
+    former = []                                   # (former name, the class it is now): owl:deprecated equivalents
     for statement in re.split(r"\s\.\s*\n", body):
         m = CLASS_STMT.match(statement)
         if m:
+            now = re.search(r"owl:equivalentClass\s+[\w-]+:([\w-]+)", m.group("rest"))
+            if now and re.search(r"owl:deprecated\s+true\b", m.group("rest")):
+                former.append((m.group(1), now.group(1)))   # a class's former name, as OTO writes it (`was`)
+                continue
             classes[m.group(1)] = dict({"definition": ""}, **_annotations(m.group("rest"), m.group(1)))
             parents = re.findall(r"rdfs:subClassOf\s+[\w-]+:([\w-]+)", m.group("rest"))
             if parents:
@@ -194,6 +199,11 @@ def parse_turtle(text):
             notes.append("relation %r has no domain; skipped" % m.group(1))
             continue
         properties[m.group(1)] = _relation(m.group(1), domain, _target(rest, "rdfs:range"), inverse.group(1) if inverse else None, rest)
+    for was, now in former:
+        if now in classes:
+            classes[now].setdefault("was", []).append(was)
+        else:
+            notes.append("class %r is a deprecated equivalent of %r, which the file does not declare; skipped" % (was, now))
     from .vocabulary import name_as_words
     for relation, spec in properties.items():
         written = inverse_labels.get(spec.get("inverse"))

@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""A sandbox for the actions feature: a project with an intended repository, and a stand-in for
+"""A sandbox for the tools feature (the class Tool, called Action until 2026-10): a project with an intended repository, and a stand-in for
 GitHub and for an interface, so the whole loop runs on one machine with no token.
 
-    python tools/actions-scenario.py setup <dir> [--owner <github owner>] [--port 8799]
-    python tools/actions-scenario.py serve [--port 8799]
+    python tools/tools-scenario.py setup <dir> [--owner <github owner>] [--port 8799]
+    python tools/tools-scenario.py serve [--port 8799]
 
 `setup` initialises a software-architecture project at <dir> (the ontology ships three
-actions), writes the plan as a note in the inbox and ingests it, then takes one proposal citing
+tools), writes the plan as a note in the inbox and ingests it, then takes one proposal citing
 it through the curate gates: a Repository the payment API is
 `implemented_by`, status `intended`, that does not exist yet, and a second Interface whose URL
 points at the stand-in server. `serve` answers like GitHub's repositories API (404 until the
 repository is created with a POST, then the repository) and like an interface (`/payments/v2`).
-The walkthrough is docs/scenarios/actions.md. Standard library only; the engine is imported, so
-run it from the checkout (`.venv/bin/python tools/actions-scenario.py ...`) or with `oto`
-installed from the `actions` branch.
+The walkthrough is docs/scenarios/tools.md. Standard library only; the engine is imported, so
+run it from the checkout (`.venv/bin/python tools/tools-scenario.py ...`) or with `oto`
+installed.
 """
 import argparse
 import datetime
@@ -21,7 +21,7 @@ import json
 import os
 import sys
 
-REPO_NAME = "oto-actions-demo"
+REPO_NAME = "oto-tools-demo"
 
 
 def setup(directory, owner, port):
@@ -36,7 +36,7 @@ def setup(directory, owner, port):
     # the plan is a source document like any other: a note in the inbox, ingested, cited
     note = os.path.join(directory, "inbox", "%s-the-plan.md" % today)
     with open(note, "w", encoding="utf-8") as f:
-        f.write("# The plan for the next payment API\n\n> **Captured:** %s · **By:** the platform team · **Recorded by:** the actions scenario\n>\n"
+        f.write("# The plan for the next payment API\n\n> **Captured:** %s · **By:** the platform team · **Recorded by:** the tools scenario\n>\n"
                 "> A planning note, the source the scenario's facts cite.\n\n## Statements\n\n"
                 "1. \"The next payment API will live in the repository %s/%s. It does not exist yet.\" — the platform team, %s\n"
                 "2. \"The payment API exposes a health endpoint at /payments/v2 on the demo host.\" — the platform team, %s\n"
@@ -47,7 +47,7 @@ def setup(directory, owner, port):
     proposal = {
         "source_doc": doc,
         "as_of": today,
-        "note": "the actions scenario: a repository that is planned and an interface the stand-in server answers for",
+        "note": "the tools scenario: a repository that is planned and an interface the stand-in server answers for",
         "nodes": [
             {"id": "repo.%s" % REPO_NAME, "type": "Repository", "label": "%s/%s" % (owner, REPO_NAME), "aliases": ["the demo repo"],
              "summary": "Where the payment API's next version will live. Planned; it does not exist yet.",
@@ -70,14 +70,14 @@ def setup(directory, owner, port):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(proposal, f, indent=2)
     for args in (["curate", "start"], ["curate", "add", "--from", path], ["curate", "check"],
-                 ["curate", "apply", "--by", "the scenario", "--note", "an intended repository and a demo interface, for the actions walkthrough"],
+                 ["curate", "apply", "--by", "the scenario", "--note", "an intended repository and a demo interface, for the tools walkthrough"],
                  ["build"], ["ingest", "complete"]):
         if main(args + ["--project", directory]) != 0:
             print("scenario: `oto %s` failed; read the output above" % " ".join(args))
             return 1
     print("\nscenario ready at %s" % directory)
     print("  the repository %s/%s is INTENDED; the demo interface points at http://127.0.0.1:%d" % (owner, REPO_NAME, port))
-    print("  next: python tools/actions-scenario.py serve --port %d   (in another terminal), then docs/scenarios/actions.md" % port)
+    print("  next: python tools/tools-scenario.py serve --port %d   (in another terminal), then docs/scenarios/tools.md" % port)
     return 0
 
 
@@ -145,7 +145,7 @@ def serve(port):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="the actions scenario: a sandbox project and a stand-in server")
+    parser = argparse.ArgumentParser(description="the tools scenario: a sandbox project and a stand-in server")
     sub = parser.add_subparsers(dest="command")
     s = sub.add_parser("setup", help="initialise the sandbox project")
     s.add_argument("directory")

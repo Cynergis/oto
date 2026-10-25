@@ -177,7 +177,7 @@ def test_the_preview_carries_the_questions_briefs_and_actions_the_live_store_doe
             store = SqliteStore(db)
             try:
                 carried[name] = (store.questions(), store.briefs(),
-                                 sorted(n["id"] for n in store.all_nodes() if n["type"] == "Action"))
+                                 sorted(n["id"] for n in store.all_nodes() if n["type"] == "Tool"))
             finally:
                 store.close()
         live_questions, live_briefs, live_actions = carried["live"]

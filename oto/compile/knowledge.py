@@ -30,14 +30,28 @@ def run(project):
 
     nodes = {n["id"]: dict(n) for n in domain["nodes"]}
     edges = list(domain["edges"])
-    # The actions the project declares (actions/*.json) are facts too: each becomes an Action
-    # node whose source is its file. They are never written into graph.json.
-    from ..actions import model as _actions
-    action_nodes, action_edges = _actions.nodes_and_edges(_actions.load(project))
+    # A class renamed in the vocabulary (`was`) keeps its old nodes: they are read as the new class.
+    from ..model import vocabulary as _vocab
+    vocabulary = {}
+    if os.path.exists(project.ontology_config_path):
+        with open(project.ontology_config_path, encoding="utf-8") as f:
+            vocabulary = json.load(f)
+    former = _vocab.former_names(vocabulary.get("classes") or {})
+    renamed = {}
+    for n in nodes.values():
+        if n.get("type") in former:
+            renamed[n["type"]] = renamed.get(n["type"], 0) + 1
+            n["type"] = former[n["type"]]
+    for was, count in sorted(renamed.items()):
+        print("knowledge: %d node(s) of former type %s read as %s" % (count, was, former[was]))
+    # The tools the project declares (tools/*.json) are facts too: each becomes a Tool node whose
+    # source is its file. They are never written into graph.json.
+    from ..tools import model as _actions
+    action_nodes, action_edges = _actions.nodes_and_edges(_actions.load(project), _actions.class_name(vocabulary))
     for n in action_nodes:
         if n["id"] not in nodes:
             nodes[n["id"]] = n
-    from ..actions import runs as _runs
+    from ..tools import runs as _runs
     for action_id, last in _runs.last_runs(project).items():
         if action_id in nodes:
             nodes[action_id]["attributes"]["last_run"] = {k: last.get(k) for k in ("at", "on", "by", "stamp", "ready", "recorded_at")}

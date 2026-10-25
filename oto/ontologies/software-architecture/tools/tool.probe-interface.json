@@ -1,5 +1,5 @@
 {
-  "id": "action.probe-interface",
+  "id": "tool.probe-interface",
   "label": "Read what an interface answers",
   "description": "Calls an interface's base URL with a GET and keeps the response as a source document, so what the interface actually answers can be read and curated.",
   "subject": "Interface",

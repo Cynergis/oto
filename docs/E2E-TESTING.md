@@ -444,23 +444,22 @@ command when an ontology is only there, a wrong pin is refused, `status` announc
 version, `diff` classifies the change and says how many of the project's nodes it touches, and
 `update` brings the newer version, and the plugin installs in Claude Code with its skill.
 
-## 16. Actions: the graph's hands, described and never invoked
+## 16. Tools: the graph's hands, described and never invoked
 
-Exercises: the action files an ontology ships, the catalog, readiness, the intended status, a
-recorded run becoming evidence through the gates, the act skill. (On the `actions` branch until
-it merges.) The guided version, with a stand-in for GitHub so it needs no token, is
-[scenarios/actions.md](scenarios/actions.md).
+Exercises: the tool files an ontology ships (the class Tool, called Action until 2026-10; `oto actions` and `actions/` still work), the catalog, readiness, the intended status, a
+recorded run becoming evidence through the gates, the act skill. The guided version, with a stand-in for GitHub so it needs no token, is
+[scenarios/tools.md](scenarios/tools.md).
 
 The software-architecture ontology ships `Repository`, `implemented_by`, a current sample
-repository and three actions (`actions/`): a daily repository check and a create-repository
-action bound to the GitHub MCP server, and a weekly read of what an `Interface` answers. Add an
+repository and three tools (`tools/`): a daily repository check and a create-repository
+tool bound to the GitHub MCP server, and a weekly read of what an `Interface` answers. Add an
 intended repository to `graph.json` (`"status": "intended"`, `owner` and `name` attributes,
-`implemented_by` from a component) to see the create action become ready. Or write one of your
+`implemented_by` from a component) to see the create tool become ready. Or write one of your
 own:
 
 ```bash
-cat > acme/actions/action.check-repository.json <<'EOF'
-{"id": "action.check-repository", "label": "Check that a repository exists",
+cat > acme/tools/tool.check-repository.json <<'EOF'
+{"id": "tool.check-repository", "label": "Check that a repository exists",
  "description": "Reads the repository's metadata and records its default branch.",
  "subject": "Repository", "executed_by": "team.payments",
  "annotations": {"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true},
@@ -472,27 +471,27 @@ cat > acme/actions/action.check-repository.json <<'EOF'
  "result": {"kind": "proposal", "then": {"node": "$subject", "status": "current", "attributes": {"default_branch": "$response.default_branch"}}},
  "schedule": "daily"}
 EOF
-oto actions check --project acme
-oto actions list --project acme                                  # ready on the intended repository
-oto actions show action.check-repository --on repo.payment-api --project acme   # the bound invocation
-oto build --project acme && oto query --project acme actions --on repo.payment-api   # the same from the store
+oto tools check --project acme
+oto tools list --project acme                                  # ready on the intended repository
+oto tools show tool.check-repository --on repo.payment-api --project acme   # the bound invocation
+oto build --project acme && oto query --project acme tools --on repo.payment-api   # the same from the store
 # invoke it yourself (gh api repos/<owner>/<name> > response.json), then:
-oto actions record action.check-repository --on repo.payment-api --by "<you>" --response response.json --project acme
+oto tools record tool.check-repository --on repo.payment-api --by "<you>" --response response.json --project acme
 oto ingest --project acme
-oto curate start --project acme && oto curate add --project acme --from acme/proposals/action.check-repository.<date>.json --dry-run
-oto curate add --project acme --from acme/proposals/action.check-repository.<date>.json && oto curate check --project acme
+oto curate start --project acme && oto curate add --project acme --from acme/proposals/tool.check-repository.<date>.json --dry-run
+oto curate add --project acme --from acme/proposals/tool.check-repository.<date>.json && oto curate check --project acme
 oto curate apply --project acme --by "<you>" --note "the repository exists" && oto build --project acme
 oto query --project acme entity repo.payment-api && oto query --project acme policy
-oto actions list --project acme --due          # the daily check is due until it runs, then not until tomorrow
+oto tools list --project acme --due          # the daily check is due until it runs, then not until tomorrow
 ```
 
-In repository mode (stage 11), `oto init --repo` also writes `.github/workflows/oto-actions.yml`
-and `.github/scripts/oto-actions-invoke.py`; run the workflow by hand from the Actions tab once:
-it invokes the due read-only actions it can (the interface probe over HTTP; the GitHub check is
+In repository mode (stage 11), `oto init --repo` also writes `.github/workflows/oto-tools.yml`
+and `.github/scripts/oto-tools-invoke.py`; run the workflow by hand from the Actions tab once:
+it invokes the due read-only tools it can (the interface probe over HTTP; the GitHub check is
 bound to an MCP server and is skipped with a note), records them, and opens a pull request
-labelled `oto-actions` with the run summary.
+labelled `oto-tools` with the run summary.
 
-Pass when `oto ontology show software-architecture` lists three actions and `oto init` installs
+Pass when `oto ontology show software-architecture` lists three tools and `oto init` installs
 them, `check` names a mistake you plant (a `bind` to a neighbour, a schedule on a non-read-only
 action), `list` says the check is ready on both repositories, the create action on the intended
 one only and the probe on the interface, in Claude Code the **act** skill shows the bound

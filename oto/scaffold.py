@@ -33,7 +33,7 @@ import shutil
 from . import __version__
 
 # `notes/` is authored. Everything under `build/` is generated, so `oto clean` can delete it whole.
-DIRS = ["inbox", "processing", "errors", "archive", "runs", "notes", "actions",
+DIRS = ["inbox", "processing", "errors", "archive", "runs", "notes", "tools",
         "build/documents/assets", "build/entities", "build/ontology", "build/cards", "build/graph"]
 
 # The temporal and provenance vocabulary is shared by every domain, so it is pre-filled.
@@ -311,7 +311,7 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
             ontology_briefs = result["briefs"]
             ontology_lexicon, ontology_interview, ontology_gold = result["lexicon"], result["interview"], result["gold"]
             ontology_guide = result.get("guide")
-            ontology_actions = list(result.get("actions") or [])
+            ontology_actions = list(result.get("tools") or [])
             manifest = result["manifest"]
             print("  ontology: %s @%d%s" % (names[0], manifest["release"],
                                             (" (extends %s)" % ", ".join(result["report"]["parts"][:-1]))
@@ -325,7 +325,7 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
             ontology_lexicon = ontology_config.pop("_lexicon", None)
             ontology_interview = ontology_config.pop("_interview", None)
             ontology_guide = ontology_config.pop("_guide", None)
-            ontology_actions = list(ontology_config.pop("_actions", None) or [])
+            ontology_actions = list(ontology_config.pop("_tools", None) or [])
             ontology_gold = list(ontology_config.pop("_gold", None) or [])
             print("  merged %d ontologies: %d classes, %d relations. Prune before accepting."
                   % (len(names), report["classes"], report["properties"]))
@@ -403,8 +403,8 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
             print("  kept (exists): %s" % _briefs.NAME)
 
     for action in ontology_actions:
-        target = os.path.join(root, "actions", action["id"] + ".json")
-        _write(target, action, force, os.path.join("actions", action["id"] + ".json"))
+        target = os.path.join(root, "tools", action["id"] + ".json")
+        _write(target, action, force, os.path.join("tools", action["id"] + ".json"))
 
     if ontology_rationale:
         from .model import rationale as _rationale

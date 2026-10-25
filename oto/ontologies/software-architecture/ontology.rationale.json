@@ -35,7 +35,7 @@
       "alternatives": "A url attribute on Component. It could not be intended, checked, or acted on as a thing of its own.",
       "question": "Where is the code?",
       "validated_by": "",
-      "why": "A component without a repository cannot be changed, and an architecture graph that cannot say where the code lives cannot be acted on. Recorded as intended before the repository exists, it is the fact an action realises."
+      "why": "A component without a repository cannot be changed, and an architecture graph that cannot say where the code lives cannot be acted on. Recorded as intended before the repository exists, it is the fact a tool realises."
     },
     "Runbook": {
       "alternatives": "",

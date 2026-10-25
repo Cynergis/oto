@@ -258,10 +258,10 @@ def _ontology_sections(name, roots):
     actions = "".join("<li><code>%s</code> on <strong>%s</strong>%s: %s</li>"
                       % (_e(a.get("id")), _e(a.get("subject")), " (read-only)" if (a.get("annotations") or {}).get("readOnlyHint") else "",
                          _e(a.get("description") or a.get("label") or ""))
-                      for a in result.get("actions") or [])
+                      for a in result.get("tools") or [])
     guide = result.get("guide")
     return {"classes": classes_html, "relations": rels_html, "actions": actions, "guide": guide,
-            "counts": (len(classes), len(config.get("properties") or {}), len(result.get("rules") or []), len(result.get("actions") or [])),
+            "counts": (len(classes), len(config.get("properties") or {}), len(result.get("rules") or []), len(result.get("tools") or [])),
             "parts": result["report"]["parts"]}
 
 
@@ -290,7 +290,7 @@ def _pack_page(entry, pack_dir, registry_name, drawn, address, look=None):
             "At a terminal: <code>oto registry add %s</code>, <code>oto pack add %s</code>, <code>oto init --pack %s</code>.</p></section>"
             % (address[0], _e(manifest["name"]), _e(registry_name), address[1], _e(manifest["name"]), _e(manifest["name"]))]
     counts = sections["counts"]
-    body.append("<section><h2>The ontology</h2><p><code>%s@%s</code>: %d classes, %d relations, %d rules, %d actions%s.</p>%s%s</section>"
+    body.append("<section><h2>The ontology</h2><p><code>%s@%s</code>: %d classes, %d relations, %d rules, %d tools%s.</p>%s%s</section>"
                 % (_e(onto.get("name")), _e(onto.get("release")), counts[0], counts[1], counts[2], counts[3],
                    (", extends " + ", ".join("<code>%s</code>" % _e(p) for p in sections["parts"][:-1])) if len(sections["parts"]) > 1 else "",
                    sections["classes"], sections["relations"]))
@@ -302,7 +302,7 @@ def _pack_page(entry, pack_dir, registry_name, drawn, address, look=None):
     elif drawn:
         body.append("<section><h2>The sample, drawn</h2><p class=\"muted\">Could not be drawn: %s</p></section>" % _e(drawn[1]))
     if sections["actions"]:
-        body.append("<section><h2>Actions it ships</h2><p class=\"muted\">OTO lists them; the caller invokes.</p><ul>%s</ul></section>" % sections["actions"])
+        body.append("<section><h2>Tools it ships</h2><p class=\"muted\">OTO lists them; the caller invokes.</p><ul>%s</ul></section>" % sections["actions"])
     body.append("<section><h2>Skills</h2>%s</section>" % ("".join(skills) or "<p class=\"muted\">none</p>"))
     body.append("<section><h2>Views</h2>%s</section>" % (("<ul>%s</ul>" % views) if views else "<p class=\"muted\">None yet: the explorer and the reader every project has.</p>"))
     if sections["guide"]:
@@ -316,7 +316,7 @@ def _ontology_page(entry, directory, registry_name, work, address, look=None):
     manifest = _ontologies.manifest_dir(directory)
     sections = _ontology_sections(entry["name"], [work])
     counts = sections["counts"]
-    body = ["<section class=\"head\"><div class=\"eyebrow\">Ontology%s</div><h1>%s <span class=\"rel\">@%d</span></h1><p class=\"sub\">%s</p><p class=\"muted\">%d classes, %d relations, %d rules, %d actions%s. "
+    body = ["<section class=\"head\"><div class=\"eyebrow\">Ontology%s</div><h1>%s <span class=\"rel\">@%d</span></h1><p class=\"sub\">%s</p><p class=\"muted\">%d classes, %d relations, %d rules, %d tools%s. "
             "<code>oto registry add %s</code>, <code>oto ontology add %s</code>, then <code>oto init --ontology %s</code>.</p></section>"
             % ((" · " + _e(manifest["domain"])) if manifest.get("domain") else "", _e(entry["name"]), manifest["release"], _e(manifest.get("summary") or ""),
                counts[0], counts[1], counts[2], counts[3],
@@ -324,7 +324,7 @@ def _ontology_page(entry, directory, registry_name, work, address, look=None):
                address[1], _e(entry["name"]), _e(entry["name"])),
             "<section><h2>Classes</h2>%s</section><section><h2>Relations</h2>%s</section>" % (sections["classes"], sections["relations"])]
     if sections["actions"]:
-        body.append("<section><h2>Actions it ships</h2><ul>%s</ul></section>" % sections["actions"])
+        body.append("<section><h2>Tools it ships</h2><ul>%s</ul></section>" % sections["actions"])
     if sections["guide"]:
         body.append("<section><h2>The guide</h2><div class=\"md\">%s</div></section>" % _markdown(sections["guide"]))
     return _page("%s, an OTO ontology" % entry["name"], "".join(body), 2, registry_name, address, look)

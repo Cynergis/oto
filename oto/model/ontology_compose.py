@@ -14,7 +14,7 @@ report says what it overrode, and a few overrides are refused rather than report
     rules                    merged by id; the same id with a different body is refused
     questions                merged by id, the same way
     briefs                   merged by task, the same way
-    actions                  merged by id; the extender's wins (an action is a binding, not a claim)
+    tools                    merged by id; the extender's wins (a tool is a binding, not a claim)
     rationale                the extender's entries apply only to names it declares itself
     sample graph             merged by node id, extender wins; edges united
     lexicon, interview, gold concatenated, bases first; the guide is the leaf's, the bases'
@@ -91,7 +91,7 @@ def compose(name, parts, loader):
     namespaces = {}
     readmes = []
     report = {"parts": list(parts), "redescribed": [], "widened": [], "retyped": [], "inverse_changed": [], "schemes_replaced": [],
-              "rationale_ignored": [], "rules_shared": [], "questions_shared": [], "sample_overridden": [], "actions_overridden": []}
+              "rationale_ignored": [], "rules_shared": [], "questions_shared": [], "sample_overridden": [], "tools_overridden": []}
     leaf = None
 
     for part in parts:
@@ -202,10 +202,10 @@ def compose(name, parts, loader):
             if key not in {(e.get("from"), e.get("rel"), e.get("to")) for e in sample_edges}:
                 sample_edges.append(dict(edge))
 
-        for action in raw.get("actions") or []:
+        for action in raw.get("tools") or []:
             aid = action.get("id")
             if aid in actions:
-                report["actions_overridden"].append((aid, action_owner[aid], part))
+                report["tools_overridden"].append((aid, action_owner[aid], part))
             actions[aid] = dict(action)
             action_owner[aid] = part
         lexicon += list((raw["lexicon"] or {}).get("entries") or [])
@@ -247,7 +247,7 @@ def compose(name, parts, loader):
             "lexicon": {"entries": lexicon} if lexicon else None,
             "interview": "\n\n".join(text for _part, text in interview) if interview else None,
             "guide": _guide(guides) if guides else None,
-            "actions": list(actions.values()),
+            "tools": list(actions.values()),
             "gold": gold, "manifest": leaf["manifest"], "report": report}
 
 
@@ -271,8 +271,8 @@ def report_lines(report):
     for section, key, part in report["rationale_ignored"]:
         lines.append("rationale for inherited %s %s in %s ignored (only the declaring ontology's counts)"
                      % (section[:-1] if section.endswith("s") else section, key, part))
-    for aid, owner, part in report.get("actions_overridden") or []:
-        lines.append("action %s from %s replaced by %s" % (aid, owner, part))
+    for aid, owner, part in report.get("tools_overridden") or []:
+        lines.append("tool %s from %s replaced by %s" % (aid, owner, part))
     for rid, owner, part in report["rules_shared"]:
         lines.append("rule %s declared identically by %s and %s" % (rid, owner, part))
     for qid, owner, part in report.get("questions_shared") or []:

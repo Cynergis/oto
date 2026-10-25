@@ -1,5 +1,7 @@
 # Plan: actions, the graph's hands
 
+> Since 2026-10 the class is **Tool** and the command `oto tools` (roadmap L2: MCP's word for the same shape). This plan keeps the words it was written with; `Action`, `actions/` and `oto actions` still work as former names.
+
 Status: proposed 2026-09-21 on the `actions` branch, rewritten the same day after review.
 All five phases delivered by 2026-09-23 on the `actions` branch; merges to `main` by pull request when the user says so.
 

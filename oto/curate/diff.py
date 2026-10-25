@@ -162,10 +162,12 @@ def check(live, candidate, vocabulary=None, known_assertions=None):
                                         "%s points at unknown node %r" % (end, edge.get(end))))
 
     if vocabulary:
+        from ..model.vocabulary import former_names
         classes = vocabulary.get("classes") or {}
         properties = vocabulary.get("properties") or {}
+        former = former_names(classes)
         for node in nodes:
-            if node.get("type") not in classes:
+            if node.get("type") not in classes and node.get("type") not in former:
                 findings.append(Finding(Finding.BLOCKING, node.get("id") or "(no id)",
                                         "type %r is not declared in the vocabulary"
                                         % node.get("type")))

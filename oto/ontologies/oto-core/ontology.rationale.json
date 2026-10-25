@@ -7,10 +7,10 @@
       "alternatives": "A `source` string on every node. It cannot be queried, dated or superseded, so it became a class.",
       "validated_by": ""
     },
-    "Action": {
+    "Tool": {
       "question": "What can be done about this, and how?",
       "why": "The binding between an entity, the tool that acts on it, its inputs, its credentials by name and its preconditions is otherwise tribal knowledge in an agent's prompt; as a fact it is versioned, reviewed and shared. OTO never invokes it.",
-      "alternatives": "A list of scripts beside the project. It cannot say what each acts on, when it is ready, or what its run proved.",
+      "alternatives": "A list of scripts beside the project. It cannot say what each acts on, when it is ready, or what its run proved. Called Action until 2026-10; Tool is MCP's word for the same shape.",
       "validated_by": ""
     }
   },
@@ -29,7 +29,7 @@
     },
     "executed_by": {
       "question": "Who is accountable for invoking this?",
-      "why": "An action that changes the world needs an accountable team, and a reader asking who may run it should find a team, not a person who has since moved.",
+      "why": "A tool that changes the world needs an accountable team, and a reader asking who may run it should find a team, not a person who has since moved.",
       "alternatives": "",
       "validated_by": ""
     }

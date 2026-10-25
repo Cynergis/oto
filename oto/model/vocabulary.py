@@ -67,7 +67,7 @@ def _union(spec):
 TEXT = ("definition", "label", "inverse_label", "scope_note", "example")
 KEYS = {"schemes": ("definition", "label", "alt_labels", "scope_note", "example", "concepts"),
         "concepts": ("definition", "label", "alt_labels", "scope_note", "example", "broader"),
-        "classes": ("definition", "label", "alt_labels", "scope_note", "example", "subclass_of", "requires"),
+        "classes": ("definition", "label", "alt_labels", "scope_note", "example", "subclass_of", "requires", "was"),
         "properties": ("domain", "range", "inverse", "definition", "label", "inverse_label", "alt_labels",
                        "scope_note", "example", "subproperty_of", "min", "max", "derived"),
         "attributes": ("type", "definition", "label", "alt_labels", "scope_note", "example", "required",
@@ -198,6 +198,9 @@ def _shape(section, label, spec):
         elif key == "requires":
             if not (isinstance(value, list) and all(isinstance(x, str) and x for x in value)):
                 return "%s: `requires` must be a list of attribute or relation names" % label
+        elif key == "was":
+            if not (isinstance(value, list) and all(isinstance(x, str) and x for x in value)):
+                return "%s: `was` must be a list of the class's former names" % label
         elif key == "pattern":
             if not isinstance(value, str) or not value:
                 return "%s: `pattern` is a regular expression the value must match (anywhere, as sh:pattern; anchor it with ^ and $ for the whole value)" % label
@@ -257,6 +260,17 @@ def ancestors(classes, kind):
             continue
         out.append(parent)
         queue += parents(classes, parent)
+    return out
+
+
+def former_names(classes):
+    """{former name: the class now called so}, from each class's `was`. A node typed by a former name
+    is read as the class; the export keeps the old IRI as a deprecated equivalent of the new one."""
+    out = {}
+    for name, spec in (classes or {}).items():
+        for was in (spec or {}).get("was") or []:
+            if was not in classes:
+                out[was] = name
     return out
 
 
@@ -505,9 +519,17 @@ def diff(old, new):
     """Every change from `old` to `new`, most severe first."""
     changes = []
 
+    renamed = former_names(new.classes)
     for name in sorted(set(new.classes) - set(old.classes)):
+        if any(now == name and was in old.classes for was, now in renamed.items()):
+            continue                                       # a rename, reported once, under the old name
         changes.append(Change("class added", Change.ADDITIVE, name, "new class"))
     for name in sorted(set(old.classes) - set(new.classes)):
+        if name in renamed:
+            changes.append(Change("class renamed", Change.ADDITIVE, name,
+                                  "now %s; nodes typed %s are read as %s and the old IRI stays, deprecated"
+                                  % (renamed[name], name, renamed[name])))
+            continue
         changes.append(Change("class removed", Change.BREAKING, name,
                               "nodes of this type are no longer declared"))
     for name in sorted(set(old.classes) & set(new.classes)):
@@ -538,14 +560,20 @@ def diff(old, new):
     for name in sorted(set(old.properties) - set(new.properties)):
         changes.append(Change("relation removed", Change.BREAKING, name,
                               "edges using this relation are no longer declared"))
+    def now(names):
+        """A set of class names with each former name read as the class now called so."""
+        return {renamed.get(n, n) for n in names}
     for name in sorted(set(old.properties) & set(new.properties)):
         before, after = old.properties[name], new.properties[name]
-        if old.domain(name) != new.domain(name):
-            changes.append(Change("domain changed", Change.BREAKING, name,
-                                  "%s -> %s" % (before.get("domain"), after.get("domain"))))
-        if old.range(name) != new.range(name):
-            changes.append(Change("range changed", Change.BREAKING, name,
-                                  "%s -> %s" % (before.get("range"), after.get("range"))))
+        for end, read in (("domain", (old.domain(name), new.domain(name))), ("range", (old.range(name), new.range(name)))):
+            if read[0] == read[1]:
+                continue
+            if now(read[0]) == now(read[1]):
+                changes.append(Change("%s renamed" % end, Change.COSMETIC, name,
+                                      "%s -> %s, the same classes under their new names" % (before.get(end), after.get(end))))
+            else:
+                changes.append(Change("%s changed" % end, Change.BREAKING, name,
+                                      "%s -> %s" % (before.get(end), after.get(end))))
         before_min, after_min = before.get("min") or 0, after.get("min") or 0
         before_max, after_max = before.get("max"), after.get("max")
         if after_min > before_min or (after_max is not None and (before_max is None or after_max < before_max)):

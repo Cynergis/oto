@@ -430,7 +430,7 @@ def _card(nid, history, rel, as_of):
     L.append("  ·  ".join(prov))
     if n["status"] == "intended":
         L.append("🔵 INTENDED: asserted as a plan, not yet observed. Not the current state; an action's "
-                 "recorded run is what would make it so (kg_actions).")
+                 "recorded run is what would make it so (kg_tools).")
     al = STORE.aliases(nid)
     ancestors = words.ancestors(n["type"])
     if al or ancestors:
@@ -517,6 +517,8 @@ def define_text(term):
         if len(d["labels"]) > 1 or d["alt_labels"]:
             out.append("labels: " + "; ".join(f"{lang} \"{text}\"" for lang, text in d["labels"].items())
                        + ("".join(f"; also {lang} " + ", ".join(f"\"{x}\"" for x in items) for lang, items in d["alt_labels"].items())))
+        if d.get("was"):
+            out.append("formerly: " + ", ".join(d["was"]) + " (the same class under its old name; old nodes and the old IRI still resolve)")
         if d.get("definition"):
             out.append("definition: " + d["definition"].get(words.language, next(iter(d["definition"].values()))))
         for field, title in (("scope_note", "scope"), ("example", "example")):
@@ -1027,9 +1029,9 @@ def questions_text():
     return _questions_model.survey_text(questions_data()["rows"])
 
 
-def actions_data(action=None, on=None, ready=False, due=False):
-    """The catalog as data: every action, one action, or the actions bound to one entity."""
-    from ..actions import catalog as _catalog
+def tools_data(action=None, on=None, ready=False, due=False):
+    """The catalog as data: every tool, one tool, or the tools bound to one entity."""
+    from ..tools import catalog as _catalog
     from ..model.vocabulary import covers as _covers
     nodes, edges = _graph_from_store()
     definitions = _catalog.definitions_from_nodes(nodes)
@@ -1037,34 +1039,37 @@ def actions_data(action=None, on=None, ready=False, due=False):
     if on:
         m = match(on)
         if not m["id"]:
-            return {"error": no_match(on, m), "actions": []}
+            return {"error": no_match(on, m), "tools": [], "actions": []}
         nid = m["id"]
         subject = next(n for n in nodes if n["id"] == nid)
-        return {"on": nid, "actions": _catalog.for_entity(definitions, nodes, edges, subject, covers=covers)}
+        tools = _catalog.for_entity(definitions, nodes, edges, subject, covers=covers)
+        return {"on": nid, "tools": tools, "actions": tools}
     if action:
         chosen = [a for a in definitions if a["id"] == action]
         if not chosen:
-            return {"error": "No action %r; declared: %s" % (action, ", ".join(a["id"] for a in definitions) or "none"), "actions": []}
-        return {"actions": _catalog.catalog(chosen, nodes, edges, covers=covers)}
-    return {"actions": _catalog.catalog(definitions, nodes, edges, ready_only=bool(ready), due_only=bool(due), covers=covers)}
+            return {"error": "No tool %r; declared: %s" % (action, ", ".join(a["id"] for a in definitions) or "none"), "tools": [], "actions": []}
+        tools = _catalog.catalog(chosen, nodes, edges, covers=covers)
+        return {"tools": tools, "actions": tools}
+    tools = _catalog.catalog(definitions, nodes, edges, ready_only=bool(ready), due_only=bool(due), covers=covers)
+    return {"tools": tools, "actions": tools}              # `actions`: the key's name before the rename, one release
 
 
-def actions_text(action=None, on=None, ready=False, due=False):
-    """What can be done here. OTO lists the actions, with their readiness and bound inputs; the
+def tools_text(action=None, on=None, ready=False, due=False):
+    """What can be done here. OTO lists the tools, with their readiness and bound inputs; the
     caller invokes them through the declared transport and records the result."""
-    from ..actions import catalog as _catalog
-    data = actions_data(action, on, ready, due)
+    from ..tools import catalog as _catalog
+    data = tools_data(action, on, ready, due)
     if data.get("error"):
         return data["error"]
     if on:
-        heading = "Actions on %s (%d):" % (data["on"], len(data["actions"]))
+        heading = "Tools on %s (%d):" % (data["on"], len(data["actions"]))
         if not data["actions"]:
-            return heading + "\n  none: no action declares this entity's class as its subject."
+            return heading + "\n  none: no tool declares this entity's class as its subject."
         return _catalog.text(data["actions"], heading=heading)
     if due and not data["actions"]:
-        return "No scheduled read-only action is due and ready now (kg_actions without `due` says when each runs next)."
+        return "No scheduled read-only tool is due and ready now (kg_tools without `due` says when each runs next)."
     if ready and not data["actions"]:
-        return "No action is ready: every declared action's preconditions fail on the current graph (kg_actions without `ready` says why)."
+        return "No tool is ready: every declared tool's preconditions fail on the current graph (kg_tools without `ready` says why)."
     return _catalog.text(data["actions"])
 
 
@@ -1189,18 +1194,25 @@ TOOLS = [
                     "Use to answer 'is this being added' or 'what is in review' without mistaking it for a fact.",
      "inputSchema": {"type": "object", "properties": {"limit": {"type": "integer", "description": "rows per station (default 40)"}}},
      "fn": lambda a: pending_text(a.get("limit", 40))},
-    {"name": "kg_actions",
-     "description": "What can be done here: the actions the graph declares, as MCP tool definitions bound to the "
+    {"name": "kg_tools",
+     "description": "What can be done here: the tools the graph declares, as MCP tool definitions bound to the "
                     "graph, with whether each is ready and on which entities, the inputs filled from an entity, the "
                     "declared way to invoke it, and the environment variables the caller must hold. OTO never invokes; "
-                    "the caller does, then records the result with `oto actions record`. Use with `on` for one entity "
-                    "(\"what can I do about X?\"), `action` for one action, `ready` to list only what is ready now.",
+                    "the caller does, then records the result with `oto tools record`. Use with `on` for one entity "
+                    "(\"what can I do about X?\"), `tool` for one tool, `ready` to list only what is ready now.",
      "inputSchema": {"type": "object", "properties": {
-         "action": {"type": "string", "description": "one action id, e.g. action.check-repository"},
-         "on": {"type": "string", "description": "an entity (id or label): the actions on it, inputs bound"},
-         "ready": {"type": "boolean", "description": "only the actions ready on at least one entity"},
-         "due": {"type": "boolean", "description": "only the scheduled read-only actions whose run is due and that are ready"}}},
-     "fn": lambda a: actions_text(a.get("action"), a.get("on"), bool(a.get("ready")), bool(a.get("due")))},
+         "tool": {"type": "string", "description": "one tool id, e.g. tool.check-repository"},
+         "on": {"type": "string", "description": "an entity (id or label): the tools on it, inputs bound"},
+         "ready": {"type": "boolean", "description": "only the tools ready on at least one entity"},
+         "due": {"type": "boolean", "description": "only the scheduled read-only tools whose run is due and that are ready"}}},
+     "fn": lambda a: tools_text(a.get("tool") or a.get("action"), a.get("on"), bool(a.get("ready")), bool(a.get("due")))},
+    {"name": "kg_actions",
+     "description": "The old name of kg_tools, kept for one release: the same answer. Call kg_tools.",
+     "inputSchema": {"type": "object", "properties": {
+         "action": {"type": "string", "description": "one tool id"},
+         "on": {"type": "string", "description": "an entity (id or label)"},
+         "ready": {"type": "boolean"}, "due": {"type": "boolean"}}},
+     "fn": lambda a: tools_text(a.get("action") or a.get("tool"), a.get("on"), bool(a.get("ready")), bool(a.get("due")))},
     {"name": "kg_docs",
      "description": "Document inventory — list ingested Document nodes (newest first) with dates, plus the "
                     "ingest frontier (latest as_of). Use to confirm coverage / answer 'do you have the X doc' "
@@ -1298,11 +1310,11 @@ CLI_USAGE = """oto query — the same data as the server tools, one query per in
   search <query> [n]                               by-type <Type> [state] [limit]
   count [--type T] [--tag G] [--attr A --value V]  group <by> [--type T] [--tag G] [--level top]
   stale   resolve <term>   docs [query] [limit]   overview [limit]   define <term>
-  explain <term> [rel]   policy [limit]   pending [limit]   actions [--on <term>] [--action <id>] [--ready] [--due]
+  explain <term> [rel]   policy [limit]   pending [limit]   tools [--on <term>] [--tool <id>] [--ready] [--due]
   questions   ask <id> [NAME=<entity> ...]   brief <task> [NAME=<entity> ...]"""
 
 CLI_COMMANDS = {"entity", "neighbors", "search", "by-type", "count", "group", "define", "questions", "ask", "brief",
-                "stale", "resolve", "docs", "overview", "explain", "policy", "pending", "actions", "help", "--help", "-h"}
+                "stale", "resolve", "docs", "overview", "explain", "policy", "pending", "tools", "actions", "help", "--help", "-h"}
 
 def _flag(a, name):
     return a[a.index(name) + 1] if name in a and a.index(name) + 1 < len(a) else None
@@ -1338,8 +1350,8 @@ def cli(argv):
             print(policy_text(int(pos[0]) if pos else 50))
         elif cmd == "pending":
             print(pending_text(int(pos[0]) if pos else 40))
-        elif cmd == "actions":
-            print(actions_text(_flag(a, "--action"), _flag(a, "--on"), "--ready" in a, "--due" in a))
+        elif cmd in ("tools", "actions"):
+            print(tools_text(_flag(a, "--tool") or _flag(a, "--action"), _flag(a, "--on"), "--ready" in a, "--due" in a))
         elif cmd == "resolve":
             print(resolve_text(" ".join(pos)))
         elif cmd == "define":
@@ -1379,3 +1391,8 @@ if __name__ == "__main__":
         cli(sys.argv[1:])          # CLI mode: one query per invocation
     else:
         main()                     # JSON-RPC stdio server mode (default)
+
+
+#: The names these had before Actions became Tools (2026-10); kept for one release.
+actions_data = tools_data
+actions_text = tools_text

@@ -51,6 +51,8 @@ def preflight(project):
                         % os.path.basename(project.graph_path))
         nodes, edges = nodes or [], edges or []
     # The integrity gate, run against the SOURCE of truth rather than a generated file.
+    from ..model.vocabulary import former_names
+    former = former_names(classes)                 # a class's former name (`was`) is that class
     node_ids = set()
     duplicate_ids = set()
     undeclared_types = set()
@@ -62,7 +64,7 @@ def preflight(project):
         if nid in node_ids:
             duplicate_ids.add(nid)
         node_ids.add(nid)
-        if n.get("type") not in classes:
+        if n.get("type") not in classes and n.get("type") not in former:
             undeclared_types.add(n.get("type"))
 
     undeclared_rels = set()

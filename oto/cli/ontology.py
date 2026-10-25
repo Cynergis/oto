@@ -71,7 +71,7 @@ def cmd_ontology(args):
                     carried_rules = list(config.pop("_rules", None) or [])
                     carried_questions = dict(config.pop("_questions", None) or {})
                     carried_briefs = dict(config.pop("_briefs", None) or {})
-                    for key in ("_lexicon", "_interview", "_guide", "_actions", "_gold"):
+                    for key in ("_lexicon", "_interview", "_guide", "_tools", "_gold"):
                         config.pop(key, None)
                     notes = ["class %s: described differently in %s and %s; kept %s" % (k, a, b, a)
                              for k, a, b in report["class_clashes"]]
@@ -382,7 +382,8 @@ def cmd_ontology(args):
                                             ("; " + "; ".join(first["gaps"])) if first["gaps"] else ""))
         locked_questions = _questions.read_lock(project)
         if locked_questions is not None:
-            added, removed, changed, reworded = _questions.diff(locked_questions, declared_questions)
+            added, removed, changed, reworded = _questions.diff(locked_questions, declared_questions,
+                                                                 renamed=vocab.former_names(declared_config.get("classes") or {}))
             for qid in removed:
                 print("  [breaking ] question removed   %s: what the graph answered is no longer asked" % qid)
             for qid in changed:

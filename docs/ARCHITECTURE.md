@@ -56,7 +56,7 @@ explain`, the ledger), and names the playbook to load. It quotes commands rather
 them, and a test fails the build when it names a command the engine lacks or when `oto status`
 can suggest a step the skill does not know. An ontology may carry a `guide.md`, what its domain's
 graph is for and how to read it, installed as `GUIDE.md` and quoted by the concierge.
-[act](../skills/act/SKILL.md) is the protocol for the graph's hands: list the actions the graph
+[act](../skills/act/SKILL.md) is the protocol for the graph's hands: list the tools the graph
 declares, confirm by name before anything that changes the world, invoke through the declared
 transport with the agent's own tools, record the response as evidence. The
 `.claude-plugin/` manifest and the `.claude/skills/` links make them discoverable by Claude Code;
@@ -108,8 +108,9 @@ clean-then-build round trip reproduces the database exactly.
   graph.json              the curated graph: the source of truth
   graph.candidate.json    an open `oto curate` session, if any
   proposals/              one file of proposed nodes and edges per source document (authored)
-  actions/                one file per action: what can be done about an entity, in MCP tool
-                          shape, bound to the graph; becomes an Action node at build (authored)
+  tools/                  one file per tool: what can be done about an entity, in MCP tool
+                          shape, bound to the graph; becomes a Tool node at build (authored;
+                          `actions/`, the name before 2026-10, is still read)
   assertions.jsonl        append-only log of things people said, citable as sources
   changelog.jsonl         append-only ledger: one entry per apply, with what was retired and why
   lexicon.json            optional: {"entries": [{"term", "aka": [...], "targets": [node ids], "status", "note"}]}
@@ -164,7 +165,7 @@ the rule is, and six workflows:
 | `oto-checks` | a pull request | the gates as status checks: status, candidate check, pre-flight and build, vocabulary, gold set, provenance |
 | `oto-review` | `@claude` in a pull request comment | the same agent revises on the branch and pushes; the checks run again |
 | `oto-deploy` | a merge to `main` | builds the store and keeps it |
-| `oto-actions` | a daily cron | invokes the due read-only actions through the script under `.github/scripts/` (the caller, never OTO), records the responses, takes the proposals through the gates and opens a pull request |
+| `oto-tools` | a daily cron | invokes the due read-only tools through the script under `.github/scripts/` (the caller, never OTO), records the responses, takes the proposals through the gates and opens a pull request |
 
 The corpus under `build/documents/` is committed in a repository, because it is an input to the
 build and to every review. Nothing reaches `graph.json` on `main` except through a pull request:
@@ -355,9 +356,9 @@ ontology's `views/`.
 An ontology is a directory: the vocabulary, its rationale, rules, its competency questions
 (`questions.json`, merged by id like rules, installed with the project, carried by an export with
 `validated_by` blanked), a sample graph and a README, and optionally a seed lexicon, the interview questions for the domain, a guide to reading the
-domain's graph (installed as `GUIDE.md`, quoted by the concierge skill), the actions the domain
-declares (`actions/<id>.json`, merged by id with the extender's winning, checked against the
-composed vocabulary and the sample, installed as the project's `actions/`), gold question
+domain's graph (installed as `GUIDE.md`, quoted by the concierge skill), the tools the domain
+declares (`tools/<id>.json`, merged by id with the extender's winning, checked against the
+composed vocabulary and the sample, installed as the project's `tools/`), gold question
 patterns, and a manifest, `manifest.json`, that names it, versions it, states its `namespace` and
 says what it `extends`. A directory without a manifest, or whose manifest states no namespace, is
 not usable, and the self-check says so. [model/ontology_manifest.py](../oto/model/ontology_manifest.py) reads and checks
@@ -501,7 +502,7 @@ dependency on `oto` resolves inside the same marketplace.
 The catalog ([catalog.py](../oto/catalog.py)) is how a person browses before installing:
 `oto registry site` in a registry checkout writes a static site, one page for the registry with
 packs and ontologies grouped by domain, one page per pack (install lines, the classes with the
-question each answers and why it exists, the relations, the actions, the skills, the views, the
+question each answers and why it exists, the relations, the tools, the skills, the views, the
 guide, the changelog) and one per ontology. A pack's page draws its sample graph with the
 explorer: a throwaway project is started from the pack, built, and exported as the explorer's
 static site under the page. The registry's site workflow, written with the check workflow when a

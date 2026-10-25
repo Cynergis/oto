@@ -54,11 +54,11 @@ QUERIES = [
     ("count_text", {"type_": "Decision", "attr": "status", "value": "accepted"}),
     ("group_by_text", {"by": "type"}),
     ("pending_text", {}),                                        # the lane comes from the project, not the store
-    ("actions_text", {}),                                        # the catalog comes from the Action nodes
-    ("actions_text", {"on": "component.payment-api"}),
-    ("actions_text", {"on": "team.payments"}),
-    ("actions_text", {"action": "action.ping-component"}),
-    ("actions_text", {"ready": True}),
+    ("tools_text", {}),                                        # the catalog comes from the Action nodes
+    ("tools_text", {"on": "component.payment-api"}),
+    ("tools_text", {"on": "team.payments"}),
+    ("tools_text", {"action": "tool.ping-component"}),
+    ("tools_text", {"ready": True}),
     ("group_by_text", {"by": "status"}),
     ("group_by_text", {"by": "status", "type_": "Decision"}),
     ("stale_text", {}),
@@ -87,9 +87,9 @@ def _project(root):
     with open(os.path.join(root, "lexicon.json"), "w", encoding="utf-8") as f:
         json.dump({"entries": [{"term": "payments", "aka": ["the payments system"], "targets": ["system.payments"],
                                 "status": "current", "note": "the platform, not the team"}]}, f)
-    os.makedirs(os.path.join(root, "actions"), exist_ok=True)
-    with open(os.path.join(root, "actions", "action.ping-component.json"), "w", encoding="utf-8") as f:
-        json.dump({"id": "action.ping-component", "label": "Ping a component", "description": "Reads a component's health endpoint.",
+    os.makedirs(os.path.join(root, "tools"), exist_ok=True)
+    with open(os.path.join(root, "tools", "tool.ping-component.json"), "w", encoding="utf-8") as f:
+        json.dump({"id": "tool.ping-component", "label": "Ping a component", "description": "Reads a component's health endpoint.",
                    "subject": "Component", "executed_by": "team.payments",
                    "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
                    "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]},
@@ -98,7 +98,7 @@ def _project(root):
                    "needs": [], "result": {"kind": "document"}}, f)
     with open(os.path.join(root, "ping.json"), "w", encoding="utf-8") as f:
         json.dump({"status": "ok"}, f)
-    assert main(["actions", "record", "action.ping-component", "--on", "component.payment-api", "--by", "Equivalence",
+    assert main(["tools", "record", "tool.ping-component", "--on", "component.payment-api", "--by", "Equivalence",
                  "--at", "2026-09-22", "--response", os.path.join(root, "ping.json"), "--project", root]) == 0
     os.makedirs(os.path.join(root, "notes"), exist_ok=True)
     with open(os.path.join(root, "notes", "ledger.md"), "w", encoding="utf-8") as f:

@@ -1,8 +1,13 @@
 # -*- coding: utf-8 -*-
-"""The action file: `actions/<id>.json`, one action each, authored and versioned like a rule.
+"""The tool file: `tools/<id>.json`, one tool each, authored and versioned like a rule.
+
+A tool is what can be done about an entity, described the way an MCP server describes a tool and
+bound to the graph. OTO lists it; the caller invokes it; the recorded run is evidence. Until
+2026-10 the class was `Action` and the files lived under `actions/`; both names are still read, so a
+project made before the rename builds and answers unchanged (LEGACY_CLASS, LEGACY_DIR).
 
     {
-      "id": "action.check-repository",
+      "id": "tool.check-repository",
       "label": "Check that a repository exists",
       "description": "Reads the repository's metadata and records whether it exists.",
       "subject": "Repository",
@@ -20,7 +25,7 @@
     }
 
 `label`, `description`, `inputSchema` and `annotations` are MCP's tool shape and are returned as
-they are. `subject` is the class the action acts on; `bind` fills inputs from the subject node's
+they are. `subject` is the class the tool acts on; `bind` fills inputs from the subject node's
 own fields only (`$attr.<name>`, `$id`, `$label`); `when` is the rules' pattern language, whose
 first pattern must bind the subject; `invoke` is declared, never performed; `needs` names
 environment variables, never values; `result` says how a recorded response becomes a document in
@@ -28,26 +33,36 @@ the inbox or a proposal, and `result.require` lists the response paths that must
 proposal is written (a "not found" answer must not realise a fact); `schedule` is allowed on a
 read-only action only.
 
-At build time each action becomes an `Action` node whose source is its file, with an
-`executed_by` edge. Nothing here writes `graph.json`.
+At build time each tool becomes a `Tool` node whose source is its file, with an `executed_by`
+edge. Nothing here writes `graph.json`.
 """
 import json
 import os
 import re
 
-DIR = "actions"
-ID_OK = re.compile(r"^action\.[a-z0-9][a-z0-9-]*$")
+DIR = "tools"
+LEGACY_DIR = "actions"
+ID_OK = re.compile(r"^(?:tool|action)\.[a-z0-9][a-z0-9-]*$")
 ENV_OK = re.compile(r"^[A-Z][A-Z0-9_]*$")
 TRANSPORTS = {"mcp": ("server", "tool"), "cli": ("command",), "http": ("method", "url"), "script": ("path",)}
 RESULT_KINDS = ("document", "proposal")
 ANNOTATIONS = ("readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint")
 SCHEDULES = ("hourly", "daily", "weekly")
 BIND_OK = re.compile(r"^\$(id|label|attr\.[A-Za-z0-9_-]+)$")
-CLASS = "Action"
+CLASS = "Tool"
+LEGACY_CLASS = "Action"
 
 
 def directory(project):
-    return os.path.join(project.data, DIR)
+    """`tools/`, or `actions/` where a project made before the rename still keeps them there."""
+    new, old = os.path.join(project.data, DIR), os.path.join(project.data, LEGACY_DIR)
+    return old if os.path.isdir(old) and not os.path.isdir(new) else new
+
+
+def class_name(vocabulary):
+    """The class a tool node takes in this vocabulary: `Tool`, or `Action` where only that is declared."""
+    classes = (vocabulary or {}).get("classes") or {}
+    return LEGACY_CLASS if LEGACY_CLASS in classes and CLASS not in classes else CLASS
 
 
 def load(project):
@@ -95,8 +110,8 @@ def problems(loaded, vocabulary):
     classes = (vocabulary or {}).get("classes") or {}
     properties = (vocabulary or {}).get("properties") or {}
     out = []
-    if loaded and CLASS not in classes:
-        out.append("class %r is not declared in ontology.config.json; actions need it (oto-core declares it: "
+    if loaded and CLASS not in classes and LEGACY_CLASS not in classes:
+        out.append("class %r is not declared in ontology.config.json; tools need it (oto-core declares it: "
                    "`oto ontology diff` shows the upstream change, or add the class by hand)" % CLASS)
     for rel in ("acts_on", "executed_by"):
         if loaded and rel not in properties:
@@ -120,7 +135,7 @@ def problems(loaded, vocabulary):
                 out.append("%s: `%s` is required" % (label, field))
         subject = action.get("subject")
         if not isinstance(subject, str) or not subject:
-            out.append("%s: `subject` must name the class the action acts on" % label)
+            out.append("%s: `subject` must name the class the tool acts on" % label)
         elif subject not in classes:
             out.append("%s: subject class %r is not declared" % (label, subject))
         by = action.get("executed_by")
@@ -203,12 +218,12 @@ def problems(loaded, vocabulary):
             if schedule not in SCHEDULES:
                 out.append("%s: schedule must be one of %s" % (label, ", ".join(SCHEDULES)))
             elif not read_only(action):
-                out.append("%s: only a read-only action (readOnlyHint true) may carry a schedule" % label)
+                out.append("%s: only a read-only tool (readOnlyHint true) may carry a schedule" % label)
     return out
 
 
-def node_for(rel, action):
-    """The `Action` node an action file becomes at build time. Its source is the file."""
+def node_for(rel, action, kind=CLASS):
+    """The `Tool` node a tool file becomes at build time. Its source is the file."""
     annotations = dict(action.get("annotations") or {})
     invoke = dict(action.get("invoke") or {})
     attributes = {"subject": action.get("subject"), "transport": invoke.get("transport"),
@@ -220,20 +235,20 @@ def node_for(rel, action):
     if action.get("schedule"):
         attributes["schedule"] = action["schedule"]
     attributes["definition"] = json.loads(json.dumps(action))     # the whole file, for the catalog
-    return {"id": action["id"], "type": CLASS, "label": action["label"], "aliases": [],
-            "summary": action.get("description") or "", "attributes": attributes, "tags": ["action"],
+    return {"id": action["id"], "type": kind, "label": action["label"], "aliases": [],
+            "summary": action.get("description") or "", "attributes": attributes, "tags": ["tool"],
             "status": "current", "source_doc": rel, "sources": [rel],
             "evidence": [{"doc": rel, "where": "file", "quote": (action.get("description") or "")[:200]}]}
 
 
-def nodes_and_edges(loaded):
-    """The nodes and edges every readable action file contributes; unreadable ones are skipped
-    (the check names them)."""
+def nodes_and_edges(loaded, kind=CLASS):
+    """The nodes and edges every readable tool file contributes; unreadable ones are skipped
+    (the check names them). `kind` is the class the vocabulary declares (class_name)."""
     nodes, edges = [], []
     for rel, action, error in loaded:
         if error or not isinstance(action.get("id"), str) or not action.get("label"):
             continue
-        nodes.append(node_for(rel, action))
+        nodes.append(node_for(rel, action, kind))
         if action.get("executed_by"):
             edges.append({"from": action["id"], "rel": "executed_by", "to": action["executed_by"]})
     return nodes, edges

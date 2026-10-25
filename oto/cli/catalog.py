@@ -244,7 +244,7 @@ def _show(name):
              ", %d lexicon entr%s" % (len(result["lexicon"]["entries"]), "y" if len(result["lexicon"]["entries"]) == 1 else "ies") if result["lexicon"] else "",
              ", an interview" if result["interview"] else "",
              ", a guide" if result.get("guide") else "",
-             ", %d action(s)" % len(result["actions"]) if result.get("actions") else "",
+             ", %d tool(s)" % len(result["tools"]) if result.get("tools") else "",
              ", %d gold pattern(s)" % len(result["gold"]) if result["gold"] else ""))
     for line in _compose.report_lines(report):
         print("  %s" % line)

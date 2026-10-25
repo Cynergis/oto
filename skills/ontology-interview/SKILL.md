@@ -155,7 +155,7 @@ never fill `validated_by` yourself:
    "then": {"edge": ["r", "threatens", "s"]},
    "why": "Impact questions need the system; documents state only the component.", "validated_by": ""},
   {"id": "decision-is-documented", "kind": "policy", "severity": "warn",
-   "when": [{"node": "d", "type": "DecisionRecord"}, {"not_edge": ["d", "documented_in", "*"]}],
+   "when": [{"node": "d", "type": "Decision"}, {"not_edge": ["d", "documented_in", "*"]}],
    "then": {"flag": "an architecture decision must cite the document that records it"},
    "why": "A decision nobody can open is a rumour.", "validated_by": ""}]}
 ```

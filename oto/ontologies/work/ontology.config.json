@@ -2,7 +2,7 @@
   "_about": "What is planned, by whom, blocked by what, deployed where: work items that deliver requirements, features and components, scheduled in milestones and releases, assigned to teams and roles. An item is open, blocked or deployed, and nobody writes that on the item: a Transition is appended, the previous one superseded, and the state follows the current one; a Block is a transition to blocked that carries its reason and whom or what it waits on. On software-architecture, so the one question that crosses every level runs: which requirements slip if this component is late. A relation is {domain, range, inverse, definition}.",
   "_summary": "What is planned, by whom, blocked by what, deployed where: work items and milestones over the product's requirements, features and components; three states derived from appended transitions; what slips when a component is late, what is overdue, what waits on whom.",
   "name": "Work",
-  "ontology_version": 2,
+  "ontology_version": 3,
   "strict_domains": false,
   "languages": [
     "en"
@@ -81,6 +81,18 @@
       "range": "Role|Team",
       "inverse": "owns",
       "definition": "The role or team accountable for this. Ownership sits on a role, not a person, so it survives people moving. Widened from the portfolio to what a product specifies. Widened to the estate: an asset is owned by a team or a role. Widened to work: a milestone has an owner."
+    },
+    "governs": {
+      "domain": "Decision",
+      "range": "Product|Requirement|Feature|Release|Policy|Constraint|SuccessCriterion|System|Component|Interface|DataStore|Environment|WorkItem",
+      "inverse": "governed_by",
+      "definition": "What the decision shaped. Widened to the plan: a work item done the way it was because this was decided."
+    },
+    "decided_by": {
+      "domain": "Decision",
+      "range": "Role|Person",
+      "inverse": "decided",
+      "definition": "Who took the decision. A role, so it survives people moving; widened to the plan: a person, when the decision is theirs and the plan names them."
     }
   },
   "attributes": {

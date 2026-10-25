@@ -399,6 +399,24 @@ does not say" is present and honest, the decisions appear as `DecisionRecord` no
 related by `decided_by` to what they shaped, and the `decision-is-documented` rule no longer
 flags them because they cite the document.
 
+
+An architecture decision record is markdown with frontmatter under `docs/adr/`, compiled into a
+`Decision` node without a model:
+
+```bash
+cp docs/adr/0003-deployed-only-by-events.md roadmap/inbox/ && oto ingest --project roadmap
+oto curate start --project roadmap && oto curate propose --from roadmap/processing/0003-deployed-only-by-events.md --project roadmap
+oto curate add --from roadmap/proposals/0003-deployed-only-by-events.json --project roadmap && oto curate check --project roadmap
+oto curate apply --by "<you>" --note "ADR-0003" --project roadmap && oto build --project roadmap
+oto query --project roadmap ask PR26 THING=workitem.epic-m      # which decisions govern Epic M, by whom, current?
+```
+
+Pass when the node is `decision.adr-0003`, cites the ADR's Decision sentence word for word, governs
+the epic the frontmatter names, and a later ADR with `supersedes: ADR-0003` retires it on its date so
+`oto query entity decision.adr-0003 --as-of <earlier>` still reads it; a frontmatter the graph cannot
+read (a status that is not proposed or accepted, a nested map, no `## Decision`) is refused before
+the gates, and a `governs` target the graph lacks is named and not proposed.
+
 ## 15. An ontology from your own vocabulary, and a registry
 
 Exercises: ontology export, the privacy scan on the sample, init from a user ontology, a

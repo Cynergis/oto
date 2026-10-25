@@ -664,6 +664,177 @@
         "environment": "prod",
         "event": "github:Cynergis/oto#62"
       }
+    },
+    {
+      "id": "decision.adr-0001",
+      "type": "Decision",
+      "label": "Evolve the work ontology rather than ship a new pack",
+      "summary": "The work pack evolves the shipped work ontology in place, with the former state names kept as `was`, rather than shipping a new pack beside it.",
+      "attributes": {
+        "status": "accepted",
+        "decided_on": "2026-10-25",
+        "rationale": "The work pack evolves the shipped work ontology in place, with the former state names kept as `was`, rather than shipping a new pack beside it."
+      },
+      "valid_from": "2026-10-25",
+      "evidence": [
+        {
+          "doc": "0001-evolve-the-work-ontology",
+          "where": "Decision",
+          "quote": "The work pack evolves the shipped work ontology in place, with the former state names kept as `was`, rather than shipping a new pack beside it."
+        },
+        {
+          "doc": "0001-evolve-the-work-ontology",
+          "where": "frontmatter",
+          "quote": "decided_on: 2026-10-25"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-25",
+      "source_doc": "0001-evolve-the-work-ontology",
+      "sources": [
+        "0001-evolve-the-work-ontology"
+      ]
+    },
+    {
+      "id": "document.0001-evolve-the-work-ontology",
+      "type": "Document",
+      "label": "Evolve the work ontology rather than ship a new pack",
+      "summary": "ADR ADR-0001, the record of this decision.",
+      "attributes": {
+        "kind": "adr"
+      },
+      "valid_from": "2026-10-25",
+      "evidence": [
+        {
+          "doc": "0001-evolve-the-work-ontology",
+          "where": "title",
+          "quote": "Evolve the work ontology rather than ship a new pack"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-25",
+      "source_doc": "0001-evolve-the-work-ontology",
+      "sources": [
+        "0001-evolve-the-work-ontology"
+      ]
+    },
+    {
+      "id": "decision.adr-0002",
+      "type": "Decision",
+      "label": "An item's state comes from appended transitions, never from the item",
+      "summary": "A change of state is a Transition fact appended to the graph, the previous one superseded, and a rule derives the item's state from the current transition.",
+      "attributes": {
+        "status": "accepted",
+        "decided_on": "2026-10-25",
+        "rationale": "A change of state is a Transition fact appended to the graph, the previous one superseded, and a rule derives the item's state from the current transition."
+      },
+      "valid_from": "2026-10-25",
+      "evidence": [
+        {
+          "doc": "0002-states-come-from-transitions",
+          "where": "Decision",
+          "quote": "A change of state is a Transition fact appended to the graph, the previous one superseded, and a rule derives the item's state from the current transition."
+        },
+        {
+          "doc": "0002-states-come-from-transitions",
+          "where": "frontmatter",
+          "quote": "decided_on: 2026-10-25"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-25",
+      "source_doc": "0002-states-come-from-transitions",
+      "sources": [
+        "0002-states-come-from-transitions"
+      ]
+    },
+    {
+      "id": "document.0002-states-come-from-transitions",
+      "type": "Document",
+      "label": "An item's state comes from appended transitions, never from the item",
+      "summary": "ADR ADR-0002, the record of this decision.",
+      "attributes": {
+        "kind": "adr"
+      },
+      "valid_from": "2026-10-25",
+      "evidence": [
+        {
+          "doc": "0002-states-come-from-transitions",
+          "where": "title",
+          "quote": "An item's state comes from appended transitions, never from the item"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-25",
+      "source_doc": "0002-states-come-from-transitions",
+      "sources": [
+        "0002-states-come-from-transitions"
+      ]
+    },
+    {
+      "id": "decision.adr-0003",
+      "type": "Decision",
+      "label": "Deployed is set only by events",
+      "summary": "The deployed state is set only by an event, a merged pull request or a promotion to an environment, and `oto work set --state deployed` is refused.",
+      "attributes": {
+        "status": "accepted",
+        "decided_on": "2026-10-25",
+        "rationale": "The deployed state is set only by an event, a merged pull request or a promotion to an environment, and `oto work set --state deployed` is refused."
+      },
+      "valid_from": "2026-10-25",
+      "evidence": [
+        {
+          "doc": "0003-deployed-only-by-events",
+          "where": "Decision",
+          "quote": "The deployed state is set only by an event, a merged pull request or a promotion to an environment, and `oto work set --state deployed` is refused."
+        },
+        {
+          "doc": "0003-deployed-only-by-events",
+          "where": "frontmatter",
+          "quote": "decided_on: 2026-10-25"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-25",
+      "source_doc": "0003-deployed-only-by-events",
+      "sources": [
+        "0003-deployed-only-by-events"
+      ]
+    },
+    {
+      "id": "document.0003-deployed-only-by-events",
+      "type": "Document",
+      "label": "Deployed is set only by events",
+      "summary": "ADR ADR-0003, the record of this decision.",
+      "attributes": {
+        "kind": "adr"
+      },
+      "valid_from": "2026-10-25",
+      "evidence": [
+        {
+          "doc": "0003-deployed-only-by-events",
+          "where": "title",
+          "quote": "Deployed is set only by events"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-25",
+      "source_doc": "0003-deployed-only-by-events",
+      "sources": [
+        "0003-deployed-only-by-events"
+      ]
     }
   ],
   "edges": [
@@ -766,6 +937,56 @@
       "from": "transition.epic-f-1",
       "rel": "transition_of",
       "to": "workitem.epic-f"
+    },
+    {
+      "from": "decision.adr-0001",
+      "rel": "documented_in",
+      "to": "document.0001-evolve-the-work-ontology"
+    },
+    {
+      "from": "decision.adr-0001",
+      "rel": "governs",
+      "to": "workitem.epic-m"
+    },
+    {
+      "from": "decision.adr-0001",
+      "rel": "decided_by",
+      "to": "person.chiheb-dkhil"
+    },
+    {
+      "from": "decision.adr-0002",
+      "rel": "documented_in",
+      "to": "document.0002-states-come-from-transitions"
+    },
+    {
+      "from": "decision.adr-0002",
+      "rel": "governs",
+      "to": "workitem.epic-m"
+    },
+    {
+      "from": "decision.adr-0002",
+      "rel": "governs",
+      "to": "workitem.epic-n"
+    },
+    {
+      "from": "decision.adr-0002",
+      "rel": "decided_by",
+      "to": "person.chiheb-dkhil"
+    },
+    {
+      "from": "decision.adr-0003",
+      "rel": "documented_in",
+      "to": "document.0003-deployed-only-by-events"
+    },
+    {
+      "from": "decision.adr-0003",
+      "rel": "governs",
+      "to": "workitem.epic-m"
+    },
+    {
+      "from": "decision.adr-0003",
+      "rel": "decided_by",
+      "to": "person.chiheb-dkhil"
     }
   ]
 }

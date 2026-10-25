@@ -1,7 +1,7 @@
 {
   "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
   "name": "product",
-  "release": 9,
+  "release": 10,
   "domain": "product",
   "summary": "What a product must do, for whom, under what rules, why: personas, journeys, requirements, releases, constraints, assumptions, risks, decisions, open questions, objectives, policies, terms. The core every product type extends.",
   "extends": [
@@ -22,6 +22,11 @@
   ],
   "maintainer": "OTO",
   "changelog": [
+    {
+      "release": 10,
+      "at": "2026-10-26",
+      "note": "Decisions as graph nodes (roadmap G2, G3): Decision.status (proposed, accepted; a reversed decision is superseded), `governs` to what a decision shaped, PR26. ADRs under docs/adr compile into Decision nodes with `oto curate propose`. Document.kind gains `adr`."
+    },
     {
       "release": 9,
       "at": "2026-10-07",

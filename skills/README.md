@@ -19,7 +19,7 @@ matches its description.
 | [selected-text](selected-text/SKILL.md) | "The selected text", "what I copied": the clipboard, read by `oto clipboard` as data, capped and scanned for credentials; plainly refused where there is none. The plugin's prompt hook does it unasked. |
 | [work](work/SKILL.md) | The plan as facts: `oto work set`, `board`, `notify`, `inbox`, `reply`, `event merged-pr`; what the engine refuses and what to say. A new session opens with the inbox (the SessionStart hook). |
 | [sandbox](sandbox/SKILL.md) | Claude Code with OTO in a Docker sandbox made from OTO's kit, driven from Claude Desktop's Code tab or a terminal: checks the computer, asks the person what only they can answer, runs `oto sandbox up`, says the one step left in Desktop. `/oto:sandbox`. |
-| [spec](spec/SKILL.md) | A product spec, ADR or design brief drawn from the graph, every claim cited, and its decisions recorded back as `DecisionRecord` facts ([the convention](spec/references/decisions.md)). |
+| [spec](spec/SKILL.md) | A product spec, ADR or design brief drawn from the graph, every claim cited, and its decisions recorded back as `Decision` facts ([the convention](spec/references/decisions.md)). |
 
 They are discovered two ways: as a Claude Code plugin (`claude --plugin-dir <this repo>`, via the
 manifest in `.claude-plugin/`), or project-locally through the symlinks under `.claude/skills/`

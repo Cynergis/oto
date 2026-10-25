@@ -48,7 +48,7 @@ def test_the_catalog_has_a_page_per_pack_and_per_ontology_and_draws_the_sample(h
     assert index.index('data-domain="software" data-text') < index.index('data-domain="" data-text'), "named domains first"
     page = open(os.path.join(out, "packs", "arch", "index.html"), encoding="utf-8").read()
     for expected in ("<h1>arch", "/plugin install arch@market", "oto init --name", "${CLAUDE_PLUGIN_ROOT}",
-                     "<code>software-architecture@11</code>", "<strong>System</strong>", "which product provides each",
+                     "<code>software-architecture@12</code>", "<strong>System</strong>", "which product provides each",
                      "<code>depends_on</code>", "The sample, drawn", 'src="explorer/index.html"', "tool.check-repository",
                      "<code>/arch:start</code>", "The guide", "<strong>@1</strong>", "by Cynergis"):
         assert expected in page, expected

@@ -130,7 +130,7 @@ itself.
 | Why was this proposal refused? | the check report | `oto curate check --project <root>`, `oto query pending --project <root>` |
 | Why did this fact change, and when? | the ledger: every apply with `--by` and `--note` | `oto query overview --project <root>` (the ledger tail), `oto curate log --project <root>` |
 | Why is this fact superseded? | the supersession pointers and dates on the node | `oto query entity "<term>" --history --project <root>` |
-| Why was this decided? | `DecisionRecord` facts, the spec skill's convention | `oto query by-type DecisionRecord --project <root>`, then `entity` for one |
+| Why was this decided? | `Decision` facts, the spec skill's convention | `oto query by-type Decision --project <root>`, then `entity` for one |
 | Why is OTO built this way? | the architecture notes | `docs/ARCHITECTURE.md` in the engine repository |
 | What is this domain's graph for? | the project's `GUIDE.md`, installed from the ontology when it carries one | quote its sections; `oto ontology show <name>` says whether the ontology has a guide |
 

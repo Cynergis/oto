@@ -94,6 +94,18 @@ def test_what_shipped_is_deployed_by_the_pull_request_that_merged_it(copy):
     assert "status: empty" in out or "(no rows)" in out, out
 
 
+def test_the_repository_s_decisions_govern_the_epics_they_shaped(copy):
+    graph = _graph()
+    decisions = {n["id"]: n for n in graph["nodes"] if n["type"] == "Decision"}
+    assert set(decisions) >= {"decision.adr-0001", "decision.adr-0002", "decision.adr-0003"}, "the three phase 2 decisions, from docs/adr"
+    for d in decisions.values():
+        assert d["attributes"]["status"] == "accepted" and d.get("evidence"), d["id"]
+        assert any(e["from"] == d["id"] and e["rel"] == "governs" for e in graph["edges"]), "%s governs something" % d["id"]
+    code, out = _cli("query", "--project", copy, "ask", "PR26", "THING=workitem.epic-m")
+    assert code == 0 and "status: answered" in out and out.count("d.status=accepted") >= 3, out
+    assert "Chiheb Dkhil" in out, "decided by the owner, a person the plan names"
+
+
 def test_the_build_is_clean_and_the_published_copy_is_publishable(copy):
     project = Project.standard(copy)
     with open(project.ontology_config_path, encoding="utf-8") as f:

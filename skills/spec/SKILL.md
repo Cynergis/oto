@@ -19,7 +19,7 @@ the citations in it.
 
 Two halves. First the graph feeds the document: constraints, existing components, decisions
 already taken, risks, requirements, owners. Then the document feeds the graph: the decisions it
-makes become `DecisionRecord` facts through the pipeline, so the next spec starts from them
+makes become `Decision` facts through the pipeline (ADRs under `docs/adr/`), so the next spec starts from them
 instead of rediscovering them.
 
 ## Talking with the person
@@ -53,7 +53,7 @@ curated record and the documents are its evidence:
 oto query --project <root> overview                  # the map: classes, hubs, recent changes
 oto query --project <root> entity "<term>"           # each entity in scope; its relations, sources, evidence
 oto query --project <root> neighbors "<term>" [rel]  # what it depends on, who owns it, what threatens it
-oto query --project <root> by-type DecisionRecord     # decisions already taken; never re-decide silently
+oto query --project <root> by-type Decision           # decisions already taken; never re-decide silently
 oto query --project <root> by-type Requirement
 oto query --project <root> by-type Risk
 oto query --project <root> policy                    # standing findings: what the rules say is wrong now
@@ -67,7 +67,7 @@ and say it is derived. A fact whose `resolve` says "not ingested" cannot ground 
 
 Ask the graph what the document must not contradict:
 
-- **Decisions already recorded.** Every `DecisionRecord` touching an entity in scope. A new
+- **Decisions already recorded.** Every `Decision` governing or about an entity in scope. A new
   decision that reverses one is a supersession, not an edit; say so in the spec.
 - **Requirements** attached to the systems or capabilities in scope, and their status.
 - **Risks** that reach the system (`explain` shows the rule that carried them there).
@@ -110,7 +110,8 @@ the undated fact, the document not ingested, the owner not recorded. This sectio
 mandatory and never empty; a spec that claims the graph covered everything is not credible.
 
 ## Decisions to record
-The `DecisionRecord` facts this document creates (see the convention), ready for capture.
+One ADR per decision this document takes, as a file the engine reads (see Phase 4): the
+frontmatter, then the Context, Decision and Consequences sections.
 ```
 
 Rules for the prose:
@@ -128,21 +129,43 @@ Rules for the prose:
 
 ## Phase 4 — Record the decisions back
 
-A decision that lives only in a document is one the graph will contradict within a quarter. The
-convention in [references/decisions.md](references/decisions.md) says how a decision becomes a
-`DecisionRecord` fact with `decided_by` relations, dated, sourced to the spec itself.
+A decision that lives only in a document is one the graph will contradict within a quarter. A
+decision is an ADR: markdown under `docs/adr/`, numbered, with frontmatter the engine compiles into a
+`Decision` node deterministically (no model, no mapping). It goes through the same pull request as
+everything else.
 
-1. Save the finished document where the project keeps sources (`inbox/`), or capture the
-   decision statements with the **capture** skill if the decision was made in conversation.
-2. The pipeline takes it from there: ingest, a proposal with the `DecisionRecord` nodes and their
-   relations, the curate gates, a pull request in repository mode. The spec is then the
-   `documented_in` source of its own decisions, and the `decision-is-documented` rule stops
-   flagging them.
-3. If the decision reverses a recorded one, the proposal supersedes the old record and the
-   `change_note` says why, in the spec's words.
+```markdown
+---
+id: ADR-0017                       required: the node is decision.adr-0017
+title: Returns net of fees, month-end NAV
+status: accepted                   proposed | accepted
+decided_on: 2026-10-20             YYYY-MM-DD, the date it was decided
+decided_by: Payments team          a role or team of the graph, by id or name
+governs: [component.settlement-job, feature.f-settlement]   what it shaped (ids of the graph)
+resolves: [openquestion.q-evidence]
+supersedes: ADR-0009               the decision it reverses, retired on decided_on
+---
+
+# Returns net of fees, month-end NAV
+
+## Context
+## Decision
+One paragraph; its first sentence is the quote the node cites, word for word.
+## Consequences
+```
+
+1. Write the file under `docs/adr/` (one per decision; `supersedes:` when it reverses a recorded
+   one, and the Context says why, in the spec's words). Drop a copy in the project's `inbox/`, or
+   point the inbox at the folder: the ADR is the decision's source document.
+2. `oto ingest`, then `oto curate start`, `oto curate propose --from docs/adr/0017-....md`, `oto
+   curate add --from proposals/0017-....json`, `oto curate check`, `oto curate apply`. In repository
+   mode the pipeline does this from the pull request. The gates look the quote up in the ADR and
+   refuse a `governs` target the graph does not hold; `propose` names what it could not resolve.
+3. The graph then answers "which decisions govern this, since when, by whom, and are they current"
+   (PR26), and a superseded decision reads as history as of its date.
 
 Report, in this order: what the document decided or proposed; which recorded facts it rests on;
-what it could not ground; and which `DecisionRecord` facts are now pending capture.
+what it could not ground; and which ADRs are now written and waiting for the gates.
 
 ## Guardrails
 

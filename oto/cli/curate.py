@@ -37,6 +37,11 @@ def cmd_curate(args):
             return 1
         schema = _capture.for_project(project)
         for path in args.source:
+            if path.lower().endswith((".md", ".markdown")):
+                code = _propose_adr(project, path, args)
+                if code:
+                    return code
+                continue
             try:
                 with open(path, encoding="utf-8") as f:
                     captured = _json.load(f)
@@ -382,17 +387,67 @@ def cmd_curate(args):
     return 0
 
 
+def _propose_adr(project, path, args):
+    """An ADR (markdown with frontmatter, oto/adr.py) becomes a proposal: deterministic, from the
+    frontmatter and the first sentence of its Decision section; what names nothing in the graph is
+    reported, not proposed."""
+    import json as _json
+    from .. import adr as _adr
+    from ..curate import session as _session
+    from ..intake.document import slugify
+    try:
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+    except OSError as exc:
+        print("oto: %s: %s" % (path, exc), file=sys.stderr)
+        return 1
+    record = _adr.parse(text)
+    problems = _adr.problems(record)
+    if problems:
+        print("%s is not an ADR the graph can read:" % os.path.basename(path))
+        for problem in problems:
+            print("  %s" % problem)
+        return 1
+    graph = _session.live(project)
+    nodes = list(graph.get("nodes") or [])
+    if _session.exists(project):
+        nodes += list(_session.candidate(project).get("nodes") or [])
+    graph_ids = {n.get("id") for n in nodes if n.get("id")}
+    labels = {}
+    for n in nodes:
+        for name in [n.get("label")] + list(n.get("aliases") or []):
+            if name:
+                labels.setdefault(str(name).lower(), n["id"])
+    doc = slugify(os.path.basename(path))
+    if not os.path.exists(os.path.join(project.layout.corpus, doc + ".md")):
+        print("  note: the corpus does not hold %s.md yet; drop the file in the inbox and `oto ingest`, or the quote cannot be checked" % doc)
+    proposal = _adr.propose(record, doc, graph_ids, labels)
+    unresolved = proposal.pop("unresolved")
+    out_dir = os.path.join(project.data, "proposals")
+    os.makedirs(out_dir, exist_ok=True)
+    out = os.path.join(out_dir, "%s.json" % doc)
+    with open(out, "w", encoding="utf-8", newline="\n") as f:
+        _json.dump(proposal, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    print("%s: %s -> %s (%d node(s), %d edge(s))" % (os.path.basename(path), record["front"]["id"], os.path.relpath(out, project.data),
+                                                     len(proposal["nodes"]), len(proposal["edges"])))
+    if unresolved:
+        print("  unresolved, not proposed (nothing in the graph has these ids or names): %s" % ", ".join(sorted(set(unresolved))))
+    print("  next: oto curate add --from %s, then oto curate check" % os.path.relpath(out, project.data))
+    return 0
+
+
 def register(sub):
     curate = sub.add_parser("curate", help="propose, review and apply changes to the curated graph")
     curate.add_argument("curate_command", nargs="?", default="check",
                         choices=["start", "propose", "add", "diff", "check", "apply", "abort", "undo",
                                  "assert", "assertions", "log", "resolve"],
-                        help="start a candidate; propose turns a capture (--from, written against capture.json) into a proposal file; "
+                        help="start a candidate; propose turns a capture (--from, written against capture.json) or an ADR (markdown with frontmatter) into a proposal file; "
                              "add merges proposal files into it; diff shows what it changes; check validates it; "
                              "apply promotes it (with --by and --note for the ledger); abort discards it; undo restores the previous graph; log reads the ledger; "
                              "assert records something a person said; assertions lists them")
     curate.add_argument("--from", dest="source", action="append", default=None,
-                        help="a proposal file of nodes and edges, for `add`; a capture file, for `propose` (repeatable)")
+                        help="a proposal file of nodes and edges, for `add`; a capture file or an ADR (markdown with frontmatter), for `propose` (repeatable)")
     curate.add_argument("--text", default=None, help="the statement, for `assert`")
     curate.add_argument("--by", default=None,
                         help="who said it (assert), or who applied it (apply): an unattributed change cannot be followed up")

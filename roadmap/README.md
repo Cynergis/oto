@@ -16,6 +16,7 @@ it, and that the published copy is publishable.
 |---|---|
 | `graph.json` | the facts: the epics, the phases, the person the roadmap belongs to, every transition and message |
 | `assertions.jsonl`, `changelog.jsonl` | what was said and who applied what; the engine appends, nobody edits |
+| the `Decision` nodes | the repository's ADRs ([docs/adr](../docs/adr/)), compiled in through `oto curate propose --from <adr.md>`; they govern the epics they shaped |
 | `audit.jsonl` | one hash-chained record per write since 2026-10-25, refusals included; `oto audit verify` proves it, `oto audit for <item>` reads it |
 | `archive/`, `runs/`, `build/documents/` | the roadmap document as it arrived, the run that read it, and the corpus the facts quote (committed, as in repository mode: it is an input) |
 | `ontology.config.json`, `rules.json`, `questions.json` | the `communication` ontology as installed (on `work`, `software-architecture`, `product`, `portfolio`) |
@@ -47,6 +48,10 @@ oto work notify "Epic C" --due 2026-10-31 --body "Which one?" --at 2026-10-27 --
 oto work inbox --project roadmap
 oto work reply message.epic-c-1 --resolve --body "SQL/PGQ where the version allows it; AGE otherwise." --at 2026-10-28 --project roadmap
 ```
+
+**A decision is taken.** Write it as an ADR under `docs/adr/` (the spec skill knows the frontmatter), drop it
+in `roadmap/inbox/`, then `oto ingest`, `oto curate start`, `oto curate propose --from <the file>`, `add`,
+`check`, `apply`. `oto query --project roadmap ask PR26 THING=workitem.epic-x` answers which decisions govern an epic.
 
 **Where are we.** `oto work board --project roadmap`, or the Work tab of the workbench
 (`oto serve --project roadmap --http 8790 --view workbench`); `oto query --project roadmap ask WK13

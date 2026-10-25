@@ -533,12 +533,14 @@ the same names: create them in the repository's settings with your login as requ
 merge a change, and the run stops at test until you approve; the record then names `github` as the
 approver's kind.
 
-## 18. Work: the plan as facts, three states from transitions, the board, a message
+## 18. Work: the plan as facts, three states from transitions, the board, messages
 
-Exercises: the `work` ontology (release 2) and `communication` on top of it, `oto work set`, the
-derived state, the block's shape, `oto work board` and the snapshot's `work` section, the
-workbench's Work page, `oto work notify`, the board's questions and the history; the scenario
-`tests/scenarios/roadmap` plays the same story with this roadmap's epics.
+Exercises: the `work` ontology and `communication` on top of it, `oto work set`, the derived
+state, the block's shape, `oto work board` and the snapshot's `work` section, the workbench's Work
+page, `oto work notify`, `oto work inbox` (what a session opens with, through the plugin's
+SessionStart hook), `oto work reply --resolve`, `oto work event merged-pr`, the board's questions
+and the history; the scenario `tests/scenarios/roadmap` plays the same story with this roadmap's
+epics.
 
 ```bash
 oto init --name "Plan" --ontology communication --project plan && oto build --project plan
@@ -554,6 +556,9 @@ oto work board --project plan                                       # blocked by
 oto serve --project plan --http 8795 --view workbench               # the Work tab shows the same board, live
 oto work notify "Ledger read replica" --by "<you>" --at 2026-10-26 --due 2026-10-30 --body "Can you decide this week?" --project plan
 oto build --project plan && oto query --project plan ask CM1 PERSON=person.m-okafor   # what waits for her: the message, with the item
+oto work inbox --as "Mina Okafor" --project plan                    # the same, as her session would open (git identity by default)
+oto work reply message.t-ledger-replica-2 --body "Approved." --resolve --by "Mina Okafor" --at 2026-10-27 --project plan   # resolved, and the block lifted
+oto work event merged-pr --repo you/plan --number 7 --item "Ledger read replica" --environment qa --at 2026-10-28 --project plan   # deployed to qa; run it twice
 oto build --project plan --target site --view workbench             # the published snapshot: the person she is shown as "M.O."
 ```
 
@@ -565,7 +570,12 @@ deployed (`oto ontology diff` reports the values renamed, not a type change). Th
 Work tab agree with `oto query ask WK11`; the message `notify` writes carries the item, the block's
 date and reason and your words, goes to whom the block waits on (`--to` for someone else; refused
 when the item is not blocked, or in a vocabulary without `Message`), and the published copy of the
-snapshot shows the person it waits on as initials.
+snapshot shows the person it waits on as initials. The inbox lists the pending messages for a person
+with the item and the block, and nothing once they are answered; a reply marks the message replied, a
+resolving reply marks it resolved and appends the Open transition in the same gated change; the
+merged-PR event appends one deployed transition and, delivered again, says so and appends nothing. In
+a project with a git identity, `oto work inbox --hook` prints what waits and is silent otherwise:
+open a Claude Code session in the project and the inbox is the first thing it says.
 
 ## 19. The engine's own gates and CI
 

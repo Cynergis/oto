@@ -134,6 +134,10 @@
       "environment": {
         "type": "enum:qa|preprod|prod",
         "definition": "For a deployment: where to. Required when the transition is to deployed."
+      },
+      "event": {
+        "type": "string",
+        "definition": "The event that caused the change, as one id (`github:owner/repo#123` for a merged pull request), so the same event delivered twice is recorded once."
       }
     },
     "Block": {

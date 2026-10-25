@@ -2,7 +2,7 @@
   "_about": "Messages as facts in the graph, tied to the item they are about, so a request about a blocked item arrives with the item's context and nobody retypes it. On work: the first message is sent from a block to whom it waits on (`oto work notify`); a reply that unblocks records a transition. A relation is {domain, range, inverse, definition}.",
   "_summary": "Messages tied to the item they are about: from whom, to whom, about what, pending until resolved; what waits for a person, what was said about an item, what is overdue.",
   "name": "Communication",
-  "ontology_version": 1,
+  "ontology_version": 2,
   "strict_domains": false,
   "languages": [
     "en"
@@ -17,8 +17,7 @@
       "domain": "Message",
       "range": "Person|Team|Role",
       "inverse": "receives",
-      "min": 1,
-      "definition": "Whom the message is for: a person, or a team or role when anyone of them may answer. At least one."
+      "definition": "Whom the message is for: a person, or a team or role when anyone of them may answer. Every message names one, except a reply, which answers whoever asked."
     },
     "sent_by": {
       "domain": "Message",
@@ -32,6 +31,13 @@
       "inverse": "discussed_in",
       "min": 1,
       "definition": "What the message is about: the item, and the block it was sent from when there is one, so the reader has the reason and the date without asking."
+    },
+    "in_reply_to": {
+      "domain": "Message",
+      "range": "Message",
+      "inverse": "replied_by",
+      "max": 1,
+      "definition": "The message this one answers. The answered message's status follows: replied, or resolved when the reply says so."
     }
   },
   "attributes": {
@@ -53,12 +59,16 @@
       },
       "status": {
         "type": "enum:pending|read|replied|resolved",
-        "definition": "Where the message is: pending until read, read, replied to, resolved when what it asked is settled.",
+        "definition": "Where the message is: pending until answered (the default), replied when a reply exists, resolved when a reply settles it. Derived from the replies, never asserted.",
         "default": "pending"
       },
       "due": {
         "type": "date",
         "definition": "When an answer is due; an overdue message is flagged."
+      },
+      "outcome": {
+        "type": "enum:replied|resolved",
+        "definition": "On a reply: whether it settles what was asked (resolved) or only answers it (replied). The answered message's status follows."
       }
     }
   }

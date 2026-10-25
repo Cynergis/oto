@@ -52,7 +52,7 @@
     },
     "CM2": {
       "who": "a delivery lead",
-      "question": "What has been said about $ITEM, by whom, to whom, and is it settled?",
+      "question": "What has been said about $ITEM, by whom, to whom, what was answered, and is it settled?",
       "why": "An item's conversation beside the item: who asked whom what, and whether it was resolved.",
       "validated_by": "",
       "params": {
@@ -74,10 +74,14 @@
             "type": "Message"
           },
           {
-            "edge": [
-              "m",
-              "sent_to",
-              "to"
+            "optional": [
+              {
+                "edge": [
+                  "m",
+                  "sent_to",
+                  "to"
+                ]
+              }
             ]
           },
           {
@@ -90,6 +94,21 @@
                 ]
               }
             ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "r",
+                  "in_reply_to",
+                  "m"
+                ]
+              },
+              {
+                "node": "r",
+                "type": "Message"
+              }
+            ]
           }
         ],
         "select": [
@@ -98,7 +117,10 @@
           "m.sent",
           "m.status",
           "m.body",
-          "p.label"
+          "p.label",
+          "r.from",
+          "r.outcome",
+          "r.body"
         ]
       },
       "gate": "any",

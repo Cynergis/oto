@@ -158,6 +158,7 @@ that journey, hand over to the playbook and stop: it runs the scenes, and it com
 | Add one document, or one correction someone said | curate | "add this document", "that fact is wrong", "X changed" |
 | Write what someone said into the inbox as a source | capture | "remember that", "note this down", "they told me" |
 | Use what they highlighted or copied, without pasting it | selected-text | "the selected text", "what I copied", "my clipboard" |
+| Keep the plan: block, unblock, tell someone, see the board, answer what waits | work | "X is blocked on Y", "what's blocked", "tell Y", "what's waiting for me", "PR 60 merged X" |
 | Answer the vocabulary's questions in an interview, each confirmed group into the graph | capture-form | "capture against the pack", "fill the form", "interview me for this" |
 | Find facts citing a document nobody can open | vet-provenance | "the documents moved", "is the graph still grounded" |
 | Ask a question of the graph | query-knowledge | any question about the domain |

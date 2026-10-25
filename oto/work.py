@@ -15,7 +15,11 @@ that is not a date, a name that is several items or none. Nothing refused is wri
 blocked by whom or what each waits on, deployed by environment. The snapshot carries it as `work`,
 so the workbench's Work page and `oto work board` show one thing. `notify` (M6) writes the first
 message of the communication pack: from a block, to whom it waits on, carrying the item and the
-reason, so the person asked has the context without anyone retyping it.
+reason, so the person asked has the context without anyone retyping it. `inbox` (N3) lists what
+is pending for a person, the way a session opens; `reply` (N4) answers a message, and a resolving
+reply also lifts the block it was about, in one gated change; `event merged-pr` records what a
+merged pull request deployed, once however often the event is delivered. Identity is the git
+`user.name <user.email>` in the project, mapped to a Person by email, else by name.
 """
 import os
 
@@ -30,7 +34,8 @@ TRANSITION, BLOCK = "Transition", "Block"
 STATES = ("open", "blocked", "deployed")
 BY_EVENT = ("deployed",)
 TRANSITION_OF, WAITING_ON = "transition_of", "waiting_on"
-MESSAGE, SENT_TO, REGARDING = "Message", "sent_to", "regarding"
+MESSAGE, SENT_TO, SENT_BY, REGARDING, IN_REPLY_TO = "Message", "sent_to", "sent_by", "regarding", "in_reply_to"
+PERSON = "Person"
 
 
 class WorkError(ProjectError):
@@ -98,6 +103,28 @@ def identity(project):
     if not (name or email):
         return None
     return ("%s <%s>" % (name, email)) if name and email else (name or email)
+
+
+def person_for(graph, identity):
+    """The Person `identity` ("Name <email>", or either alone) names: by email when one is recorded
+    on a Person, else by label or alias. None when the project knows no such person."""
+    text = (identity or "").strip()
+    if not text:
+        return None
+    email = text[text.rfind("<") + 1:text.rfind(">")].strip().lower() if "<" in text and text.endswith(">") else \
+        (text.lower() if "@" in text and " " not in text else "")
+    name = text[:text.rfind("<")].strip() if "<" in text else ("" if email else text)
+    people = [n for n in graph.get("nodes") or [] if n.get("type") == PERSON and n.get("status", "current") == "current"]
+    if email:
+        for n in people:
+            if str((n.get("attributes") or {}).get("email") or "").strip().lower() == email:
+                return n
+    if name:
+        names = [n for n in people if name.lower() in
+                 [str(n.get("label") or "").lower()] + [str(a).lower() for a in (n.get("aliases") or [])]]
+        if len(names) == 1:
+            return names[0]
+    return None
 
 
 def _next_id(graph, prefix, item_id):
@@ -185,50 +212,65 @@ def set_state(project, term, state, by, at, reason=None, waiting_on=None, enviro
         text += " " + note.strip()
 
     def edit(candidate, source):
-        previous = [t for t in transitions_of(candidate, item["id"]) if t.get("status", "current") == "current"]
-        new_id = _next_id(candidate, "transition", item["id"])
-        attributes = {"to": state, "at": at, "by": by.strip()}
-        if reason:
-            attributes["reason"] = reason.strip()
-        if environment:
-            attributes["environment"] = environment
-        node = dict(source, id=new_id, type=BLOCK if state == "blocked" else TRANSITION,
-                    label="%s %s" % (item.get("label") or item["id"], "blocked" if state == "blocked" else state),
-                    summary=(reason.strip() if reason else "%s on %s, recorded by %s." % (state, at, by.strip())),
-                    attributes=attributes)
-        if previous:
-            node["supersedes"] = previous[0]["id"]
-            node["change_note"] = text
-            for old in previous:
-                old["status"] = "superseded"
-                old["valid_to"] = at
-                old["superseded_by"] = new_id
-                old.setdefault("change_note", text)
-        candidate["nodes"].append(node)
-        candidate["edges"].append({"from": new_id, "rel": TRANSITION_OF, "to": item["id"]})
-        if target:
-            candidate["edges"].append({"from": new_id, "rel": WAITING_ON, "to": target["id"]})
-        return {"item": item["id"], "label": item.get("label") or item["id"], "from": was, "to": state,
-                "transition": new_id, "superseded": [t["id"] for t in previous],
-                "waiting_on": target["id"] if target else None}
+        return dict(_append_transition(candidate, source, item, state, at, by, text, reason=reason, target=target, environment=environment),
+                    **{"from": was})
     return _commit(project, text, by, at, [item["id"]] + ([target["id"]] if target else []), edit)
 
 
-def _states(project, vocabulary, graph):
-    """{item id: (state, deployed_to)} as a build derives them: the rules run over the current
-    facts, then each item's attributes read with the default."""
+def _append_transition(candidate, source, item, state, at, by, text, reason=None, target=None, environment=None, event=None):
+    """Append the transition of `item` to `state` to the candidate, superseding its current one.
+    Returns {"item", "label", "from", "to", "transition", "superseded", "waiting_on"}."""
+    previous = [t for t in transitions_of(candidate, item["id"]) if t.get("status", "current") == "current"]
+    new_id = _next_id(candidate, "transition", item["id"])
+    attributes = {"to": state, "at": at, "by": by.strip()}
+    if reason:
+        attributes["reason"] = reason.strip()
+    if environment:
+        attributes["environment"] = environment
+    if event:
+        attributes["event"] = event
+    label = item.get("label") or item["id"]
+    node = dict(source, id=new_id, type=BLOCK if state == "blocked" else TRANSITION,
+                label="%s %s" % (label, "blocked" if state == "blocked" else state),
+                summary=(reason.strip() if reason else "%s on %s, recorded by %s." % (state, at, by.strip())),
+                attributes=attributes)
+    if previous:
+        node["supersedes"] = previous[0]["id"]
+        node["change_note"] = text
+        for old in previous:
+            old["status"] = "superseded"
+            old["valid_to"] = at
+            old["superseded_by"] = new_id
+            old.setdefault("change_note", text)
+    candidate["nodes"].append(node)
+    candidate["edges"].append({"from": new_id, "rel": TRANSITION_OF, "to": item["id"]})
+    if target:
+        candidate["edges"].append({"from": new_id, "rel": WAITING_ON, "to": target["id"]})
+    return {"item": item["id"], "label": label, "to": state, "transition": new_id,
+            "superseded": [t["id"] for t in previous], "waiting_on": target["id"] if target else None}
+
+
+def _seen(project, vocabulary, graph):
+    """The graph as a build sees it: the rules run over the current facts, each node's attributes
+    read with what is derived and the defaults."""
     nodes, edges = graph.get("nodes") or [], graph.get("edges") or []
     declared = declared_names(vocabulary)
+    cover = _covers(vocabulary.get("classes") or {})
     derived = {}
     rules = _rules.load(project)
     if rules and not _rules.problems(rules, vocabulary):
         try:
-            for a in _engine.run(rules, nodes, edges, covers=_covers(vocabulary.get("classes") or {}), declared=declared)["attributes"]:
+            for a in _engine.run(rules, nodes, edges, covers=cover, declared=declared)["attributes"]:
                 derived.setdefault(a["node"], {})[a["name"]] = a["value"]
         except _engine.DoesNotConverge:
             pass
     from .reason.match import Graph
-    seen = Graph(nodes, edges, derived, covers=_covers(vocabulary.get("classes") or {}), declared=declared)
+    return Graph(nodes, edges, derived, covers=cover, declared=declared)
+
+
+def _states(project, vocabulary, graph):
+    """{item id: (state, deployed_to)} as a build derives them."""
+    seen = _seen(project, vocabulary, graph)
     return {nid: (seen.attribute(nid, "state"), seen.attribute(nid, "deployed_to"))
             for nid, n in seen.nodes.items() if n.get("type") in _kinds(vocabulary, ITEM)}
 
@@ -338,17 +380,181 @@ def notify(project, term, by, at, body=None, to=None, due=None):
 
     def edit(candidate, source):
         new_id = _next_id(candidate, "message", item["id"])
-        attributes = {"from": by.strip(), "body": text, "sent": at.strip(), "status": "pending"}
+        attributes = {"from": by.strip(), "body": text, "sent": at.strip()}
         if due:
             attributes["due"] = due.strip()
         candidate["nodes"].append(dict(source, id=new_id, type=MESSAGE, label="To %s about %s" % (to_label, label),
                                        summary=text[:160], attributes=attributes))
         candidate["edges"].append({"from": new_id, "rel": SENT_TO, "to": target["id"]})
+        sender = person_for(candidate, by)
+        if sender:
+            candidate["edges"].append({"from": new_id, "rel": SENT_BY, "to": sender["id"]})
         candidate["edges"].append({"from": new_id, "rel": REGARDING, "to": item["id"]})
         if block:
             candidate["edges"].append({"from": new_id, "rel": REGARDING, "to": block["id"]})
         return {"message": new_id, "item": item["id"], "label": label, "to": target["id"], "to_label": to_label}
     return _commit(project, "message to %s: %s" % (to_label, text), by, at.strip(), [item["id"], target["id"]], edit)
+
+
+def _message_rows(project, vocabulary, graph):
+    """Every current message with what it regards: [{id, from, sent, due, status, body, to: [ids],
+    item: {id, label} or None, block: {since, reason} or None, in_reply_to}]."""
+    seen = _seen(project, vocabulary, graph)
+    by_id = {n["id"]: n for n in graph.get("nodes") or [] if n.get("id")}
+    edges = graph.get("edges") or []
+    out = []
+    for nid, n in sorted(seen.nodes.items()):
+        if n.get("type") not in _kinds(vocabulary, MESSAGE):
+            continue
+        regards = [by_id[e["to"]] for e in edges if e.get("from") == nid and e.get("rel") == REGARDING and e.get("to") in by_id]
+        item = next((r for r in regards if r.get("type") in _kinds(vocabulary, ITEM)), None)
+        block = next((r for r in regards if r.get("type") in _kinds(vocabulary, TRANSITION)), None)
+        held = (block or {}).get("attributes") or {}
+        a = n.get("attributes") or {}
+        out.append({"id": nid, "from": a.get("from"), "sent": a.get("sent"), "due": a.get("due"), "status": seen.attribute(nid, "status"),
+                    "body": a.get("body"), "to": [e["to"] for e in edges if e.get("from") == nid and e.get("rel") == SENT_TO],
+                    "item": {"id": item["id"], "label": item.get("label") or item["id"]} if item else None,
+                    "block": {"since": held.get("at"), "reason": held.get("reason"),
+                              "lifted": block.get("status", "current") != "current"} if block else None,
+                    "in_reply_to": next((e["to"] for e in edges if e.get("from") == nid and e.get("rel") == IN_REPLY_TO), None)})
+    return out
+
+
+def inbox(project, as_=None):
+    """What waits for a person: {"person": {id, label}, "pending": [message rows]}, pending messages
+    sent to them, oldest first. `as_` names them (id, label, alias, or "Name <email>"); without it,
+    the git identity. None when the vocabulary has no Message; raises when nobody matches."""
+    vocabulary = _load_vocabulary(project)
+    if MESSAGE not in (vocabulary.get("classes") or {}):
+        return None
+    live = _session.live(project)
+    if as_:
+        recipients = set()
+        for kind in _union((vocabulary.get("properties") or {}).get(SENT_TO, {}).get("range")):
+            recipients |= _kinds(vocabulary, kind)
+        who = person_for(live, as_) or resolve(live, as_, recipients)
+    else:
+        me = identity(project)
+        who = person_for(live, me) if me else None
+        if who is None:
+            raise WorkError("no Person matches %s: name yourself with --as, or record your email on your Person"
+                            % (("the git identity %r" % me) if me else "a git identity (none in this project)"))
+    rows = [m for m in _message_rows(project, vocabulary, live) if who["id"] in m["to"] and m["status"] == "pending"]
+    rows.sort(key=lambda m: (m["sent"] or "", m["id"]))
+    return {"person": {"id": who["id"], "label": who.get("label") or who["id"]}, "pending": rows}
+
+
+def inbox_text(found, name=None):
+    """The inbox as a session opens with it."""
+    person, rows = found["person"], found["pending"]
+    head = "%s%s pending for %s" % ((name + " · ") if name else "", len(rows) if rows else "nothing", person["label"])
+    if not rows:
+        return head
+    lines = [head]
+    for m in rows:
+        where = (" · re %s" % m["item"]["label"]) if m["item"] else ""
+        if m["block"] and not m["block"]["lifted"]:
+            where += " (blocked since %s)" % (m["block"]["since"] or "?")
+        lines.append("  ● %s · from %s%s%s" % (m["id"], m["from"] or "?", where, (" · due %s" % m["due"]) if m["due"] else ""))
+        for line in (m["body"] or "").splitlines() or [""]:
+            lines.append("    %s" % line)
+        lines.append("    reply:  oto work reply %s --body \"...\"%s" % (m["id"], "   # --resolve lifts the block" if m["block"] and not m["block"]["lifted"] else ""))
+    return "\n".join(lines)
+
+
+def reply(project, term, body, by, at, resolve_it=False, to=None):
+    """Answer a message: a Message in reply to it, from `by`, regarding what it regarded, with the
+    outcome replied or, with `resolve_it`, resolved, which also lifts the block the message was
+    about if the item is still blocked. Returns {"message", "reply", "outcome", "item", "label",
+    "transition", "from", "to", "assertion"}."""
+    if not (at or "").strip() or not ISO_DATE.match(at.strip()):
+        raise WorkError("--at is the date of the reply, as YYYY-MM-DD; never defaulted")
+    if not (body or "").strip():
+        raise WorkError("a reply says something: --body")
+    if not (by or "").strip():
+        raise WorkError("say who replies: --by, or a git identity (user.name and user.email) in the project")
+    _no_candidate(project)
+    vocabulary = _load_vocabulary(project)
+    if MESSAGE not in (vocabulary.get("classes") or {}):
+        raise WorkError("the vocabulary declares no Message: a reply needs the communication ontology (oto init --ontology communication)")
+    live = _session.live(project)
+    original = resolve(live, term, _kinds(vocabulary, MESSAGE))
+    row = next(m for m in _message_rows(project, vocabulary, live) if m["id"] == original["id"])
+    if row["status"] == "resolved":
+        raise WorkError("%s is already resolved; nothing to answer" % original["id"])
+    outcome = "resolved" if resolve_it else "replied"
+    recipients = set()
+    for kind in _union((vocabulary.get("properties") or {}).get(SENT_TO, {}).get("range")):
+        recipients |= _kinds(vocabulary, kind)
+    target = None
+    if to:
+        target = resolve(live, to, recipients)
+    else:
+        sent_by = [e["to"] for e in live.get("edges") or [] if e.get("from") == original["id"] and e.get("rel") == SENT_BY]
+        target = next((n for n in live.get("nodes") or [] if n.get("id") in sent_by), None)
+        if target is None and row["from"]:
+            try:
+                target = resolve(live, row["from"], recipients)
+            except WorkError:
+                target = None                                      # an agent or a tool asked: the reply answers the thread
+    item = next((n for n in live.get("nodes") or [] if row["item"] and n.get("id") == row["item"]["id"]), None)
+    lift = bool(resolve_it and item and current_state(live, item, vocabulary) == "blocked")
+    text = "reply to %s%s: %s" % (original["id"], " (resolved)" if resolve_it else "", body.strip())
+
+    def edit(candidate, source):
+        new_id = _next_id(candidate, "message", (item or original)["id"])
+        attributes = {"from": by.strip(), "body": body.strip(), "sent": at.strip(), "outcome": outcome}
+        candidate["nodes"].append(dict(source, id=new_id, type=MESSAGE, label="Reply to %s" % (original.get("label") or original["id"]),
+                                       summary=body.strip()[:160], attributes=attributes))
+        candidate["edges"].append({"from": new_id, "rel": IN_REPLY_TO, "to": original["id"]})
+        for e in list(live.get("edges") or []):
+            if e.get("from") == original["id"] and e.get("rel") == REGARDING:
+                candidate["edges"].append({"from": new_id, "rel": REGARDING, "to": e["to"]})
+        if target:
+            candidate["edges"].append({"from": new_id, "rel": SENT_TO, "to": target["id"]})
+        sender = person_for(candidate, by)
+        if sender:
+            candidate["edges"].append({"from": new_id, "rel": SENT_BY, "to": sender["id"]})
+        done = {"message": original["id"], "reply": new_id, "outcome": outcome, "item": item["id"] if item else None,
+                "label": (item.get("label") or item["id"]) if item else None, "transition": None, "from": None,
+                "to": target["id"] if target else None}
+        if lift:
+            moved = _append_transition(candidate, source, item, "open", at.strip(), by,
+                                       "%s: blocked -> open. %s" % (item.get("label") or item["id"], body.strip()))
+            done["transition"], done["from"] = moved["transition"], "blocked"
+        return done
+    about = [original["id"]] + ([item["id"]] if item else [])
+    return _commit(project, text, by, at.strip(), about, edit)
+
+
+def event_merged_pr(project, repo, number, term, environment, at, by=None):
+    """A merged pull request deployed `term` to `environment`: append the transition once. The
+    event is `github:<repo>#<number>`; delivered again, nothing is appended. Returns the transition
+    record, or {"already": True, "event": id} when it was recorded before."""
+    event = "github:%s#%s" % (repo.strip(), str(number).strip())
+    if not (at or "").strip() or not ISO_DATE.match(at.strip()):
+        raise WorkError("--at is the date it merged, as YYYY-MM-DD")
+    if environment not in ("qa", "preprod", "prod"):
+        raise WorkError("--environment is qa, preprod or prod: where the merge deployed it")
+    _no_candidate(project)
+    vocabulary = _load_vocabulary(project)
+    live = _session.live(project)
+    item = resolve(live, term, _kinds(vocabulary, ITEM))
+    for t in transitions_of(live, item["id"]):
+        if (t.get("attributes") or {}).get("event") == event:
+            return {"already": True, "event": event, "transition": t["id"], "item": item["id"], "label": item.get("label") or item["id"]}
+    was = current_state(live, item, vocabulary)
+    if was == "deployed":
+        seen = _seen(project, vocabulary, live)
+        if seen.attribute(item["id"], "deployed_to") == environment:
+            raise WorkError("%s is already deployed to %s; nothing recorded" % (item.get("label") or item["id"], environment))
+    who = (by or "").strip() or "pull request %s#%s merged" % (repo.strip(), str(number).strip())
+    text = "%s: %s -> deployed to %s by %s" % (item.get("label") or item["id"], was, environment, event)
+
+    def edit(candidate, source):
+        return dict(_append_transition(candidate, source, item, "deployed", at.strip(), who, text, environment=environment, event=event),
+                    **{"from": was, "event": event})
+    return _commit(project, text, who, at.strip(), [item["id"]], edit)
 
 
 def gates(project, live, candidate, vocabulary):

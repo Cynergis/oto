@@ -280,6 +280,10 @@ def promote(project, environment, commit, by=None, kind="person", token=None):
         _gitx.run(["-c", "user.name=oto publish", "-c", "user.email=oto-publish@localhost", "commit", "--quiet",
                    "-m", "promote %s -> %s: %s" % (source, environment, source_commit)], cwd=work)
         _gitx.run(["push", "--quiet", url, "HEAD:%s" % environment], cwd=work)
+        from . import audit as _audit
+        _audit.append(project, "promote", by, [], "promoted",
+                      detail="%s -> %s: %s, sha256 %s%s" % (source, environment, source_commit, str(promoted.get("sha256"))[:12],
+                                                          (", approved as %s" % kind) if kind else ""))
         return entry
     finally:
         shutil.rmtree(held, ignore_errors=True)

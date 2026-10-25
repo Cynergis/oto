@@ -10,7 +10,7 @@ import shutil
 
 import pytest
 
-from oto import snapshot, work as _work
+from oto import audit, snapshot, work as _work
 from oto.cli import main
 from oto.project import Project
 
@@ -60,6 +60,8 @@ def test_the_project_is_committed_without_build_output_and_on_the_communication_
     assert config["ontology"]["name"] == "communication" and "work" in config["ontology"]["extends"]
     assert "example" not in config["namespace"]
     assert not os.path.exists(os.path.join(ROADMAP, "graph.candidate.json")), "no change left open"
+    report = audit.verify(Project.standard(ROADMAP))
+    assert report["ok"] and report["records"] >= 1, "the audit log is kept from here on, and its chain holds: %s" % report
 
 
 def test_the_fourteen_epics_and_six_phases_are_facts_with_their_source_and_no_asserted_state():

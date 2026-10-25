@@ -27,6 +27,7 @@ happened, and the build says where things are.
 | "that settles it", "unblocked, answer them" | `oto work reply <message> --resolve --body "..." --at <date>`: the reply also lifts the block |
 | "PR 60 merged X" | `oto work event merged-pr --repo <owner/name> --number <N> --item <X> --environment <qa\|preprod\|prod> --at <date>` |
 | "where is X now", "its history" | `oto query ask WK13 ITEM=<X>`, then `oto query entity <transition> --as-of <date>` |
+| "who changed X", "who tried to" | `oto audit for <X>`: every write that touched it, refusals included; `oto audit verify` proves the record |
 
 Then `oto build`, and commit the graph file: the repository is the record.
 

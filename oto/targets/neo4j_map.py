@@ -177,3 +177,33 @@ def summary(planned):
             "evidence": len(planned["evidence"]), "documents": len(planned["documents"]),
             "derived_attributes": len(planned["derived_attributes"]), "findings": len(planned["findings"]),
             "passages": len(planned.get("passages") or [])}
+
+
+def rekey(planned, project):
+    """The same plan under another project tag: every key's prefix and every `project` field."""
+    old = planned["project"] + ":"
+    new = project + ":"
+
+    def swap(value):
+        if isinstance(value, str) and value.startswith(old):
+            return new + value[len(old):]
+        if isinstance(value, list):
+            return [swap(v) for v in value]
+        if isinstance(value, dict):
+            return {k: (project if k == "project" else swap(v)) for k, v in value.items()}
+        return value
+    return dict(swap(planned), project=project)
+
+
+def without(planned, node_id):
+    """The plan without one node and everything that hangs on it."""
+    gone = key(planned["project"], node_id)
+    out = dict(planned)
+    out["nodes"] = [n for n in planned["nodes"] if n["props"]["key"] != gone]
+    out["rels"] = [r for r in planned["rels"] if gone not in (r["a"], r["b"])]
+    out["evidence"] = [e for e in planned["evidence"] if e.get("entity") != gone]
+    out["derived_attributes"] = [a for a in planned["derived_attributes"] if a.get("entity") != gone]
+    out["findings"] = [f for f in planned["findings"] if f.get("entity") != gone]
+    out["labels"] = sorted({n["label"] for n in out["nodes"]})
+    out["rel_types"] = sorted({r["type"] for r in out["rels"]})
+    return out

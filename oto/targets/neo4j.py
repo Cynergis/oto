@@ -199,28 +199,6 @@ def verify(driver, database, planned):
 
 
 def run(project):
-    if not configured(project):
-        print("neo4j: not configured (no `neo4j.uri` in project.config.json, or `neo4j` not in targets); skipped")
-        return
-    if not available():
-        raise ProjectError("neo4j target is configured but the driver is not installed: "
-                           "pip install \"oto-kg[neo4j] @ git+<the engine repository>\"")
-    from neo4j import GraphDatabase
-
-    conf = settings(project)
-    planned = build_plan(project)
-    counts = _map.summary(planned)
-    driver = GraphDatabase.driver(conf["uri"], auth=conf["auth"])
-    try:
-        driver.verify_connectivity()
-        statements = load(driver, conf["database"], planned, batch=conf["batch"])
-        print("neo4j: loaded %d entities, %d relationships, %d evidence, %d sources, %d passages into %s (%s) in %d statements"
-              % (counts["nodes"], counts["relationships"], counts["evidence"], counts["documents"], counts["passages"],
-                 conf["uri"], conf["database"], statements))
-        if (getattr(project, "options", {}) or {}).get("verify"):
-            differences = verify(driver, conf["database"], planned)
-            if differences:
-                raise ProjectError("neo4j: the loaded graph differs from the build:\n  - " + "\n  - ".join(differences[:20]))
-            print("neo4j: verified: the loaded graph matches the build")
-    finally:
-        driver.close()
+    """The build stage: through the connector (connectors/neo4j.py), like every store."""
+    from ..connectors import get as _connector
+    _connector("neo4j").stage(project)

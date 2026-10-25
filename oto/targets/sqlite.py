@@ -62,39 +62,33 @@ CREATE TABLE questions (id TEXT, spec TEXT);           -- the competency questio
 """
 
 
-def run(project):
+def plan(project):
+    """Everything one build writes to the store, as rows: what the connector publishes."""
     _layout = project.layout
     SEM = _layout.graph
-    identity = project.identity()
-    DB = _layout.database
-    os.makedirs(os.path.dirname(DB), exist_ok=True)
-
     graph = json.load(open(os.path.join(SEM, "knowledge-graph.json"), encoding="utf-8"))
-    nodes = graph["nodes"]
-    edges = graph["edges"]
     from . import rows as _rows
     from ..model import vocabulary as _vocab
     language = _vocab.DEFAULT_LANGUAGE
     if os.path.exists(project.ontology_config_path):
         language = _vocab.languages(json.load(open(project.ontology_config_path, encoding="utf-8")))[0]
+    derived_path = os.path.join(SEM, "derived.json")
+    derived = json.load(open(derived_path, encoding="utf-8")) if os.path.exists(derived_path) else {}
+    return {"connector": "sqlite", "project": project.identity()["slug"], "build_seq": project.build_seq(),
+            "language": language, "nodes": list(graph["nodes"]), "edges": list(graph["edges"]), "derived": derived,
+            "passages": _rows.passages(_layout), "lexicon": _rows.lexicon_rows(project), "terms": _rows.term_rows(project),
+            "questions": _rows.question_rows(project), "changelog": _rows.changelog_rows(project)}
 
-    # degree
+
+def write(con, planned):
+    """The plan's rows into an open connection whose schema exists. Returns the counts."""
+    from . import rows as _rows
+    cur = con.cursor()
+    nodes, edges, language = planned["nodes"], planned["edges"], planned.get("language") or "en"
     degree = {}
     for e in edges:
         degree[e["from"]] = degree.get(e["from"], 0) + 1
         degree[e["to"]] = degree.get(e["to"], 0) + 1
-
-    # Build into a temp file, then atomically swap — so a locked or in-use database (e.g. the warm
-    # MCP server holding it open on Windows) never leaves us with a half-written or deleted store.
-    TMP = DB + ".new"
-    if os.path.exists(TMP):
-        os.remove(TMP)
-    con = sqlite3.connect(TMP)
-    con.execute("PRAGMA journal_mode=DELETE")  # self-contained file (no -wal/-shm) for immutable reads
-    cur = con.cursor()
-
-    cur.executescript(SCHEMA_SQL)
-
     for n in nodes:
         cur.execute(
             "INSERT INTO nodes VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -113,79 +107,49 @@ def run(project):
         cur.execute("INSERT INTO node_fts VALUES (?,?,?,?,?)",
                     (n["id"], n.get("label", ""), " ".join(name for name, _kind, _lang in names),
                      n.get("summary", "") or "", " ".join(n.get("tags") or [])))
-
     for e in edges:
         cur.execute("INSERT INTO edges VALUES (?,?,?,?,?,?)",
                     (e["from"], e["rel"], e["to"], e.get("status", "current"), None, None))
 
-    # ---- what the rules derived, marked as such, and what policy flagged ----
-    derived_path = os.path.join(SEM, "derived.json")
+    derived = planned.get("derived") or {}
     nderived = 0
-    if os.path.exists(derived_path):
-        derived = json.load(open(derived_path, encoding="utf-8"))
-        for e in derived.get("derived_edges") or []:
-            cur.execute("INSERT INTO edges VALUES (?,?,?,?,?,?)",
-                        (e["from"], e["rel"], e["to"], "derived", e["derived_by"],
-                         json.dumps(e.get("premises") or [], ensure_ascii=False)))
-            nderived += 1
-        for a in derived.get("derived_attributes") or []:
-            cur.execute("INSERT INTO derived_attributes VALUES (?,?,?,?,?)",
-                        (a["node"], a["name"], json.dumps(a["value"], ensure_ascii=False), a["derived_by"],
-                         json.dumps(a.get("premises") or [], ensure_ascii=False)))
-            nderived += 1
-        for x in derived.get("findings") or []:
-            cur.execute("INSERT INTO policy_findings VALUES (?,?,?,?)",
-                        (x["rule"], x["severity"], x.get("node"), x["message"]))
+    for e in derived.get("derived_edges") or []:
+        cur.execute("INSERT INTO edges VALUES (?,?,?,?,?,?)",
+                    (e["from"], e["rel"], e["to"], "derived", e["derived_by"],
+                     json.dumps(e.get("premises") or [], ensure_ascii=False)))
+        nderived += 1
+    for a in derived.get("derived_attributes") or []:
+        cur.execute("INSERT INTO derived_attributes VALUES (?,?,?,?,?)",
+                    (a["node"], a["name"], json.dumps(a["value"], ensure_ascii=False), a["derived_by"],
+                     json.dumps(a.get("premises") or [], ensure_ascii=False)))
+        nderived += 1
+    for x in derived.get("findings") or []:
+        cur.execute("INSERT INTO policy_findings VALUES (?,?,?,?)", (x["rule"], x["severity"], x.get("node"), x["message"]))
 
-    # ---- passage index, lexicon and the recent ledger: the same rows the Neo4j target loads ----
-    passages = _rows.passages(_layout)
-    for p in passages:
+    for p in planned.get("passages") or []:
         cur.execute("INSERT INTO docs_fts VALUES (?,?,?)", (p["path"], p["title"], p["body"]))
         cur.execute("INSERT INTO docs VALUES (?,?,?)", (p["path"], p["title"], p["body"]))
-    ndocs = len(passages)
-
-    lexicon = _rows.lexicon_rows(project)
-    for r in lexicon:
-        cur.execute("INSERT INTO lexicon VALUES (?,?,?,?,?)",
-                    (r["phrase"], r["canonical"], r["target"], r["status"], r["note"]))
-    nlex = len(lexicon)
-
-    nterms = 0
-    for r in _rows.term_rows(project):
-        cur.execute("INSERT INTO terms VALUES (?,?,?,?,?,?)",
-                    (r["name"], r["kind"], r["owner"], r["spec"], r["rationale"], r["iri"]))
-        nterms += 1
-
-    nquestions = 0
-    for r in _rows.question_rows(project):
+    for r in planned.get("lexicon") or []:
+        cur.execute("INSERT INTO lexicon VALUES (?,?,?,?,?)", (r["phrase"], r["canonical"], r["target"], r["status"], r["note"]))
+    for r in planned.get("terms") or []:
+        cur.execute("INSERT INTO terms VALUES (?,?,?,?,?,?)", (r["name"], r["kind"], r["owner"], r["spec"], r["rationale"], r["iri"]))
+    for r in planned.get("questions") or []:
         cur.execute("INSERT INTO questions VALUES (?,?)", (r["id"], r["spec"]))
-        nquestions += 1
-
-    for r in _rows.changelog_rows(project):
+    for r in planned.get("changelog") or []:
         cur.execute("INSERT INTO changelog VALUES (?,?,?,?,?,?,?,?)",
-                    (r["at"], r["by"], r["note"], r["nodes_added"], r["nodes_changed"], r["edges_added"],
-                     r["retired"], r["sources"]))
-
-    # Freshness stamp so the server can pick the fresher of two databases. Resolved from the
-    # PROJECT, not from this file: an installed engine is not inside a git repository.
-    _seq = project.build_seq()
-    cur.execute("INSERT INTO meta VALUES ('build_seq', ?)", (_seq,))
-    # What shape this database is, so a server can refuse one it cannot read. See SCHEMA_VERSION.
+                    (r["at"], r["by"], r["note"], r["nodes_added"], r["nodes_changed"], r["edges_added"], r["retired"], r["sources"]))
+    # Freshness stamp, resolved from the PROJECT: an installed engine is not inside a git repository.
+    cur.execute("DELETE FROM meta")
+    cur.execute("INSERT INTO meta VALUES ('build_seq', ?)", (planned["build_seq"],))
     cur.execute("INSERT INTO meta VALUES ('schema_version', ?)", (str(SCHEMA_VERSION),))
+    nn = cur.execute("SELECT count(*) FROM nodes").fetchone()[0]
+    ne = cur.execute("SELECT count(*) FROM edges").fetchone()[0]
+    return {"nodes": nn, "edges": ne, "derived": nderived, "passages": len(planned.get("passages") or []),
+            "lexicon": len(planned.get("lexicon") or []), "terms": len(planned.get("terms") or []),
+            "questions": len(planned.get("questions") or [])}
 
-    con.commit()
-    cur.execute("SELECT count(*) FROM nodes"); nn = cur.fetchone()[0]
-    cur.execute("SELECT count(*) FROM edges"); ne = cur.fetchone()[0]
-    con.execute("PRAGMA optimize")
-    con.close()
 
-    try:
-        os.replace(TMP, DB)  # atomic on the same volume
-    except PermissionError:
-        print(f"WARNING: '{os.path.relpath(DB, project.src)}' is locked - is the {identity['server_name']} "
-              f"server running? Fresh build left at '{os.path.relpath(TMP, project.src)}'. Stop the server "
-              f"and rename it over {identity['db_name']}, or rerun without the server. "
-              f"(CI is unaffected.)")
-        raise SystemExit(0)
-    print(f"{os.path.basename(DB)}: {nn} nodes, {ne} edges ({nderived} derived), {ndocs} passages, {nlex} lexicon rows, "
-          f"{nterms} terms, {nquestions} questions -> {os.path.relpath(DB, project.src)}")
+def run(project):
+    """The build stage: through the connector (connectors/sqlite.py), like every store."""
+    from ..connectors import get as _connector
+    _connector("sqlite").stage(project)

@@ -74,9 +74,9 @@ write, and never derives a path from its own location or carries a default vocab
 | 2 | [compile/rules.py](../oto/compile/rules.py) | `knowledge-graph.json`, `rules.json` | `derived.json`: derived edges and attributes with rule, premises and depth; policy findings. Skipped with a note when no rules are declared. |
 | 3 | [compile/ontology.py](../oto/compile/ontology.py) | `ontology.config.json`, `knowledge-graph.json` | `ontology.md`, Turtle, JSON-LD context, every term under the IRI the N-Triples use, with its labels (`skos:prefLabel`, `skos:altLabel`), definition (`skos:definition`), scope note and example, its inverse declared as a property with its own label, and the recorded reasoning as `meta:question`, `meta:rationale`, `meta:alternatives`, `meta:validatedBy` (`https://cynergis.ai/ont/meta#`); the declared shapes and the policy rules as SHACL (`sh:NodeShape`, `sh:property`, `sh:sparql`); `questions.yaml`, every competency question rendered as SPARQL over `graph.ttl` ([compile/sparql.py](../oto/compile/sparql.py)). Reports any type or relation the vocabulary does not declare. |
 | 4 | [compile/semantic.py](../oto/compile/semantic.py) | `knowledge-graph.json` | one retrieval card per node, with neighbour context inlined so a thematic search hits the right entity |
-| 5 | [targets/sqlite.py](../oto/targets/sqlite.py) | `knowledge-graph.json`, `derived.json`, the indexed directories ([targets/rows.py](../oto/targets/rows.py)), `lexicon.json`, the ledger, the vocabulary and its rationale (a `terms` table, so `kg_define` and every card answer without the project beside the store) | `<slug>.db` with FTS5 tables, built as `.db.new` and renamed into place |
+| 5 | [targets/sqlite.py](../oto/targets/sqlite.py), through [connectors/sqlite.py](../oto/connectors/sqlite.py) | `knowledge-graph.json`, `derived.json`, the indexed directories ([targets/rows.py](../oto/targets/rows.py)), `lexicon.json`, the ledger, the vocabulary and its rationale (a `terms` table, so `kg_define` and every card answer without the project beside the store) | `<slug>.db` with FTS5 tables, built as `.db.new` and renamed into place |
 | 7, when targeted | [targets/site.py](../oto/targets/site.py) | the SQLite store, a view directory | `build/site/`: `data.json`, the graph payload `/api/graph` serves (`serve/payload.py`), and the app's files copied beside it, for hosting anywhere static; `oto publish --site` carries it into the query repository |
-| 6, when configured | [targets/neo4j.py](../oto/targets/neo4j.py) | the same inputs as stage 5 | the graph in a self-hosted Neo4j: entities labelled by class with typed attributes, relations, evidence and source nodes, derived facts marked, findings, and everything serving reads besides (passages with a full-text index, lexicon rows, the ledger, the schema version); the previous load retired once the new one is in; `--verify` reads it back |
+| 6, when configured | [targets/neo4j.py](../oto/targets/neo4j.py), through [connectors/neo4j.py](../oto/connectors/neo4j.py) | the same inputs as stage 5 | the graph in a self-hosted Neo4j: entities labelled by class with typed attributes, relations, evidence and source nodes, derived facts marked, findings, and everything serving reads besides (passages with a full-text index, lexicon rows, the ledger, the schema version); the previous load retired once the new one is in; `--verify` reads it back |
 
 The stages are deterministic: the same inputs produce the same bytes, and a test asserts that a
 clean-then-build round trip reproduces the database exactly.
@@ -225,6 +225,27 @@ number; once the new facts are in, the previous load's are deleted, so a fact re
 is retired in Neo4j. `oto build --target neo4j --verify` forces the load and compares the database
 with the build. The driver is the `neo4j` extra; the base install never imports it. Cypher, the
 full-text indexes and the Graph Data Science library are then available to any other tool.
+
+## Connectors: one interface between the build and a store
+
+OTO's model is store-neutral; a connector ([connectors/](../oto/connectors/__init__.py)) translates it
+into one store, and the build stages for SQLite and Neo4j run through theirs, so nothing else of OTO
+issues a statement to a store. The interface is small: `settings` (what the project config says),
+`connect`/`close` (a session: a path, a driver), `apply_schema` (the vocabulary compiled to the store's
+constraints and indexes, `IF NOT EXISTS` throughout, so applying it again changes nothing),
+`plan` (everything one build writes, as rows), `publish` (idempotent, keyed by the stable id every IRI
+derives from), `read_back` (what differs between store and plan), `snapshot` (the store in one canonical
+shape) and `drop` (a plan without one node). Each connector carries a manifest: name, version, `modes`
+(`materialize`: OTO writes a store it owns; `overlay`: a graph over tables that exist, not shipped yet),
+`query_language`, `capabilities` (named graphs, schema constraints, transactions, vector index, full
+text), `auth`, and the conformance kit it passed.
+
+The kit ([connectors/conformance.py](../oto/connectors/conformance.py), `oto connectors check <name>`)
+is what a connector proves before it is listed: the manifest and the interface complete; the schema
+applied twice unchanged; a publish read back with no difference; the same plan published again leaving
+the store exactly as it was; the same plan published to a second store giving the same ids, which is
+what keeps a node's IRI the same from dev to prod; a node left out of the next plan retired with its
+edges. The suite runs it for SQLite on every machine and for Neo4j where one is reachable.
 
 ## The HTTP front end and the graph as data
 
@@ -697,7 +718,7 @@ SHACL and the engine to find the same violations on the same nodes, for declared
 for policies alike. The engine never reads SHACL to
 decide anything; it writes it so that a reader with standard tools checks what OTO checks.
 
-## Actions: the graph's hands, described and never invoked
+## Tools: the graph's hands, described and never invoked
 
 An action is a file under `actions/`, one per action, in the shape an MCP server describes a
 tool (label, description, input schema, annotations) plus what MCP lacks: the class it acts on

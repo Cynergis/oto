@@ -1,0 +1,2899 @@
+{
+  "_about": "What this ontology exists to answer. Each question runs over the graph in the pattern language of rules.json; `gate` says what an empty answer means; `gaps` says why it is empty; `terms` names the vocabulary the question covers. Reasoned about in `why`, confirmed in `validated_by`.",
+  "questions": {
+    "CORE1": {
+      "who": "anyone",
+      "question": "Which documents does $DOC cite, so a fact traced to it can be traced further?",
+      "why": "A citation chain is how a reader gets from an answer to the source that actually says it.",
+      "validated_by": "",
+      "params": {
+        "DOC": {
+          "type": "Document"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$DOC",
+              "cites",
+              "d"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Document"
+          }
+        ],
+        "select": [
+          "d.label",
+          "d.as_of"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "node": "$DOC",
+            "type": "Document"
+          }
+        ],
+        "say": "the document cites nothing on record"
+      }
+    },
+    "CORE2": {
+      "who": "anyone",
+      "question": "Which documents does the corpus hold, and how old is each?",
+      "why": "Every fact cites a document; the list of documents is the honest extent of what the graph can know.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "d",
+            "type": "Document"
+          }
+        ],
+        "select": [
+          "d.label",
+          "d.as_of"
+        ]
+      },
+      "gate": "non_empty"
+    },
+    "CORE3": {
+      "who": "an operator",
+      "question": "Which tools are declared, on what do they act, and who is accountable for invoking them?",
+      "why": "OTO never invokes; a reader must be able to see what can be done, on what, and who answers for it.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "a",
+            "type": "Tool"
+          },
+          {
+            "edge": [
+              "a",
+              "acts_on",
+              "x"
+            ]
+          },
+          {
+            "edge": [
+              "a",
+              "executed_by",
+              "t"
+            ]
+          }
+        ],
+        "select": [
+          "a.label",
+          "x.label",
+          "t.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "PF1": {
+      "who": "an executive",
+      "question": "Which products do we build: in which domain and value stream, at what stage, owned by which role or team?",
+      "why": "The portfolio in one answer: what exists and where it stands.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "p",
+            "type": "Product"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "p",
+                  "owned_by",
+                  "o"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "p.label",
+          "p.domain",
+          "p.value_stream",
+          "p.stage",
+          "o.label",
+          "o.type"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": [
+        {
+          "when": [
+            {
+              "node": "p",
+              "type": "Product"
+            },
+            {
+              "not_edge": [
+                "p",
+                "owned_by",
+                "*"
+              ]
+            }
+          ],
+          "say": "a product nobody owns"
+        }
+      ]
+    },
+    "PF2": {
+      "who": "an executive",
+      "question": "Which objectives do we pursue this period, which products pursue each, and how is each measured?",
+      "why": "Strategy is objectives with products behind them; an objective no product pursues is a wish.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "ob",
+            "type": "Objective"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "p",
+                  "pursues",
+                  "ob"
+                ]
+              },
+              {
+                "node": "p",
+                "type": "Product"
+              }
+            ]
+          }
+        ],
+        "select": [
+          "ob.label",
+          "ob.period",
+          "ob.state",
+          "p.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": [
+        {
+          "when": [
+            {
+              "node": "ob",
+              "type": "Objective"
+            },
+            {
+              "not_edge": [
+                "*",
+                "pursues",
+                "ob"
+              ]
+            }
+          ],
+          "say": "an objective no product pursues"
+        }
+      ]
+    },
+    "PF3": {
+      "who": "an executive",
+      "question": "Which products depend on which, upstream or downstream, and for what?",
+      "why": "A late upstream product is a risk to every downstream one.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "p",
+              "depends_on",
+              "up"
+            ]
+          },
+          {
+            "node": "p",
+            "type": "Product"
+          },
+          {
+            "node": "up",
+            "type": "Product"
+          }
+        ],
+        "select": [
+          "p.label",
+          "up.label",
+          "up.stage"
+        ]
+      },
+      "gate": "any"
+    },
+    "PF4": {
+      "who": "an executive",
+      "question": "Which capabilities does the portfolio need, which product provides each, and which has no product?",
+      "why": "The gap between needed and provided is the portfolio's finding; nobody fills it by guessing.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "c",
+            "type": "Capability"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "p",
+                  "provides",
+                  "c"
+                ]
+              },
+              {
+                "node": "p",
+                "type": "Product"
+              }
+            ]
+          }
+        ],
+        "select": [
+          "c.label",
+          "c.state",
+          "p.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": [
+        {
+          "when": [
+            {
+              "node": "c",
+              "type": "Capability",
+              "where": {
+                "state": "needed"
+              }
+            },
+            {
+              "not_edge": [
+                "*",
+                "provides",
+                "c"
+              ]
+            }
+          ],
+          "say": "a needed capability no product provides"
+        }
+      ]
+    },
+    "PF5": {
+      "who": "an executive",
+      "question": "What has no owner: which products, capabilities and objectives name no role or team?",
+      "why": "An unowned thing is nobody's problem until it is everybody's.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "x",
+            "type": "Product|Capability|Objective"
+          },
+          {
+            "not_edge": [
+              "x",
+              "owned_by",
+              "*"
+            ]
+          }
+        ],
+        "select": [
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "empty"
+    },
+    "PF6": {
+      "who": "an executive",
+      "question": "Which teams exist, what does each own, with what mandate, and how is it reached?",
+      "why": "Who to call, by team, before anything is on fire.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "t",
+            "type": "Team"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "x",
+                  "owned_by",
+                  "t"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "t.label",
+          "t.mandate",
+          "t.contact",
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "non_empty"
+    },
+    "PF7": {
+      "who": "a reader",
+      "question": "Where is the knowledge of $PRODUCT: its query store, its site, and the packs it is specified, designed and run with?",
+      "why": "The lineage between levels: a reader follows the portfolio to the product's store and the packs that explain it.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "params": {
+        "PRODUCT": {
+          "type": "Product"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "node": "$PRODUCT",
+            "type": "Product"
+          }
+        ],
+        "select": [
+          "$PRODUCT.store_url",
+          "$PRODUCT.site_url",
+          "$PRODUCT.packs"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "node": "$PRODUCT",
+            "type": "Product",
+            "where": {
+              "store_url": {
+                "exists": false
+              }
+            }
+          }
+        ],
+        "say": "the product has no published store on record"
+      }
+    },
+    "PF8": {
+      "who": "an executive",
+      "question": "Which products are live, which are being built, and which are retired?",
+      "why": "The portfolio by stage.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "p",
+            "type": "Product",
+            "where": {
+              "stage": {
+                "in": [
+                  "live",
+                  "building",
+                  "retired"
+                ]
+              }
+            }
+          }
+        ],
+        "select": [
+          "p.label",
+          "p.stage"
+        ]
+      },
+      "gate": "any"
+    },
+    "PF9": {
+      "who": "anyone",
+      "question": "Which team does role $ROLE sit in, and who holds it?",
+      "why": "A role's team is who to page when the holder is away.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "params": {
+        "ROLE": {
+          "type": "Role"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "node": "$ROLE",
+            "type": "Role"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$ROLE",
+                  "member_of",
+                  "t"
+                ]
+              },
+              {
+                "node": "t",
+                "type": "Team"
+              }
+            ]
+          }
+        ],
+        "select": [
+          "$ROLE.holder",
+          "$ROLE.mandate",
+          "$ROLE.kind",
+          "t.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "PF10": {
+      "who": "an executive",
+      "question": "Which lower objectives support $OBJECTIVE?",
+      "why": "Strategic alignment: the tree under one objective.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "params": {
+        "OBJECTIVE": {
+          "type": "Objective"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "low",
+              "supports",
+              "$OBJECTIVE"
+            ]
+          },
+          {
+            "node": "low",
+            "type": "Objective"
+          }
+        ],
+        "select": [
+          "low.label",
+          "low.period",
+          "low.state"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR1": {
+      "who": "anyone",
+      "question": "What is $PRODUCT and why does it exist: its problem, vision, stage, domain and value stream, and the promises it offers?",
+      "why": "The product is the root every other fact hangs off; a reader must get its reason for being in one answer.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "PRODUCT": {
+          "type": "Product"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$PRODUCT",
+              "offers",
+              "vp"
+            ]
+          },
+          {
+            "node": "vp",
+            "type": "ValueProposition"
+          }
+        ],
+        "select": [
+          "$PRODUCT.problem",
+          "$PRODUCT.vision",
+          "$PRODUCT.stage",
+          "$PRODUCT.domain",
+          "$PRODUCT.value_stream",
+          "$PRODUCT.background",
+          "vp.label",
+          "vp.promise",
+          "vp.differentiator"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$PRODUCT",
+              "offers",
+              "*"
+            ]
+          }
+        ],
+        "say": "the product offers no value proposition: nobody has said why it exists"
+      }
+    },
+    "PR2": {
+      "who": "anyone",
+      "question": "Who owns $THING: which role, held by whom, with what mandate?",
+      "why": "Ownership sits on a role, not a person, so it survives staff changes; a thing with no owner drifts.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "THING": {
+          "type": "Product|Objective|Feature|SuccessCriterion|Risk|Requirement|Release"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$THING",
+              "owned_by",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Role"
+          }
+        ],
+        "select": [
+          "r.label",
+          "r.kind",
+          "r.holder",
+          "r.mandate"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$THING",
+              "owned_by",
+              "*"
+            ]
+          }
+        ],
+        "say": "no role owns it"
+      }
+    },
+    "PR3": {
+      "who": "a product owner",
+      "question": "Who is $PRODUCT for, and who is it explicitly not for: which personas, with what need, wanting which promise?",
+      "why": "Journeys, requirements and value propositions all hang off a persona; an unnamed audience is a product for nobody.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "PRODUCT": {
+          "type": "Product"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$PRODUCT",
+              "offers",
+              "vp"
+            ]
+          },
+          {
+            "edge": [
+              "vp",
+              "intended_for",
+              "p"
+            ]
+          },
+          {
+            "node": "p",
+            "type": "Persona"
+          }
+        ],
+        "select": [
+          "p.label",
+          "p.relationship",
+          "p.need",
+          "vp.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$PRODUCT",
+              "offers",
+              "*"
+            ]
+          }
+        ],
+        "say": "no persona is recorded for the product"
+      }
+    },
+    "PR4": {
+      "who": "a builder",
+      "question": "Which requirements serve which value proposition or objective, and what kind and priority is each?",
+      "why": "A requirement that serves no purpose is scope creep; the link is what lets a builder say why.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "r",
+              "serves",
+              "x"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Requirement"
+          },
+          {
+            "node": "x",
+            "type": "ValueProposition|Objective"
+          }
+        ],
+        "select": [
+          "r.label",
+          "r.kind",
+          "r.priority",
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "non_empty"
+    },
+    "PR5": {
+      "who": "a sponsor",
+      "question": "How do we know $GOAL succeeded: which criteria measure it, with what metric, target and due date?",
+      "why": "Success must be measurable before the work starts, or it is declared afterwards by whoever shouts loudest.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "GOAL": {
+          "type": "Objective|ValueProposition"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "c",
+              "measures",
+              "$GOAL"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "SuccessCriterion"
+          }
+        ],
+        "select": [
+          "c.label",
+          "c.metric",
+          "c.target",
+          "c.due_on"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "measures",
+              "$GOAL"
+            ]
+          }
+        ],
+        "say": "nothing measures it: success cannot be told from failure"
+      }
+    },
+    "PR6": {
+      "who": "a builder",
+      "question": "What is in scope for release $RELEASE, and what is the release's date, state and horizon?",
+      "why": "Scope is dated, so what was in the next release as of a past date stays readable.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "RELEASE": {
+          "type": "Release"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "x",
+              "in_scope_of",
+              "$RELEASE"
+            ]
+          },
+          {
+            "node": "x",
+            "type": "Requirement|Feature"
+          }
+        ],
+        "select": [
+          "x.label",
+          "x.type",
+          "$RELEASE.target_date",
+          "$RELEASE.state",
+          "$RELEASE.horizon"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "in_scope_of",
+              "$RELEASE"
+            ]
+          }
+        ],
+        "say": "nothing is in scope yet"
+      }
+    },
+    "PR7": {
+      "who": "a builder",
+      "question": "What was explicitly excluded from release $RELEASE?",
+      "why": "An exclusion is recorded, not silently absent, so a builder does not build it and a reader does not expect it.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "RELEASE": {
+          "type": "Release"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "x",
+              "excluded_from",
+              "$RELEASE"
+            ]
+          },
+          {
+            "node": "x",
+            "type": "Requirement|Feature"
+          }
+        ],
+        "select": [
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR8": {
+      "who": "anyone",
+      "question": "What is $PRODUCT made of: which features, realising which requirements?",
+      "why": "Features nest through part_of, so an epic and a sub-feature are the same class; the map is read from the product down.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "PRODUCT": {
+          "type": "Product"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "f",
+              "part_of",
+              "$PRODUCT"
+            ]
+          },
+          {
+            "node": "f",
+            "type": "Feature"
+          },
+          {
+            "edge": [
+              "f",
+              "realises",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Requirement"
+          }
+        ],
+        "select": [
+          "f.label",
+          "r.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "part_of",
+              "$PRODUCT"
+            ]
+          }
+        ],
+        "say": "no feature is recorded as part of the product"
+      }
+    },
+    "PR9": {
+      "who": "a designer",
+      "question": "How does a user get value with $JOURNEY: its trigger, its steps in order with their action and outcome, and its outcome?",
+      "why": "A journey is how a persona gets value end to end; a step has its own identity so a decision or a test can point at it.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "JOURNEY": {
+          "type": "UserJourney"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "s",
+              "part_of",
+              "$JOURNEY"
+            ]
+          },
+          {
+            "node": "s",
+            "type": "JourneyStep"
+          }
+        ],
+        "select": [
+          "$JOURNEY.trigger",
+          "s.position",
+          "s.action",
+          "s.outcome",
+          "$JOURNEY.outcome"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "part_of",
+              "$JOURNEY"
+            ]
+          }
+        ],
+        "say": "the journey has no steps"
+      }
+    },
+    "PR10": {
+      "who": "a designer",
+      "question": "Which journeys exist for $PERSONA?",
+      "why": "A persona with no journey gets no value the product can show.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "PERSONA": {
+          "type": "Persona"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "j",
+              "intended_for",
+              "$PERSONA"
+            ]
+          },
+          {
+            "node": "j",
+            "type": "UserJourney"
+          }
+        ],
+        "select": [
+          "j.label",
+          "j.trigger",
+          "j.outcome"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR11": {
+      "who": "anyone",
+      "question": "What constraints is $THING built under, of what kind, imposed by whom?",
+      "why": "A constraint is imposed from outside; forgetting one is how a plan becomes impossible late.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "THING": {
+          "type": "Product|Requirement|Release|Feature"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "c",
+              "constrains",
+              "$THING"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "Constraint"
+          }
+        ],
+        "select": [
+          "c.label",
+          "c.kind",
+          "c.imposed_by"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR12": {
+      "who": "anyone",
+      "question": "What assumptions does $THING rest on, and in what state is each: unverified, validated or invalidated?",
+      "why": "An invalidated assumption means what rests on it must be revisited; the link is what finds it.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "THING": {
+          "type": "Decision|Requirement|Release"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$THING",
+              "relies_on",
+              "a"
+            ]
+          },
+          {
+            "node": "a",
+            "type": "Assumption"
+          }
+        ],
+        "select": [
+          "a.label",
+          "a.state",
+          "a.checked_on"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR13": {
+      "who": "a sponsor",
+      "question": "What are the risks and external dependencies: which risk threatens what, of what kind, in what state, mitigated by what?",
+      "why": "The risk register must be readable from the graph alone.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "r",
+              "threatens",
+              "x"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Risk"
+          },
+          {
+            "edge": [
+              "r",
+              "mitigated_by",
+              "m"
+            ]
+          }
+        ],
+        "select": [
+          "r.label",
+          "r.kind",
+          "r.state",
+          "x.label",
+          "x.type",
+          "m.label",
+          "m.type"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR14": {
+      "who": "a sponsor",
+      "question": "Which open risks have nothing mitigating them?",
+      "why": "An open risk with no mitigation is a decision nobody has made yet.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "ask": {
+        "when": [
+          {
+            "node": "r",
+            "type": "Risk",
+            "where": {
+              "state": "open"
+            }
+          },
+          {
+            "not_edge": [
+              "r",
+              "mitigated_by",
+              "*"
+            ]
+          }
+        ],
+        "select": [
+          "r.label",
+          "r.kind"
+        ]
+      },
+      "gate": "empty"
+    },
+    "PR15": {
+      "who": "anyone",
+      "question": "What did we decide about $THING, when, why, and whose call was it?",
+      "why": "A decision settles what it is about, so nobody reopens it by accident; without the record it is reopened every month.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "THING": {
+          "type": "Product|ValueProposition|Objective|SuccessCriterion|Requirement|Release|Feature|UserJourney|JourneyStep|Scenario|Constraint|Policy|Risk|Persona"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "d",
+              "about",
+              "$THING"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Decision"
+          },
+          {
+            "edge": [
+              "d",
+              "decided_by",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Role"
+          }
+        ],
+        "select": [
+          "d.label",
+          "d.decided_on",
+          "d.rationale",
+          "r.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "about",
+              "$THING"
+            ]
+          }
+        ],
+        "say": "nothing has been decided about it"
+      }
+    },
+    "PR16": {
+      "who": "anyone",
+      "question": "What is still open: which questions are unresolved, since when, and what are they about?",
+      "why": "An open question is work somebody owes; the list must be readable without a search.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "ask": {
+        "when": [
+          {
+            "node": "qn",
+            "type": "OpenQuestion",
+            "where": {
+              "state": "open"
+            }
+          },
+          {
+            "edge": [
+              "qn",
+              "about",
+              "x"
+            ]
+          }
+        ],
+        "select": [
+          "qn.label",
+          "qn.raised_on",
+          "x.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR17": {
+      "who": "anyone",
+      "question": "Which decision resolved $QUESTION?",
+      "why": "A question is closed by a decision, or dropped; never by silence.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "QUESTION": {
+          "type": "OpenQuestion"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "d",
+              "resolves",
+              "$QUESTION"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Decision"
+          }
+        ],
+        "select": [
+          "d.label",
+          "d.decided_on"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "node": "$QUESTION",
+            "type": "OpenQuestion",
+            "where": {
+              "state": "resolved"
+            }
+          }
+        ],
+        "say": "marked resolved with no decision on record"
+      }
+    },
+    "PR18": {
+      "who": "a release manager",
+      "question": "Which open questions block a release that has shipped?",
+      "why": "A release should not ship with an unresolved question blocking it; one that did was shipped by accident.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "ask": {
+        "when": [
+          {
+            "node": "qn",
+            "type": "OpenQuestion",
+            "where": {
+              "state": "open"
+            }
+          },
+          {
+            "edge": [
+              "qn",
+              "blocks",
+              "rel"
+            ]
+          },
+          {
+            "node": "rel",
+            "type": "Release",
+            "where": {
+              "state": "shipped"
+            }
+          }
+        ],
+        "select": [
+          "qn.label",
+          "rel.label"
+        ]
+      },
+      "gate": "empty"
+    },
+    "PR19": {
+      "who": "anyone",
+      "question": "Which document says so: where is $THING written down, in what kind of document, dated when?",
+      "why": "Every answer must lead to a document a reader can open and judge for currency.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "THING": {
+          "type": "Product|Role|Persona|ValueProposition|Objective|SuccessCriterion|Requirement|Release|Feature|UserJourney|JourneyStep|Scenario|Constraint|Policy|Assumption|Risk|Decision|OpenQuestion|Term"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$THING",
+              "documented_in",
+              "d"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Document"
+          }
+        ],
+        "select": [
+          "d.label",
+          "d.kind",
+          "d.as_of"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$THING",
+              "documented_in",
+              "*"
+            ]
+          }
+        ],
+        "say": "no document is recorded for it"
+      }
+    },
+    "PR20": {
+      "who": "a sponsor",
+      "question": "What are we trying to achieve: which objectives does $PRODUCT pursue, for what period, in what state?",
+      "why": "Objectives are where a product sits in the strategy; without them every feature is equally urgent.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "PRODUCT": {
+          "type": "Product"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$PRODUCT",
+              "pursues",
+              "o"
+            ]
+          },
+          {
+            "node": "o",
+            "type": "Objective"
+          }
+        ],
+        "select": [
+          "o.label",
+          "o.period",
+          "o.state"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$PRODUCT",
+              "pursues",
+              "*"
+            ]
+          }
+        ],
+        "say": "the product pursues no recorded objective"
+      }
+    },
+    "PR21": {
+      "who": "a sponsor",
+      "question": "Which lower objectives support $OBJECTIVE?",
+      "why": "Strategy is the tree of objectives supporting objectives.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "OBJECTIVE": {
+          "type": "Objective"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "lower",
+              "supports",
+              "$OBJECTIVE"
+            ]
+          },
+          {
+            "node": "lower",
+            "type": "Objective"
+          }
+        ],
+        "select": [
+          "lower.label",
+          "lower.state"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR22": {
+      "who": "anyone",
+      "question": "Which roles must be consulted or informed about $THING?",
+      "why": "A stakeholder left out of a decision relitigates it.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "THING": {
+          "type": "Objective|Requirement|Release|Feature|Decision"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "r",
+              "interested_in",
+              "$THING"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Role"
+          }
+        ],
+        "select": [
+          "r.label",
+          "r.kind"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR23": {
+      "who": "a builder",
+      "question": "What exactly must $THING do in each situation: which scenarios exercise it, given what, when what, then what?",
+      "why": "A scenario is what a test verifies and what a builder implements; a requirement without one is a wish.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "THING": {
+          "type": "Requirement|JourneyStep"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "s",
+              "exercises",
+              "$THING"
+            ]
+          },
+          {
+            "node": "s",
+            "type": "Scenario"
+          }
+        ],
+        "select": [
+          "s.label",
+          "s.kind",
+          "s.given",
+          "s.when",
+          "s.then"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "exercises",
+              "$THING"
+            ]
+          }
+        ],
+        "say": "no scenario exercises it: nothing says how to test it"
+      }
+    },
+    "PR24": {
+      "who": "compliance",
+      "question": "Which rules must $THING obey: which policies apply, of what kind, under whose authority, enforced by which role?",
+      "why": "The governance edge: from here, a policy is enforced and a breach is attributable.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "THING": {
+          "type": "Product|Requirement|Release|Feature|Decision"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "p",
+              "applies_to",
+              "$THING"
+            ]
+          },
+          {
+            "node": "p",
+            "type": "Policy"
+          },
+          {
+            "edge": [
+              "p",
+              "enforced_by",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Role"
+          }
+        ],
+        "select": [
+          "p.label",
+          "p.kind",
+          "p.authority",
+          "r.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "PR25": {
+      "who": "anyone",
+      "question": "What does $TERM mean here, and what does it name?",
+      "why": "A word with a definition, cited and dated, so a changed meaning is a supersession and not a surprise.",
+      "validated_by": "Chiheb Dkhil, 2026-10-06 (the Gate 1 list this question runs)",
+      "params": {
+        "TERM": {
+          "type": "Term"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$TERM",
+              "defines",
+              "x"
+            ]
+          }
+        ],
+        "select": [
+          "$TERM.definition",
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$TERM",
+              "defines",
+              "*"
+            ]
+          }
+        ],
+        "say": "the term names no entity; it is a definition only"
+      }
+    },
+    "SA1": {
+      "who": "an on-call engineer",
+      "question": "Which components make up $SYSTEM, and where does each run?",
+      "why": "An incident starts from a system; the responder needs its parts and their environments in front of them.",
+      "validated_by": "",
+      "params": {
+        "SYSTEM": {
+          "type": "System"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "c",
+              "part_of",
+              "$SYSTEM"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "Component"
+          },
+          {
+            "edge": [
+              "c",
+              "runs_in",
+              "e"
+            ]
+          },
+          {
+            "node": "e",
+            "type": "Environment"
+          }
+        ],
+        "select": [
+          "c.label",
+          "e.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "part_of",
+              "$SYSTEM"
+            ]
+          }
+        ],
+        "say": "no component is recorded as part of the system"
+      }
+    },
+    "SA2": {
+      "who": "anyone",
+      "question": "Who owns $ASSET: which team do I call?",
+      "why": "Ownership is the first question in every incident and every change; an asset nobody owns is nobody's problem.",
+      "validated_by": "",
+      "params": {
+        "ASSET": {
+          "type": "Asset"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ASSET",
+              "owned_by",
+              "t"
+            ]
+          },
+          {
+            "node": "t",
+            "type": "Team"
+          }
+        ],
+        "select": [
+          "t.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$ASSET",
+              "owned_by",
+              "*"
+            ]
+          }
+        ],
+        "say": "no team is recorded as owning it; the system it is part of may be"
+      }
+    },
+    "SA3": {
+      "who": "an architect",
+      "question": "Which interfaces does $COMPONENT expose or consume, and at what URL? If one changes, who breaks?",
+      "why": "Coupling lives in interfaces; the blast radius of a change is read from exposes and consumes.",
+      "validated_by": "",
+      "params": {
+        "COMPONENT": {
+          "type": "Component"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$COMPONENT",
+              "exposes|consumes",
+              "i"
+            ]
+          },
+          {
+            "node": "i",
+            "type": "Interface"
+          }
+        ],
+        "select": [
+          "i.label",
+          "i.url"
+        ]
+      },
+      "gate": "any"
+    },
+    "SA4": {
+      "who": "a data owner",
+      "question": "Which components write to $STORE?",
+      "why": "A store with an unknown writer cannot be migrated or retired; two writers to one store is a design smell worth seeing.",
+      "validated_by": "",
+      "params": {
+        "STORE": {
+          "type": "DataStore"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "c",
+              "writes_to",
+              "$STORE"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "Component"
+          }
+        ],
+        "select": [
+          "c.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "writes_to",
+              "$STORE"
+            ]
+          }
+        ],
+        "say": "nothing is recorded as writing to it: the writer is unknown"
+      }
+    },
+    "SA5": {
+      "who": "a data owner",
+      "question": "Which components read from $STORE?",
+      "why": "Readers are who breaks when the schema changes.",
+      "validated_by": "",
+      "params": {
+        "STORE": {
+          "type": "DataStore"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "c",
+              "reads_from",
+              "$STORE"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "Component"
+          }
+        ],
+        "select": [
+          "c.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "SA6": {
+      "who": "an on-call engineer",
+      "question": "Which components run nowhere on record?",
+      "why": "A component with no environment cannot be found at three in the morning.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "c",
+            "type": "Component"
+          },
+          {
+            "not_edge": [
+              "c",
+              "runs_in",
+              "*"
+            ]
+          }
+        ],
+        "select": [
+          "c.label"
+        ]
+      },
+      "gate": "empty"
+    },
+    "SA7": {
+      "who": "the business",
+      "question": "Which capabilities does $SYSTEM enable: what does the business lose if it is down?",
+      "why": "The only question a non-engineer asks of the estate; the capability is the business's name for what the system is for.",
+      "validated_by": "",
+      "params": {
+        "SYSTEM": {
+          "type": "System"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$SYSTEM",
+              "enables",
+              "c"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "Capability"
+          }
+        ],
+        "select": [
+          "c.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$SYSTEM",
+              "enables",
+              "*"
+            ]
+          }
+        ],
+        "say": "no capability is recorded for the system"
+      }
+    },
+    "SA8": {
+      "who": "compliance",
+      "question": "Which requirements does $ASSET satisfy?",
+      "why": "A stated need must be traceable to the thing that meets it, or nobody can say whether it is met.",
+      "validated_by": "",
+      "params": {
+        "ASSET": {
+          "type": "Asset"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ASSET",
+              "satisfies",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Requirement"
+          }
+        ],
+        "select": [
+          "r.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "SA9": {
+      "who": "anyone",
+      "question": "Why is $ASSET the way it is: which recorded decision shaped it?",
+      "why": "A decision nobody can find is re-litigated; the record is what stops that. The decision is the product's: one record of why.",
+      "validated_by": "",
+      "params": {
+        "ASSET": {
+          "type": "Asset"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "d",
+              "about",
+              "$ASSET"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Decision"
+          }
+        ],
+        "select": [
+          "d.label",
+          "d.rationale",
+          "d.decided_on"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "about",
+              "$ASSET"
+            ]
+          }
+        ],
+        "say": "no decision is recorded about it"
+      }
+    },
+    "SA10": {
+      "who": "a risk owner",
+      "question": "What is fragile: which risks threaten which assets, and what mitigates each?",
+      "why": "The risk register must be readable from the graph alone, with the mitigation beside each risk. The risk is the product's, widened to the estate.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "r",
+              "threatens",
+              "a"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Risk"
+          },
+          {
+            "node": "a",
+            "type": "Asset"
+          },
+          {
+            "edge": [
+              "r",
+              "mitigated_by",
+              "m"
+            ]
+          }
+        ],
+        "select": [
+          "r.label",
+          "a.label",
+          "a.type",
+          "m.label",
+          "m.type"
+        ]
+      },
+      "gate": "non_empty"
+    },
+    "SA11": {
+      "who": "a risk owner",
+      "question": "Which risks have nothing mitigating them?",
+      "why": "An unmitigated risk is a decision somebody has not yet made; it must be visible until it is.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "r",
+            "type": "Risk"
+          },
+          {
+            "not_edge": [
+              "r",
+              "mitigated_by",
+              "*"
+            ]
+          }
+        ],
+        "select": [
+          "r.label"
+        ]
+      },
+      "gate": "empty"
+    },
+    "SA12": {
+      "who": "an on-call engineer",
+      "question": "How do I operate or recover $ASSET: which runbook?",
+      "why": "The runbook is the answer at three in the morning; the graph must hand it over without a search.",
+      "validated_by": "",
+      "params": {
+        "ASSET": {
+          "type": "Asset"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ASSET",
+              "operated_by",
+              "rb"
+            ]
+          },
+          {
+            "node": "rb",
+            "type": "Runbook"
+          }
+        ],
+        "select": [
+          "rb.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$ASSET",
+              "operated_by",
+              "*"
+            ]
+          }
+        ],
+        "say": "no runbook is recorded for it"
+      }
+    },
+    "SA13": {
+      "who": "anyone",
+      "question": "Where is $ASSET written down?",
+      "why": "Every answer must lead to a document a reader can open.",
+      "validated_by": "",
+      "params": {
+        "ASSET": {
+          "type": "Asset"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ASSET",
+              "documented_in",
+              "d"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Document"
+          }
+        ],
+        "select": [
+          "d.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$ASSET",
+              "documented_in",
+              "*"
+            ]
+          }
+        ],
+        "say": "no design, review or standard is linked to it"
+      }
+    },
+    "SA14": {
+      "who": "a developer",
+      "question": "Where is the code for $COMPONENT: which repository, owned by whom, on which default branch?",
+      "why": "A tool on a component starts from its repository; the repository's identity must be data, not a guess.",
+      "validated_by": "",
+      "params": {
+        "COMPONENT": {
+          "type": "Component"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$COMPONENT",
+              "implemented_by",
+              "repo"
+            ]
+          },
+          {
+            "node": "repo",
+            "type": "Repository"
+          }
+        ],
+        "select": [
+          "repo.name",
+          "repo.owner",
+          "repo.url",
+          "repo.default_branch"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$COMPONENT",
+              "implemented_by",
+              "*"
+            ]
+          }
+        ],
+        "say": "no repository is recorded for it"
+      }
+    },
+    "SA15": {
+      "who": "an architect",
+      "question": "What replaced what: which decisions, interfaces, components or systems were superseded, and by what?",
+      "why": "A supersession is how the estate changes without losing what was true before.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "new",
+              "supersedes",
+              "old"
+            ]
+          }
+        ],
+        "select": [
+          "new.label",
+          "new.type",
+          "old.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "SA16": {
+      "who": "an architect",
+      "question": "What does $COMPONENT depend on, so a change to the provider is checked against the consumer?",
+      "why": "Dependencies are where a change propagates; the graph must say what needs what.",
+      "validated_by": "",
+      "params": {
+        "COMPONENT": {
+          "type": "Component"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$COMPONENT",
+              "depends_on",
+              "p"
+            ]
+          }
+        ],
+        "select": [
+          "p.label",
+          "p.type"
+        ]
+      },
+      "gate": "any"
+    },
+    "SA17": {
+      "who": "an architect",
+      "question": "Which requirements of the product does nothing in the design satisfy yet?",
+      "why": "The trace from specification to design, read backwards: a requirement no system, component or interface satisfies is open design work, and the build must not start from it.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "r",
+            "type": "Requirement"
+          },
+          {
+            "not_edge": [
+              "*",
+              "satisfies",
+              "r"
+            ]
+          }
+        ],
+        "select": [
+          "r.label",
+          "r.priority"
+        ]
+      },
+      "gate": "empty"
+    },
+    "WK1": {
+      "who": "a delivery lead",
+      "question": "What is planned for $MILESTONE: which items, delivering which requirements and features, assigned to whom, in what state?",
+      "why": "The plan for one date, with what each item makes true.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "params": {
+        "MILESTONE": {
+          "type": "Milestone|Release"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "w",
+              "scheduled_in",
+              "$MILESTONE"
+            ]
+          },
+          {
+            "node": "w",
+            "type": "WorkItem"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "w",
+                  "delivers",
+                  "d"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "w",
+                  "assigned_to",
+                  "t"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "w.label",
+          "w.kind",
+          "w.state",
+          "w.due",
+          "d.label",
+          "d.type",
+          "t.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "scheduled_in",
+              "$MILESTONE"
+            ]
+          }
+        ],
+        "say": "nothing is scheduled in it"
+      }
+    },
+    "WK2": {
+      "who": "a delivery lead",
+      "question": "What is $TEAM working on, and what of it is blocked, why, and waiting on whom?",
+      "why": "A team's load and its blockers, in one answer.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "params": {
+        "TEAM": {
+          "type": "Team|Role"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "w",
+              "assigned_to",
+              "$TEAM"
+            ]
+          },
+          {
+            "node": "w",
+            "type": "WorkItem",
+            "where": {
+              "state": {
+                "in": [
+                  "open",
+                  "blocked"
+                ]
+              }
+            }
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "w",
+                  "blocked_by",
+                  "b"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "blk",
+                  "transition_of",
+                  "w"
+                ]
+              },
+              {
+                "node": "blk",
+                "type": "Block"
+              },
+              {
+                "edge": [
+                  "blk",
+                  "waiting_on",
+                  "x"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "w.label",
+          "w.state",
+          "w.due",
+          "b.label",
+          "b.type",
+          "blk.reason",
+          "x.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "WK3": {
+      "who": "a delivery lead",
+      "question": "What blocks $ITEM: which items, risks, open questions or decisions, and who owns each?",
+      "why": "A blocker is a thing in the graph with an owner; the lead asks the owner, not the team.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "params": {
+        "ITEM": {
+          "type": "WorkItem"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ITEM",
+              "blocked_by",
+              "b"
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "b",
+                  "owned_by",
+                  "o"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "b",
+                  "decided_by",
+                  "o"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "b.label",
+          "b.type",
+          "o.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "WK4": {
+      "who": "a delivery lead",
+      "question": "Which requirements in scope of $RELEASE has no work item delivering?",
+      "why": "A requirement in scope that nobody is working on will not ship.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "params": {
+        "RELEASE": {
+          "type": "Release"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "r",
+              "in_scope_of",
+              "$RELEASE"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Requirement"
+          },
+          {
+            "not_edge": [
+              "*",
+              "delivers",
+              "r"
+            ]
+          }
+        ],
+        "select": [
+          "r.label",
+          "r.priority"
+        ]
+      },
+      "gate": "empty"
+    },
+    "WK5": {
+      "who": "a delivery lead",
+      "question": "Which requirements slip if $COMPONENT is late: the items that build it, the requirements it satisfies, the releases they are in scope of?",
+      "why": "The question that crosses every level: the plan, the estate, the specification, the release.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "params": {
+        "COMPONENT": {
+          "type": "Component|System|Interface"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$COMPONENT",
+              "satisfies",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Requirement"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "r",
+                  "in_scope_of",
+                  "rel"
+                ]
+              },
+              {
+                "node": "rel",
+                "type": "Release"
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "w",
+                  "delivers",
+                  "$COMPONENT"
+                ]
+              },
+              {
+                "node": "w",
+                "type": "WorkItem"
+              }
+            ]
+          }
+        ],
+        "select": [
+          "r.label",
+          "r.priority",
+          "rel.label",
+          "rel.target_date",
+          "w.label",
+          "w.state",
+          "w.due"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$COMPONENT",
+              "satisfies",
+              "*"
+            ]
+          }
+        ],
+        "say": "the component satisfies no requirement on record, so nothing slips that anyone can name"
+      }
+    },
+    "WK6": {
+      "who": "a delivery lead",
+      "question": "Which items are overdue: due date passed, not deployed?",
+      "why": "The plan's honesty check.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "w",
+            "type": "WorkItem",
+            "where": {
+              "due": {
+                "<": "$today"
+              },
+              "state": {
+                "in": [
+                  "open",
+                  "blocked"
+                ]
+              }
+            }
+          }
+        ],
+        "select": [
+          "w.label",
+          "w.state",
+          "w.due"
+        ]
+      },
+      "gate": "empty"
+    },
+    "WK7": {
+      "who": "a delivery lead",
+      "question": "Which decisions is work waiting on, and whose call are they?",
+      "why": "An open question or an untaken decision that blocks work has a deciding role; name it.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "w",
+              "blocked_by",
+              "b"
+            ]
+          },
+          {
+            "node": "b",
+            "type": "OpenQuestion|Decision"
+          },
+          {
+            "node": "w",
+            "type": "WorkItem",
+            "where": {
+              "state": {
+                "in": [
+                  "open",
+                  "blocked"
+                ]
+              }
+            }
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "b",
+                  "decided_by",
+                  "o"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "d",
+                  "resolves",
+                  "b"
+                ]
+              },
+              {
+                "edge": [
+                  "d",
+                  "decided_by",
+                  "o"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "w.label",
+          "b.label",
+          "b.type",
+          "o.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "WK8": {
+      "who": "a delivery lead",
+      "question": "Which deployed items deliver a requirement nothing in the design satisfies yet?",
+      "why": "Trace closure: deployed means the requirement is satisfied by something in the design, or the item was not what it claimed.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "w",
+            "type": "WorkItem",
+            "where": {
+              "state": "deployed"
+            }
+          },
+          {
+            "edge": [
+              "w",
+              "delivers",
+              "r"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Requirement"
+          },
+          {
+            "not_edge": [
+              "*",
+              "satisfies",
+              "r"
+            ]
+          }
+        ],
+        "select": [
+          "w.label",
+          "r.label"
+        ]
+      },
+      "gate": "empty"
+    },
+    "WK9": {
+      "who": "a delivery lead",
+      "question": "Which milestones are planned, when, owned by whom, and were they reached?",
+      "why": "The calendar of the plan.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "m",
+            "type": "Milestone"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "m",
+                  "owned_by",
+                  "o"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "m.label",
+          "m.date",
+          "m.state",
+          "o.label"
+        ]
+      },
+      "gate": "non_empty"
+    },
+    "WK10": {
+      "who": "a delivery lead",
+      "question": "Which items must be done before $ITEM, and what is their state?",
+      "why": "An item's own prerequisites: the critical path, one hop at a time.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
+      "params": {
+        "ITEM": {
+          "type": "WorkItem"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$ITEM",
+              "depends_on",
+              "before"
+            ]
+          },
+          {
+            "node": "before",
+            "type": "WorkItem"
+          }
+        ],
+        "select": [
+          "before.label",
+          "before.state",
+          "before.due",
+          "$ITEM.estimate",
+          "$ITEM.priority"
+        ]
+      },
+      "gate": "any"
+    },
+    "WK11": {
+      "who": "a delivery lead",
+      "question": "What is blocked: since when, why, and on whom?",
+      "why": "The board's first column and M6's input: every block with its reason and whom or what it waits on, so the lead asks that person, not the team. One query, as the roadmap asks.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "b",
+            "type": "Block"
+          },
+          {
+            "edge": [
+              "b",
+              "transition_of",
+              "w"
+            ]
+          },
+          {
+            "node": "w",
+            "type": "WorkItem"
+          },
+          {
+            "edge": [
+              "b",
+              "waiting_on",
+              "x"
+            ]
+          }
+        ],
+        "select": [
+          "w",
+          "w.label",
+          "b.at",
+          "b.reason",
+          "b.by",
+          "x",
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "Person",
+        "Person.email"
+      ]
+    },
+    "WK12": {
+      "who": "a delivery lead",
+      "question": "What is deployed, and where?",
+      "why": "Deployed per environment is the plan's progress: qa, preprod, prod. Prod is done.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "w",
+            "type": "WorkItem",
+            "where": {
+              "state": "deployed"
+            }
+          }
+        ],
+        "select": [
+          "w.label",
+          "w.deployed_to"
+        ]
+      },
+      "gate": "any"
+    },
+    "WK13": {
+      "who": "a delivery lead",
+      "question": "Where is $ITEM now: its state, set when, by whom, to which environment?",
+      "why": "The current transition is the item's state with its provenance; the superseded ones, read as of a date, are its history.",
+      "validated_by": "",
+      "params": {
+        "ITEM": {
+          "type": "WorkItem"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "t",
+              "transition_of",
+              "$ITEM"
+            ]
+          },
+          {
+            "node": "t",
+            "type": "Transition"
+          }
+        ],
+        "select": [
+          "t.to",
+          "t.at",
+          "t.by",
+          "t.environment",
+          "t.event"
+        ]
+      },
+      "gate": "any"
+    },
+    "CM1": {
+      "who": "anyone with a session open",
+      "question": "What waits for $PERSON: pending messages, from whom, about what, since when, due when?",
+      "why": "What a session opens with (N3): the messages addressed to this person that nobody has answered, each with its item.",
+      "validated_by": "",
+      "params": {
+        "PERSON": {
+          "type": "Person|Team|Role"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "m",
+              "sent_to",
+              "$PERSON"
+            ]
+          },
+          {
+            "node": "m",
+            "type": "Message",
+            "where": {
+              "status": "pending"
+            }
+          },
+          {
+            "edge": [
+              "m",
+              "regarding",
+              "w"
+            ]
+          },
+          {
+            "node": "w",
+            "type": "WorkItem"
+          }
+        ],
+        "select": [
+          "m",
+          "m.from",
+          "m.sent",
+          "m.due",
+          "m.body",
+          "w.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "CM2": {
+      "who": "a delivery lead",
+      "question": "What has been said about $ITEM, by whom, to whom, what was answered, and is it settled?",
+      "why": "An item's conversation beside the item: who asked whom what, and whether it was resolved.",
+      "validated_by": "",
+      "params": {
+        "ITEM": {
+          "type": "WorkItem"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "m",
+              "regarding",
+              "$ITEM"
+            ]
+          },
+          {
+            "node": "m",
+            "type": "Message"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "m",
+                  "sent_to",
+                  "to"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "m",
+                  "sent_by",
+                  "p"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "r",
+                  "in_reply_to",
+                  "m"
+                ]
+              },
+              {
+                "node": "r",
+                "type": "Message"
+              }
+            ]
+          }
+        ],
+        "select": [
+          "m.from",
+          "to.label",
+          "m.sent",
+          "m.status",
+          "m.body",
+          "p.label",
+          "r.from",
+          "r.outcome",
+          "r.body"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "Block"
+      ]
+    },
+    "CM3": {
+      "who": "a delivery lead",
+      "question": "Which messages are overdue: due date passed, not resolved?",
+      "why": "An unanswered request past its date is where the plan is stuck.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "m",
+            "type": "Message",
+            "where": {
+              "due": {
+                "<": "$today"
+              },
+              "status": {
+                "in": [
+                  "pending",
+                  "read",
+                  "replied"
+                ]
+              }
+            }
+          },
+          {
+            "edge": [
+              "m",
+              "sent_to",
+              "to"
+            ]
+          }
+        ],
+        "select": [
+          "m.from",
+          "to.label",
+          "m.due",
+          "m.status"
+        ]
+      },
+      "gate": "empty"
+    }
+  }
+}

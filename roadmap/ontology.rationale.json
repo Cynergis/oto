@@ -1,0 +1,403 @@
+{
+  "_about": "Why each class and relation exists, and who confirmed it. `validated_by` is empty until a person who knows the domain has actually confirmed the entry. Run `oto ontology rationale` to see coverage.",
+  "classes": {
+    "Document": {
+      "alternatives": "One class per artifact kind: rejected, union ranges everywhere and a vocabulary change per new kind. A Stage class: deferred to the workflow-vocabulary interview.",
+      "question": "Which document says so, and is it still current? Which artifacts describe the product, at which stage? (C4, D3, failure F2)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Every fact cites a document, and a newer document supersedes an older one through the temporal vocabulary; kind and stage as attributes keep one class for all artifacts."
+    },
+    "Tool": {
+      "question": "What can be done about this, and how?",
+      "why": "The binding between an entity, the tool that acts on it, its inputs, its credentials by name and its preconditions is otherwise tribal knowledge in an agent's prompt; as a fact it is versioned, reviewed and shared. OTO never invokes it.",
+      "alternatives": "A list of scripts beside the project. It cannot say what each acts on, when it is ready, or what its run proved. Called Action until 2026-10; Tool is MCP's word for the same shape.",
+      "validated_by": ""
+    },
+    "Product": {
+      "alternatives": "A specific software-product class with releases and environments baked in; rejected because the user chose a generic vocabulary reused per project. Stage, domain and value stream moved to the portfolio on 2026-10-07: where a product stands is the executive's question.",
+      "question": "Why does this product exist, and what is it? (A1)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "The root the whole vocabulary hangs off. Generic on purpose: one vocabulary every project starts from, a product being whatever the project sets out to build."
+    },
+    "Role": {
+      "question": "Who owns it and who decides? (PF1, PF5, PF6)",
+      "why": "Ownership questions are answered better by a role than a person, because roles are stable while people move; one Role at every level.",
+      "alternatives": "Role plus Person: rejected, no question needs a named individual's decisions traced.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)"
+    },
+    "Team": {
+      "question": "Which teams exist, what does each own, with what mandate? (PF6)",
+      "why": "The estate and the work are owned by teams; the product by roles. Declared once here so a project composing four packs has one Team.",
+      "alternatives": "Team as a kind of Role: rejected, a function and a group of people answer different pages.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)"
+    },
+    "Objective": {
+      "question": "What are we trying to achieve this period, and which products pursue it? (PF2)",
+      "why": "The executive's objective and the product's are one thing; the product's success criteria measure it.",
+      "alternatives": "A separate company objective class: rejected, `supports` already records the alignment between levels of objective.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)"
+    },
+    "Capability": {
+      "question": "Which capabilities do we need, which product provides each, and which has no product? (PF4)",
+      "why": "What the business asks about in its own words; the gap between needed and provided is the portfolio's finding.",
+      "alternatives": "Keeping Capability in the estate only: rejected, a capability is needed before any system enables it.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)"
+    },
+    "Assumption": {
+      "alternatives": "Merged into Constraint or Risk: rejected, an assumption is a belief to check, not a limit or a threat.",
+      "question": "What assumptions is it built under, and which could invalidate the plan? (B4)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "An assumption is validated or invalidated over time and decisions rest on it, so its state change must propagate; that needs a node with history."
+    },
+    "Constraint": {
+      "alternatives": "One Concern class with a kind attribute: rejected, constraints, assumptions and risks have different lifecycles and owners.",
+      "question": "What constraints is it built under? (B4)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "A constraint is imposed from outside and limits requirements and releases; it has a source and a lifecycle distinct from an assumption or a risk."
+    },
+    "Decision": {
+      "alternatives": "Decision as a status on the thing decided: rejected, no reason and no history.",
+      "question": "What did we decide about X, when, and why? (C1, failure F1)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "A decision has a date, a reason, evidence and a role that made it; a status field has none of those, and an agent needs to see a settled decision before reopening it."
+    },
+    "Feature": {
+      "alternatives": "Epic and Story: rejected, Story is a delivery unit and ties the product model to one method. Capability: same thing, the user kept the name Feature.",
+      "question": "What is the product made of? (D4)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Builders decompose the product into user-visible capabilities, each traced to a requirement; nesting through part_of lets epics and sub-features share one class."
+    },
+    "JourneyStep": {
+      "alternatives": "Steps as an ordered list attribute: rejected, nothing can point at a step. Adding Screen: deferred to the design-vocabulary interview.",
+      "question": "How does a user get value, step by step? (D1)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "A step has identity of its own: a design decision, a requirement or a test points at one step, which a list attribute on the journey cannot support."
+    },
+    "OpenQuestion": {
+      "alternatives": "Decisions with state = open: rejected, populated differently. Hotspot class: deferred until the method runs gates on contested areas.",
+      "question": "What is still open or unresolved? (C2)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "An open question is raised before any reason or evidence exists and is later resolved by a decision; keeping it separate lets an agent list what is open before building."
+    },
+    "Persona": {
+      "alternatives": "Separate AntiPersona class: rejected, nothing points at it so it stays thin. Audience as a text attribute of Product: rejected, D1 and D2 lose their anchor.",
+      "question": "Who is it for, and who is it not for? (A2)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Journeys, requirements and value propositions need something to point at, and the excluded audience must be a dated first-class fact, not a footnote."
+    },
+    "Policy": {
+      "alternatives": "Policy as a Constraint kind: rejected, authority and scope differ. GovernanceBody class: deferred to the workflow vocabulary.",
+      "question": "Which rules must the product obey, who enforces them, and what is affected? (G6; Gate 3 review)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "A policy prescribes behaviour and has an authority and an enforcing role, which a budget or timeline constraint does not; two people would populate a shared class differently."
+    },
+    "Release": {
+      "alternatives": "Requirement.scope attribute: rejected, nothing to be in scope of, B1 and C3 unanswerable. A Scope node per release: rejected, the edges already carry it.",
+      "question": "What is in and out of scope for the next release, and what was the scope as of a past date? (B1, C3)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Scope has to be scope OF something dated; edges to a release carry validFrom and validTo, so the boundary at any past date is readable."
+    },
+    "Requirement": {
+      "alternatives": "Folding requirements into Feature: rejected, a need and the capability that satisfies it have different owners and dates.",
+      "question": "What must the product do? What is in scope for the next release? (B3, B1)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "The unit a builder agent works from and a release scopes; it carries priority and kind, traces to a value proposition, and is what decisions are about."
+    },
+    "Risk": {
+      "alternatives": "A fourth Dependency class: rejected, no question yet traverses to external systems or partners. Add it when one does.",
+      "question": "What are the risks and external dependencies? (E1)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "A risk threatens something, is mitigated by something, and can block a release; an external dependency is modelled as a risk kind because what matters is what happens if it fails."
+    },
+    "Scenario": {
+      "alternatives": "UseCase class: rejected for now, a use case is a functional Requirement with its flow. Workflow class: rejected, a workflow is a UserJourney whose persona is a role.",
+      "question": "What exactly must this do in this situation, and how do we test it? (G5; Gate 3 review)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "A scenario is the concrete path tests and acceptance run on, with its own preconditions and expected result; it must be pointable from a test and a requirement."
+    },
+    "SuccessCriterion": {
+      "alternatives": "List attribute on ValueProposition: rejected, no history, no owner, which is exactly F4. Measurement class for observed readings: deferred until a question asks for readings.",
+      "question": "How do we know the product succeeded? (B2, failure F4)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "A target that changes needs history and an owner, and a product with none must be flaggable; an attribute list gives neither."
+    },
+    "Term": {
+      "alternatives": "Lexicon only: rejected, no citable definition. Term with a Domain grouping class: rejected, only if one word means two things in two contexts of one product.",
+      "question": "What does this word mean here, who said so, and has the meaning changed? (G7; Gate 3 review)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "A definition needs a citation and a date so a changed meaning is superseded, which the search lexicon cannot hold; the lexicon is generated from terms instead."
+    },
+    "UserJourney": {
+      "alternatives": "Journey as text on Persona: rejected, nothing could reference it.",
+      "question": "How does a user get value, step by step? (D1)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Design and tests must follow the same path; the journey is the path, owned by a persona and delivering a value proposition."
+    },
+    "ValueProposition": {
+      "alternatives": "Separate Problem class: rejected, no question traverses from problem to several propositions. Attributes on Product: rejected, nothing could trace to a purpose.",
+      "question": "Why does it exist, and what is the value proposition in one sentence? Which requirement serves which purpose? (A1, A3, D2)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "It is the traceability anchor: requirements, journeys and criteria trace to it, so an orphan requirement (failure F3) becomes a rule violation instead of folklore."
+    },
+    "Asset": {
+      "alternatives": "Naming the four classes in every question and rule; rejected because a question such as \"what does the payments team own\" has to be asked four times, and a rule about ownership written four times.",
+      "question": "What do we run, and who is accountable for it?",
+      "validated_by": "",
+      "why": "Ownership, risk and environment questions are asked about anything the estate runs or stores, not about one class at a time; the parent is what lets one question or one rule cover all of them."
+    },
+    "Component": {
+      "alternatives": "Considered only having System; rejected because it cannot answer what breaks if this is redeployed.",
+      "question": "What actually gets deployed, and what does it touch?",
+      "validated_by": "",
+      "why": "Change and failure happen at the deployable unit, not at the system, so impact questions need this level."
+    },
+    "DataStore": {
+      "alternatives": "",
+      "question": "Where does this data live, and who writes it?",
+      "validated_by": "",
+      "why": "Two writers to one store is the commonest quiet cause of inconsistency, and it is only visible if the store is a node."
+    },
+    "Environment": {
+      "alternatives": "",
+      "question": "Where does this run, and is the answer the same in production?",
+      "validated_by": "",
+      "why": "Topology differs between environments, and an answer that ignores that is misleading in an incident."
+    },
+    "Interface": {
+      "alternatives": "Considered a direct component-to-component dependency; rejected because it hides what the dependency is on.",
+      "question": "If we change this, who breaks?",
+      "validated_by": "",
+      "why": "Coupling lives in the contracts others depend on, so the contract must be a node that both sides can point at."
+    },
+    "Repository": {
+      "alternatives": "A url attribute on Component. It could not be intended, checked, or acted on as a thing of its own.",
+      "question": "Where is the code?",
+      "validated_by": "",
+      "why": "A component without a repository cannot be changed, and an architecture graph that cannot say where the code lives cannot be acted on. Recorded as intended before the repository exists, it is the fact a tool realises."
+    },
+    "Runbook": {
+      "alternatives": "",
+      "question": "How do I operate or recover this at three in the morning?",
+      "validated_by": "",
+      "why": "The operating procedure is a distinct artifact with its own currency, and it is the thing an incident needs."
+    },
+    "System": {
+      "alternatives": "",
+      "question": "What is this thing, and who owns it?",
+      "validated_by": "",
+      "why": "A system is the unit people name in conversation and the unit ownership attaches to, so it has to exist even though it is coarse."
+    },
+    "WorkItem": {
+      "question": "What is planned, by whom, and what is blocked? (WK1-WK3)",
+      "why": "The unit the delivery lead plans and the one thing that links the plan to what the product specifies and the estate holds.",
+      "alternatives": "Epic, Story and Task as classes: rejected, one class with a kind answers the same questions and a story that becomes an epic is a changed attribute, not a changed class.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)"
+    },
+    "Milestone": {
+      "question": "What is planned for this milestone? (WK1)",
+      "why": "A release ships; a milestone is reached. Both schedule work, and a demo is not a release.",
+      "alternatives": "Milestone as a kind of Release: rejected, a release is the product's scope boundary and carries what shipped.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)"
+    },
+    "Transition": {
+      "question": "Where is this item now, and how did it get there? (WK12, WK13)",
+      "why": "A state written on an item is overwritten and its history lost; a state appended as a dated, attributed transition keeps every change, lets a merged pull request or a promotion set it the same way a person does, and answers what the state was on any date through the superseded chain.",
+      "alternatives": "A `state` attribute set by hand: rejected, no history and no event can set it. A `history` list on the item: rejected, a fact per change is what supersession already does.",
+      "validated_by": ""
+    },
+    "Block": {
+      "question": "What is blocked, since when, why, and on whom? (WK11)",
+      "why": "A blocked item without a reason and someone to ask is a stuck item nobody can unstick. The block carries both, and the shape refuses one without them.",
+      "alternatives": "Reason and waiting-on as attributes of the item: rejected, they belong to the blocking, not the item, and vanish when it is unblocked. A Block unrelated to Transition: rejected, blocking is a change of state.",
+      "validated_by": ""
+    },
+    "Person": {
+      "question": "Whom does a blocked item wait on, and who raised the block? (WK11)",
+      "why": "A role or a team says what, not who; a block waits on a person who can answer, and a message goes to a person. The communication pack maps a git identity to one.",
+      "alternatives": "Role only: rejected, the lead asks a person, and the roadmap's notify command needs one.",
+      "validated_by": ""
+    },
+    "Message": {
+      "question": "What waits for me, and what was said about this item? (CM1, CM2)",
+      "why": "A request about a blocked item sent in chat loses the item; sent as a fact beside it, it carries the reason and the date, can be listed when a session opens, and its answer can move the item. Status on the message, not a separate thread class: one fact per message, as everywhere else.",
+      "alternatives": "Messages outside the graph (email, chat): rejected, the item's context is lost and nothing can be queried. A Thread class: rejected for v1, `regarding` groups them.",
+      "validated_by": ""
+    }
+  },
+  "properties": {
+    "cites": {
+      "question": "Which document does this one rest on?",
+      "why": "A reviewer following a fact to its document often needs the document that one cites; the chain should be walkable in the graph.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "acts_on": {
+      "question": "Which entity did this run touch?",
+      "why": "A recorded run is evidence for the facts it asserted about one entity; the edge is how a reader gets from the entity to the run.",
+      "alternatives": "A note in the run record only. Then the entity cannot be asked what was done to it.",
+      "validated_by": ""
+    },
+    "executed_by": {
+      "question": "Who is accountable for invoking this?",
+      "why": "A tool that changes the world needs an accountable team, and a reader asking who may run it should find a team, not a person who has since moved.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "provides": {
+      "question": "Which product provides this capability?",
+      "why": "The portfolio's answer to a gap: a capability nothing provides.",
+      "alternatives": "The estate's `enables` (system to capability): kept beside it; a product provides, its systems enable.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)"
+    },
+    "depends_on": {
+      "alternatives": "",
+      "question": "If this component changes, what else must change?",
+      "validated_by": "",
+      "why": "Mostly derived by a rule from consumes and exposes; declared so a document that states a dependency outright can be recorded."
+    },
+    "member_of": {
+      "question": "Which team does this role sit in?",
+      "why": "A role's team is who to page when the holder is away.",
+      "alternatives": "",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)"
+    },
+    "about": {
+      "question": "Why is this asset the way it is?",
+      "why": "The product's Decision, widened to the estate, replaces the estate's own DecisionRecord: one record of why, whether it settles scope or a store.",
+      "alternatives": "A separate DecisionRecord with decided_by: rejected on 2026-10-07 because two decision classes in one project is two places to look.",
+      "validated_by": ""
+    },
+    "applies_to": {
+      "alternatives": "One constrains relation for both: rejected in the duplicate audit of 2026-09-27.",
+      "question": "Which rules must the product obey, and what is affected? (G6)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Split from constrains so an agent never confuses a resource limit with a prescribed behaviour that has an authority."
+    },
+    "blocks": {
+      "alternatives": "",
+      "question": "What is still open, and does it stop the release? (C2)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Turns an open question into a release-level fact a gate can check; risks reach a release through threatens, so they were removed from this relation in the duplicate audit."
+    },
+    "documented_in": {
+      "alternatives": "",
+      "question": "Which document says so? (C4)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Every class except Document is in the domain, because every fact must be citable."
+    },
+    "excluded_from": {
+      "alternatives": "",
+      "question": "What is explicitly out of scope? (B1, failure F1)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "An explicit exclusion is a fact a builder must see; silence would be read as permission."
+    },
+    "exercises": {
+      "alternatives": "",
+      "question": "How do we test this requirement? (G5)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "The edge a test-coverage question runs on: a must requirement with no scenario exercising it is untestable."
+    },
+    "in_scope_of": {
+      "alternatives": "",
+      "question": "What is in scope for the next release? (B1)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Kept separate from excluded_from so absence of an edge means unknown, not out of scope."
+    },
+    "interested_in": {
+      "alternatives": "",
+      "question": "Who must be consulted or informed, and about what? (G3)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "Lets a stakeholder role say what it cares about without a separate Stakeholder class, which decision 1 rejected."
+    },
+    "serves": {
+      "alternatives": "",
+      "question": "Which requirement or journey serves which purpose? (D2)",
+      "validated_by": "Chiheb Dkhil, 2026-09-27",
+      "why": "This is the edge the orphan-requirement policy runs on; without it F3 cannot be detected."
+    },
+    "consumes": {
+      "alternatives": "",
+      "question": "If we change this interface, who breaks?",
+      "validated_by": "",
+      "why": "This is the edge the impact question runs on, which is why interfaces are modelled at all."
+    },
+    "implemented_by": {
+      "alternatives": "",
+      "question": "Which repository holds this component's code?",
+      "validated_by": "",
+      "why": "Change impact ends in code; the edge is how a reader gets from the box to the checkout."
+    },
+    "writes_to": {
+      "alternatives": "Considered a single accesses relation; rejected because it cannot answer the question that matters.",
+      "question": "Who writes this store?",
+      "validated_by": "",
+      "why": "Kept separate from reading so more than one writer is visible as a query rather than as folklore."
+    },
+    "satisfies": {
+      "question": "Which requirement does this asset meet, and which requirement does nothing meet?",
+      "why": "The one edge from the design to the specification. With it, the gap between what the product must do and what is built is a query (SA17), not a review meeting.",
+      "alternatives": "A `realises` from Feature (the product's): kept for features; an asset satisfies a requirement directly because a component is not a feature.",
+      "validated_by": ""
+    },
+    "delivers": {
+      "question": "Which requirements slip if this component is late? (WK5)",
+      "why": "The one edge from the plan to the other levels: an item delivers a requirement, a feature, a component. Without it the plan is a list.",
+      "alternatives": "Separate relations per target class: rejected, one question walks them all.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)"
+    },
+    "blocked_by": {
+      "question": "What blocks this item, and whose call is it? (WK3, WK7)",
+      "why": "A blocker is a thing in the graph (a risk, an open question, a decision, another item), so the question answers who owns it.",
+      "alternatives": "",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)"
+    },
+    "scheduled_in": {
+      "question": "What is planned for this milestone or release? (WK1, WK4)",
+      "why": "The plan is work placed in time: without the milestone or release an item is scheduled in, no question about a date can run.",
+      "alternatives": "",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)"
+    },
+    "assigned_to": {
+      "question": "What is this team working on? (WK2)",
+      "why": "Work is done by teams; a role when one function is the point.",
+      "alternatives": "",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)"
+    },
+    "transition_of": {
+      "question": "Where is this item now? (WK13)",
+      "why": "The one edge from a change of state to the item it moves; exactly one, or the change moves nothing or two things.",
+      "alternatives": "An item id attribute on the transition: rejected, an edge is what the engine checks and walks.",
+      "validated_by": ""
+    },
+    "waiting_on": {
+      "question": "What is blocked, and on whom? (WK11)",
+      "why": "Whom to tell is the point of recording a block: a person, a team, an item, a decision, a question or a risk, each a thing in the graph that can be asked or watched.",
+      "alternatives": "Reuse blocked_by: rejected, blocked_by is a standing dependency the plan records and may hold while the item is open; waiting_on is what this block waits on and goes when the block does.",
+      "validated_by": ""
+    },
+    "sent_to": {
+      "question": "What waits for this person? (CM1)",
+      "why": "The one edge the inbox walks; a team or role as recipient when anyone of them may answer.",
+      "alternatives": "A `to` string: rejected, a recipient must be a thing in the graph to be asked for its inbox.",
+      "validated_by": ""
+    },
+    "sent_by": {
+      "question": "Who asked? (CM2)",
+      "why": "When the project knows the sender as a Person, the edge lets their messages be found; `from` keeps the name as written for the senders it does not.",
+      "alternatives": "Required: rejected for v1, identity arrives with the plugin connection.",
+      "validated_by": ""
+    },
+    "regarding": {
+      "question": "What was said about this item? (CM2)",
+      "why": "The message's subject, and the block it was sent from, so the reader opens it with the reason and the date beside it.",
+      "alternatives": "The item only: rejected, the block holds the reason and goes when it is lifted.",
+      "validated_by": ""
+    },
+    "in_reply_to": {
+      "question": "What was answered, and is it settled? (CM2)",
+      "why": "A reply is a message like the one it answers, tied to it by one edge; the answered message's status is derived from its replies, so the thread is facts and nobody edits a message.",
+      "alternatives": "A status set by hand on the original: rejected, an edited message is not a record. A Reply class: rejected, `outcome` on the reply says what it did.",
+      "validated_by": ""
+    }
+  }
+}

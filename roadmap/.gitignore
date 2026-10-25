@@ -1,0 +1,12 @@
+# build/ is generated and rebuilt by `oto build`, so it is not tracked: EXCEPT the corpus.
+# build/documents/ is what ingest extracted from inbox/. It is an input to the build and to every
+# review, so it is committed with the run that produced it, as a repository-mode project does.
+build/*
+!build/documents/
+*.db
+*.db.new
+__pycache__/
+# the undo buffer `oto curate undo` restores; the ledger is the record
+graph.previous.json
+# the engine is this repository, so a lock of its tools would only record one machine
+oto.lock.json

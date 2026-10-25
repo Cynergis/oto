@@ -156,8 +156,7 @@
     "Milestone": {
       "date": {
         "type": "date",
-        "definition": "When the milestone is reached or aimed at.",
-        "required": true
+        "definition": "When the milestone is reached or aimed at. Optional: a phase of a roadmap is ordered before it is dated."
       },
       "state": {
         "type": "enum:planned|reached|missed",

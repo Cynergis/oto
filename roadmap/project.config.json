@@ -1,0 +1,27 @@
+{
+  "_about": "Project identity. Every generated name derives from `slug`, so several knowledge bases coexist on one machine without collisions. Vocabulary lives in ontology.config.json.",
+  "slug": "oto-roadmap",
+  "name": "OTO Roadmap",
+  "namespace": "https://cynergis.ai/kg/oto-roadmap/",
+  "prefix": "oto-roadmap",
+  "db_name": "oto-roadmap.db",
+  "server_name": "oto-roadmap-kg",
+  "oto_version": "0.11.31",
+  "ontology": {
+    "name": "communication",
+    "release": 2,
+    "origin": "built-in",
+    "source": "built-in",
+    "registry": null,
+    "ref": null,
+    "commit": null,
+    "installed_at": "2026-10-25",
+    "extends": [
+      "oto-core",
+      "portfolio",
+      "product",
+      "software-architecture",
+      "work"
+    ]
+  }
+}

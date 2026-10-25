@@ -641,6 +641,29 @@
         "environment": "prod",
         "event": "github:Cynergis/oto#60"
       }
+    },
+    {
+      "source_type": "human_assertion",
+      "sources": [
+        "assertion:a-0006"
+      ],
+      "source_doc": "assertion:a-0006",
+      "as_of": "2026-10-25",
+      "valid_from": "2026-10-25",
+      "status": "current",
+      "aliases": [],
+      "tags": [],
+      "id": "transition.epic-f-1",
+      "type": "Transition",
+      "label": "Epic F: Observability vs auditability deployed",
+      "summary": "deployed on 2026-10-25, recorded by pull request Cynergis/oto#62 merged.",
+      "attributes": {
+        "to": "deployed",
+        "at": "2026-10-25",
+        "by": "pull request Cynergis/oto#62 merged",
+        "environment": "prod",
+        "event": "github:Cynergis/oto#62"
+      }
     }
   ],
   "edges": [
@@ -738,6 +761,11 @@
       "from": "transition.epic-n-1",
       "rel": "transition_of",
       "to": "workitem.epic-n"
+    },
+    {
+      "from": "transition.epic-f-1",
+      "rel": "transition_of",
+      "to": "workitem.epic-f"
     }
   ]
 }

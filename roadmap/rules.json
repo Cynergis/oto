@@ -1,5 +1,5 @@
 {
-  "_about": "Rules over the graph. `kind: derive` adds facts marked as derived, with the rule and the premises; `kind: policy` flags what a policy forbids. Declared here, reasoned about in `why`, confirmed in `validated_by`.",
+  "_about": "Rules over the graph, as the communication ontology composes them.",
   "rules": [
     {
       "id": "intended-fact-overdue",

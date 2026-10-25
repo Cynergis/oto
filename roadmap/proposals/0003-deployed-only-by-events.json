@@ -1,0 +1,64 @@
+{
+  "source_doc": "0003-deployed-only-by-events",
+  "as_of": "2026-10-25",
+  "nodes": [
+    {
+      "id": "decision.adr-0003",
+      "type": "Decision",
+      "label": "Deployed is set only by events",
+      "summary": "The deployed state is set only by an event, a merged pull request or a promotion to an environment, and `oto work set --state deployed` is refused.",
+      "attributes": {
+        "status": "accepted",
+        "decided_on": "2026-10-25",
+        "rationale": "The deployed state is set only by an event, a merged pull request or a promotion to an environment, and `oto work set --state deployed` is refused."
+      },
+      "valid_from": "2026-10-25",
+      "evidence": [
+        {
+          "doc": "0003-deployed-only-by-events",
+          "where": "Decision",
+          "quote": "The deployed state is set only by an event, a merged pull request or a promotion to an environment, and `oto work set --state deployed` is refused."
+        },
+        {
+          "doc": "0003-deployed-only-by-events",
+          "where": "frontmatter",
+          "quote": "decided_on: 2026-10-25"
+        }
+      ]
+    },
+    {
+      "id": "document.0003-deployed-only-by-events",
+      "type": "Document",
+      "label": "Deployed is set only by events",
+      "summary": "ADR ADR-0003, the record of this decision.",
+      "attributes": {
+        "kind": "adr"
+      },
+      "valid_from": "2026-10-25",
+      "evidence": [
+        {
+          "doc": "0003-deployed-only-by-events",
+          "where": "title",
+          "quote": "Deployed is set only by events"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "decision.adr-0003",
+      "rel": "documented_in",
+      "to": "document.0003-deployed-only-by-events"
+    },
+    {
+      "from": "decision.adr-0003",
+      "rel": "governs",
+      "to": "workitem.epic-m"
+    },
+    {
+      "from": "decision.adr-0003",
+      "rel": "decided_by",
+      "to": "person.chiheb-dkhil"
+    }
+  ]
+}

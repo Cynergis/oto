@@ -1,7 +1,7 @@
 {
   "_about": "Messages as facts in the graph, tied to the item they are about, so a request about a blocked item arrives with the item's context and nobody retypes it. On work: the first message is sent from a block to whom it waits on (`oto work notify`); a reply that unblocks records a transition. A relation is {domain, range, inverse, definition}.",
   "_summary": "Messages tied to the item they are about: from whom, to whom, about what, pending until resolved; what waits for a person, what was said about an item, what is overdue.",
-  "name": "OTO Roadmap",
+  "name": "Communication",
   "ontology_version": 2,
   "strict_domains": false,
   "languages": [
@@ -197,9 +197,9 @@
     },
     "decided_by": {
       "domain": "Decision",
-      "range": "Role",
-      "inverse": "decides",
-      "definition": "The role whose call it was."
+      "range": "Role|Person",
+      "inverse": "decided",
+      "definition": "Who took the decision. A role, so it survives people moving; widened to the plan: a person, when the decision is theirs and the plan names them."
     },
     "offers": {
       "domain": "Product",
@@ -327,6 +327,12 @@
       "range": "Product|Requirement|Release|Feature|Decision",
       "inverse": "governed_by",
       "definition": "What a policy prescribes behaviour for. The governance edge: from here, enforced_by says who enforces it."
+    },
+    "governs": {
+      "domain": "Decision",
+      "range": "Product|Requirement|Feature|Release|Policy|Constraint|SuccessCriterion|System|Component|Interface|DataStore|Environment|WorkItem",
+      "inverse": "governed_by",
+      "definition": "What the decision shaped. Widened to the plan: a work item done the way it was because this was decided."
     },
     "exposes": {
       "domain": "System|Component",
@@ -686,6 +692,11 @@
       "decided_on": {
         "type": "date",
         "definition": "When it was decided."
+      },
+      "status": {
+        "type": "enum:proposed|accepted",
+        "definition": "Where the decision is: proposed until accepted. A decision reversed later is superseded the engine's way, by the decision that reverses it, so the graph shows the current one and its history.",
+        "default": "accepted"
       }
     },
     "OpenQuestion": {
@@ -700,8 +711,8 @@
     },
     "Document": {
       "kind": {
-        "type": "enum:brief|prd|ux-spec|architecture|transcript|decision-log|other",
-        "definition": "What sort of artifact."
+        "type": "enum:brief|prd|ux-spec|architecture|transcript|decision-log|adr|other",
+        "definition": "What sort of artifact. An `adr` is an architecture decision record, compiled into a Decision (oto/adr.py)."
       }
     },
     "Scenario": {
@@ -957,6 +968,7 @@
         "enforced_by",
         "defines",
         "applies_to",
+        "governs",
         "problem",
         "background",
         "vision",
@@ -978,6 +990,7 @@
         "checked_on",
         "rationale",
         "decided_on",
+        "status",
         "raised_on",
         "given",
         "when",
@@ -1050,8 +1063,7 @@
         "in_reply_to",
         "from",
         "body",
-        "sent",
-        "status"
+        "sent"
       ]
     }
   }

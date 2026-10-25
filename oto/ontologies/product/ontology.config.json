@@ -2,7 +2,7 @@
   "_about": "The core of a product's specification, on the portfolio (which declares Product, Role, Team, Objective and Capability): what it must do, for whom, under what rules, why. Every product type (`product-report`, ...) and the design packs (`software-architecture`, `ddd`) extend it. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
   "_summary": "What a product must do, for whom, under what rules, why: personas, journeys, requirements, releases, constraints, assumptions, risks, decisions, open questions, objectives, policies, terms. The core every product type extends.",
   "name": "Product",
-  "ontology_version": 1,
+  "ontology_version": 2,
   "strict_domains": false,
   "languages": [
     "en"
@@ -201,6 +201,12 @@
       "range": "Product|Requirement|Release|Feature|Decision",
       "inverse": "governed_by",
       "definition": "What a policy prescribes behaviour for. The governance edge: from here, enforced_by says who enforces it."
+    },
+    "governs": {
+      "domain": "Decision",
+      "range": "Product|Requirement|Feature|Release|Policy|Constraint|SuccessCriterion",
+      "inverse": "governed_by",
+      "definition": "What the decision shaped: the thing that is the way it is because this was decided. Narrower than `about`, which is what a decision concerns: a decision about a product governs the feature it changed. The estate widens it to components and interfaces, the plan to work items."
     }
   },
   "attributes": {
@@ -338,6 +344,11 @@
       "decided_on": {
         "type": "date",
         "definition": "When it was decided."
+      },
+      "status": {
+        "type": "enum:proposed|accepted",
+        "definition": "Where the decision is: proposed until accepted. A decision reversed later is superseded the engine's way, by the decision that reverses it, so the graph shows the current one and its history.",
+        "default": "accepted"
       }
     },
     "OpenQuestion": {
@@ -352,8 +363,8 @@
     },
     "Document": {
       "kind": {
-        "type": "enum:brief|prd|ux-spec|architecture|transcript|decision-log|other",
-        "definition": "What sort of artifact."
+        "type": "enum:brief|prd|ux-spec|architecture|transcript|decision-log|adr|other",
+        "definition": "What sort of artifact. An `adr` is an architecture decision record, compiled into a Decision (oto/adr.py)."
       }
     },
     "Scenario": {

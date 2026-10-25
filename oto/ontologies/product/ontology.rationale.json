@@ -164,6 +164,12 @@
       "question": "Which requirement or journey serves which purpose? (D2)",
       "validated_by": "Chiheb Dkhil, 2026-09-27",
       "why": "This is the edge the orphan-requirement policy runs on; without it F3 cannot be detected."
+    },
+    "governs": {
+      "question": "Which decisions govern this thing? (PR26)",
+      "why": "A decision that is only `about` something does not say what it changed; `governs` points at the thing that is the way it is because of it, so a reviewer opens a feature or a column and finds the decisions that shaped it.",
+      "alternatives": "Reuse `about`: rejected, a decision about a product concerns many things and shaped few. An edge from the thing to the decision: rejected, the decision is the one that is written and cites its source.",
+      "validated_by": ""
     }
   }
 }

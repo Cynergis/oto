@@ -1,7 +1,7 @@
 {
   "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
   "name": "software-architecture",
-  "release": 11,
+  "release": 12,
   "domain": "software",
   "summary": "Software estate on a product: systems, components, interfaces, data, environments; what satisfies which requirement, who owns and operates it, what threatens it, which decision shaped it.",
   "extends": [
@@ -21,6 +21,11 @@
   ],
   "maintainer": "OTO",
   "changelog": [
+    {
+      "release": 12,
+      "at": "2026-10-26",
+      "note": "`governs` widened to the estate: a decision governs a system, component, interface, data store or environment (roadmap G3)."
+    },
     {
       "release": 11,
       "at": "2026-10-25",

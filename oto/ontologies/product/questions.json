@@ -1010,6 +1010,51 @@
         ],
         "say": "the term names no entity; it is a definition only"
       }
+    },
+    "PR26": {
+      "who": "anyone",
+      "question": "Which decisions govern $THING, since when, decided by whom, and are they current?",
+      "why": "\"Why is this the way it is?\" is answered by the decisions that shaped it; a superseded one is history, shown as of its date.",
+      "validated_by": "",
+      "params": {
+        "THING": {
+          "type": "Product|Requirement|Feature|Release|Policy|Constraint|SuccessCriterion"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "d",
+              "governs",
+              "$THING"
+            ]
+          },
+          {
+            "node": "d",
+            "type": "Decision"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "d",
+                  "decided_by",
+                  "r"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "d.label",
+          "d.status",
+          "d.decided_on",
+          "r.label",
+          "d.rationale"
+        ]
+      },
+      "gate": "any"
     }
   }
 }

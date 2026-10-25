@@ -2,7 +2,7 @@
   "_about": "How a product's solution is shaped: the systems, components, interfaces, stores and environments that satisfy its requirements, who runs them, what threatens them, and why they are the way they are. Sits on `product`: a requirement, a risk, a decision or a document is the product's, never a second copy. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
   "_summary": "Software estate on a product: systems, components, interfaces, data, environments; what satisfies which requirement, who owns and operates it, what threatens it, which decision shaped it.",
   "name": "Software architecture",
-  "ontology_version": 1,
+  "ontology_version": 2,
   "strict_domains": false,
   "languages": [
     "en"
@@ -152,6 +152,12 @@
       "range": "Repository",
       "definition": "The repository that holds this component's code.",
       "inverse": "implements"
+    },
+    "governs": {
+      "domain": "Decision",
+      "range": "Product|Requirement|Feature|Release|Policy|Constraint|SuccessCriterion|System|Component|Interface|DataStore|Environment",
+      "inverse": "governed_by",
+      "definition": "What the decision shaped: the thing that is the way it is because this was decided. Widened to the estate: a component, an interface, a data store or an environment shaped by an architecture decision."
     }
   },
   "attributes": {

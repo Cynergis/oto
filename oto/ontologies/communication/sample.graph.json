@@ -9,8 +9,7 @@
       "attributes": {
         "from": "Payments team lead",
         "body": "Ledger read replica is blocked since 2026-10-05: the replica needs a second region, and the budget for it is not decided (raised by Payments team lead). Can you decide the budget?",
-        "sent": "2026-10-06",
-        "status": "pending"
+        "sent": "2026-10-06"
       },
       "as_of": "2026-10-06",
       "valid_from": "2026-10-06",

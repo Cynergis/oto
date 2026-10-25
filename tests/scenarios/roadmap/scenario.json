@@ -1,6 +1,6 @@
 {
   "name": "OTO Roadmap",
-  "about": "The roadmap as the first work project: its fourteen epics and six phases from the roadmap document, Epic L deployed by its merged pull requests, Epic M blocked on a decision and the person who takes it, told with a message, then unblocked; the board and its questions answer at each step, the block's history stays readable, and the published copy shows the people as initials. What `oto work set` and `oto work notify` refuse is refused.",
+  "about": "The roadmap as the first work project: its fourteen epics and six phases from the roadmap document, Epic L deployed by its merged pull requests, Epic B marked deployed by a merged-PR event delivered twice, Epic M blocked on a decision and the person who takes it, told with a message that waits in their inbox, then unblocked by the resolving reply; the board and its questions answer at each step, the block's history stays readable, and the published copy shows the people as initials. What `oto work set`, `notify`, `reply` and `event` refuse is refused.",
   "requires": [],
   "sources": "sources.py",
   "steps": [
@@ -262,25 +262,53 @@
       "json": {
         "work.counts.blocked": 1,
         "work.blocked.0.waiting_on.label": "C.D.",
-        "published": true
+        "published": true,
+        "work.counts.deployed": 1
       }
     },
     {
-      "say": "the decision is taken: the reply unblocks it",
+      "say": "a session opens: the inbox, what waits for the person",
       "run": [
         "work",
-        "set",
-        "Epic M",
-        "--state",
-        "open",
+        "inbox",
+        "--as",
+        "person.chiheb"
+      ],
+      "out": [
+        "1 pending for Chiheb Dkhil",
+        "message.epic-m-1 · from Claude, in session · re Epic M: work pack (blocked since 2026-10-24) · due 2026-10-27",
+        "Supersede or aggregate: which?",
+        "oto work reply message.epic-m-1"
+      ]
+    },
+    {
+      "say": "the decision is taken in the reply, which resolves the message and lifts the block",
+      "run": [
+        "work",
+        "reply",
+        "message.epic-m-1",
+        "--resolve",
+        "--body",
+        "Supersede: each transition supersedes the one before; history is the chain.",
         "--by",
         "Chiheb Dkhil",
         "--at",
         "2026-10-25"
       ],
       "out": [
-        "Epic M: work pack: blocked -> open",
-        "transition.epic-m-1 superseded"
+        "message.epic-m-1: message.epic-m-2 resolved, by Chiheb Dkhil (2026-10-25)",
+        "Epic M: work pack: blocked -> open; transition transition.epic-m-2 appended"
+      ]
+    },
+    {
+      "run": [
+        "work",
+        "inbox",
+        "--as",
+        "person.chiheb"
+      ],
+      "out": [
+        "nothing pending for Chiheb Dkhil"
       ]
     },
     {
@@ -398,6 +426,92 @@
           "before.state": "open"
         }
       ]
+    },
+    {
+      "say": "a merged pull request deploys Epic B; the same event again appends nothing",
+      "run": [
+        "work",
+        "event",
+        "merged-pr",
+        "--repo",
+        "Cynergis/oto",
+        "--number",
+        "56",
+        "--item",
+        "Epic B",
+        "--environment",
+        "prod",
+        "--at",
+        "2026-10-25"
+      ],
+      "out": [
+        "Epic B: OTO deploy: open -> deployed to prod (github:Cynergis/oto#56, 2026-10-25)"
+      ]
+    },
+    {
+      "run": [
+        "work",
+        "event",
+        "merged-pr",
+        "--repo",
+        "Cynergis/oto",
+        "--number",
+        "56",
+        "--item",
+        "Epic B",
+        "--environment",
+        "prod",
+        "--at",
+        "2026-10-25"
+      ],
+      "out": [
+        "github:Cynergis/oto#56 already recorded as transition.epic-b-1; nothing appended"
+      ]
+    },
+    {
+      "run": [
+        "build"
+      ]
+    },
+    {
+      "run": [
+        "query",
+        "ask",
+        "WK12"
+      ],
+      "rows": [
+        {
+          "w.label": "Epic B: OTO deploy",
+          "w.deployed_to": "prod"
+        },
+        {
+          "w.label": "Epic L: selected text and tools",
+          "w.deployed_to": "prod"
+        }
+      ]
+    },
+    {
+      "run": [
+        "query",
+        "ask",
+        "CM2",
+        "ITEM=workitem.epic-m"
+      ],
+      "rows": [
+        {
+          "m.from": "Claude, in session",
+          "m.status": "resolved",
+          "r.from": "Chiheb Dkhil",
+          "r.outcome": "resolved"
+        },
+        {
+          "m.from": "Chiheb Dkhil",
+          "m.status": "pending",
+          "p.label": "Chiheb Dkhil",
+          "r.from": "—"
+        }
+      ],
+      "say": "the thread beside the item: the question, resolved, and the answer, a message in its own right"
     }
   ]
 }

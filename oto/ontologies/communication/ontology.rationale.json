@@ -26,6 +26,12 @@
       "why": "The message's subject, and the block it was sent from, so the reader opens it with the reason and the date beside it.",
       "alternatives": "The item only: rejected, the block holds the reason and goes when it is lifted.",
       "validated_by": ""
+    },
+    "in_reply_to": {
+      "question": "What was answered, and is it settled? (CM2)",
+      "why": "A reply is a message like the one it answers, tied to it by one edge; the answered message's status is derived from its replies, so the thread is facts and nobody edits a message.",
+      "alternatives": "A status set by hand on the original: rejected, an edited message is not a record. A Reply class: rejected, `outcome` on the reply says what it did.",
+      "validated_by": ""
     }
   }
 }

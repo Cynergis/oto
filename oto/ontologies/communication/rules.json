@@ -1,6 +1,92 @@
 {
-  "_about": "A message past its due date and not resolved is flagged (answers CM3).",
+  "_about": "A message's status follows its replies: resolved when one settles it, else replied (the first rule wins, so the order matters); a message that is not a reply must name a recipient; a message past its due date and not resolved is flagged (answers CM3).",
   "rules": [
+    {
+      "id": "message-is-resolved",
+      "kind": "derive",
+      "when": [
+        {
+          "node": "r",
+          "type": "Message",
+          "where": {
+            "outcome": "resolved"
+          }
+        },
+        {
+          "edge": [
+            "r",
+            "in_reply_to",
+            "m"
+          ]
+        }
+      ],
+      "then": {
+        "attribute": [
+          "m",
+          "status",
+          "resolved"
+        ]
+      },
+      "why": "What was asked is settled when a reply says so; the status is derived so nobody edits a message. Declared before the replied rule: a derived value is set once, so a message with a resolving reply among others is resolved.",
+      "validated_by": ""
+    },
+    {
+      "id": "message-is-replied",
+      "kind": "derive",
+      "when": [
+        {
+          "node": "r",
+          "type": "Message"
+        },
+        {
+          "edge": [
+            "r",
+            "in_reply_to",
+            "m"
+          ]
+        }
+      ],
+      "then": {
+        "attribute": [
+          "m",
+          "status",
+          "replied"
+        ]
+      },
+      "why": "A message with an answer is no longer pending; it stays open until a reply settles it.",
+      "validated_by": ""
+    },
+    {
+      "id": "message-names-a-recipient",
+      "kind": "policy",
+      "severity": "blocking",
+      "when": [
+        {
+          "node": "m",
+          "type": "Message"
+        },
+        {
+          "not_edge": [
+            "m",
+            "sent_to",
+            "*"
+          ]
+        },
+        {
+          "not_edge": [
+            "m",
+            "in_reply_to",
+            "*"
+          ]
+        }
+      ],
+      "then": {
+        "flag": "a message that answers nothing must say whom it is for"
+      },
+      "why": "A message nobody receives waits for nobody; a reply reaches whoever asked, so it may name no one.",
+      "validated_by": "",
+      "answers": "CM1"
+    },
     {
       "id": "message-is-overdue",
       "kind": "policy",

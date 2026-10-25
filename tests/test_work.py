@@ -321,7 +321,8 @@ def test_notify_writes_a_message_to_whom_the_block_waits_on_carrying_the_item_an
     message = next(n for n in graph["nodes"] if n["id"] == "message.t-ledger-replica-2")
     assert message["type"] == "Message" and message["source_type"] == "human_assertion"
     attributes = message["attributes"]
-    assert attributes["status"] == "pending" and attributes["sent"] == "2026-10-26" and attributes["due"] == "2026-10-30"
+    assert "status" not in attributes, "pending is the default; the status is derived from the replies"
+    assert attributes["sent"] == "2026-10-26" and attributes["due"] == "2026-10-30"
     assert attributes["from"] == "Chiheb Dkhil"
     assert "Ledger read replica" in attributes["body"] and "second region" in attributes["body"] and "since 2026-10-05" in attributes["body"]
     assert attributes["body"].endswith("Can you decide the budget this week?")
@@ -345,3 +346,115 @@ def test_notify_refuses_what_has_nobody_to_tell(comms, plan):
     assert code == 0 and "to Payments team" in out, out
     code, out = _cli("work", "notify", "workitem.t-ledger-replica", "--by", "x", "--at", "2026-10-26", "--project", plan)
     assert code == 1 and "Message" in out and "communication" in out, "a work-only vocabulary has nowhere to put a message"
+
+
+# ---- the inbox, replies, events and identity (N3, N4, a merged pull request) ----
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def test_the_inbox_lists_what_is_pending_for_a_person_with_the_item_and_the_block(comms):
+    code, out = _cli("work", "inbox", "--as", "Mina Okafor", "--project", comms)
+    assert code == 0, out
+    assert "1 pending for Mina Okafor" in out and "message.t-ledger-replica-1" in out and "Ledger read replica" in out
+    assert "blocked since 2026-10-05" in out and "from Payments team lead" in out and "Can you decide the budget?" in out
+    assert "oto work reply message.t-ledger-replica-1" in out
+    code, out = _cli("work", "inbox", "--as", "Payments team", "--project", comms)
+    assert code == 0 and "nothing pending for Payments team" in out
+    code, out = _cli("work", "inbox", "--as", "nobody here", "--project", comms)
+    assert code == 1 and "nobody here" in out
+
+
+def test_a_reply_marks_the_message_replied_and_a_resolving_reply_resolves_it_and_unblocks_the_item(comms):
+    code, out = _cli("work", "reply", "message.t-ledger-replica-1", "--body", "Looking at the budget now.",
+                     "--by", "Mina Okafor", "--at", "2026-10-07", "--project", comms)
+    assert code == 0, out
+    assert "message.t-ledger-replica-2" in out and "replied" in out
+    graph = _graph(comms)
+    reply = next(n for n in graph["nodes"] if n["id"] == "message.t-ledger-replica-2")
+    assert reply["attributes"]["outcome"] == "replied" and reply["attributes"]["from"] == "Mina Okafor"
+    assert "status" not in reply["attributes"], "a message's status is derived, never asserted"
+    edges = {(e["rel"], e["to"]) for e in graph["edges"] if e["from"] == reply["id"]}
+    assert ("in_reply_to", "message.t-ledger-replica-1") in edges and ("regarding", "workitem.t-ledger-replica") in edges
+    assert ("sent_by", "person.m-okafor") in edges, "the replier is a person the project knows"
+    code, out = _cli("work", "inbox", "--as", "Mina Okafor", "--project", comms)
+    assert "nothing pending" in out, "a replied message is no longer pending"
+    current = [n for n in _transitions(comms, "workitem.t-ledger-replica") if n["status"] == "current"]
+    assert current[0]["type"] == "Block", "a plain reply does not unblock"
+    code, out = _cli("work", "reply", "message.t-ledger-replica-1", "--resolve", "--body", "Budget approved for one region.",
+                     "--by", "Mina Okafor", "--at", "2026-10-08", "--project", comms)
+    assert code == 0, out
+    assert "resolved" in out and "blocked -> open" in out
+    current = [n for n in _transitions(comms, "workitem.t-ledger-replica") if n["status"] == "current"]
+    assert len(current) == 1 and current[0]["attributes"]["to"] == "open" and current[0]["attributes"]["by"] == "Mina Okafor"
+    assert current[0]["attributes"]["at"] == "2026-10-08"
+    code, out = _cli("build", "--project", comms)
+    assert code == 0, out
+    code, out = _cli("query", "--project", comms, "ask", "CM2", "ITEM=workitem.t-ledger-replica")
+    assert "m.status=resolved" in out and "Budget approved" in out, out
+    code, out = _cli("query", "--project", comms, "ask", "WK11")
+    assert "Ledger read replica" not in out
+    code, out = _cli("work", "reply", "message.t-ledger-replica-1", "--resolve", "--body", "again", "--by", "Mina Okafor", "--at", "2026-10-09", "--project", comms)
+    assert code == 1 and "already resolved" in out
+    code, out = _cli("work", "reply", "message.nothing", "--body", "x", "--by", "x", "--at", "2026-10-09", "--project", comms)
+    assert code == 1 and "message.nothing" in out
+
+
+def test_a_merged_pull_request_marks_the_item_deployed_once(plan):
+    args = ("work", "event", "merged-pr", "--repo", "Cynergis/oto", "--number", "58", "--item", "workitem.s-settlement-batch",
+            "--environment", "prod", "--at", "2026-10-25", "--project", plan)
+    code, out = _cli(*args)
+    assert code == 0, out
+    assert "open -> deployed" in out and "Cynergis/oto#58" in out
+    t = _transitions(plan, "workitem.s-settlement-batch")[0]
+    assert t["attributes"] == {"to": "deployed", "at": "2026-10-25", "by": "pull request Cynergis/oto#58 merged",
+                               "environment": "prod", "event": "github:Cynergis/oto#58"}
+    code, out = _cli(*args)
+    assert code == 0 and "already recorded" in out, out
+    assert len(_transitions(plan, "workitem.s-settlement-batch")) == 1, "a second delivery appends nothing"
+    code, out = _cli("build", "--project", plan)
+    assert code == 0, out
+    code, out = _cli("query", "--project", plan, "ask", "WK12")
+    assert "Daily settlement batch" in out and "w.deployed_to=prod" in out
+    code, out = _cli("work", "event", "merged-pr", "--repo", "Cynergis/oto", "--number", "59", "--item", "workitem.s-settlement-batch",
+                     "--environment", "prod", "--at", "2026-10-26", "--project", plan)
+    assert code == 1 and "already deployed to prod" in out
+    code, out = _cli("work", "event", "merged-pr", "--repo", "Cynergis/oto", "--number", "60", "--item", "workitem.t-ledger-replica",
+                     "--environment", "qa", "--at", "2026-10-26", "--project", plan)
+    assert code == 0 and "blocked -> deployed" in out, "a deployment lifts a block: the item is where the event put it"
+
+
+def test_identity_from_git_maps_to_a_person(comms, plan):
+    import subprocess
+    from oto import work as _work
+    live = _graph(comms)
+    assert _work.person_for(live, "Mina Okafor <mina@example.com>")["id"] == "person.m-okafor", "by name when no email is recorded"
+    assert _work.person_for(live, "Someone Else <x@example.com>") is None
+    for n in live["nodes"]:
+        if n["id"] == "person.m-okafor":
+            n["attributes"]["email"] = "mina@example.com"
+    assert _work.person_for(live, "M. Okafor <MINA@example.com>")["id"] == "person.m-okafor", "by email, whatever the name, case aside"
+    subprocess.run(["git", "init", "-q"], cwd=comms, check=True)
+    subprocess.run(["git", "config", "user.name", "Mina Okafor"], cwd=comms, check=True)
+    subprocess.run(["git", "config", "user.email", "mina@example.com"], cwd=comms, check=True)
+    code, out = _cli("work", "inbox", "--project", comms)
+    assert code == 0 and "1 pending for Mina Okafor" in out, out
+    code, out = _cli("work", "inbox", "--hook", "--project", comms)
+    assert code == 0 and "message.t-ledger-replica-1" in out, "the hook prints what waits"
+    code, out = _cli("work", "inbox", "--hook", "--project", plan)
+    assert code == 0 and out == "", "no Message in the vocabulary: the hook is silent"
+    code, out = _cli("work", "inbox", "--hook", "--project", os.path.join(plan, "nowhere"))
+    assert code == 0 and out == "", "not a project: the hook is silent"
+    code, out = _cli("work", "reply", "message.t-ledger-replica-1", "--body", "On it.", "--at", "2026-10-07", "--project", comms)
+    assert code == 0 and "by Mina Okafor" in out, "--by defaults to the git identity"
+
+
+def test_the_plugin_opens_a_session_with_the_inbox():
+    with open(os.path.join(ROOT, "hooks", "hooks.json"), encoding="utf-8") as f:
+        hooks = json.load(f)
+    commands = [h["command"] for group in hooks["hooks"]["SessionStart"] for h in group["hooks"]]
+    assert any("oto work inbox --hook" in c and c.rstrip().endswith("|| true") for c in commands), commands
+    with open(os.path.join(ROOT, "skills", "work", "SKILL.md"), encoding="utf-8") as f:
+        skill = f.read()
+    for command in ("oto work set", "oto work board", "oto work notify", "oto work inbox", "oto work reply"):
+        assert command in skill, command

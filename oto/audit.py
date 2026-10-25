@@ -89,6 +89,9 @@ def read(project):
 def append(project, action, principal, nodes, decision, detail=None, trace_id=None):
     """Append one record and return it. The chain is read from the file, so two writers in turn
     produce one chain; the file is opened for append and written in one call."""
+    if trace_id is None:
+        from . import tracing
+        trace_id = tracing.current_trace_id()
     records = read(project)
     last = records[-1] if records else None
     record = {"seq": (last.get("seq") or len(records)) + 1 if last else 1, "at": _now(),

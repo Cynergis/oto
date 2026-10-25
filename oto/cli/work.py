@@ -9,7 +9,7 @@ from ._common import project_arguments, resolve as _resolve
 
 
 def cmd_work(args):
-    from .. import work as _work
+    from .. import tracing, work as _work
     from ..project import ProjectError
 
     try:
@@ -18,6 +18,11 @@ def cmd_work(args):
         if args.work_command == "inbox" and args.hook:
             return 0                                   # a session opened outside a project: nothing to say
         raise
+    with tracing.span("oto.work." + args.work_command, item=args.item, state=args.state, environment=args.environment):
+        return _work_command(args, project, _work)
+
+
+def _work_command(args, project, _work):
     if args.work_command == "set":
         by = args.by or _work.identity(project)
         try:

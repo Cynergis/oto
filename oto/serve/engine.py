@@ -1284,12 +1284,16 @@ def respond(req):
         ensure_fresh()        # auto-pick-up a freshly-built/synced db (no restart needed)
         if STORE is None:
             return message({"content": [{"type": "text", "text": no_data_message()}], "isError": True})
-        try:
-            text = tool["fn"](args)
-            return message({"content": [{"type": "text", "text": text}], "isError": False})
-        except Exception as e:
-            log("tool error", name, e)
-            return message({"content": [{"type": "text", "text": f"error: {e}"}], "isError": True})
+        from .. import tracing
+        with tracing.span("kg." + (name[3:] if name.startswith("kg_") else name), tool=name, arguments=args) as span:
+            try:
+                text = tool["fn"](args)
+                tracing.annotate(span, **{"result.chars": len(text or ""), "result.error": False})
+                return message({"content": [{"type": "text", "text": text}], "isError": False})
+            except Exception as e:
+                log("tool error", name, e)
+                tracing.annotate(span, **{"result.error": True, "result.exception": type(e).__name__})
+                return message({"content": [{"type": "text", "text": f"error: {e}"}], "isError": True})
     if mid is not None:
         return message(error={"code": -32601, "message": f"method not found: {method}"})
     return None                          # unknown notification: ignored

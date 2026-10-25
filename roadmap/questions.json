@@ -94,6 +94,50 @@
       },
       "gate": "any"
     },
+    "CORE4": {
+      "who": "an agent at the concierge",
+      "question": "What does $GRAPH hold, how is it reached, and which graphs does it depend on?",
+      "why": "An agent routing a question needs to pick a graph from its descriptor alone: subject, main classes, how to reach it, and what it in turn depends on.",
+      "validated_by": "",
+      "params": {
+        "GRAPH": {
+          "type": "Graph"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "node": "$GRAPH",
+            "type": "Graph"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$GRAPH",
+                  "depends_on_graph",
+                  "d"
+                ]
+              },
+              {
+                "node": "d",
+                "type": "Graph"
+              }
+            ]
+          }
+        ],
+        "select": [
+          "$GRAPH.subject",
+          "$GRAPH.classes",
+          "$GRAPH.reach",
+          "$GRAPH.slug",
+          "d.label",
+          "d.subject",
+          "d.reach"
+        ]
+      },
+      "gate": "non_empty"
+    },
     "PF1": {
       "who": "an executive",
       "question": "Which products do we build: in which domain and value stream, at what stage, owned by which role or team?",

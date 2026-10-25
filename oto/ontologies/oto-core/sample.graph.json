@@ -1,5 +1,5 @@
 {
-  "_about": "Two documents and one citation: enough for a project to build and answer on day one.",
+  "_about": "Two documents and one citation, and the graph's own descriptor: enough for a project to build and answer on day one.",
   "nodes": [
     {
       "id": "doc.handbook",
@@ -28,6 +28,31 @@
       "aliases": [],
       "summary": "A monthly bulletin that cites the handbook.",
       "attributes": {},
+      "tags": [
+        "sample"
+      ],
+      "as_of": "2026-01-01",
+      "valid_from": "2026-01-01",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "graph.sample",
+      "type": "Graph",
+      "label": "The sample graph",
+      "aliases": [],
+      "summary": "This graph, described from outside.",
+      "attributes": {
+        "subject": "Two sample documents and what cites what",
+        "classes": [
+          "Document"
+        ],
+        "reach": "sample-kg",
+        "slug": "sample"
+      },
       "tags": [
         "sample"
       ],

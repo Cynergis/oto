@@ -106,6 +106,16 @@ def test_the_repository_s_decisions_govern_the_epics_they_shaped(copy):
     assert "Chiheb Dkhil" in out, "decided by the owner, a person the plan names"
 
 
+def test_the_roadmap_describes_itself(copy):
+    graph = _graph()
+    own = [n for n in graph["nodes"] if n["type"] == "Graph" and n["id"] == "graph.oto-roadmap"]
+    assert len(own) == 1 and own[0]["attributes"]["reach"] == "oto-roadmap-kg" and "WorkItem" in own[0]["attributes"]["classes"]
+    code, out = _cli("query", "--project", copy, "ask", "CORE4", "GRAPH=graph.oto-roadmap")
+    assert code == 0 and "status: answered" in out and "oto-roadmap-kg" in out, out
+    code, out = _cli("graph", "dependencies", "--project", copy)
+    assert code == 0 and "depends on no other graph" in out
+
+
 def test_the_build_is_clean_and_the_published_copy_is_publishable(copy):
     project = Project.standard(copy)
     with open(project.ontology_config_path, encoding="utf-8") as f:

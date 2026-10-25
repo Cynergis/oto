@@ -459,12 +459,27 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
     if empty:
         sample_graph, ontology_lexicon = None, None
         print("  graph: empty (--empty); the ontology's sample stays in the ontology")
-    _write(os.path.join(root, "graph.json"), sample_graph or {
+    graph_payload = sample_graph or {
         "_about": "The curated knowledge graph. Hand-authored, or authored by an agent under review. "
                   "This is the source of truth; everything under build/ is compiled from it.",
         "nodes": [],
         "edges": [],
-    }, force, "graph.json")
+    }
+    # Every graph holds one node about itself (oto-core's Graph, roadmap A1): what it holds and how it
+    # is reached, so another graph can depend on it. A bare project declares no Graph and gets none.
+    if ontology_config and "Graph" in (ontology_config.get("classes") or {}):
+        from . import graphs as _graphs
+        from .project import Project as _Project
+        # The sample's own descriptor (graph.sample) describes the sample, not this project: the
+        # project's descriptor takes its place, so a graph holds one node about itself, never two.
+        sample_graphs = {n.get("id") for n in graph_payload.get("nodes") or [] if n.get("type") == "Graph"}
+        graph_payload = dict(graph_payload,
+                             nodes=[n for n in graph_payload.get("nodes") or [] if n.get("id") not in sample_graphs],
+                             edges=[e for e in graph_payload.get("edges") or [] if e.get("from") not in sample_graphs and e.get("to") not in sample_graphs])
+        descriptor = _graphs.describe(_Project.standard(root), ontology_config, graph_payload)
+        graph_payload["nodes"].append(_graphs.own_node(descriptor, _today()))
+        print("  graph: describes itself as %s (reach %s)" % (descriptor["id"], descriptor["reach"]))
+    _write(os.path.join(root, "graph.json"), graph_payload, force, "graph.json")
 
     _write(os.path.join(root, "README.md"), PROJECT_README.format(name=name), force, "README.md")
     if repo:

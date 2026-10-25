@@ -418,7 +418,8 @@ def test_a_merged_pull_request_marks_the_item_deployed_once(plan):
     assert "Daily settlement batch" in out and "w.deployed_to=prod" in out
     code, out = _cli("work", "event", "merged-pr", "--repo", "Cynergis/oto", "--number", "59", "--item", "workitem.s-settlement-batch",
                      "--environment", "prod", "--at", "2026-10-26", "--project", plan)
-    assert code == 1 and "already deployed to prod" in out
+    assert code == 0 and "already deployed to prod; nothing appended" in out, "an epic's later pull requests change no state"
+    assert len(_transitions(plan, "workitem.s-settlement-batch")) == 1
     code, out = _cli("work", "event", "merged-pr", "--repo", "Cynergis/oto", "--number", "60", "--item", "workitem.t-ledger-replica",
                      "--environment", "qa", "--at", "2026-10-26", "--project", plan)
     assert code == 0 and "blocked -> deployed" in out, "a deployment lifts a block: the item is where the event put it"

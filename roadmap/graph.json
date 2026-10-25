@@ -1,0 +1,743 @@
+{
+  "_about": "A CANDIDATE edit of the curated graph. Edit this, never the live graph. `oto curate check` reports what it would change; `oto curate apply` promotes it; `oto curate abort` discards it.",
+  "nodes": [
+    {
+      "id": "person.chiheb-dkhil",
+      "type": "Person",
+      "label": "Chiheb Dkhil",
+      "aliases": [
+        "chiheb dkhil",
+        "Chiheb"
+      ],
+      "summary": "Owns the roadmap and decides its open questions.",
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Title",
+          "quote": "Oct 22, 2026 · @chiheb dkhil"
+        }
+      ],
+      "tags": [],
+      "attributes": {},
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "milestone.phase-1",
+      "type": "Milestone",
+      "label": "Phase 1: Foundation",
+      "summary": "A deploy needs a target store; L depends on nothing.",
+      "attributes": {
+        "state": "planned"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Overview, the phase table",
+          "quote": "B Deploy, K Connectors (interface, publish, Neo4j), L Plugin quick wins"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "milestone.phase-2",
+      "type": "Milestone",
+      "label": "Phase 2: Packs v1",
+      "summary": "Dogfood on this roadmap; status set by command or git events, identity from git; internal use only.",
+      "attributes": {
+        "state": "planned"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Overview, the phase table",
+          "quote": "M Work pack v1 (M1–M3, M5, M6), N Communication pack v1 (N1, N3, N4)"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "milestone.phase-3",
+      "type": "Milestone",
+      "label": "Phase 3: Navigation and trust",
+      "summary": "Every later epic relies on stable IDs and provenance; F2 and F4 harden M and N (N6 lands here).",
+      "attributes": {
+        "state": "planned"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Overview, the phase table",
+          "quote": "A Federated graphs, F Observability and audit, G Decision records"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "milestone.phase-4",
+      "type": "Milestone",
+      "label": "Phase 4: Data",
+      "summary": "Overlay connectors are how OTO reads client data in place.",
+      "attributes": {
+        "state": "planned"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Overview, the phase table",
+          "quote": "C Data semantic layer, K overlay connectors (BigQuery graph, Postgres)"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "milestone.phase-5",
+      "type": "Milestone",
+      "label": "Phase 5: Implementation",
+      "summary": "Share one architecture ontology; J1, J2 and J7 can start now with files; M4 automatic status lands as factory events exist.",
+      "attributes": {
+        "state": "planned"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Overview, the phase table",
+          "quote": "H Architecture graph, I Domain graphs, J Factory plugin"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "milestone.phase-6",
+      "type": "Milestone",
+      "label": "Phase 6: Experience and control",
+      "summary": "D6 (diff view) can come forward to support B approvals; E3 replaces git identity in N2; N5 reminders.",
+      "attributes": {
+        "state": "planned"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Overview, the phase table",
+          "quote": "D Ontology explorer UI, E IAM"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "workitem.epic-a",
+      "type": "WorkItem",
+      "label": "Epic A: Federated graphs",
+      "summary": "Federated graphs.",
+      "attributes": {
+        "kind": "epic"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Epic A",
+          "quote": "Epic A — Federated graphs"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "workitem.epic-b",
+      "type": "WorkItem",
+      "label": "Epic B: OTO Deploy (GitOps publishing)",
+      "summary": "OTO Deploy (GitOps publishing).",
+      "attributes": {
+        "kind": "epic"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Epic B",
+          "quote": "Epic B — OTO Deploy (GitOps publishing)"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "workitem.epic-c",
+      "type": "WorkItem",
+      "label": "Epic C: Data semantic layer",
+      "summary": "Data semantic layer.",
+      "attributes": {
+        "kind": "epic"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Epic C",
+          "quote": "Epic C — Data semantic layer"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "workitem.epic-d",
+      "type": "WorkItem",
+      "label": "Epic D: Ontology explorer UI",
+      "summary": "Ontology explorer UI.",
+      "attributes": {
+        "kind": "epic"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Epic D",
+          "quote": "Epic D — Ontology explorer UI"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "workitem.epic-e",
+      "type": "WorkItem",
+      "label": "Epic E: IAM: policy in the graph, hooks as enforcement",
+      "summary": "IAM: policy in the graph, hooks as enforcement.",
+      "attributes": {
+        "kind": "epic"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Epic E",
+          "quote": "Epic E — IAM: policy in the graph, hooks as enforcement"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "workitem.epic-f",
+      "type": "WorkItem",
+      "label": "Epic F: Observability vs auditability",
+      "summary": "Observability vs auditability.",
+      "attributes": {
+        "kind": "epic"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Epic F",
+          "quote": "Epic F — Observability vs auditability"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "workitem.epic-g",
+      "type": "WorkItem",
+      "label": "Epic G: Decision records as graph nodes",
+      "summary": "Decision records as graph nodes.",
+      "attributes": {
+        "kind": "epic"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Epic G",
+          "quote": "Epic G — Decision records as graph nodes"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "workitem.epic-h",
+      "type": "WorkItem",
+      "label": "Epic H: Architecture graph for implementation",
+      "summary": "Architecture graph for implementation.",
+      "attributes": {
+        "kind": "epic"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Epic H",
+          "quote": "Epic H — Architecture graph for implementation"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "workitem.epic-i",
+      "type": "WorkItem",
+      "label": "Epic I: Domain graphs for the software factory",
+      "summary": "Domain graphs for the software factory.",
+      "attributes": {
+        "kind": "epic"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Epic I",
+          "quote": "Epic I — Domain graphs for the software factory"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "workitem.epic-j",
+      "type": "WorkItem",
+      "label": "Epic J: Factory execution (Claude Code plugin)",
+      "summary": "Factory execution (Claude Code plugin).",
+      "attributes": {
+        "kind": "epic"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Epic J",
+          "quote": "Epic J — Factory execution (Claude Code plugin)"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "workitem.epic-k",
+      "type": "WorkItem",
+      "label": "Epic K: Graph store connectors",
+      "summary": "Graph store connectors.",
+      "attributes": {
+        "kind": "epic"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Epic K",
+          "quote": "Epic K — Graph store connectors"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "workitem.epic-l",
+      "type": "WorkItem",
+      "label": "Epic L: Plugin quick wins",
+      "summary": "Plugin quick wins.",
+      "attributes": {
+        "kind": "epic"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Epic L",
+          "quote": "Epic L — Plugin quick wins"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "workitem.epic-m",
+      "type": "WorkItem",
+      "label": "Epic M: Work pack (tasks and products)",
+      "summary": "Work pack (tasks and products).",
+      "attributes": {
+        "kind": "epic"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Epic M",
+          "quote": "Epic M — Work pack (tasks and products)"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "id": "workitem.epic-n",
+      "type": "WorkItem",
+      "label": "Epic N: Communication pack",
+      "summary": "Communication pack.",
+      "attributes": {
+        "kind": "epic"
+      },
+      "evidence": [
+        {
+          "doc": "oto-roadmap-2-0",
+          "where": "Epic N",
+          "quote": "Epic N — Communication pack"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-22",
+      "valid_from": "2026-10-22",
+      "source_doc": "oto-roadmap-2-0",
+      "sources": [
+        "oto-roadmap-2-0"
+      ]
+    },
+    {
+      "source_type": "human_assertion",
+      "sources": [
+        "assertion:a-0001"
+      ],
+      "source_doc": "assertion:a-0001",
+      "as_of": "2026-10-24",
+      "valid_from": "2026-10-24",
+      "status": "current",
+      "aliases": [],
+      "tags": [],
+      "id": "transition.epic-l-1",
+      "type": "Transition",
+      "label": "Epic L: Plugin quick wins deployed",
+      "summary": "deployed on 2026-10-24, recorded by pull request Cynergis/oto#54 merged.",
+      "attributes": {
+        "to": "deployed",
+        "at": "2026-10-24",
+        "by": "pull request Cynergis/oto#54 merged",
+        "environment": "prod",
+        "event": "github:Cynergis/oto#54"
+      }
+    },
+    {
+      "source_type": "human_assertion",
+      "sources": [
+        "assertion:a-0002"
+      ],
+      "source_doc": "assertion:a-0002",
+      "as_of": "2026-10-25",
+      "valid_from": "2026-10-25",
+      "status": "current",
+      "aliases": [],
+      "tags": [],
+      "id": "transition.epic-b-1",
+      "type": "Transition",
+      "label": "Epic B: OTO Deploy (GitOps publishing) deployed",
+      "summary": "deployed on 2026-10-25, recorded by pull request Cynergis/oto#56 merged.",
+      "attributes": {
+        "to": "deployed",
+        "at": "2026-10-25",
+        "by": "pull request Cynergis/oto#56 merged",
+        "environment": "prod",
+        "event": "github:Cynergis/oto#56"
+      }
+    },
+    {
+      "source_type": "human_assertion",
+      "sources": [
+        "assertion:a-0003"
+      ],
+      "source_doc": "assertion:a-0003",
+      "as_of": "2026-10-25",
+      "valid_from": "2026-10-25",
+      "status": "current",
+      "aliases": [],
+      "tags": [],
+      "id": "transition.epic-k-1",
+      "type": "Transition",
+      "label": "Epic K: Graph store connectors deployed",
+      "summary": "deployed on 2026-10-25, recorded by pull request Cynergis/oto#57 merged.",
+      "attributes": {
+        "to": "deployed",
+        "at": "2026-10-25",
+        "by": "pull request Cynergis/oto#57 merged",
+        "environment": "prod",
+        "event": "github:Cynergis/oto#57"
+      }
+    },
+    {
+      "source_type": "human_assertion",
+      "sources": [
+        "assertion:a-0004"
+      ],
+      "source_doc": "assertion:a-0004",
+      "as_of": "2026-10-25",
+      "valid_from": "2026-10-25",
+      "status": "current",
+      "aliases": [],
+      "tags": [],
+      "id": "transition.epic-m-1",
+      "type": "Transition",
+      "label": "Epic M: Work pack (tasks and products) deployed",
+      "summary": "deployed on 2026-10-25, recorded by pull request Cynergis/oto#58 merged.",
+      "attributes": {
+        "to": "deployed",
+        "at": "2026-10-25",
+        "by": "pull request Cynergis/oto#58 merged",
+        "environment": "prod",
+        "event": "github:Cynergis/oto#58"
+      }
+    },
+    {
+      "source_type": "human_assertion",
+      "sources": [
+        "assertion:a-0005"
+      ],
+      "source_doc": "assertion:a-0005",
+      "as_of": "2026-10-25",
+      "valid_from": "2026-10-25",
+      "status": "current",
+      "aliases": [],
+      "tags": [],
+      "id": "transition.epic-n-1",
+      "type": "Transition",
+      "label": "Epic N: Communication pack deployed",
+      "summary": "deployed on 2026-10-25, recorded by pull request Cynergis/oto#60 merged.",
+      "attributes": {
+        "to": "deployed",
+        "at": "2026-10-25",
+        "by": "pull request Cynergis/oto#60 merged",
+        "environment": "prod",
+        "event": "github:Cynergis/oto#60"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "workitem.epic-b",
+      "rel": "scheduled_in",
+      "to": "milestone.phase-1"
+    },
+    {
+      "from": "workitem.epic-k",
+      "rel": "scheduled_in",
+      "to": "milestone.phase-1"
+    },
+    {
+      "from": "workitem.epic-l",
+      "rel": "scheduled_in",
+      "to": "milestone.phase-1"
+    },
+    {
+      "from": "workitem.epic-m",
+      "rel": "scheduled_in",
+      "to": "milestone.phase-2"
+    },
+    {
+      "from": "workitem.epic-n",
+      "rel": "scheduled_in",
+      "to": "milestone.phase-2"
+    },
+    {
+      "from": "workitem.epic-a",
+      "rel": "scheduled_in",
+      "to": "milestone.phase-3"
+    },
+    {
+      "from": "workitem.epic-f",
+      "rel": "scheduled_in",
+      "to": "milestone.phase-3"
+    },
+    {
+      "from": "workitem.epic-g",
+      "rel": "scheduled_in",
+      "to": "milestone.phase-3"
+    },
+    {
+      "from": "workitem.epic-c",
+      "rel": "scheduled_in",
+      "to": "milestone.phase-4"
+    },
+    {
+      "from": "workitem.epic-h",
+      "rel": "scheduled_in",
+      "to": "milestone.phase-5"
+    },
+    {
+      "from": "workitem.epic-i",
+      "rel": "scheduled_in",
+      "to": "milestone.phase-5"
+    },
+    {
+      "from": "workitem.epic-j",
+      "rel": "scheduled_in",
+      "to": "milestone.phase-5"
+    },
+    {
+      "from": "workitem.epic-d",
+      "rel": "scheduled_in",
+      "to": "milestone.phase-6"
+    },
+    {
+      "from": "workitem.epic-e",
+      "rel": "scheduled_in",
+      "to": "milestone.phase-6"
+    },
+    {
+      "from": "transition.epic-l-1",
+      "rel": "transition_of",
+      "to": "workitem.epic-l"
+    },
+    {
+      "from": "transition.epic-b-1",
+      "rel": "transition_of",
+      "to": "workitem.epic-b"
+    },
+    {
+      "from": "transition.epic-k-1",
+      "rel": "transition_of",
+      "to": "workitem.epic-k"
+    },
+    {
+      "from": "transition.epic-m-1",
+      "rel": "transition_of",
+      "to": "workitem.epic-m"
+    },
+    {
+      "from": "transition.epic-n-1",
+      "rel": "transition_of",
+      "to": "workitem.epic-n"
+    }
+  ]
+}

@@ -1,0 +1,1058 @@
+{
+  "_about": "Messages as facts in the graph, tied to the item they are about, so a request about a blocked item arrives with the item's context and nobody retypes it. On work: the first message is sent from a block to whom it waits on (`oto work notify`); a reply that unblocks records a transition. A relation is {domain, range, inverse, definition}.",
+  "_summary": "Messages tied to the item they are about: from whom, to whom, about what, pending until resolved; what waits for a person, what was said about an item, what is overdue.",
+  "name": "OTO Roadmap",
+  "ontology_version": 2,
+  "strict_domains": false,
+  "languages": [
+    "en"
+  ],
+  "classes": {
+    "Document": {
+      "definition": "A source document in the corpus: a brief, a PRD, a UX spec, an architecture note, a transcript. Every fact cites one; a newer document supersedes an older one."
+    },
+    "Tool": {
+      "definition": "Something that can be done about an entity, described the way an MCP server describes a tool and bound to the graph. OTO lists it; the caller invokes it; the recorded run is evidence.",
+      "was": [
+        "Action"
+      ]
+    },
+    "Product": {
+      "definition": "The thing a project sets out to build, software or not: the root every other class hangs off. The portfolio says where it stands; here is what it must do, for whom, under what rules, why."
+    },
+    "Role": {
+      "definition": "A function accountable for something: Product Owner, Sponsor, Head of Finance Operations. Ownership and decisions attach to a role, never to a named person; the current holder is an attribute."
+    },
+    "Team": {
+      "definition": "A group that runs or builds something and can be paged: ownership of the estate and of work attaches to a team. A role is a function; a team is people on a rota."
+    },
+    "Objective": {
+      "definition": "A qualitative goal for a period, owned by a role, pursued by products and made measurable by their success criteria. Objectives support higher objectives: that is strategic alignment."
+    },
+    "Capability": {
+      "definition": "A business capability the portfolio needs: what the business must be able to do, named in its own words. A product provides it; the estate's systems enable it."
+    },
+    "Persona": {
+      "definition": "A kind of user the product is for, or explicitly not for. Journeys, requirements and value propositions point at a persona."
+    },
+    "ValueProposition": {
+      "definition": "One promise the product makes to a persona, and the problem it solves. The anchor every requirement, journey and success criterion traces to."
+    },
+    "SuccessCriterion": {
+      "definition": "A measurable statement of what success looks like: a metric, a target, a date, an owner role."
+    },
+    "Requirement": {
+      "definition": "A stated need the product must satisfy, functional or otherwise. The unit a builder works from and a release scopes."
+    },
+    "Release": {
+      "definition": "A dated boundary of scope: what ships together. Requirements and features are in scope of, or excluded from, a release."
+    },
+    "Feature": {
+      "definition": "A user-visible capability the product is made of. Features nest through part_of, so an epic and a sub-feature are the same class at different depths."
+    },
+    "UserJourney": {
+      "definition": "How a persona gets value, end to end: a trigger, ordered steps, an outcome."
+    },
+    "JourneyStep": {
+      "definition": "One step of a user journey, with its own identity so a design decision, a requirement or a test can point at it."
+    },
+    "Constraint": {
+      "definition": "A limit the product is built under: budget, platform, regulation, timeline. Imposed from outside, not chosen."
+    },
+    "Assumption": {
+      "definition": "Something believed but not yet verified, on which a decision or requirement rests. Validated or invalidated over time."
+    },
+    "Risk": {
+      "definition": "A known way this can go wrong, including an external dependency whose failure would hurt. Mitigated, accepted or realised over time."
+    },
+    "Decision": {
+      "definition": "A dated choice with its reason and evidence, made by a role. Settles what it is about, so nobody reopens it by accident."
+    },
+    "OpenQuestion": {
+      "definition": "Something unresolved that a decision must settle. Raised, then resolved by a decision, or dropped."
+    },
+    "Scenario": {
+      "definition": "One concrete path through a requirement or a journey step: given, when, then. What a test verifies and what acceptance is judged on."
+    },
+    "Policy": {
+      "definition": "A rule the product must obey that comes from outside it: business, compliance, data, security. Has an authority and a role that enforces it; distinct from a constraint, which limits resources."
+    },
+    "Term": {
+      "definition": "A word with a definition in this product's language, cited and dated, so a changed meaning is superseded rather than argued about."
+    },
+    "Asset": {
+      "definition": "Anything the estate runs or stores and a team can be accountable for: a system, a component, an interface, a data store. A question about assets covers all four."
+    },
+    "System": {
+      "definition": "A named application or platform that a team owns and a user or another system consumes.",
+      "subclass_of": [
+        "Asset"
+      ]
+    },
+    "Component": {
+      "definition": "A part of a system deployed or released as a unit: a service, a job, a library, a front end.",
+      "subclass_of": [
+        "Asset"
+      ],
+      "requires": [
+        "part_of"
+      ]
+    },
+    "Interface": {
+      "definition": "A contract others depend on: an API, an event topic, a file feed, a database view.",
+      "subclass_of": [
+        "Asset"
+      ]
+    },
+    "DataStore": {
+      "definition": "A place data lives: a database, a bucket, a queue, a cache, a warehouse table.",
+      "subclass_of": [
+        "Asset"
+      ]
+    },
+    "Environment": {
+      "definition": "A place components run: production, staging, a region, a tenant."
+    },
+    "Runbook": {
+      "definition": "The documented way to operate or recover something."
+    },
+    "Repository": {
+      "definition": "Where a component's code lives: a source repository, recorded before it exists (intended) and observed once it does."
+    },
+    "WorkItem": {
+      "definition": "A unit of planned work: an epic, a story, a task or a bug, with a due date. It is open, blocked or deployed, and the state is never written on it: a Transition is appended and the state follows the current one. It delivers something the product specifies or the estate holds; it is assigned to a team or a role."
+    },
+    "Milestone": {
+      "definition": "A dated point the plan aims at: a demo, a cut-off, a go-live. Work is scheduled in milestones as it is in releases; a release ships, a milestone is reached."
+    },
+    "Transition": {
+      "definition": "A change of a work item's state, recorded when it happened: to which state, when, by whom, and for a deployment to which environment. Appended, never edited; the previous transition is superseded, so the item's history is the chain and its state is the current one."
+    },
+    "Block": {
+      "subclass_of": [
+        "Transition"
+      ],
+      "requires": [
+        "reason",
+        "waiting_on"
+      ],
+      "definition": "A transition to blocked with its context: why, since when (its date), raised by whom (its author), and whom or what it waits on. Without a reason and a waiting-on it is not a block."
+    },
+    "Person": {
+      "definition": "A named individual: who raised a block, whom an item waits on, who is to be told. Named where a role or a team would not say who to ask."
+    },
+    "Message": {
+      "definition": "Something said to someone about an item of the plan, kept with the item: who sent it, to whom, the body, when, whether it is still pending, and when an answer is due. A message is a fact like any other: dated, attributed, never edited; its status moves as it is read, replied to and resolved."
+    }
+  },
+  "properties": {
+    "cites": {
+      "domain": "Document",
+      "range": "Document",
+      "definition": "This document refers to that one, so a fact traced to it can be traced one step further."
+    },
+    "acts_on": {
+      "domain": "Tool",
+      "definition": "The entity a recorded run of this tool read or changed."
+    },
+    "executed_by": {
+      "domain": "Tool",
+      "definition": "Who is accountable for invoking this tool: a team, never a person."
+    },
+    "owned_by": {
+      "domain": "Product|Objective|Capability|Feature|SuccessCriterion|Risk|Requirement|Release|System|Component|Interface|DataStore|Milestone",
+      "range": "Role|Team",
+      "inverse": "owns",
+      "definition": "The role or team accountable for this. Ownership sits on a role, not a person, so it survives people moving. Widened from the portfolio to what a product specifies. Widened to the estate: an asset is owned by a team or a role. Widened to work: a milestone has an owner."
+    },
+    "pursues": {
+      "domain": "Product",
+      "range": "Objective",
+      "inverse": "pursued_by",
+      "definition": "The objectives a product works towards. At the product level usually derived (the product offers a value proposition that serves the objective); at the portfolio level stated by the review."
+    },
+    "supports": {
+      "domain": "Objective",
+      "range": "Objective",
+      "inverse": "supported_by",
+      "definition": "A lower objective that contributes to a higher one. This is where strategic alignment is recorded."
+    },
+    "provides": {
+      "domain": "Product",
+      "range": "Capability",
+      "inverse": "provided_by",
+      "definition": "The business capability a product gives the organisation. A capability nothing provides is a gap the portfolio must fill or accept."
+    },
+    "depends_on": {
+      "domain": "Product|System|Component|WorkItem",
+      "range": "Product|System|Component|WorkItem",
+      "inverse": "depended_on_by",
+      "definition": "This product needs that one to deliver: data, a service, a decision. Upstream is the product depended on. The estate widens it to systems and components. Widened to the estate: the consumer needs the provider to work; usually derived from consumes and exposes, and stated only when a document says so. Widened to work: an item that must be done first."
+    },
+    "member_of": {
+      "domain": "Role",
+      "range": "Team",
+      "inverse": "has_member",
+      "definition": "The team a role sits in, when it does: the product owner of the payments team."
+    },
+    "decided_by": {
+      "domain": "Decision",
+      "range": "Role",
+      "inverse": "decides",
+      "definition": "The role whose call it was."
+    },
+    "offers": {
+      "domain": "Product",
+      "range": "ValueProposition",
+      "inverse": "offered_by",
+      "definition": "The promise a product makes. A product usually offers more than one."
+    },
+    "intended_for": {
+      "domain": "ValueProposition|UserJourney",
+      "range": "Persona",
+      "inverse": "wanted_by",
+      "definition": "The persona a value proposition or journey exists for. Requirements and features reach the persona through the value proposition they serve. Point at an excluded persona to say who it is deliberately not for."
+    },
+    "serves": {
+      "domain": "Requirement|UserJourney|Feature|ValueProposition",
+      "range": "ValueProposition|Objective",
+      "inverse": "served_by",
+      "definition": "The purpose this exists for: a requirement, journey or feature serves a value proposition; a value proposition serves an objective. The traceability spine an agent walks from a requirement up to the strategy."
+    },
+    "measures": {
+      "domain": "SuccessCriterion",
+      "range": "Objective|ValueProposition",
+      "inverse": "measured_by",
+      "definition": "What a criterion tells you succeeded."
+    },
+    "part_of": {
+      "domain": "Feature|JourneyStep|Component|Interface|DataStore",
+      "range": "Product|Feature|UserJourney|System",
+      "inverse": "contains",
+      "definition": "This belongs to that: a feature to its product or parent feature, a step to its journey. Widened to the estate: a component, interface or store belongs to one system.",
+      "max": 1
+    },
+    "realises": {
+      "domain": "Feature",
+      "range": "Requirement",
+      "inverse": "realised_by",
+      "definition": "The requirement a feature exists to satisfy."
+    },
+    "in_scope_of": {
+      "domain": "Requirement|Feature",
+      "range": "Release",
+      "inverse": "includes",
+      "definition": "Ships in this release. Dated, so scope as of a past date is readable."
+    },
+    "excluded_from": {
+      "domain": "Requirement|Feature",
+      "range": "Release",
+      "inverse": "excludes",
+      "definition": "Explicitly not in this release. Recorded, not silently absent, so a builder sees the boundary."
+    },
+    "constrains": {
+      "domain": "Constraint",
+      "range": "Product|Requirement|Release|Feature",
+      "inverse": "constrained_by",
+      "definition": "What a constraint limits."
+    },
+    "relies_on": {
+      "domain": "Decision|Requirement|Release",
+      "range": "Assumption",
+      "inverse": "underpins",
+      "definition": "An assumption this rests on. If the assumption is invalidated, this must be revisited."
+    },
+    "threatens": {
+      "domain": "Risk",
+      "range": "Product|Release|Requirement|Feature|SuccessCriterion|System|Component|Interface|DataStore|Capability",
+      "inverse": "at_risk_from",
+      "definition": "What a risk applies to. Widened to the estate: what a risk applies to."
+    },
+    "mitigated_by": {
+      "domain": "Risk",
+      "range": "Decision|Requirement|Feature|Runbook|Component",
+      "inverse": "mitigates",
+      "definition": "What reduces a risk. Widened to the estate: a runbook or a component may mitigate."
+    },
+    "about": {
+      "domain": "Decision|OpenQuestion",
+      "range": "Product|ValueProposition|Objective|SuccessCriterion|Requirement|Release|Feature|UserJourney|JourneyStep|Scenario|Constraint|Policy|Risk|Persona|System|Component|Interface|DataStore",
+      "inverse": "subject_of",
+      "definition": "What a decision settles, or what an open question concerns. Widened to the estate: a decision that shaped an asset, an open question on one."
+    },
+    "resolves": {
+      "domain": "Decision",
+      "range": "OpenQuestion",
+      "inverse": "resolved_by",
+      "definition": "The open question this decision closes."
+    },
+    "blocks": {
+      "domain": "OpenQuestion",
+      "range": "Release",
+      "inverse": "blocked_by",
+      "definition": "An unresolved question a release should not ship with. A risk threatens a release; it does not block it."
+    },
+    "documented_in": {
+      "domain": "Product|Role|Persona|ValueProposition|Objective|SuccessCriterion|Requirement|Release|Feature|UserJourney|JourneyStep|Scenario|Constraint|Policy|Assumption|Risk|Decision|OpenQuestion|Term|System|Component|Interface|DataStore|Runbook",
+      "range": "Document",
+      "inverse": "documents",
+      "definition": "The artifact that formally specifies this: a brief, a PRD, a UX spec. Distinct from source_doc, which is provenance: the document that introduced the fact into the graph, possibly a transcript. Widened to the estate: a design, a review, a standard."
+    },
+    "interested_in": {
+      "domain": "Role",
+      "range": "Objective|Requirement|Release|Feature|Decision",
+      "inverse": "concerns",
+      "definition": "What a stakeholder role must be consulted or informed about."
+    },
+    "exercises": {
+      "domain": "Scenario",
+      "range": "Requirement|JourneyStep",
+      "inverse": "exercised_by",
+      "definition": "The requirement or step a scenario is a concrete path through."
+    },
+    "enforced_by": {
+      "domain": "Policy",
+      "range": "Role",
+      "inverse": "enforces",
+      "definition": "The governance role that enforces a policy."
+    },
+    "defines": {
+      "domain": "Term",
+      "range": "Product|ValueProposition|Objective|Requirement|Feature|UserJourney|Persona|Policy|Release|Scenario|Constraint|Risk",
+      "inverse": "defined_by",
+      "definition": "The entity a term is the name for, when there is one."
+    },
+    "applies_to": {
+      "domain": "Policy",
+      "range": "Product|Requirement|Release|Feature|Decision",
+      "inverse": "governed_by",
+      "definition": "What a policy prescribes behaviour for. The governance edge: from here, enforced_by says who enforces it."
+    },
+    "exposes": {
+      "domain": "System|Component",
+      "range": "Interface",
+      "definition": "The contract something publishes.",
+      "inverse": "exposed_by"
+    },
+    "consumes": {
+      "domain": "System|Component",
+      "range": "Interface",
+      "definition": "A contract something depends on. This is where coupling lives.",
+      "inverse": "consumed_by"
+    },
+    "reads_from": {
+      "domain": "Component",
+      "range": "DataStore",
+      "definition": "A component reading this store.",
+      "inverse": "read_by"
+    },
+    "writes_to": {
+      "domain": "Component",
+      "range": "DataStore",
+      "definition": "A component writing this store. Two writers to one store is worth knowing about.",
+      "inverse": "written_by"
+    },
+    "runs_in": {
+      "domain": "Component|DataStore",
+      "range": "Environment",
+      "definition": "Where something runs.",
+      "inverse": "hosts",
+      "min": 1
+    },
+    "enables": {
+      "domain": "System|Component|Capability",
+      "range": "Capability",
+      "definition": "The business capability this makes possible; a capability enables the broader one it is part of. Named `enables` because the product's `supports` is objective to objective.",
+      "inverse": "enabled_by"
+    },
+    "satisfies": {
+      "domain": "System|Component|Interface",
+      "range": "Requirement",
+      "definition": "The requirement of the product this asset meets. The trace from the design back to the specification: a requirement nothing satisfies is open design work.",
+      "inverse": "satisfied_by"
+    },
+    "supersedes": {
+      "domain": "Interface|Component|System",
+      "range": "Interface|Component|System",
+      "definition": "This replaced that. Use with the temporal fields, never by overwriting.",
+      "inverse": "superseded_by"
+    },
+    "operated_by": {
+      "domain": "System|Component",
+      "range": "Runbook",
+      "definition": "The runbook for something.",
+      "inverse": "operates"
+    },
+    "implemented_by": {
+      "domain": "Component",
+      "range": "Repository",
+      "definition": "The repository that holds this component's code.",
+      "inverse": "implements"
+    },
+    "delivers": {
+      "domain": "WorkItem",
+      "range": "Requirement|Feature|Component|System|Interface",
+      "inverse": "delivered_by",
+      "definition": "What the work item makes true when done: a requirement satisfied, a feature built, a component running. The trace from the plan to the specification and the estate."
+    },
+    "scheduled_in": {
+      "domain": "WorkItem",
+      "range": "Milestone|Release",
+      "inverse": "schedules",
+      "definition": "The milestone or release the item is planned for."
+    },
+    "assigned_to": {
+      "domain": "WorkItem",
+      "range": "Team|Role",
+      "inverse": "assigned",
+      "definition": "Who does the work: a team, or a role when one person's function is the point."
+    },
+    "blocked_by": {
+      "domain": "WorkItem",
+      "range": "WorkItem|Risk|OpenQuestion|Decision",
+      "inverse": "blocks_work",
+      "definition": "A standing dependency the plan records: another item not done, a risk realised, an open question unanswered, a decision not taken. Context the lead reads; the item's state comes from its transitions, and a Block says whom it waits on."
+    },
+    "transition_of": {
+      "domain": "Transition",
+      "range": "WorkItem",
+      "inverse": "transitions",
+      "min": 1,
+      "max": 1,
+      "definition": "The item this transition moves. Exactly one: a transition of nothing, or of two items, is not a change of state."
+    },
+    "waiting_on": {
+      "domain": "Block",
+      "range": "WorkItem|Person|Role|Team|Risk|OpenQuestion|Decision",
+      "inverse": "waited_on_by",
+      "definition": "Whom or what the blocked item waits on: a person or a team to answer, an item to be done, a decision to be taken, a question to be answered, a risk to be retired. Telling them is what unblocks it."
+    },
+    "sent_to": {
+      "domain": "Message",
+      "range": "Person|Team|Role",
+      "inverse": "receives",
+      "definition": "Whom the message is for: a person, or a team or role when anyone of them may answer. Every message names one, except a reply, which answers whoever asked."
+    },
+    "sent_by": {
+      "domain": "Message",
+      "range": "Person",
+      "inverse": "sent",
+      "definition": "The person who sent it, when the project knows them as one; `from` always carries the name as written."
+    },
+    "regarding": {
+      "domain": "Message",
+      "range": "WorkItem|Block",
+      "inverse": "discussed_in",
+      "min": 1,
+      "definition": "What the message is about: the item, and the block it was sent from when there is one, so the reader has the reason and the date without asking."
+    },
+    "in_reply_to": {
+      "domain": "Message",
+      "range": "Message",
+      "inverse": "replied_by",
+      "max": 1,
+      "definition": "The message this one answers. The answered message's status follows: replied, or resolved when the reply says so."
+    }
+  },
+  "temporal": {
+    "asOf": {
+      "type": "date",
+      "definition": "When this fact was recorded or observed (transaction time)."
+    },
+    "validFrom": {
+      "type": "date",
+      "definition": "When the fact became true in the world (valid time)."
+    },
+    "validTo": {
+      "type": "date",
+      "definition": "When the fact stopped being true. Absent means it still holds."
+    },
+    "status": {
+      "type": "string",
+      "definition": "current | superseded | proposed | intended."
+    },
+    "supersedes": {
+      "type": "ref",
+      "definition": "The fact this one replaces."
+    },
+    "supersededBy": {
+      "type": "ref",
+      "definition": "The newer fact that retired this one."
+    },
+    "sourceDoc": {
+      "type": "string",
+      "definition": "Slug of the document that introduced or changed this fact.",
+      "label": "source document"
+    }
+  },
+  "attributes": {
+    "Product": {
+      "stage": {
+        "type": "enum:idea|discovery|specified|building|live|retired",
+        "definition": "Where the product is in its life."
+      },
+      "domain": {
+        "type": "string",
+        "definition": "The business domain the product sits in."
+      },
+      "value_stream": {
+        "type": "string",
+        "definition": "The value stream it serves."
+      },
+      "store_url": {
+        "type": "string",
+        "definition": "Where the product's published knowledge base is read from (`oto sync --repo`).",
+        "label": "store URL"
+      },
+      "site_url": {
+        "type": "string",
+        "definition": "Where the product's site is read.",
+        "label": "site URL"
+      },
+      "packs": {
+        "type": "list",
+        "definition": "The packs the product's knowledge is specified, designed and run with, e.g. product-report, ddd, flow: the lineage between its levels."
+      },
+      "problem": {
+        "type": "string",
+        "definition": "The problem statement: what is wrong today, for whom."
+      },
+      "background": {
+        "type": "string",
+        "definition": "Context a newcomer needs before the rest makes sense."
+      },
+      "vision": {
+        "type": "string",
+        "definition": "Where this product is going, in one or two sentences."
+      }
+    },
+    "Role": {
+      "holder": {
+        "type": "string",
+        "definition": "Who currently holds the role. Changes by supersession."
+      },
+      "mandate": {
+        "type": "string",
+        "definition": "What the role may decide."
+      },
+      "kind": {
+        "type": "enum:owner|decider|stakeholder|contributor",
+        "definition": "What sort of role: accountable, deciding, interested, or doing."
+      }
+    },
+    "Team": {
+      "mandate": {
+        "type": "string",
+        "definition": "What the team is for, in one sentence."
+      },
+      "contact": {
+        "type": "string",
+        "definition": "How the team is reached: a channel, a rota, a pager."
+      }
+    },
+    "Objective": {
+      "period": {
+        "type": "string",
+        "definition": "The period it is set for, e.g. 2027 H1."
+      },
+      "state": {
+        "type": "enum:proposed|active|achieved|missed|dropped",
+        "definition": "Where the objective is."
+      }
+    },
+    "Capability": {
+      "state": {
+        "type": "enum:needed|provided|retiring",
+        "definition": "Whether the portfolio has it, needs it, or is letting it go."
+      }
+    },
+    "Persona": {
+      "relationship": {
+        "type": "enum:target|excluded",
+        "definition": "Whether the product is for this persona, or explicitly not."
+      },
+      "need": {
+        "type": "string",
+        "definition": "What this persona is trying to get done."
+      }
+    },
+    "ValueProposition": {
+      "promise": {
+        "type": "string",
+        "definition": "The value, in one sentence."
+      },
+      "differentiator": {
+        "type": "string",
+        "definition": "Why this rather than what the persona does today."
+      }
+    },
+    "SuccessCriterion": {
+      "metric": {
+        "type": "string",
+        "definition": "What is measured."
+      },
+      "target": {
+        "type": "string",
+        "definition": "The value that means success."
+      },
+      "due_on": {
+        "type": "date",
+        "definition": "When the target should be met."
+      }
+    },
+    "Requirement": {
+      "kind": {
+        "type": "enum:functional|non-functional",
+        "definition": "Behaviour, or a quality the behaviour must have."
+      },
+      "priority": {
+        "type": "enum:must|should|could|wont",
+        "definition": "MoSCoW priority."
+      }
+    },
+    "Release": {
+      "target_date": {
+        "type": "date",
+        "definition": "When it is meant to ship."
+      },
+      "state": {
+        "type": "enum:planned|in-progress|shipped|cancelled",
+        "definition": "Where the release is."
+      },
+      "horizon": {
+        "type": "enum:mvp|growth|later",
+        "definition": "Which scope horizon this release belongs to."
+      }
+    },
+    "UserJourney": {
+      "trigger": {
+        "type": "string",
+        "definition": "What starts the journey."
+      },
+      "outcome": {
+        "type": "string",
+        "definition": "What the persona has at the end."
+      }
+    },
+    "JourneyStep": {
+      "position": {
+        "type": "integer",
+        "definition": "Order within the journey, from 1."
+      },
+      "action": {
+        "type": "string",
+        "definition": "What the persona does."
+      },
+      "outcome": {
+        "type": "string",
+        "definition": "What the step leaves the persona with."
+      }
+    },
+    "Constraint": {
+      "kind": {
+        "type": "enum:budget|platform|timeline|technical|other",
+        "definition": "The sort of limit. A regulatory rule is a Policy, not a constraint."
+      },
+      "imposed_by": {
+        "type": "string",
+        "definition": "Who or what imposes it."
+      }
+    },
+    "Assumption": {
+      "state": {
+        "type": "enum:unverified|validated|invalidated",
+        "definition": "Whether anyone has checked it."
+      },
+      "checked_on": {
+        "type": "date",
+        "definition": "When it was last checked."
+      }
+    },
+    "Risk": {
+      "kind": {
+        "type": "enum:dependency|technical|market|delivery|compliance|other",
+        "definition": "The sort of risk; dependency is an external thing the product needs."
+      },
+      "state": {
+        "type": "enum:open|mitigated|accepted|realised",
+        "definition": "Where the risk is."
+      }
+    },
+    "Decision": {
+      "rationale": {
+        "type": "string",
+        "definition": "Why this and not the alternatives."
+      },
+      "decided_on": {
+        "type": "date",
+        "definition": "When it was decided."
+      }
+    },
+    "OpenQuestion": {
+      "raised_on": {
+        "type": "date",
+        "definition": "When it was raised."
+      },
+      "state": {
+        "type": "enum:open|resolved|dropped",
+        "definition": "Whether it still needs an answer."
+      }
+    },
+    "Document": {
+      "kind": {
+        "type": "enum:brief|prd|ux-spec|architecture|transcript|decision-log|other",
+        "definition": "What sort of artifact."
+      }
+    },
+    "Scenario": {
+      "given": {
+        "type": "string",
+        "definition": "The preconditions."
+      },
+      "when": {
+        "type": "string",
+        "definition": "The action."
+      },
+      "then": {
+        "type": "string",
+        "definition": "The expected result."
+      },
+      "kind": {
+        "type": "enum:happy-path|edge-case|failure",
+        "definition": "What sort of path."
+      }
+    },
+    "Policy": {
+      "kind": {
+        "type": "enum:business|compliance|data|security|other",
+        "definition": "The sort of rule."
+      },
+      "authority": {
+        "type": "string",
+        "definition": "Who or what the rule comes from: a regulation, a standard, a company policy."
+      }
+    },
+    "Term": {
+      "definition": {
+        "type": "string",
+        "definition": "What the word means here."
+      }
+    },
+    "Repository": {
+      "owner": {
+        "type": "string",
+        "definition": "The organisation or account that owns the repository.",
+        "required": true
+      },
+      "name": {
+        "type": "string",
+        "definition": "The repository's name within its owner.",
+        "required": true
+      },
+      "url": {
+        "type": "string",
+        "definition": "Where a person opens it.",
+        "label": "URL"
+      },
+      "default_branch": {
+        "type": "string",
+        "definition": "The branch a checkout lands on."
+      }
+    },
+    "Interface": {
+      "url": {
+        "type": "string",
+        "definition": "The base URL a caller reaches the interface at, when it has one.",
+        "label": "URL"
+      }
+    },
+    "WorkItem": {
+      "kind": {
+        "type": "enum:epic|story|task|bug",
+        "definition": "The size and nature of the item."
+      },
+      "state": {
+        "type": "enum:open|blocked|deployed",
+        "definition": "Where the item is: open, blocked, or deployed to an environment. Derived from the current transition, open when there is none; never asserted on the item. Before release 2 the states were planned, in-progress, blocked, done and dropped: the first two read as open, done as deployed, and a dropped item is retired.",
+        "default": "open",
+        "was": {
+          "planned": "open",
+          "in-progress": "open",
+          "done": "deployed"
+        }
+      },
+      "deployed_to": {
+        "type": "enum:qa|preprod|prod",
+        "definition": "The environment the item is deployed to, from its deployment transition. Deployed to prod is done."
+      },
+      "priority": {
+        "type": "enum:must|should|could",
+        "definition": "How much it matters this period."
+      },
+      "due": {
+        "type": "date",
+        "definition": "When it must be done."
+      },
+      "estimate": {
+        "type": "string",
+        "definition": "Size in the team's unit: points, days, a t-shirt size. Optional; the plan does not run on it."
+      }
+    },
+    "Transition": {
+      "to": {
+        "type": "enum:open|blocked|deployed",
+        "definition": "The state the item moves to.",
+        "required": true
+      },
+      "at": {
+        "type": "date",
+        "definition": "When the state changed. For a block, since when.",
+        "required": true
+      },
+      "by": {
+        "type": "string",
+        "definition": "Who recorded the change: a person, or the event that caused it, such as a merged pull request or a promotion. For a block, who raised it."
+      },
+      "environment": {
+        "type": "enum:qa|preprod|prod",
+        "definition": "For a deployment: where to. Required when the transition is to deployed."
+      },
+      "event": {
+        "type": "string",
+        "definition": "The event that caused the change, as one id (`github:owner/repo#123` for a merged pull request), so the same event delivered twice is recorded once."
+      }
+    },
+    "Block": {
+      "reason": {
+        "type": "string",
+        "definition": "Why the item is blocked, in the words of whoever raised it.",
+        "required": true
+      }
+    },
+    "Person": {
+      "email": {
+        "type": "string",
+        "definition": "The address the person is known by to the tools: how a git identity maps to them."
+      }
+    },
+    "Milestone": {
+      "date": {
+        "type": "date",
+        "definition": "When the milestone is reached or aimed at. Optional: a phase of a roadmap is ordered before it is dated."
+      },
+      "state": {
+        "type": "enum:planned|reached|missed",
+        "definition": "Whether it was reached."
+      }
+    },
+    "Message": {
+      "from": {
+        "type": "string",
+        "definition": "Who sent it, as written: a person, or the tool that did on their behalf.",
+        "required": true
+      },
+      "body": {
+        "type": "string",
+        "definition": "What was said: the item's context the tool wrote, then the sender's words.",
+        "required": true
+      },
+      "sent": {
+        "type": "date",
+        "definition": "When it was sent.",
+        "required": true
+      },
+      "status": {
+        "type": "enum:pending|read|replied|resolved",
+        "definition": "Where the message is: pending until answered (the default), replied when a reply exists, resolved when a reply settles it. Derived from the replies, never asserted.",
+        "default": "pending"
+      },
+      "due": {
+        "type": "date",
+        "definition": "When an answer is due; an overdue message is flagged."
+      },
+      "outcome": {
+        "type": "enum:replied|resolved",
+        "definition": "On a reply: whether it settles what was asked (resolved) or only answers it (replied). The answered message's status follows."
+      }
+    }
+  },
+  "namespaces": {
+    "oto-core": {
+      "iri": "https://cynergis.ai/ont/oto-core#",
+      "terms": [
+        "Document",
+        "Tool",
+        "cites",
+        "acts_on",
+        "executed_by"
+      ],
+      "temporal": true
+    },
+    "portfolio": {
+      "iri": "https://cynergis.ai/ont/portfolio#",
+      "terms": [
+        "Product",
+        "Role",
+        "Team",
+        "Objective",
+        "Capability",
+        "owned_by",
+        "pursues",
+        "supports",
+        "provides",
+        "depends_on",
+        "member_of",
+        "stage",
+        "domain",
+        "value_stream",
+        "store_url",
+        "site_url",
+        "packs",
+        "holder",
+        "mandate",
+        "kind",
+        "contact",
+        "period",
+        "state"
+      ]
+    },
+    "product": {
+      "iri": "https://cynergis.ai/ont/product#",
+      "terms": [
+        "Persona",
+        "ValueProposition",
+        "SuccessCriterion",
+        "Requirement",
+        "Release",
+        "Feature",
+        "UserJourney",
+        "JourneyStep",
+        "Constraint",
+        "Assumption",
+        "Risk",
+        "Decision",
+        "OpenQuestion",
+        "Scenario",
+        "Policy",
+        "Term",
+        "decided_by",
+        "offers",
+        "intended_for",
+        "serves",
+        "measures",
+        "part_of",
+        "realises",
+        "in_scope_of",
+        "excluded_from",
+        "constrains",
+        "relies_on",
+        "threatens",
+        "mitigated_by",
+        "about",
+        "resolves",
+        "blocks",
+        "documented_in",
+        "interested_in",
+        "exercises",
+        "enforced_by",
+        "defines",
+        "applies_to",
+        "problem",
+        "background",
+        "vision",
+        "relationship",
+        "need",
+        "promise",
+        "differentiator",
+        "metric",
+        "target",
+        "due_on",
+        "priority",
+        "target_date",
+        "horizon",
+        "trigger",
+        "outcome",
+        "position",
+        "action",
+        "imposed_by",
+        "checked_on",
+        "rationale",
+        "decided_on",
+        "raised_on",
+        "given",
+        "when",
+        "then",
+        "authority",
+        "definition"
+      ]
+    },
+    "software-architecture": {
+      "iri": "https://cynergis.ai/ont/software-architecture#",
+      "terms": [
+        "Asset",
+        "System",
+        "Component",
+        "Interface",
+        "DataStore",
+        "Environment",
+        "Runbook",
+        "Repository",
+        "exposes",
+        "consumes",
+        "reads_from",
+        "writes_to",
+        "runs_in",
+        "enables",
+        "satisfies",
+        "supersedes",
+        "operated_by",
+        "implemented_by",
+        "owner",
+        "name",
+        "url",
+        "default_branch"
+      ]
+    },
+    "work": {
+      "iri": "https://cynergis.ai/ont/work#",
+      "terms": [
+        "WorkItem",
+        "Milestone",
+        "Transition",
+        "Block",
+        "Person",
+        "delivers",
+        "scheduled_in",
+        "assigned_to",
+        "blocked_by",
+        "transition_of",
+        "waiting_on",
+        "deployed_to",
+        "due",
+        "estimate",
+        "to",
+        "at",
+        "by",
+        "environment",
+        "event",
+        "reason",
+        "email",
+        "date"
+      ]
+    },
+    "communication": {
+      "iri": "https://cynergis.ai/ont/communication#",
+      "terms": [
+        "Message",
+        "sent_to",
+        "sent_by",
+        "regarding",
+        "in_reply_to",
+        "from",
+        "body",
+        "sent",
+        "status"
+      ]
+    }
+  }
+}

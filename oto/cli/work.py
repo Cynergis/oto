@@ -93,7 +93,7 @@ def cmd_work(args):
             print("oto: %s" % exc, file=sys.stderr)
             return 1
         if done.get("already"):
-            print("%s: %s already recorded as %s; nothing appended" % (done["label"], done["event"], done["transition"]))
+            print("%s: %s; nothing appended" % (done["label"], done.get("reason") or "%s already recorded as %s" % (done["event"], done["transition"])))
             return 0
         print("%s: %s -> deployed to %s (%s, %s)" % (done["label"], done["from"], args.environment, done["event"], args.at))
         print("  transition %s appended, citing assertion %s%s" % (done["transition"], done["assertion"],

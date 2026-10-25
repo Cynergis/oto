@@ -575,7 +575,9 @@ with the item and the block, and nothing once they are answered; a reply marks t
 resolving reply marks it resolved and appends the Open transition in the same gated change; the
 merged-PR event appends one deployed transition and, delivered again, says so and appends nothing. In
 a project with a git identity, `oto work inbox --hook` prints what waits and is silent otherwise:
-open a Claude Code session in the project and the inbox is the first thing it says.
+open a Claude Code session in the project and the inbox is the first thing it says. The real
+project is [roadmap/](../roadmap/README.md): this roadmap, tracked with these commands, built and
+checked by `tests/test_roadmap_project.py`.
 
 ## 19. The engine's own gates and CI
 

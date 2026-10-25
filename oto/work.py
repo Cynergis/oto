@@ -547,7 +547,10 @@ def event_merged_pr(project, repo, number, term, environment, at, by=None):
     if was == "deployed":
         seen = _seen(project, vocabulary, live)
         if seen.attribute(item["id"], "deployed_to") == environment:
-            raise WorkError("%s is already deployed to %s; nothing recorded" % (item.get("label") or item["id"], environment))
+            current = [t for t in transitions_of(live, item["id"]) if t.get("status", "current") == "current"]
+            return {"already": True, "event": event, "transition": current[0]["id"] if current else None,
+                    "item": item["id"], "label": item.get("label") or item["id"],
+                    "reason": "already deployed to %s" % environment}      # an epic's later pull requests change no state
     who = (by or "").strip() or "pull request %s#%s merged" % (repo.strip(), str(number).strip())
     text = "%s: %s -> deployed to %s by %s" % (item.get("label") or item["id"], was, environment, event)
 

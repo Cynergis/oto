@@ -1,0 +1,5 @@
+{"about": ["workitem.epic-l"], "at": "2026-10-24", "by": "pull request Cynergis/oto#54 merged", "id": "a-0001", "supersedes": [], "text": "Epic L: Plugin quick wins: open -> deployed to prod by github:Cynergis/oto#54"}
+{"about": ["workitem.epic-b"], "at": "2026-10-25", "by": "pull request Cynergis/oto#56 merged", "id": "a-0002", "supersedes": [], "text": "Epic B: OTO Deploy (GitOps publishing): open -> deployed to prod by github:Cynergis/oto#56"}
+{"about": ["workitem.epic-k"], "at": "2026-10-25", "by": "pull request Cynergis/oto#57 merged", "id": "a-0003", "supersedes": [], "text": "Epic K: Graph store connectors: open -> deployed to prod by github:Cynergis/oto#57"}
+{"about": ["workitem.epic-m"], "at": "2026-10-25", "by": "pull request Cynergis/oto#58 merged", "id": "a-0004", "supersedes": [], "text": "Epic M: Work pack (tasks and products): open -> deployed to prod by github:Cynergis/oto#58"}
+{"about": ["workitem.epic-n"], "at": "2026-10-25", "by": "pull request Cynergis/oto#60 merged", "id": "a-0005", "supersedes": [], "text": "Epic N: Communication pack: open -> deployed to prod by github:Cynergis/oto#60"}

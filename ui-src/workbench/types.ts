@@ -45,7 +45,17 @@ export interface Snapshot {
     feedback_waiting: number;
   };
   deploy: { backend: string; targets: string[]; site: boolean };
+  /* the board (oto/work.py), or null when the vocabulary declares no work item */
+  work: Board | null;
   open: { station: StationId; what: string; detail: string | null }[];
+}
+
+export interface Board {
+  counts: { open: number; blocked: number; deployed: number };
+  open: { id: string; label: string; kind: string | null; due: string | null }[];
+  blocked: { id: string; label: string; since: string | null; reason: string | null; by: string | null; transition: string | null;
+             waiting_on: { id: string; label: string; type: string | null } | null }[];
+  deployed: { id: string; label: string; environment: string | null; at: string | null }[];
 }
 
 export interface GraphNode {

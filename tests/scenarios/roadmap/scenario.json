@@ -1,17 +1,17 @@
 {
   "name": "OTO Roadmap",
-  "about": "The roadmap as the first work project: its fourteen epics and six phases from the roadmap document, Epic L deployed by its merged pull requests, Epic M blocked on a decision and the person who takes it, then unblocked; the board's questions answer at each step and the block's history stays readable. What `oto work set` refuses is refused.",
+  "about": "The roadmap as the first work project: its fourteen epics and six phases from the roadmap document, Epic L deployed by its merged pull requests, Epic M blocked on a decision and the person who takes it, told with a message, then unblocked; the board and its questions answer at each step, the block's history stays readable, and the published copy shows the people as initials. What `oto work set` and `oto work notify` refuse is refused.",
   "requires": [],
   "sources": "sources.py",
   "steps": [
     {
-      "say": "an empty work project: the vocabulary, no sample",
+      "say": "an empty project on the communication ontology (which extends work): the vocabulary, no sample",
       "run": [
         "init",
         "--name",
         "OTO Roadmap",
         "--ontology",
-        "work",
+        "communication",
         "--empty"
       ]
     },
@@ -162,6 +162,108 @@
           "x.type": "Person"
         }
       ]
+    },
+    {
+      "say": "the board: blocked by whom it waits on, and the snapshot carries the same",
+      "run": [
+        "work",
+        "board"
+      ],
+      "out": [
+        "blocked (1), by whom or what it waits on:",
+        "Chiheb Dkhil (Person)",
+        "Epic M: work pack",
+        "since 2026-10-24, raised by Claude, in session",
+        "deployed (1)",
+        "prod",
+        "Epic L: selected text and tools",
+        "open (12)"
+      ],
+      "snapshot": {
+        "work.counts.blocked": 1,
+        "work.counts.open": 12,
+        "work.counts.deployed": 1,
+        "work.blocked.0.waiting_on.label": "Chiheb Dkhil",
+        "work.deployed.0.environment": "prod"
+      }
+    },
+    {
+      "say": "notify: the message carries the item and the block's reason, to the person it waits on",
+      "run": [
+        "work",
+        "notify",
+        "Epic M",
+        "--by",
+        "Claude, in session",
+        "--at",
+        "2026-10-24",
+        "--due",
+        "2026-10-27",
+        "--body",
+        "Supersede or aggregate: which?"
+      ],
+      "out": [
+        "Epic M: work pack: message message.epic-m-1 to Chiheb Dkhil, due 2026-10-27, pending"
+      ]
+    },
+    {
+      "run": [
+        "build"
+      ]
+    },
+    {
+      "run": [
+        "query",
+        "ask",
+        "CM1",
+        "PERSON=person.chiheb"
+      ],
+      "rows": [
+        {
+          "m.from": "Claude, in session",
+          "m.sent": "2026-10-24",
+          "m.due": "2026-10-27",
+          "w.label": "Epic M: work pack"
+        }
+      ],
+      "out": [
+        "supersede each transition, or aggregate the latest",
+        "Supersede or aggregate: which?"
+      ]
+    },
+    {
+      "say": "a notification needs a block; the published copy shows the person as initials",
+      "run": [
+        "work",
+        "notify",
+        "Epic L",
+        "--by",
+        "Claude, in session",
+        "--at",
+        "2026-10-24"
+      ],
+      "exit": 1,
+      "out": [
+        "not blocked"
+      ]
+    },
+    {
+      "run": [
+        "build",
+        "--target",
+        "site",
+        "--view",
+        "workbench"
+      ],
+      "out": [
+        "published snapshot written"
+      ],
+      "file": "build/site/snapshot.json",
+      "json": {
+        "work.counts.blocked": 1,
+        "work.blocked.0.waiting_on.label": "C.D.",
+        "published": true
+      }
     },
     {
       "say": "the decision is taken: the reply unblocks it",

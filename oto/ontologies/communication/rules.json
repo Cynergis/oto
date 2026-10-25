@@ -1,0 +1,34 @@
+{
+  "_about": "A message past its due date and not resolved is flagged (answers CM3).",
+  "rules": [
+    {
+      "id": "message-is-overdue",
+      "kind": "policy",
+      "severity": "warn",
+      "when": [
+        {
+          "node": "m",
+          "type": "Message",
+          "where": {
+            "due": {
+              "<": "$today"
+            },
+            "status": {
+              "in": [
+                "pending",
+                "read",
+                "replied"
+              ]
+            }
+          }
+        }
+      ],
+      "then": {
+        "flag": "a message is past its due date and not resolved"
+      },
+      "why": "A question nobody answered by the date it was needed is a blocked item staying blocked; the plan must say so.",
+      "validated_by": "",
+      "answers": "CM3"
+    }
+  ]
+}

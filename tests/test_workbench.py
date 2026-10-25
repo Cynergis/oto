@@ -31,6 +31,7 @@ def test_the_workbench_is_a_valid_built_app_beside_the_others():
     assert "cdn" not in bundle.lower() and "fonts.googleapis" not in bundle, "no runtime network"
     for route in ("api/status", "api/changes", "data.json", "snapshot.json"):
         assert route in bundle, route
+    assert "#/work" in bundle and "waits on" in bundle, "the Work page: the board over the snapshot's work section"
     with open(os.path.join(WORKBENCH, "workbench.css"), encoding="utf-8") as f:
         css = f.read()
     assert "--mx-accent" in css and "--primary" in css, "the explorer's variables renamed beside shadcn's tokens"

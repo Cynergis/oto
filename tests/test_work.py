@@ -258,3 +258,90 @@ def test_set_waits_for_an_open_candidate(plan):
     session.start(Project.standard(plan))
     code, out = _cli("work", "set", "workitem.s-settlement-batch", "--state", "open", "--by", "x", "--at", "2026-10-20", "--project", plan)
     assert code == 1 and "candidate" in out
+
+
+# ---- the board and the snapshot's work section (M5) ----
+
+def test_the_board_groups_blocked_by_who_it_waits_on_and_deployed_by_environment(plan):
+    from oto import work as _work
+    board = _work.board(Project.standard(plan))
+    assert board["counts"] == {"open": 2, "blocked": 1, "deployed": 1}
+    assert [i["id"] for i in board["open"]] == ["workitem.s-settlement-batch", "workitem.s-evidence-retention"], "open, soonest due first"
+    assert board["blocked"] == [{"id": "workitem.t-ledger-replica", "label": "Ledger read replica", "since": "2026-10-05",
+                                 "reason": "the replica needs a second region, and the budget for it is not decided",
+                                 "by": "Payments team lead", "transition": "transition.t-ledger-replica-1",
+                                 "waiting_on": {"id": "person.m-okafor", "label": "Mina Okafor", "type": "Person"}}]
+    assert board["deployed"] == [{"id": "workitem.e-checkout", "label": "Checkout payment, end to end", "environment": "prod", "at": "2026-10-01"}]
+    code, out = _cli("work", "board", "--project", plan)
+    assert code == 0, out
+    assert "blocked (1)" in out and "Mina Okafor" in out and "Ledger read replica" in out and "since 2026-10-05" in out
+    assert "deployed (1)" in out and "prod" in out and "open (2)" in out and "Daily settlement batch" in out
+    code, out = _cli("work", "board", "--json", "--project", plan)
+    assert code == 0 and json.loads(out)["counts"]["blocked"] == 1
+
+
+def test_the_snapshot_carries_the_board_and_the_published_copy_shows_its_people_as_initials(plan):
+    from oto import snapshot
+    live = snapshot.build(Project.standard(plan))
+    assert live["work"]["counts"] == {"open": 2, "blocked": 1, "deployed": 1}
+    assert live["work"]["blocked"][0]["waiting_on"]["label"] == "Mina Okafor"
+    out = snapshot.published(live)
+    assert out["work"]["blocked"][0]["waiting_on"]["label"] == "M.O.", "a person a block waits on is a person the project names"
+    assert out["work"]["blocked"][0]["by"] == "Payments team lead", "a role written where a name belongs is left"
+    assert "Okafor" not in json.dumps(out)
+    assert out["work"]["counts"] == live["work"]["counts"]
+
+
+def test_a_project_without_work_items_has_no_board(tmp_path):
+    from oto import snapshot
+    root = str(tmp_path / "kb")
+    with contextlib.redirect_stdout(io.StringIO()):
+        init(root, slug="kb", name="KB")
+    assert snapshot.build(Project.standard(root))["work"] is None
+    code, out = _cli("work", "board", "--project", root)
+    assert code == 1 and "WorkItem" in out
+
+
+# ---- notify: the first message, from a block to whom it waits on (M6) ----
+
+@pytest.fixture
+def comms(tmp_path):
+    root = str(tmp_path / "comms")
+    with contextlib.redirect_stdout(io.StringIO()):
+        init(root, slug="comms", name="Comms", ontology="communication")
+    return root
+
+
+def test_notify_writes_a_message_to_whom_the_block_waits_on_carrying_the_item_and_its_reason(comms):
+    code, out = _cli("work", "notify", "workitem.t-ledger-replica", "--by", "Chiheb Dkhil", "--at", "2026-10-26",
+                     "--due", "2026-10-30", "--body", "Can you decide the budget this week?", "--project", comms)
+    assert code == 0, out
+    assert "message.t-ledger-replica-2" in out and "to Mina Okafor" in out, "the sample already carries one message about it"
+    graph = _graph(comms)
+    message = next(n for n in graph["nodes"] if n["id"] == "message.t-ledger-replica-2")
+    assert message["type"] == "Message" and message["source_type"] == "human_assertion"
+    attributes = message["attributes"]
+    assert attributes["status"] == "pending" and attributes["sent"] == "2026-10-26" and attributes["due"] == "2026-10-30"
+    assert attributes["from"] == "Chiheb Dkhil"
+    assert "Ledger read replica" in attributes["body"] and "second region" in attributes["body"] and "since 2026-10-05" in attributes["body"]
+    assert attributes["body"].endswith("Can you decide the budget this week?")
+    edges = {(e["rel"], e["to"]) for e in graph["edges"] if e["from"] == message["id"]}
+    assert edges == {("sent_to", "person.m-okafor"), ("regarding", "workitem.t-ledger-replica"), ("regarding", "transition.t-ledger-replica-1")}
+    code, out = _cli("build", "--project", comms)
+    assert code == 0, out
+    code, out = _cli("query", "--project", comms, "ask", "CM1", "PERSON=person.m-okafor")
+    assert code == 0 and "status: answered" in out and "Can you decide the budget this week?" in out, out
+
+
+def test_notify_refuses_what_has_nobody_to_tell(comms, plan):
+    code, out = _cli("work", "notify", "workitem.s-settlement-batch", "--by", "x", "--at", "2026-10-26", "--project", comms)
+    assert code == 1 and "not blocked" in out
+    code, out = _cli("work", "set", "workitem.s-settlement-batch", "--state", "blocked", "--reason", "batch size undecided",
+                     "--waiting-on", "decision.d-batch", "--by", "x", "--at", "2026-10-26", "--project", comms)
+    assert code == 0, out
+    code, out = _cli("work", "notify", "workitem.s-settlement-batch", "--by", "x", "--at", "2026-10-26", "--project", comms)
+    assert code == 1 and "decision.d-batch" in out and "--to" in out, "it waits on a decision, not on someone"
+    code, out = _cli("work", "notify", "workitem.s-settlement-batch", "--to", "Payments team", "--by", "x", "--at", "2026-10-26", "--project", comms)
+    assert code == 0 and "to Payments team" in out, out
+    code, out = _cli("work", "notify", "workitem.t-ledger-replica", "--by", "x", "--at", "2026-10-26", "--project", plan)
+    assert code == 1 and "Message" in out and "communication" in out, "a work-only vocabulary has nowhere to put a message"

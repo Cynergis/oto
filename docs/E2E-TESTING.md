@@ -533,14 +533,15 @@ the same names: create them in the repository's settings with your login as requ
 merge a change, and the run stops at test until you approve; the record then names `github` as the
 approver's kind.
 
-## 18. Work: the plan as facts, three states from transitions
+## 18. Work: the plan as facts, three states from transitions, the board, a message
 
-Exercises: the `work` ontology (release 2), `oto work set`, the derived state, the block's shape,
-the board's questions and the history; the scenario `tests/scenarios/roadmap` plays the same story
-with this roadmap's epics.
+Exercises: the `work` ontology (release 2) and `communication` on top of it, `oto work set`, the
+derived state, the block's shape, `oto work board` and the snapshot's `work` section, the
+workbench's Work page, `oto work notify`, the board's questions and the history; the scenario
+`tests/scenarios/roadmap` plays the same story with this roadmap's epics.
 
 ```bash
-oto init --name "Plan" --ontology work --project plan && oto build --project plan
+oto init --name "Plan" --ontology communication --project plan && oto build --project plan
 oto query --project plan ask WK12                                   # deployed, and where: the sample's checkout epic, prod
 oto work set "Daily settlement batch" --state blocked --reason "the acquirer's file format is not published" \
     --waiting-on "Payments team" --by "<you>" --at 2026-10-20 --project plan
@@ -549,13 +550,22 @@ oto work set "Daily settlement batch" --state open --by "<you>" --at 2026-10-24 
 oto query --project plan entity transition.s-settlement-batch-1 --as-of 2026-10-22   # the block, superseded, as it was
 oto work set "Daily settlement batch" --state deployed --by "<you>" --at 2026-10-25 --project plan   # refused: never by hand
 oto work set "Ledger read replica" --state blocked --by "<you>" --at 2026-10-25 --project plan       # refused: no reason, no waiting-on
+oto work board --project plan                                       # blocked by whom it waits on, deployed by environment, open
+oto serve --project plan --http 8795 --view workbench               # the Work tab shows the same board, live
+oto work notify "Ledger read replica" --by "<you>" --at 2026-10-26 --due 2026-10-30 --body "Can you decide this week?" --project plan
+oto build --project plan && oto query --project plan ask CM1 PERSON=person.m-okafor   # what waits for her: the message, with the item
+oto build --project plan --target site --view workbench             # the published snapshot: the person she is shown as "M.O."
 ```
 
 Pass when the state follows the current transition (blocked, then open), the block names the person
 or team it waits on and the date, the superseded transition reads as blocked as of a date between
 the two, `deployed` and a block without its context are refused with nothing written, and a graph
 whose items still assert `planned`, `in-progress` or `done` answers the questions as open and
-deployed (`oto ontology diff` reports the values renamed, not a type change).
+deployed (`oto ontology diff` reports the values renamed, not a type change). The board and the
+Work tab agree with `oto query ask WK11`; the message `notify` writes carries the item, the block's
+date and reason and your words, goes to whom the block waits on (`--to` for someone else; refused
+when the item is not blocked, or in a vocabulary without `Message`), and the published copy of the
+snapshot shows the person it waits on as initials.
 
 ## 19. The engine's own gates and CI
 

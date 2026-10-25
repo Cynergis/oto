@@ -22,7 +22,7 @@ project gives the same snapshot.
     rules       {rules: [{id, kind, severity, why, validated_by}], findings: [{rule, node, label, severity, message}]}
     test        {gold: {questions, authored_by, audited_fraction}, bench: {at, systems} or None,
                  feedback: [{id, verdict, question, by, at, expected}]}
-    deploy      {backend, targets, site}
+    deploy      {backend, targets, site, config, valid, connector, environments}
     open        [{station, what, detail}]: what waits on a person, in plain words
 
     published   false here; true in the copy a static site carries (see `published`)
@@ -247,7 +247,9 @@ def _stations(s):
                   "%s · %s" % (_plural(len(rul["rules"]), "rule"), _plural(len(rul["findings"]), "warning")) if rul["rules"] else "no rules"),
         "test": ("not_started" if not tst["gold"] else "attention" if not tst["bench"] or tst["feedback_waiting"] else "done",
                  ("%s" % _plural(tst["gold"]["questions"], "gold question")) if tst["gold"] else "no gold set"),
-        "deploy": ("done" if dep["site"] else "not_started", "site built" if dep["site"] else "site not built"),
+        "deploy": (("attention" if not dep["valid"] else "done") if dep["config"] else ("done" if dep["site"] else "not_started"),
+                   ("%s configured%s" % (", ".join(dep["environments"]), "" if dep["valid"] else " · config does not validate")) if dep["config"]
+                   else ("site built" if dep["site"] else "site not built")),
     }
     return [{"id": sid, "title": title, "state": out[sid][0], "line": out[sid][1]} for sid, title in STATIONS]
 
@@ -321,8 +323,14 @@ def build(project):
                   "links": len(graph.get("edges") or [])}
     s["rules"] = _rules(project, vocabulary, graph)
     s["test"] = _test(project)
+    from . import deploy as _deploy
+    deploy_config = _read_json(_deploy.path(project)) if _deploy.exists(project) else None
     s["deploy"] = {"backend": ((cfg.get("serve") or {}).get("backend") or "sqlite"), "targets": cfg.get("targets") or [],
-                   "site": os.path.exists(os.path.join(project.src, "site", "index.html"))}
+                   "site": os.path.exists(os.path.join(project.src, "site", "index.html")),
+                   "config": deploy_config is not None,
+                   "valid": bool(deploy_config is not None and not _deploy.problems(deploy_config)),
+                   "connector": (deploy_config or {}).get("connector"),
+                   "environments": _deploy.chain(deploy_config) if deploy_config else []}
     captured = len([d for d in s["sources"]["documents"] if _captured(project, d["slug"])])
     s["overview"] = {"facts": len(current), "documents": len(s["sources"]["documents"]) - captured,
                      "conversations": captured + s["curate"]["assertions"],

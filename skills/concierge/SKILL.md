@@ -114,6 +114,7 @@ oto bench validate --project <root>      # the gold set's shape
 | Where Claude works | on this computer; in a Docker sandbox made from OTO's kit, driven from Claude Desktop's Code tab or a terminal | the sandbox for a tester or a newcomer, or when the work runs commands on a cloud project | the sandbox skill (`/oto:sandbox`): `oto sandbox status`, `oto sandbox up` |
 | Beyond this machine | do not; or bind wider with a token | localhost, unless a team needs it | `OTO_SERVE_TOKEN` in the environment, `oto serve --http 0.0.0.0:<port>`, `--cors <origin>` |
 | Readers without the documents | a query repository they sync; a static site | the query repository | `oto publish --repo <url>`, `oto sync --repo <url>` |
+| Environments with approvals | one store for everyone; dev, test and prod, the same build promoted with an approver on record | one store until someone must approve what readers see | `oto deploy init`, `oto deploy check`, `oto publish --to dev`, `oto publish --to test --promote <commit> --by <who>`, `oto deploy status` |
 | Measuring answers | none; a gold set per document | a gold set, a few questions per document | `oto bench start`, `oto bench add --from <questions>`, `oto bench run`, `oto feedback` |
 
 ## 4. Why

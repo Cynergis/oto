@@ -164,7 +164,7 @@ the rule is, and six workflows:
 | `oto-author` | after a successful ingest | an agent, running the Claude Code Action with this engine's plugin, drafts the run's proposals on a branch `oto/run-<id>`, applies them through the curate gates with a ledger note, builds, evaluates, and writes `runs/<id>.report.md`; the workflow commits the branch and opens a pull request with that report as its description, labelled `blocked` if the agent stopped |
 | `oto-checks` | a pull request | the gates as status checks: status, candidate check, pre-flight and build, vocabulary, gold set, provenance |
 | `oto-review` | `@claude` in a pull request comment | the same agent revises on the branch and pushes; the checks run again |
-| `oto-deploy` | a merge to `main` | builds the store and keeps it |
+| `oto-deploy` | a merge to `main` | builds the store and keeps it; with a deploy config (`oto.deploy.json`, [deploy.py](../oto/deploy.py)) it checks the config, publishes the build to the first environment, and the `promote-test` and `promote-prod` jobs copy the same store forward, each behind a GitHub Environment whose required reviewers are the approvers; `PROMOTIONS.jsonl` on each environment's branch of the query repository records commit, hash, approver and time |
 | `oto-tools` | a daily cron | invokes the due read-only tools through the script under `.github/scripts/` (the caller, never OTO), records the responses, takes the proposals through the gates and opens a pull request |
 
 The corpus under `build/documents/` is committed in a repository, because it is an input to the

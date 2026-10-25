@@ -214,6 +214,12 @@ DEPLOY = """name: oto deploy
 # checkout. With OTO_SITE_VIEW also set (a view's name, e.g. `explorer`), the static site
 # is built with that app and published beside the store, for a reader with a browser and no
 # engine. The store is kept as a workflow artifact either way.
+#
+# With a deploy config (oto.deploy.json, `oto deploy init`), the config names the query repository
+# and the environments: the build is published to the first (dev), and the promote jobs copy the
+# same store forward, one environment at a time, each behind a GitHub Environment of the same name
+# whose required reviewers are the approvers. The record on the branch names the commit and who ran
+# the approved job.
 
 on:
   push:
@@ -247,6 +253,12 @@ jobs:
           ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
       - name: Build every layer
         run: oto build --project .
+      - name: Check the deploy config, when the project has one
+        id: has-config
+        run: |
+          if [ -f oto.deploy.json ]; then oto deploy check --project . && echo "deploy=true" >> "$GITHUB_OUTPUT"; else echo "deploy=false" >> "$GITHUB_OUTPUT"; fi
+        env:
+          HAS_CONFIG: ${{{{ hashFiles('oto.deploy.json') }}}}
       - name: Load the self-hosted Neo4j, when one is configured
         if: vars.NEO4J_URI != ''
         env:
@@ -273,6 +285,59 @@ jobs:
         env:
           OTO_QUERY_REPO_TOKEN: ${{{{ secrets.OTO_QUERY_REPO_TOKEN }}}}
         run: oto publish --project . --repo "${{{{ vars.OTO_QUERY_REPO }}}}" --source "${{{{ github.repository }}}}@${{{{ github.sha }}}}" --engine "${{ENGINE}}" ${{{{ vars.OTO_SITE_VIEW != '' && '--site' || '' }}}}
+      - name: Publish the build to the first environment, when the project has a deploy config
+        if: steps.has-config.outputs.deploy == 'true'
+        env:
+          OTO_QUERY_REPO_TOKEN: ${{{{ secrets.OTO_QUERY_REPO_TOKEN }}}}
+        run: oto publish --project . --to dev --source "${{{{ github.repository }}}}@${{{{ github.sha }}}}" --engine "${{ENGINE}}"
+    outputs:
+      deploy: ${{{{ steps.has-config.outputs.deploy }}}}
+
+  promote-test:
+    needs: build-and-publish
+    if: needs.build-and-publish.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    environment: test                 # its required reviewers are the approvers named in oto.deploy.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Reach the engine repository when it is private
+        run: if [ -n "$OTO_ENGINE_TOKEN" ]; then git config --global url."https://x-access-token:${{OTO_ENGINE_TOKEN}}@github.com/".insteadOf "https://github.com/"; fi
+        env:
+          OTO_ENGINE_TOKEN: ${{{{ secrets.OTO_ENGINE_TOKEN }}}}
+      - name: Install the engine from its repository
+        run: {pip}
+        env:
+          ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
+      - name: Promote the same store from dev
+        env:
+          OTO_QUERY_REPO_TOKEN: ${{{{ secrets.OTO_QUERY_REPO_TOKEN }}}}
+        run: oto publish --project . --to test --promote "${{{{ github.sha }}}}" --by "${{{{ github.actor }}}}" --approver github
+
+  promote-prod:
+    needs: promote-test
+    if: needs.build-and-publish.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Reach the engine repository when it is private
+        run: if [ -n "$OTO_ENGINE_TOKEN" ]; then git config --global url."https://x-access-token:${{OTO_ENGINE_TOKEN}}@github.com/".insteadOf "https://github.com/"; fi
+        env:
+          OTO_ENGINE_TOKEN: ${{{{ secrets.OTO_ENGINE_TOKEN }}}}
+      - name: Install the engine from its repository
+        run: {pip}
+        env:
+          ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
+      - name: Promote the same store from test
+        env:
+          OTO_QUERY_REPO_TOKEN: ${{{{ secrets.OTO_QUERY_REPO_TOKEN }}}}
+        run: oto publish --project . --to prod --promote "${{{{ github.sha }}}}" --by "${{{{ github.actor }}}}" --approver github
 """
 
 

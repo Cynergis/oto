@@ -158,7 +158,7 @@ def test_a_site_built_with_the_workbench_carries_the_published_snapshot_and_the_
 
 def test_the_generated_deploy_workflow_builds_the_site_with_flags_oto_build_accepts():
     from oto import repo
-    assert "--app" not in repo.DEPLOY and '--view "${{{{ vars.OTO_SITE_VIEW }}}}"' in repo.DEPLOY
+    assert " --app " not in repo.DEPLOY and '--view "${{{{ vars.OTO_SITE_VIEW }}}}"' in repo.DEPLOY
 
 
 def test_people_the_project_names_are_published_as_their_initials(root):

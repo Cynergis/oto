@@ -506,7 +506,34 @@ lists the check before a run and not after, and the workflow's pull request hold
 records, the run documents in `processing/`, the proposals and, when the check was clean, the
 applied graph.
 
-## 17. The engine's own gates and CI
+## 17. Deploy: one config, environments, the same build promoted
+
+Exercises: `oto deploy init` and `check`, `oto publish --to dev`, promotion with `--promote` and
+`--by`, the record on each environment's branch, `oto sync --branch`, `oto deploy status`, and the
+refusals (a skipped environment, a different commit, a tampered store, a missing approver). The
+query repository can be a bare git repository on this machine; nothing needs GitHub.
+
+```bash
+git init --bare -b main /tmp/acme-store.git
+oto deploy init --project acme --repo you/acme --to /tmp/acme-store.git
+oto deploy check --project acme                         # dev -> test -> prod; test and prod name approvers
+oto publish --project acme --to dev --source you/acme@abc123
+oto publish --project acme --to test --promote abc123 --by "<you>"
+oto publish --project acme --to prod --promote abc123   # refused: prod names approvers; add --by
+oto publish --project acme --to prod --promote def456 --by "<you>"   # refused: test holds abc123
+oto deploy status --project acme                        # what each environment holds, and who approved it
+oto sync --repo /tmp/acme-store.git --branch test --dest /tmp/acme-test && oto status --project /tmp/acme-test
+```
+
+Pass when dev, test and prod hold the same store hash, each record names the approver, prod is
+refused without one and with another commit, and a store edited by hand on the dev branch is
+refused at the next promotion ("does not match its manifest"). In repository mode, `oto init --repo`
+writes the deploy workflow with `promote-test` and `promote-prod` jobs behind GitHub Environments of
+the same names: create them in the repository's settings with your login as required reviewer,
+merge a change, and the run stops at test until you approve; the record then names `github` as the
+approver's kind.
+
+## 18. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.
 

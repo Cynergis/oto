@@ -139,6 +139,13 @@
               "open": {"has": "1 reader question waits for its right answer"},
               "test.gold.authored_by": null, "overview.facts": 21,
               "vocabulary.classes.Route.why": {"has": "D.R. wants incidents and repairs grouped by route"},
-              "curate.changes.0.by": "S.L., analyst"}}
+              "curate.changes.0.by": "S.L., analyst"}},
+
+    {"say": "deploy: say where the graph goes, and check it before anything publishes",
+     "run": ["deploy", "init", "--repo", "northwind/fleet-kg", "--to", "https://github.com/northwind/fleet-kg-store"],
+     "out": ["wrote oto.deploy.json", "dev -> test -> prod"]},
+    {"run": ["deploy", "check"], "out": ["oto.deploy.json validates", "test     approved by kg-owners", "never rebuilt"],
+     "snapshot": {"deploy.config": true, "deploy.valid": true, "deploy.environments": ["dev", "test", "prod"],
+                  "stations.deploy.state": "done", "stations.deploy.line": "dev, test, prod configured"}}
   ]
 }

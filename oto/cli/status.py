@@ -204,6 +204,14 @@ def _store_status(root):
     print("%s (slug %s): a published query store, not a knowledge project" % (cfg.get("name"), cfg.get("slug")))
     print("  store       build_seq %s, published %s%s" % (manifest.get("build_seq", "?"), manifest.get("published_at", "?"),
                                                            (" from " + manifest["source"]) if manifest.get("source") else ""))
+    if manifest.get("environment"):
+        from .. import deploy as _deploy
+        record = _deploy.read_record(root)
+        last = record[-1] if record else {}
+        who = ("approved by %s (%s)" % (last["approved_by"], last.get("approver_kind") or "person")) if last.get("approved_by") \
+            else "no approver needed"
+        print("  environment %s, %s%s" % (manifest["environment"], who,
+                                           (", promoted from %s" % manifest["promoted_from"]) if manifest.get("promoted_from") else ""))
     print("  serve       sqlite, this checkout: oto serve --project %s" % root)
     print()
     print("next: oto sync --repo %s to update it" % (manifest.get("repo") or "<the query repository>"))

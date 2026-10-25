@@ -1,14 +1,14 @@
 {
   "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
   "name": "work",
-  "release": 1,
+  "release": 2,
   "domain": "product",
-  "summary": "What is planned, by whom, blocked by what: work items and milestones over the product's requirements, features and components; what slips when a component is late, what is overdue, what waits on a decision.",
+  "summary": "What is planned, by whom, blocked by what, deployed where: work items and milestones over the product's requirements, features and components; three states derived from appended transitions; what slips when a component is late, what is overdue, what waits on whom.",
   "extends": [
     "software-architecture"
   ],
   "namespace": "https://cynergis.ai/ont/work#",
-  "engine": ">=0.10",
+  "engine": ">=0.11",
   "carries": [
     "vocabulary",
     "rationale",
@@ -19,6 +19,11 @@
   ],
   "maintainer": "OTO",
   "changelog": [
+    {
+      "release": 2,
+      "at": "2026-10-25",
+      "note": "Three states (roadmap M1-M3): open, blocked, deployed, derived from appended Transition facts; a Block carries its reason and whom it waits on; Person; deployed_to per environment; WK11-WK13. planned and in-progress read as open, done as deployed; a dropped item is retired. `oto work set` appends a transition."
+    },
     {
       "release": 1,
       "at": "2026-10-07",

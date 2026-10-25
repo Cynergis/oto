@@ -24,13 +24,18 @@ source_doc; a date may be compared with `$today` or `$today-<n>d`), `edge` (from
 patterns that must match nothing from the binding, so the absent node may carry conditions:
 {"not": [{"edge": ["s", "after", "g"]}, {"node": "g", "where": {"stepKind": "run_gate"}}]}). A derivation sees
 current facts only; a policy also sees `intended` ones, so it can flag a plan gone stale. Actions: `edge`, `attribute` [var, name, value], or `flag`.
+The value of a derived attribute is written as is, or copied from a bound node: `"$t.to"` is the
+`to` of the node bound to `t` (a transition's target state becomes its item's state), and derives
+nothing when that node carries no such value.
 Derivation rules are positive, so a fixpoint exists; policy rules produce findings that never
 feed back, so negation is safe there.
 """
 import json
 import os
+import re
 
 NAME = "rules.json"
+_REFERENCE = re.compile(r"\$([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)")
 KINDS = ("derive", "policy")
 SEVERITIES = ("warn", "blocking")
 OPERATORS = ("=", "!=", "<", "<=", ">", ">=", "in", "not_in", "contains", "exists")
@@ -136,6 +141,9 @@ def problems(rules, vocabulary):
                     var, name = spec[0], spec[1]
                     if var not in bound:
                         out.append("%s: variable %r in `then` is not bound in `when`" % (label, var))
+                    source = _REFERENCE.fullmatch(spec[2]) if isinstance(spec[2], str) else None
+                    if source and source.group(1) != "today" and source.group(1) not in bound:
+                        out.append("%s: the value %r names variable %r, which `when` does not bind" % (label, spec[2], source.group(1)))
                     for kind_name in var_types.get(var, []):
                         declared = attributes.get(kind_name)
                         if declared and name not in declared:

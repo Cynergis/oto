@@ -888,14 +888,14 @@ def _derived_attributes_from_store():
 
 
 def _declared_names():
-    """{class: the attribute names it declares}, from the vocabulary the store carries."""
-    from ..model.vocabulary import declared_attributes
+    """{class: the attribute names it declares}, with how each is read (a default, former values),
+    from the vocabulary the store carries: the same `declared` a build gives the matcher."""
+    from ..reason.questions import declared_names
     words = vocabulary()
     attributes = {}
     for (kind, name), spec in words.attributes.items():
         attributes.setdefault(kind, {})[name] = spec
-    config = {"classes": words.classes, "attributes": attributes}
-    return {kind: set(declared_attributes(config, kind)) for kind in words.classes}
+    return declared_names({"classes": words.classes, "attributes": attributes})
 
 
 def briefs():

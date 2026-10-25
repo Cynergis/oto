@@ -533,7 +533,31 @@ the same names: create them in the repository's settings with your login as requ
 merge a change, and the run stops at test until you approve; the record then names `github` as the
 approver's kind.
 
-## 18. The engine's own gates and CI
+## 18. Work: the plan as facts, three states from transitions
+
+Exercises: the `work` ontology (release 2), `oto work set`, the derived state, the block's shape,
+the board's questions and the history; the scenario `tests/scenarios/roadmap` plays the same story
+with this roadmap's epics.
+
+```bash
+oto init --name "Plan" --ontology work --project plan && oto build --project plan
+oto query --project plan ask WK12                                   # deployed, and where: the sample's checkout epic, prod
+oto work set "Daily settlement batch" --state blocked --reason "the acquirer's file format is not published" \
+    --waiting-on "Payments team" --by "<you>" --at 2026-10-20 --project plan
+oto build --project plan && oto query --project plan ask WK11       # blocked: since when, why, on whom
+oto work set "Daily settlement batch" --state open --by "<you>" --at 2026-10-24 --project plan && oto build --project plan
+oto query --project plan entity transition.s-settlement-batch-1 --as-of 2026-10-22   # the block, superseded, as it was
+oto work set "Daily settlement batch" --state deployed --by "<you>" --at 2026-10-25 --project plan   # refused: never by hand
+oto work set "Ledger read replica" --state blocked --by "<you>" --at 2026-10-25 --project plan       # refused: no reason, no waiting-on
+```
+
+Pass when the state follows the current transition (blocked, then open), the block names the person
+or team it waits on and the date, the superseded transition reads as blocked as of a date between
+the two, `deployed` and a block without its context are refused with nothing written, and a graph
+whose items still assert `planned`, `in-progress` or `done` answers the questions as open and
+deployed (`oto ontology diff` reports the values renamed, not a type change).
+
+## 19. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.
 

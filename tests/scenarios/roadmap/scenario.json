@@ -1,0 +1,301 @@
+{
+  "name": "OTO Roadmap",
+  "about": "The roadmap as the first work project: its fourteen epics and six phases from the roadmap document, Epic L deployed by its merged pull requests, Epic M blocked on a decision and the person who takes it, then unblocked; the board's questions answer at each step and the block's history stays readable. What `oto work set` refuses is refused.",
+  "requires": [],
+  "sources": "sources.py",
+  "steps": [
+    {
+      "say": "an empty work project: the vocabulary, no sample",
+      "run": [
+        "init",
+        "--name",
+        "OTO Roadmap",
+        "--ontology",
+        "work",
+        "--empty"
+      ]
+    },
+    {
+      "inbox": [
+        "oto-roadmap.md"
+      ]
+    },
+    {
+      "run": [
+        "ingest"
+      ],
+      "out": [
+        "oto-roadmap.md -> documents/oto-roadmap.md",
+        "blocked 0"
+      ]
+    },
+    {
+      "say": "the roadmap, drafted: phases as milestones, epics as items, Epic L already deployed",
+      "run": [
+        "curate",
+        "start"
+      ]
+    },
+    {
+      "run": [
+        "curate",
+        "add",
+        "--from",
+        "{scenario}/proposals/oto-roadmap.json"
+      ]
+    },
+    {
+      "run": [
+        "curate",
+        "check"
+      ],
+      "findings": {
+        "gap": [
+          [
+            "(graph)",
+            "question CORE2 unanswered"
+          ],
+          [
+            "(graph)",
+            "question PF1 unanswered"
+          ],
+          [
+            "(graph)",
+            "question PF2 unanswered"
+          ],
+          [
+            "(graph)",
+            "question PF6 unanswered"
+          ],
+          [
+            "(graph)",
+            "question PR4 unanswered"
+          ],
+          [
+            "(graph)",
+            "question SA10 unanswered"
+          ]
+        ]
+      },
+      "out": [
+        "ready to apply"
+      ],
+      "say": "the gates: clean but for the base ontologies' questions an empty roadmap cannot answer yet"
+    },
+    {
+      "run": [
+        "curate",
+        "apply",
+        "--by",
+        "Chiheb Dkhil",
+        "--note",
+        "The roadmap's six phases and fourteen epics; Epic L shipped."
+      ]
+    },
+    {
+      "run": [
+        "build"
+      ]
+    },
+    {
+      "say": "the board: what is deployed, and nothing is blocked yet",
+      "run": [
+        "query",
+        "ask",
+        "WK12"
+      ],
+      "rows": [
+        {
+          "w.label": "Epic L: selected text and tools",
+          "w.deployed_to": "prod"
+        }
+      ]
+    },
+    {
+      "run": [
+        "query",
+        "ask",
+        "WK11"
+      ],
+      "not_out": [
+        "Epic"
+      ]
+    },
+    {
+      "say": "Epic M blocks on a decision, waiting on the person who takes it",
+      "run": [
+        "work",
+        "set",
+        "Epic M",
+        "--state",
+        "blocked",
+        "--reason",
+        "the state model needs a decision: supersede each transition, or aggregate the latest",
+        "--waiting-on",
+        "Chiheb Dkhil",
+        "--by",
+        "Claude, in session",
+        "--at",
+        "2026-10-24"
+      ],
+      "out": [
+        "Epic M: work pack: open -> blocked, waiting on person.chiheb",
+        "transition transition.epic-m-1 appended"
+      ]
+    },
+    {
+      "run": [
+        "build"
+      ]
+    },
+    {
+      "run": [
+        "query",
+        "ask",
+        "WK11"
+      ],
+      "rows": [
+        {
+          "w.label": "Epic M: work pack",
+          "b.at": "2026-10-24",
+          "x.label": "Chiheb Dkhil",
+          "x.type": "Person"
+        }
+      ]
+    },
+    {
+      "say": "the decision is taken: the reply unblocks it",
+      "run": [
+        "work",
+        "set",
+        "Epic M",
+        "--state",
+        "open",
+        "--by",
+        "Chiheb Dkhil",
+        "--at",
+        "2026-10-25"
+      ],
+      "out": [
+        "Epic M: work pack: blocked -> open",
+        "transition.epic-m-1 superseded"
+      ]
+    },
+    {
+      "run": [
+        "build"
+      ]
+    },
+    {
+      "run": [
+        "query",
+        "ask",
+        "WK11"
+      ],
+      "not_out": [
+        "Epic M"
+      ]
+    },
+    {
+      "run": [
+        "query",
+        "ask",
+        "WK13",
+        "ITEM=workitem.epic-m"
+      ],
+      "rows": [
+        {
+          "t.to": "open",
+          "t.at": "2026-10-25",
+          "t.by": "Chiheb Dkhil"
+        }
+      ]
+    },
+    {
+      "say": "history: what was believed while it was blocked",
+      "run": [
+        "query",
+        "entity",
+        "transition.epic-m-1",
+        "--as-of",
+        "2026-10-24"
+      ],
+      "out": [
+        "status=superseded",
+        "valid_to=2026-10-25",
+        "blocked"
+      ]
+    },
+    {
+      "say": "what the command refuses",
+      "run": [
+        "work",
+        "set",
+        "Epic M",
+        "--state",
+        "deployed",
+        "--by",
+        "Claude, in session",
+        "--at",
+        "2026-10-25"
+      ],
+      "exit": 1,
+      "out": [
+        "never by hand"
+      ]
+    },
+    {
+      "run": [
+        "work",
+        "set",
+        "Epic N",
+        "--state",
+        "blocked",
+        "--by",
+        "Claude, in session",
+        "--at",
+        "2026-10-25"
+      ],
+      "exit": 1,
+      "out": [
+        "--reason and --waiting-on are required"
+      ]
+    },
+    {
+      "run": [
+        "work",
+        "set",
+        "Epic",
+        "--state",
+        "open",
+        "--by",
+        "Claude, in session",
+        "--at",
+        "2026-10-25"
+      ],
+      "exit": 1,
+      "out": [
+        "names 14 things"
+      ]
+    },
+    {
+      "say": "the critical path",
+      "run": [
+        "query",
+        "ask",
+        "WK10",
+        "ITEM=workitem.epic-c"
+      ],
+      "rows": [
+        {
+          "before.label": "Epic A: federated graphs",
+          "before.state": "open"
+        },
+        {
+          "before.label": "Epic K: connectors",
+          "before.state": "open"
+        }
+      ]
+    }
+  ]
+}

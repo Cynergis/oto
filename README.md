@@ -81,6 +81,8 @@ pip install "oto-kg[neo4j] @ git+https://github.com/Cynergis/oto"     # the prod
      # built graph into a self-hosted Neo4j and serve from it (serve.backend: neo4j); SQLite stays the
      # development store and the fallback, and the two answer alike
 pip install "oto-kg[rdf] @ git+https://github.com/Cynergis/oto"       # `oto ontology import --file`: read a
+pip install "oto-kg[otel] @ git+https://github.com/Cynergis/oto"      # tracing: OpenTelemetry spans for tool calls,
+     # builds and the work pack's writes, with the trace id in the audit record; on with OTO_TRACE
      # real ontology, OWL, RDFS or SKOS in any RDF syntax, every term keeping its IRI
 ```
 

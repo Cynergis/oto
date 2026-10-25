@@ -24,7 +24,7 @@ intake = ["python-docx", "python-pptx", "pypdfium2", "pdfplumber", "beautifulsou
 # rdflib (BSD-3-Clause) reads the RDF export back in the tests, and pyshacl (Apache-2.0) checks that
 # the SHACL the export writes finds what the engine finds. Never runtime dependencies: the export is
 # written, and the shapes are evaluated, by the stdlib compile path.
-dev = ["pytest", "rdflib", "pyshacl"]
+dev = ["pytest", "rdflib", "pyshacl", "opentelemetry-sdk>=1.20"]
 # Benchmarking only. Never a runtime dependency: the engine must never need a model to answer.
 # fastembed is Apache-2.0, onnxruntime MIT, numpy BSD-3-Clause.
 bench = ["fastembed", "numpy"]
@@ -35,6 +35,10 @@ neo4j = ["neo4j>=5"]
 # Reading a real ontology (OWL, RDFS, SKOS, any RDF syntax) with `oto ontology import --file`.
 # rdflib is BSD-3-Clause. The compile path never needs it: the export is written by the stdlib.
 rdf = ["rdflib>=7"]
+# Tracing (oto/tracing.py): spans for the kg_* tools, the build stages and the work pack's writes,
+# with the trace id in the audit record. All Apache-2.0. Off without OTO_TRACE or an OTLP endpoint,
+# and a no-op without these packages: the engine stays stdlib-only for whoever does not ask.
+otel = ["opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20", "opentelemetry-exporter-otlp-proto-http>=1.20"]
 # Everything a full installation uses at once: extraction, the production store, the drafter, the
 # benchmark baseline and the ontology reader. Not the test tooling, which is `dev`.
 all = ["python-docx", "python-pptx", "pypdfium2", "pdfplumber", "beautifulsoup4", "lxml", "openpyxl",

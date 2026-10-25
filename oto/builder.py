@@ -98,24 +98,29 @@ def _discard(project):
 def build(project, only=None, transactional=True):
     """Run the stages. Returns the list of stage names that ran."""
     stages = [(name, path) for name, path in STAGES if not only or name in only]
+    from . import tracing
 
-    if not transactional:
-        for name, path in stages:
-            print("--- %s" % name)
+    def stage(name, path):
+        print("--- %s" % name)
+        with tracing.span("oto.build." + name, stage=name):
             importlib.import_module(path).run(project)
+
+    with tracing.span("oto.build", project=project.identity()["slug"], stages=[n for n, _ in stages]):
+        if not transactional:
+            for name, path in stages:
+                stage(name, path)
+            return [n for n, _ in stages]
+
+        saved = _stash(project, only)
+        try:
+            for name, path in stages:
+                stage(name, path)
+        except BaseException:
+            print("build failed; restoring the previous build")
+            _restore(project, saved)
+            raise
+        _discard(project)
         return [n for n, _ in stages]
-
-    saved = _stash(project, only)
-    try:
-        for name, path in stages:
-            print("--- %s" % name)
-            importlib.import_module(path).run(project)
-    except BaseException:
-        print("build failed; restoring the previous build")
-        _restore(project, saved)
-        raise
-    _discard(project)
-    return [n for n, _ in stages]
 
 def clean(project, dry_run=False):
     """Delete everything the build owns. Returns the paths removed.

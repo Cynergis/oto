@@ -27,6 +27,10 @@ Every one is permissive and compatible with Apache-2.0, with no obligation beyon
 `pip install 'oto-kg[neo4j]'` adds the Neo4j Python driver (`neo4j`, Apache-2.0), used only by the
 optional Neo4j target to load a copy of the built graph. `pip install 'oto-kg[draft]'` adds the Anthropic Python SDK (`anthropic`, MIT), used only by `oto draft`
 to have a model write a document's first proposal. The compile, curate and serve paths never import it.
+`pip install 'oto-kg[otel]'` adds OpenTelemetry (`opentelemetry-api`, `opentelemetry-sdk`,
+`opentelemetry-exporter-otlp-proto-http`, all Apache-2.0), used only by `oto/tracing.py` when
+`OTO_TRACE` or an OTLP endpoint is set; without them every span is a no-op. The `dev` extra installs the
+SDK so the tests exercise real spans.
 
 ## PyMuPDF was replaced
 

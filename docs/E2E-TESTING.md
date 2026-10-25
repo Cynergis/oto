@@ -579,10 +579,11 @@ open a Claude Code session in the project and the inbox is the first thing it sa
 project is [roadmap/](../roadmap/README.md): this roadmap, tracked with these commands, built and
 checked by `tests/test_roadmap_project.py`.
 
-## 19. Audit: every write on a chain
+## 19. Audit and tracing: every write on a chain, every operation in a span
 
 Exercises: the audit log appended by every write path, `oto audit verify`, `oto audit for <node>`,
-and the stable IRI of a node promoted through the environments.
+the stable IRI of a node promoted through the environments, and tracing behind the `otel` extra
+with its redaction policy.
 
 ```bash
 oto work set "Epic C" --state blocked --reason "..." --waiting-on "Chiheb Dkhil" --at 2026-10-27 --project roadmap
@@ -598,6 +599,20 @@ Pass when every write (the work pack's set, notify, reply and event, their refus
 principal, the nodes, the graph's version and the decision; an edited record breaks the chain at its
 number, a removed or reordered one at the record after it; and the node ids, hence the IRIs under the
 project's namespace, are the same in dev, test and prod.
+
+```bash
+pip install "oto-kg[otel] @ git+https://github.com/Cynergis/oto"
+OTO_TRACE=console oto build --project roadmap 2>spans.json            # one span per stage under oto.build
+OTO_TRACE=console oto work set "Epic C" --state open --at 2026-10-28 --project roadmap 2>>spans.json
+oto audit log --project roadmap                                        # the record's trace_id is the span's
+grep -c '"name": "oto.work.set"' spans.json; grep -c 'Epic C' spans.json   # 1, and 0: the item's name is text someone wrote
+OTO_TRACE=1 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 oto serve --project roadmap --http 8790   # kg.<tool> spans to a collector
+```
+
+Pass when the build opens `oto.build` with a child per stage, a tool call opens `kg.<tool>` with its
+arguments redacted (`arguments.query` is a size and a hash, never the words), the audit record written
+inside `oto.work.set` carries that span's trace id, and no prompt, body, reason or email appears in any
+span's attributes; without `OTO_TRACE`, or without the packages, nothing changes and no span exists.
 
 ## 20. The engine's own gates and CI
 

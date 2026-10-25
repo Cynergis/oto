@@ -92,16 +92,32 @@ def read_manifest(root):
 
 # ---- publish ----
 
-def publish(project, repo, source=None, branch="main", token=None, engine=None, site=False):
+def publish(project, repo=None, source=None, branch="main", token=None, engine=None, site=False, environment=None):
     """Push the built store to the query repository, and with `site` the static site beside it.
-    Returns the manifest written, with `changed`."""
+    With `environment`, the project's deploy config (deploy.py) names the repository, the environment
+    is the branch, and the build may only land in the first environment: the others are reached by
+    promotion. Returns the manifest written, with `changed`."""
     from .targets.sqlite import SCHEMA_VERSION
+    from . import deploy as _deploy
 
     database = project.layout.database
     if not os.path.exists(database):
         raise ProjectError("nothing to publish: no built store at %s (run `oto build`)" % database)
     identity = project.identity()
     cfg = project.config()
+    if environment:
+        config = _deploy.loaded_and_valid(project)
+        names = _deploy.chain(config)
+        if environment not in names:
+            raise ProjectError("%r is not an environment of %s: %s" % (environment, _deploy.NAME, " -> ".join(names)))
+        if environment != names[0]:
+            raise ProjectError("a build is published to the first environment (%s); %s is reached by promotion: "
+                               "oto publish --to %s --promote <commit> --by <who approved>" % (names[0], environment, environment))
+        repo = repo or config["publish"]["to"]
+        branch = environment
+        site = site or bool(config["publish"].get("site"))
+    if not repo:
+        raise ProjectError("publish needs --repo <query repository>, or --to <environment> with a deploy config")
     token = token if token is not None else os.environ.get(TOKEN_ENV)
     engine = engine or "https://github.com/Cynergis/oto"
 
@@ -128,6 +144,8 @@ def publish(project, repo, source=None, branch="main", token=None, engine=None, 
                     "published_at": datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat(),
                     "source": source or "", "repo": repo}
         manifest["site"] = bool(site)
+        if environment:
+            manifest["environment"] = environment
         previous = read_manifest(work)
         if previous.get("sha256") == manifest["sha256"] and bool(previous.get("site")) == bool(site) \
                 and not (site and _git(["status", "--porcelain", "site"], cwd=work).strip()):
@@ -138,9 +156,12 @@ def publish(project, repo, source=None, branch="main", token=None, engine=None, 
             f.write("\n")
         with open(os.path.join(work, "README.md"), "w", encoding="utf-8") as f:
             f.write(README.format(name=identity["name"], slug=identity["slug"], repo=repo, engine=engine))
+        if environment:
+            _deploy.append_record(work, _deploy.record_entry(environment, manifest))
         _git(["add", "-A"], cwd=work)
         _git(["-c", "user.name=oto publish", "-c", "user.email=oto-publish@localhost", "commit", "--quiet",
-              "-m", "store build_seq %d%s" % (manifest["build_seq"], (" from " + source) if source else "")], cwd=work)
+              "-m", "store build_seq %d%s%s" % (manifest["build_seq"], (" from " + source) if source else "",
+                                                (" to " + environment) if environment else "")], cwd=work)
         _git(["push", "--quiet", _with_token(repo, token), "HEAD:%s" % branch], cwd=work)
         manifest["changed"] = True
         return manifest

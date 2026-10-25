@@ -7,6 +7,7 @@ produce. `tests/test_scenarios.py` plays them; its docstring lists the step kind
 |---|---|
 | `northwind` | The reference path: ingest (a credential blocked, then redacted), survey decisions, a vocabulary from a sheet and an interview, two captures, curate with a value gap fixed and a supersession, build, the competency questions and their history, rules, bench, feedback. |
 | `northwind-mistakes` | The gates hold: replays `northwind` to the PM-B change, then an overwrite, a misread number someone said, an undeclared class and relation, a quote from a document the project does not hold, a statement dated by "yesterday", a near name. Each is stopped, and the corrected change passes. |
+| `roadmap` | The work pack on this roadmap: an empty `work` project, the phases and epics drafted from the roadmap document, Epic L deployed by its merged pull requests, Epic M blocked on a decision and the person who takes it, then unblocked; the board's questions at each step, the block's history as of a date, and what `oto work set` refuses. |
 
 ## Adding one
 

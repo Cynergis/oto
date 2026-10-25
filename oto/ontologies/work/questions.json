@@ -73,7 +73,7 @@
     },
     "WK2": {
       "who": "a delivery lead",
-      "question": "What is $TEAM working on, and what of it is blocked?",
+      "question": "What is $TEAM working on, and what of it is blocked, why, and waiting on whom?",
       "why": "A team's load and its blockers, in one answer.",
       "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
       "params": {
@@ -96,8 +96,7 @@
             "where": {
               "state": {
                 "in": [
-                  "planned",
-                  "in-progress",
+                  "open",
                   "blocked"
                 ]
               }
@@ -113,6 +112,28 @@
                 ]
               }
             ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "blk",
+                  "transition_of",
+                  "w"
+                ]
+              },
+              {
+                "node": "blk",
+                "type": "Block"
+              },
+              {
+                "edge": [
+                  "blk",
+                  "waiting_on",
+                  "x"
+                ]
+              }
+            ]
           }
         ],
         "select": [
@@ -120,7 +141,9 @@
           "w.state",
           "w.due",
           "b.label",
-          "b.type"
+          "b.type",
+          "blk.reason",
+          "x.label"
         ]
       },
       "gate": "any"
@@ -293,7 +316,7 @@
     },
     "WK6": {
       "who": "a delivery lead",
-      "question": "Which items are overdue: due date passed, not done?",
+      "question": "Which items are overdue: due date passed, not deployed?",
       "why": "The plan's honesty check.",
       "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
       "ask": {
@@ -307,8 +330,7 @@
               },
               "state": {
                 "in": [
-                  "planned",
-                  "in-progress",
+                  "open",
                   "blocked"
                 ]
               }
@@ -347,8 +369,7 @@
             "where": {
               "state": {
                 "in": [
-                  "planned",
-                  "in-progress",
+                  "open",
                   "blocked"
                 ]
               }
@@ -395,8 +416,8 @@
     },
     "WK8": {
       "who": "a delivery lead",
-      "question": "Which done items deliver a requirement nothing in the design satisfies yet?",
-      "why": "Trace closure: done means the requirement is satisfied by something in the design, or the item was not what it claimed.",
+      "question": "Which deployed items deliver a requirement nothing in the design satisfies yet?",
+      "why": "Trace closure: deployed means the requirement is satisfied by something in the design, or the item was not what it claimed.",
       "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the delivery lead's questions)",
       "ask": {
         "when": [
@@ -404,7 +425,7 @@
             "node": "w",
             "type": "WorkItem",
             "where": {
-              "state": "done"
+              "state": "deployed"
             }
           },
           {
@@ -495,6 +516,108 @@
           "before.due",
           "$ITEM.estimate",
           "$ITEM.priority"
+        ]
+      },
+      "gate": "any"
+    },
+    "WK11": {
+      "who": "a delivery lead",
+      "question": "What is blocked: since when, why, and on whom?",
+      "why": "The board's first column and M6's input: every block with its reason and whom or what it waits on, so the lead asks that person, not the team. One query, as the roadmap asks.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "b",
+            "type": "Block"
+          },
+          {
+            "edge": [
+              "b",
+              "transition_of",
+              "w"
+            ]
+          },
+          {
+            "node": "w",
+            "type": "WorkItem"
+          },
+          {
+            "edge": [
+              "b",
+              "waiting_on",
+              "x"
+            ]
+          }
+        ],
+        "select": [
+          "w",
+          "w.label",
+          "b.at",
+          "b.reason",
+          "b.by",
+          "x",
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "Person",
+        "Person.email"
+      ]
+    },
+    "WK12": {
+      "who": "a delivery lead",
+      "question": "What is deployed, and where?",
+      "why": "Deployed per environment is the plan's progress: qa, preprod, prod. Prod is done.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "w",
+            "type": "WorkItem",
+            "where": {
+              "state": "deployed"
+            }
+          }
+        ],
+        "select": [
+          "w.label",
+          "w.deployed_to"
+        ]
+      },
+      "gate": "any"
+    },
+    "WK13": {
+      "who": "a delivery lead",
+      "question": "Where is $ITEM now: its state, set when, by whom, to which environment?",
+      "why": "The current transition is the item's state with its provenance; the superseded ones, read as of a date, are its history.",
+      "validated_by": "",
+      "params": {
+        "ITEM": {
+          "type": "WorkItem"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "t",
+              "transition_of",
+              "$ITEM"
+            ]
+          },
+          {
+            "node": "t",
+            "type": "Transition"
+          }
+        ],
+        "select": [
+          "t.to",
+          "t.at",
+          "t.by",
+          "t.environment"
         ]
       },
       "gate": "any"

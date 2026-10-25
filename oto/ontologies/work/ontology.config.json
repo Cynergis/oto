@@ -1,18 +1,34 @@
 {
-  "_about": "What is planned, by whom, blocked by what: work items that deliver requirements, features and components, scheduled in milestones and releases, assigned to teams and roles, blocked by other items, risks, open questions and decisions. On software-architecture, so the one question that crosses every level runs: which requirements slip if this component is late. A relation is {domain, range, inverse, definition}.",
-  "_summary": "What is planned, by whom, blocked by what: work items and milestones over the product's requirements, features and components; what slips when a component is late, what is overdue, what waits on a decision.",
+  "_about": "What is planned, by whom, blocked by what, deployed where: work items that deliver requirements, features and components, scheduled in milestones and releases, assigned to teams and roles. An item is open, blocked or deployed, and nobody writes that on the item: a Transition is appended, the previous one superseded, and the state follows the current one; a Block is a transition to blocked that carries its reason and whom or what it waits on. On software-architecture, so the one question that crosses every level runs: which requirements slip if this component is late. A relation is {domain, range, inverse, definition}.",
+  "_summary": "What is planned, by whom, blocked by what, deployed where: work items and milestones over the product's requirements, features and components; three states derived from appended transitions; what slips when a component is late, what is overdue, what waits on whom.",
   "name": "Work",
-  "ontology_version": 1,
+  "ontology_version": 2,
   "strict_domains": false,
   "languages": [
     "en"
   ],
   "classes": {
     "WorkItem": {
-      "definition": "A unit of planned work: an epic, a story, a task or a bug, with a state and a due date. It delivers something the product specifies or the estate holds; it is assigned to a team or a role; it may be blocked."
+      "definition": "A unit of planned work: an epic, a story, a task or a bug, with a due date. It is open, blocked or deployed, and the state is never written on it: a Transition is appended and the state follows the current one. It delivers something the product specifies or the estate holds; it is assigned to a team or a role."
     },
     "Milestone": {
       "definition": "A dated point the plan aims at: a demo, a cut-off, a go-live. Work is scheduled in milestones as it is in releases; a release ships, a milestone is reached."
+    },
+    "Transition": {
+      "definition": "A change of a work item's state, recorded when it happened: to which state, when, by whom, and for a deployment to which environment. Appended, never edited; the previous transition is superseded, so the item's history is the chain and its state is the current one."
+    },
+    "Block": {
+      "subclass_of": [
+        "Transition"
+      ],
+      "requires": [
+        "reason",
+        "waiting_on"
+      ],
+      "definition": "A transition to blocked with its context: why, since when (its date), raised by whom (its author), and whom or what it waits on. Without a reason and a waiting-on it is not a block."
+    },
+    "Person": {
+      "definition": "A named individual: who raised a block, whom an item waits on, who is to be told. Named where a role or a team would not say who to ask."
     }
   },
   "properties": {
@@ -38,7 +54,21 @@
       "domain": "WorkItem",
       "range": "WorkItem|Risk|OpenQuestion|Decision",
       "inverse": "blocks_work",
-      "definition": "What stops the item: another item not done, a risk realised, an open question unanswered, a decision not taken."
+      "definition": "A standing dependency the plan records: another item not done, a risk realised, an open question unanswered, a decision not taken. Context the lead reads; the item's state comes from its transitions, and a Block says whom it waits on."
+    },
+    "transition_of": {
+      "domain": "Transition",
+      "range": "WorkItem",
+      "inverse": "transitions",
+      "min": 1,
+      "max": 1,
+      "definition": "The item this transition moves. Exactly one: a transition of nothing, or of two items, is not a change of state."
+    },
+    "waiting_on": {
+      "domain": "Block",
+      "range": "WorkItem|Person|Role|Team|Risk|OpenQuestion|Decision",
+      "inverse": "waited_on_by",
+      "definition": "Whom or what the blocked item waits on: a person or a team to answer, an item to be done, a decision to be taken, a question to be answered, a risk to be retired. Telling them is what unblocks it."
     },
     "depends_on": {
       "domain": "Product|System|Component|WorkItem",
@@ -60,9 +90,18 @@
         "definition": "The size and nature of the item."
       },
       "state": {
-        "type": "enum:planned|in-progress|blocked|done|dropped",
-        "definition": "Where the item is.",
-        "required": true
+        "type": "enum:open|blocked|deployed",
+        "definition": "Where the item is: open, blocked, or deployed to an environment. Derived from the current transition, open when there is none; never asserted on the item. Before release 2 the states were planned, in-progress, blocked, done and dropped: the first two read as open, done as deployed, and a dropped item is retired.",
+        "default": "open",
+        "was": {
+          "planned": "open",
+          "in-progress": "open",
+          "done": "deployed"
+        }
+      },
+      "deployed_to": {
+        "type": "enum:qa|preprod|prod",
+        "definition": "The environment the item is deployed to, from its deployment transition. Deployed to prod is done."
       },
       "priority": {
         "type": "enum:must|should|could",
@@ -74,7 +113,40 @@
       },
       "estimate": {
         "type": "string",
-        "definition": "Size in the team's unit: points, days, a t-shirt size."
+        "definition": "Size in the team's unit: points, days, a t-shirt size. Optional; the plan does not run on it."
+      }
+    },
+    "Transition": {
+      "to": {
+        "type": "enum:open|blocked|deployed",
+        "definition": "The state the item moves to.",
+        "required": true
+      },
+      "at": {
+        "type": "date",
+        "definition": "When the state changed. For a block, since when.",
+        "required": true
+      },
+      "by": {
+        "type": "string",
+        "definition": "Who recorded the change: a person, or the event that caused it, such as a merged pull request or a promotion. For a block, who raised it."
+      },
+      "environment": {
+        "type": "enum:qa|preprod|prod",
+        "definition": "For a deployment: where to. Required when the transition is to deployed."
+      }
+    },
+    "Block": {
+      "reason": {
+        "type": "string",
+        "definition": "Why the item is blocked, in the words of whoever raised it.",
+        "required": true
+      }
+    },
+    "Person": {
+      "email": {
+        "type": "string",
+        "definition": "The address the person is known by to the tools: how a git identity maps to them."
       }
     },
     "Milestone": {

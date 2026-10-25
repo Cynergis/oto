@@ -6,7 +6,7 @@ the edge keys used, asserted or derived), and `depth` (one more than its deepest
 An asserted fact always wins: a derived edge that duplicates one is dropped, a derived attribute
 never overwrites an asserted value. Policy rules produce findings and change nothing.
 """
-from .match import Graph, matches, BELIEVED_OR_INTENDED
+from .match import Graph, matches, BELIEVED_OR_INTENDED, _reference
 
 MAX_ROUNDS = 50
 
@@ -55,6 +55,9 @@ def run(rules, nodes, edges, covers=None, declared=None):
                 else:
                     var, name, value = action["attribute"]
                     nid = bindings[var]
+                    value = _reference(value, graph, bindings)    # `$t.to`: a bound node's value, as written
+                    if value is None:
+                        continue                              # the node carries no such value: nothing to derive
                     if (graph.nodes[nid].get("attributes") or {}).get(name) is not None:
                         continue                              # asserted wins
                     if graph.derived_attributes.get(nid, {}).get(name) is not None:

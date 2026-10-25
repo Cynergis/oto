@@ -93,6 +93,13 @@ def run(project):
         elif scheme_of(spec.get("type")):
             out = {lang: "%s (a concept of %s)" % (d, scheme_of(spec["type"])) for lang, d in out.items()} or \
                   {LANG: "(a concept of %s)" % scheme_of(spec["type"])}
+        notes = []
+        if spec.get("default") is not None:
+            notes.append("default %s" % spec["default"])
+        if spec.get("was"):
+            notes.append("formerly " + ", ".join("%s (now %s)" % (was, now) for was, now in spec["was"].items()))
+        if notes:
+            out = {lang: "%s; %s" % (d, "; ".join(notes)) for lang, d in out.items()} or {LANG: "; ".join(notes)}
         return out
 
     def label_of(spec, name):

@@ -1,5 +1,5 @@
 {
-  "_about": "The plan of the payments product sample: a milestone, the items that deliver its requirements and build its components, what blocks them. Invented, on top of the portfolio, product and estate samples.",
+  "_about": "The plan of the payments product sample: a milestone, the items that deliver its requirements and build its components, the transitions that set their states (one deployed to prod, one blocked, waiting on a person), what blocks them. Invented, on top of the portfolio, product and estate samples.",
   "nodes": [
     {
       "id": "milestone.m-demo",
@@ -27,7 +27,6 @@
       "summary": "Accept a card payment and confirm it.",
       "attributes": {
         "kind": "epic",
-        "state": "done",
         "priority": "must",
         "due": "2026-10-01",
         "estimate": "20 points"
@@ -49,7 +48,6 @@
       "summary": "Settle the day's captured payments.",
       "attributes": {
         "kind": "story",
-        "state": "in-progress",
         "priority": "must",
         "due": "2026-11-01",
         "estimate": "8 points"
@@ -71,7 +69,6 @@
       "summary": "Remove the ledger's single point of failure.",
       "attributes": {
         "kind": "task",
-        "state": "planned",
         "priority": "should",
         "due": "2026-11-10",
         "estimate": "5 points"
@@ -93,13 +90,70 @@
       "summary": "Keep the evidence as long as compliance says.",
       "attributes": {
         "kind": "story",
-        "state": "planned",
         "priority": "should",
         "due": "2026-11-12",
         "estimate": "3 points"
       },
       "as_of": "2026-10-07",
       "valid_from": "2026-10-07",
+      "source_doc": "delivery-plan",
+      "status": "current",
+      "sources": [
+        "delivery-plan"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "person.m-okafor",
+      "type": "Person",
+      "label": "Mina Okafor",
+      "summary": "Leads the payments platform team; the one to ask about the ledger.",
+      "attributes": {},
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "delivery-plan",
+      "status": "current",
+      "sources": [
+        "delivery-plan"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "transition.e-checkout-1",
+      "type": "Transition",
+      "label": "Checkout payment deployed to prod",
+      "summary": "Shipped in release 1.",
+      "attributes": {
+        "to": "deployed",
+        "at": "2026-10-01",
+        "by": "release 1, promoted to prod",
+        "environment": "prod"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-01",
+      "source_doc": "delivery-plan",
+      "status": "current",
+      "sources": [
+        "delivery-plan"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "transition.t-ledger-replica-1",
+      "type": "Block",
+      "label": "Ledger read replica blocked",
+      "summary": "Waits on the second-region budget.",
+      "attributes": {
+        "to": "blocked",
+        "at": "2026-10-05",
+        "by": "Payments team lead",
+        "reason": "the replica needs a second region, and the budget for it is not decided"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-05",
       "source_doc": "delivery-plan",
       "status": "current",
       "sources": [
@@ -214,6 +268,21 @@
       "from": "workitem.s-evidence-retention",
       "rel": "depends_on",
       "to": "workitem.s-settlement-batch"
+    },
+    {
+      "from": "transition.e-checkout-1",
+      "rel": "transition_of",
+      "to": "workitem.e-checkout"
+    },
+    {
+      "from": "transition.t-ledger-replica-1",
+      "rel": "transition_of",
+      "to": "workitem.t-ledger-replica"
+    },
+    {
+      "from": "transition.t-ledger-replica-1",
+      "rel": "waiting_on",
+      "to": "person.m-okafor"
     }
   ]
 }

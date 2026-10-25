@@ -1,6 +1,106 @@
 {
-  "_about": "The plan's honesty: an overdue item is flagged (answers WK6); an item waiting on an unfinished item is derived blocked.",
+  "_about": "The plan's honesty: an item's state is what its current transition says (derived), a deployment names where to, a block is a transition to blocked, and an overdue item is flagged (answers WK6).",
   "rules": [
+    {
+      "id": "state-follows-the-current-transition",
+      "kind": "derive",
+      "when": [
+        {
+          "node": "t",
+          "type": "Transition"
+        },
+        {
+          "edge": [
+            "t",
+            "transition_of",
+            "w"
+          ]
+        }
+      ],
+      "then": {
+        "attribute": [
+          "w",
+          "state",
+          "$t.to"
+        ]
+      },
+      "why": "An item's state is what its latest recorded change says, never what someone typed on the item. Each transition supersedes the one before, so the rule sees one current transition per item and the chain is the history. An item with no transition is open, the attribute's default.",
+      "validated_by": ""
+    },
+    {
+      "id": "deployed-to-follows-the-deployment",
+      "kind": "derive",
+      "when": [
+        {
+          "node": "t",
+          "type": "Transition",
+          "where": {
+            "to": "deployed"
+          }
+        },
+        {
+          "edge": [
+            "t",
+            "transition_of",
+            "w"
+          ]
+        }
+      ],
+      "then": {
+        "attribute": [
+          "w",
+          "deployed_to",
+          "$t.environment"
+        ]
+      },
+      "why": "Where an item is deployed is a fact of the deployment that put it there, not something written on the item.",
+      "validated_by": ""
+    },
+    {
+      "id": "a-block-is-a-transition-to-blocked",
+      "kind": "policy",
+      "severity": "blocking",
+      "when": [
+        {
+          "node": "b",
+          "type": "Block",
+          "where": {
+            "to": {
+              "!=": "blocked"
+            }
+          }
+        }
+      ],
+      "then": {
+        "flag": "a block is a transition to blocked; a transition to anything else is a plain Transition"
+      },
+      "why": "A Block carries a reason and a waiting-on because the item is blocked; one that moves the item elsewhere would carry context for a state the item is not in.",
+      "validated_by": "",
+      "answers": "WK11"
+    },
+    {
+      "id": "a-deployment-names-its-environment",
+      "kind": "policy",
+      "severity": "blocking",
+      "when": [
+        {
+          "node": "t",
+          "type": "Transition",
+          "where": {
+            "to": "deployed",
+            "environment": {
+              "exists": false
+            }
+          }
+        }
+      ],
+      "then": {
+        "flag": "a transition to deployed must say which environment: qa, preprod or prod"
+      },
+      "why": "Deployed to qa and deployed to prod are different facts; a deployment to nowhere in particular answers nothing.",
+      "validated_by": "",
+      "answers": "WK12"
+    },
     {
       "id": "item-is-overdue",
       "kind": "policy",
@@ -15,8 +115,7 @@
             },
             "state": {
               "in": [
-                "planned",
-                "in-progress",
+                "open",
                 "blocked"
               ]
             }
@@ -24,58 +123,11 @@
         }
       ],
       "then": {
-        "flag": "a work item is past its due date and not done"
+        "flag": "a work item is past its due date and not deployed"
       },
       "why": "The plan must say when it slipped, not hide it.",
       "validated_by": "",
       "answers": "WK6"
-    },
-    {
-      "id": "blocked-item-is-marked-blocked",
-      "kind": "derive",
-      "when": [
-        {
-          "node": "w",
-          "type": "WorkItem",
-          "where": {
-            "state": {
-              "in": [
-                "planned",
-                "in-progress"
-              ]
-            }
-          }
-        },
-        {
-          "edge": [
-            "w",
-            "blocked_by",
-            "b"
-          ]
-        },
-        {
-          "node": "b",
-          "type": "WorkItem",
-          "where": {
-            "state": {
-              "in": [
-                "planned",
-                "in-progress",
-                "blocked"
-              ]
-            }
-          }
-        }
-      ],
-      "then": {
-        "attribute": [
-          "w",
-          "state",
-          "blocked"
-        ]
-      },
-      "why": "An item blocked by an unfinished item is blocked, whatever its ticket says; derived so the plan reads true.",
-      "validated_by": ""
     }
   ]
 }

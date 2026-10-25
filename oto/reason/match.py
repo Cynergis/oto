@@ -63,12 +63,21 @@ class Graph:
         """A declared attribute of the node, asserted or derived; else one of the node's own fields.
         An attribute the vocabulary declares under a built-in name (`label`, `status`) is the
         declared term: it wins when the node carries it, and is absent, not the node's field, when
-        it does not. Without the declarations, a carried value wins and the field is the fallback."""
+        it does not. Without the declarations, a carried value wins and the field is the fallback.
+        A declaration may say how a value is read (questions.Names.reading): a former value is read
+        as the value it became, and an absent one is the default when the declaration has one, so a
+        default is weaker than a derivation and an asserted value stronger than both."""
         node = self.nodes.get(nid) or {}
+        declared = self.declared.get(node.get("type"), ())
+        reading = getattr(declared, "reading", {}).get(name) or {}
         value = (node.get("attributes") or {}).get(name)
+        if value is not None and reading.get("was"):
+            value = reading["was"].get(value, value) if not isinstance(value, list) else value
         if value is None:
             value = self.derived_attributes.get(nid, {}).get(name)
-        if value is None and name in BUILTIN_FIELDS and name not in self.declared.get(node.get("type"), ()):
+        if value is None and "default" in reading:
+            return reading["default"]
+        if value is None and name in BUILTIN_FIELDS and name not in declared:
             return node.get(name, "current" if name == "status" else None)
         return value
 

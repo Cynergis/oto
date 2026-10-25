@@ -71,7 +71,7 @@ KEYS = {"schemes": ("definition", "label", "alt_labels", "scope_note", "example"
         "properties": ("domain", "range", "inverse", "definition", "label", "inverse_label", "alt_labels",
                        "scope_note", "example", "subproperty_of", "min", "max", "derived"),
         "attributes": ("type", "definition", "label", "alt_labels", "scope_note", "example", "required",
-                       "pattern", "min_value", "max_value", "min_length"),
+                       "pattern", "min_value", "max_value", "min_length", "default", "was"),
         "temporal": ("type", "definition", "label")}
 TEMPORAL_TYPES = ("date", "string", "ref")
 DEFAULT_LANGUAGE = "en"
@@ -154,14 +154,18 @@ def concepts_of(spec, schemes=None):
     return None
 
 
-def check_value(spec, value, schemes=None):
-    """Why `value` does not fit the declared type, or None. Absent values always fit."""
+def check_value(spec, value, schemes=None, former=None):
+    """Why `value` does not fit the declared type, or None. Absent values always fit; so does a
+    former value (`former`, the attribute's `was`), read as the value it became."""
     if value is None or value == "":
         return None
     kind, options = parse_attribute_type(spec, schemes)
     if kind in ("enum", "scheme"):
         allowed = concepts_of(spec, schemes)
-        return None if value in allowed else "expected one of %s" % "|".join(allowed)
+        if value in allowed or value in (former or {}):
+            return None
+        return "expected one of %s%s" % ("|".join(allowed),
+                                        (" (formerly %s)" % ", ".join(sorted(former))) if former else "")
     if kind == "string":
         return None if isinstance(value, str) else "expected a string"
     if kind == "number":
@@ -198,9 +202,16 @@ def _shape(section, label, spec):
         elif key == "requires":
             if not (isinstance(value, list) and all(isinstance(x, str) and x for x in value)):
                 return "%s: `requires` must be a list of attribute or relation names" % label
-        elif key == "was":
+        elif key == "was" and section == "classes":
             if not (isinstance(value, list) and all(isinstance(x, str) and x for x in value)):
                 return "%s: `was` must be a list of the class's former names" % label
+        elif key == "was":
+            if not (isinstance(value, dict) and value
+                    and all(isinstance(k, str) and k and isinstance(v, str) and v for k, v in value.items())):
+                return "%s: `was` must map each former value to the value now used, {\"old\": \"new\"}" % label
+        elif key == "default":
+            if isinstance(value, (dict, list)) or value == "":
+                return "%s: `default` is the value an instance has when none is asserted or derived" % label
         elif key == "pattern":
             if not isinstance(value, str) or not value:
                 return "%s: `pattern` is a regular expression the value must match (anywhere, as sh:pattern; anchor it with ^ and $ for the whole value)" % label
@@ -379,7 +390,36 @@ def declaration_problems(classes, attributes, schemes=None):
                 parse_attribute_type(spec.get("type"), schemes)
             except ValueError as exc:
                 problems.append("attribute %s.%s: %s" % (kind, name, exc))
+                continue
+            if spec.get("default") is not None:
+                problem = check_value(spec["type"], spec["default"], schemes)
+                if problem:
+                    problems.append("attribute %s.%s: `default` %r does not fit its type: %s" % (kind, name, spec["default"], problem))
+            for old, now in (spec.get("was") or {}).items():
+                problem = check_value(spec["type"], now, schemes)
+                if problem:
+                    problems.append("attribute %s.%s: `was` maps %r to %r, which is not a value it takes: %s" % (kind, name, old, now, problem))
+                elif old in (concepts_of(spec["type"], schemes) or {}):
+                    problems.append("attribute %s.%s: `was` names %r as a former value, and it is still a value" % (kind, name, old))
     return problems
+
+
+def attribute_reading(config, kind):
+    """How a value of each attribute a node of `kind` carries is read: {name: {"default": the value
+    when none is asserted or derived, "was": {former value: the value it became}}}, for the
+    attributes that declare either. A graph written against an earlier vocabulary keeps its
+    values; the engine reads them as what they became, the way a node typed by a class's former
+    name is read as the class."""
+    out = {}
+    for name, spec in declared_attributes(config, kind).items():
+        reading = {}
+        if spec.get("default") is not None:
+            reading["default"] = spec["default"]
+        if spec.get("was"):
+            reading["was"] = dict(spec["was"])
+        if reading:
+            out[name] = reading
+    return out
 
 
 def scheme_problems(config):
@@ -515,6 +555,22 @@ def _cardinality(spec):
     return "%d..%s" % (low, "*" if high is None else high)
 
 
+def _values_renamed(before, after, old_schemes, new_schemes):
+    """For a controlled attribute whose type changed: ([(former value, what it became)], [values gone
+    with no successor]), read from the new declaration's `was`. (None, None) when either type is
+    not controlled, so the change is a type change and nothing else."""
+    try:
+        old_values = concepts_of(before.get("type"), old_schemes)
+        new_values = concepts_of(after.get("type"), new_schemes)
+    except ValueError:
+        return None, None
+    if old_values is None or new_values is None:
+        return None, None
+    was = after.get("was") or {}
+    gone = sorted(set(old_values) - set(new_values))
+    return [(v, was[v]) for v in gone if v in was], [v for v in gone if v not in was]
+
+
 def diff(old, new):
     """Every change from `old` to `new`, most severe first."""
     changes = []
@@ -607,8 +663,22 @@ def diff(old, new):
                                   "nodes carrying it are no longer declared"))
         for name in sorted(set(before) & set(after)):
             if before[name].get("type") != after[name].get("type"):
-                changes.append(Change("attribute type changed", Change.BREAKING, "%s.%s" % (kind, name),
-                                      "%s -> %s" % (before[name].get("type"), after[name].get("type"))))
+                renamed, removed = _values_renamed(before[name], after[name], old.schemes, new.schemes)
+                if renamed is None:
+                    changes.append(Change("attribute type changed", Change.BREAKING, "%s.%s" % (kind, name),
+                                          "%s -> %s" % (before[name].get("type"), after[name].get("type"))))
+                    continue
+                if renamed:
+                    changes.append(Change("attribute values renamed", Change.ADDITIVE, "%s.%s" % (kind, name),
+                                          "; ".join("%s -> %s" % (was, now) for was, now in renamed) +
+                                          "; values written so far are read as what they became"))
+                if removed:
+                    changes.append(Change("attribute values removed", Change.BREAKING, "%s.%s" % (kind, name),
+                                          "%s no longer a value and `was` names no successor: nodes carrying it are mistyped"
+                                          % ", ".join(removed)))
+                added = sorted(set(concepts_of(after[name]["type"], new.schemes)) - set(concepts_of(before[name]["type"], old.schemes)))
+                if added:
+                    changes.append(Change("attribute values added", Change.ADDITIVE, "%s.%s" % (kind, name), ", ".join(added)))
             elif bool(before[name].get("required")) != bool(after[name].get("required")):
                 changes.append(Change("attribute required" if after[name].get("required") else "attribute optional",
                                       Change.BREAKING if after[name].get("required") else Change.ADDITIVE,
@@ -682,6 +752,13 @@ def impact(changes, nodes, edges, vocabulary=None):
             change.affected = edge_rels.get(change.subject, 0)
         elif change.kind in ("attribute removed", "attribute type changed"):
             change.affected = carrying.get(change.subject, 0)
+        elif change.kind == "attribute values removed":
+            kind, _, name = change.subject.partition(".")
+            spec = (vocabulary.declared_attributes(kind).get(name) if vocabulary else None) or {}
+            gone = set(concepts_of(spec.get("type")) or {}) | set(spec.get("was") or {}) if spec.get("type") else set()
+            change.affected = sum(1 for node in nodes if node.get("type") == kind
+                                  and (node.get("attributes") or {}).get(name) not in (None, "")
+                                  and (node.get("attributes") or {}).get(name) not in gone)
     return changes
 
 
@@ -703,7 +780,7 @@ def attribute_conformance(vocabulary, nodes):
                 undeclared[(kind, key)] = undeclared.get((kind, key), 0) + 1
                 continue
             checked += 1
-            problem = check_value(declared[key]["type"], value, vocabulary.schemes)
+            problem = check_value(declared[key]["type"], value, vocabulary.schemes, former=declared[key].get("was"))
             if problem:
                 mistyped.append((node.get("id"), key, problem, value))
     return {"checked": checked, "mistyped": mistyped,

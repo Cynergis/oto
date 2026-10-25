@@ -413,10 +413,24 @@ def run(qid, question, params, nodes, edges, covers=None, derived_attributes=Non
             "params": {k: v for k, v in bindings.items() if k in declared}, "rows": rows, "gaps": gaps}
 
 
+class Names(set):
+    """The attribute names a class declares, carrying in `reading` how a value of each is read
+    (model/vocabulary.attribute_reading): its default when none is asserted or derived, and the
+    former values its `was` maps to the values they became. A set, so `name in declared[kind]`
+    is what it always was."""
+    reading = {}
+
+
 def declared_names(vocabulary):
-    """{class: the attribute names it declares, inherited ones included}, for the matcher."""
-    from ..model.vocabulary import declared_attributes
-    return {kind: set(declared_attributes(vocabulary, kind)) for kind in (vocabulary.get("classes") or {})}
+    """{class: the attribute names it declares, inherited ones included}, for the matcher; each
+    carries how its values are read (`.reading`)."""
+    from ..model.vocabulary import attribute_reading, declared_attributes
+    out = {}
+    for kind in (vocabulary.get("classes") or {}):
+        names = Names(declared_attributes(vocabulary, kind))
+        names.reading = attribute_reading(vocabulary, kind)
+        out[kind] = names
+    return out
 
 
 def survey(questions, nodes, edges, covers=None, derived_attributes=None, declared=None):

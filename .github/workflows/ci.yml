@@ -17,7 +17,8 @@ concurrency:
 jobs:
   test:
     name: tests (python ${{ matrix.python }})
-    runs-on: ubuntu-latest
+    # ubuntu-latest moved to 26.04 (2026-10), which setup-python has no 3.9 for; 24.04 still has every version the matrix names.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -128,7 +129,7 @@ jobs:
 
   syntax:
     name: every module compiles
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04                # 3.9 is not on ubuntu-latest (26.04); see the test job
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

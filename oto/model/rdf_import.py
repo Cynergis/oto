@@ -113,6 +113,15 @@ def read(paths):
 
     class_iris = sorted({s for s in g.subjects(RDF.type, OWL.Class) if isinstance(s, URIRef)}
                         | {s for s in g.subjects(RDF.type, RDFS.Class) if isinstance(s, URIRef)}, key=str)
+    # A deprecated class equivalent to a declared one is that class's former name, as OTO writes a
+    # rename (`was`): read back as such, not as a class of its own.
+    deprecated = URIRef(str(OWL) + "deprecated")
+    former = {}
+    for iri in list(class_iris):
+        now = g.value(iri, OWL.equivalentClass)
+        if now in class_iris and now != iri and any(str(v).lower() == "true" for v in g.objects(iri, deprecated)):
+            former[iri] = now
+            class_iris.remove(iri)
     object_iris = sorted((s for s in g.subjects(RDF.type, OWL.ObjectProperty) if isinstance(s, URIRef)), key=str)
     data_iris = sorted((s for s in g.subjects(RDF.type, OWL.DatatypeProperty) if isinstance(s, URIRef)), key=str)
     for iri in class_iris + object_iris + data_iris:
@@ -147,6 +156,9 @@ def read(paths):
                 notes.append("class %r is a kind of <%s>, which the file does not declare; the parent is left out" % (name, parent))
         if parents:
             spec["subclass_of"] = parents
+        was = sorted(name_of(old) for old, now in former.items() if now == iri)
+        if was:
+            spec["was"] = was
         classes[name] = spec
         why = reasoning(iri)
         if why:
@@ -256,7 +268,7 @@ def read(paths):
             break
     for predicate, what in ((OWL.propertyChainAxiom, "a property chain"), (OWL.equivalentClass, "an equivalence"),
                             (OWL.disjointWith, "a disjointness")):
-        if any(True for _ in g.subject_objects(predicate)):
+        if any(subject not in former for subject, _o in g.subject_objects(predicate)):
             notes.append("%s is not read: the vocabulary cannot hold it" % what)
 
     # ---- shapes: SHACL property shapes become min/max on a relation, required on an attribute, or

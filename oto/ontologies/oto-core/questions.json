@@ -62,14 +62,14 @@
     },
     "CORE3": {
       "who": "an operator",
-      "question": "Which actions are declared, on what do they act, and who is accountable for invoking them?",
+      "question": "Which tools are declared, on what do they act, and who is accountable for invoking them?",
       "why": "OTO never invokes; a reader must be able to see what can be done, on what, and who answers for it.",
       "validated_by": "",
       "ask": {
         "when": [
           {
             "node": "a",
-            "type": "Action"
+            "type": "Tool"
           },
           {
             "edge": [

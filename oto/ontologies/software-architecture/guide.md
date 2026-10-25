@@ -30,11 +30,11 @@ rule; `oto rules explain <rule>` says why the rule exists and what it derived.
 
 ## What can be done
 
-The ontology ships three actions, listed by `oto actions list` and never invoked by OTO: a daily
+The ontology ships three tools, listed by `oto tools list` and never invoked by OTO: a daily
 check that a repository exists (read-only; it realises an intended `Repository` and re-attests a
 current one), the creation of a repository an intended fact describes (it changes the world, so a
 person confirms it by name), and a weekly read of what an `Interface` answers at its URL. Record a
-run with `oto actions record`, and the response enters the graph through the gates with the run as
+run with `oto tools record`, and the response enters the graph through the gates with the run as
 its evidence. The act skill is the protocol.
 
 ## Common mistakes

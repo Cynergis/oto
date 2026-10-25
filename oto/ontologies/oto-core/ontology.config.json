@@ -11,8 +11,9 @@
     "Document": {
       "definition": "A source document in the corpus: the file a fact cites, with its own date."
     },
-    "Action": {
-      "definition": "Something that can be done about an entity, described the way an MCP server describes a tool and bound to the graph. OTO lists it; the caller invokes it; the recorded run is evidence."
+    "Tool": {
+      "definition": "Something that can be done about an entity, described the way an MCP server describes a tool and bound to the graph. OTO lists it; the caller invokes it; the recorded run is evidence.",
+      "was": ["Action"]
     }
   },
   "properties": {
@@ -22,12 +23,12 @@
       "definition": "This document refers to that one, so a fact traced to it can be traced one step further."
     },
     "acts_on": {
-      "domain": "Action",
-      "definition": "The entity a recorded run of this action read or changed."
+      "domain": "Tool",
+      "definition": "The entity a recorded run of this tool read or changed."
     },
     "executed_by": {
-      "domain": "Action",
-      "definition": "Who is accountable for invoking this action: a team, never a person."
+      "domain": "Tool",
+      "definition": "Who is accountable for invoking this tool: a team, never a person."
     }
   },
   "temporal": {

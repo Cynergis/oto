@@ -32,9 +32,9 @@ import sys
 
 from .. import __version__
 from ..project import ProjectError
-from . import actions, bench, build, capture, clipboard, curate, draft, feedback, ingest, init, lexicon, lock, ontology, pack, preview, publish, publishable, query, registry, rules, sandbox, status, vet
+from . import bench, build, capture, clipboard, curate, draft, feedback, ingest, init, lexicon, lock, ontology, pack, preview, publish, publishable, query, registry, rules, sandbox, status, tools, vet
 
-COMMANDS = (init, status, lock, sandbox, ingest, capture, clipboard, ontology, lexicon, pack, registry, rules, actions, curate, draft, vet, build, preview, query, publish, publishable, bench, feedback)
+COMMANDS = (init, status, lock, sandbox, ingest, capture, clipboard, ontology, lexicon, pack, registry, rules, tools, curate, draft, vet, build, preview, query, publish, publishable, bench, feedback)
 
 
 def cmd_version(args):

@@ -379,9 +379,9 @@ def plugin_files(directory, registry_name=None):
     lines += ["## What the ontology declares", ""]
     for kind in classes:
         lines.append("- **%s**: %s" % (kind, (raw["config"]["classes"][kind].get("definition") or "").strip()))
-    if raw.get("actions"):
-        lines += ["", "## The actions it ships", "", "OTO lists them; the caller invokes (the act skill):", ""]
-        for action in raw["actions"]:
+    if raw.get("tools"):
+        lines += ["", "## The tools it ships", "", "OTO lists them; the caller invokes (the act skill):", ""]
+        for action in raw["tools"]:
             lines.append("- `%s` on %s: %s" % (action["id"], action.get("subject"), (action.get("description") or "").strip()))
     shipped = views(directory)
     if shipped:

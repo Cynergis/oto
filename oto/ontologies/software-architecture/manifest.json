@@ -1,7 +1,7 @@
 {
   "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
   "name": "software-architecture",
-  "release": 10,
+  "release": 11,
   "domain": "software",
   "summary": "Software estate on a product: systems, components, interfaces, data, environments; what satisfies which requirement, who owns and operates it, what threatens it, which decision shaped it.",
   "extends": [
@@ -17,10 +17,15 @@
     "sample",
     "readme",
     "guide",
-    "actions"
+    "tools"
   ],
   "maintainer": "OTO",
   "changelog": [
+    {
+      "release": 11,
+      "at": "2026-10-25",
+      "note": "Its three actions are tools (tools/tool.*.json), on oto-core@6 where Action became Tool; the same three, renamed."
+    },
     {
       "release": 10,
       "at": "2026-10-07",

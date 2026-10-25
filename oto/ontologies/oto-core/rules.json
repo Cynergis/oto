@@ -17,7 +17,7 @@
         }
       ],
       "then": {
-        "flag": "asserted as a plan more than 90 days ago and still not observed: record the action's run that realised it, or retire the intent"
+        "flag": "asserted as a plan more than 90 days ago and still not observed: record the tool's run that realised it, or retire the intent"
       },
       "why": "An intended fact is a promise the graph makes about the world. A promise nobody has checked in three months is either kept and unrecorded, or broken; either way a reader must not take it as a plan still in motion.",
       "validated_by": ""

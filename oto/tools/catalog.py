@@ -56,11 +56,12 @@ def due(action, at=None):
 
 
 def definitions_from_nodes(nodes):
-    """The action definitions a built graph carries: each Action node stores its file under
-    `attributes.definition`, so a store served without its project still knows them."""
+    """The tool definitions a built graph carries: each Tool node (or Action node, in a project made
+    before the rename) stores its file under `attributes.definition`, so a store served without its
+    project still knows them."""
     out = []
     for n in nodes:
-        if n.get("type") != _model.CLASS:
+        if n.get("type") not in (_model.CLASS, _model.LEGACY_CLASS):
             continue
         attrs = n.get("attributes") or {}
         if isinstance(attrs, str):
@@ -125,7 +126,7 @@ def readiness(action, nodes, edges, covers=None):
     var = _model.subject_variable(action)
     subject = action.get("subject")
     if not var:
-        return [], "the action binds no subject"
+        return [], "the tool binds no subject"
     ready = sorted({b[var] for b, _used in matches(graph, action.get("when") or []) if var in b})
     if ready:
         return ready, ""
@@ -221,8 +222,8 @@ def _kind(definition):
 def text(definitions, heading=None):
     """The catalog as text: one block per action."""
     if not definitions:
-        return (heading + "\n" if heading else "") + "No actions." + ("" if heading else " An action is a file actions/<id>.json.")
-    lines = [heading] if heading else ["%d action(s); OTO lists them, the caller invokes:" % len(definitions)]
+        return (heading + "\n" if heading else "") + "No tools." + ("" if heading else " A tool is a file tools/<id>.json.")
+    lines = [heading] if heading else ["%d tool(s); OTO lists them, the caller invokes:" % len(definitions)]
     for d in definitions:
         m = d["oto"]
         head = "• %s  [%s, on %s%s]  %s" % (d["name"], _kind(d), m["subject"],

@@ -29,9 +29,9 @@ META_NAME = "preview.json"
 STAGES = {"knowledge", "rules", "ontology", "semantic", "sqlite"}
 AUTHORED = ("project.config.json", "ontology.config.json", "ontology.rationale.json", "rules.json", "lexicon.json",
             "questions.json", "briefs.json", "changelog.jsonl", "assertions.jsonl")
-AUTHORED_DIRS = ("actions",)
+AUTHORED_DIRS = ("tools", "actions")
 WATCHED = ("graph.json", "graph.candidate.json", "ontology.config.json", "ontology.rationale.json", "rules.json",
-           "lexicon.json", "questions.json", "briefs.json", "proposals", "actions")
+           "lexicon.json", "questions.json", "briefs.json", "proposals", "tools", "actions")
 
 
 def directory(project):

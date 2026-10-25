@@ -295,6 +295,10 @@ def run(project):
     for c, spec in CLASSES.items():
         parents = "".join(f" ; rdfs:subClassOf {terms.curie(parent)}" for parent in spec.get("subclass_of") or [])
         ttl.append(f"{terms.curie(c)} a owl:Class{labels(spec, c)}{parents}{notes(spec)}{reasoning('classes', c)} .")
+        # A former name keeps its IRI, deprecated and equivalent to the class, so old data still resolves.
+        for was in spec.get("was") or []:
+            ttl.append(f"{terms.curie(was, beside=c)} a owl:Class ; owl:equivalentClass {terms.curie(c)} ; owl:deprecated true"
+                       f"{tagged('rdfs:label', {LANG: _vocab.name_as_words(was)})} ; rdfs:comment {q('Former name of ' + c + '.')} .")
     ttl.append("")
     for p, spec in PROPS.items():
         # A null domain or range is "any class" and is simply not asserted.

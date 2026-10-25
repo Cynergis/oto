@@ -412,7 +412,7 @@ def test_the_shipped_ontologies_extend_oto_core_and_keep_their_vocabulary():
     which sits on the core."""
     assert "oto-core" in ontologies.available()
     core = ontologies.load_raw("oto-core")["config"]
-    assert set(core["classes"]) == {"Document", "Action"} and "temporal" in core
+    assert set(core["classes"]) == {"Document", "Tool"} and "temporal" in core
     chain = {"portfolio": ["oto-core"], "product": ["portfolio"], "software-architecture": ["product"], "ddd": ["software-architecture"], "agent": ["software-architecture"], "platform": ["software-architecture"], "work": ["software-architecture"]}
     for name in ("auto-claims", "organization-process", "professional-services", "portfolio", "product", "software-architecture", "ddd", "agent", "platform", "work"):
         raw = ontologies.load_raw(name)
@@ -474,7 +474,7 @@ def test_actions_are_carried_composed_checked_installed_and_exported(ontologies_
     base_questions["questions"].update(coverage_questions(["Action"], ["acts_on", "executed_by"]))
     with open(questions_path, "w", encoding="utf-8") as f:
         json.dump(base_questions, f)
-    action = {"id": "action.ping-party", "label": "Ping a party", "description": "Calls the party's endpoint.",
+    action = {"id": "tool.ping-party", "label": "Ping a party", "description": "Calls the party's endpoint.",
               "subject": "Party", "executed_by": "party.x",
               "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
               "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]},
@@ -482,44 +482,44 @@ def test_actions_are_carried_composed_checked_installed_and_exported(ontologies_
               "invoke": {"transport": "http", "method": "GET", "url": "https://parties.example/{name}"},
               "needs": [], "result": {"kind": "document"}}
     # the base ships one action; the extender ships the same id (its version wins) and a second one
-    os.makedirs(os.path.join(ontologies_dir, "base", "actions"))
-    with open(os.path.join(ontologies_dir, "base", "actions", "action.ping-party.json"), "w", encoding="utf-8") as f:
+    os.makedirs(os.path.join(ontologies_dir, "base", "tools"))
+    with open(os.path.join(ontologies_dir, "base", "tools", "tool.ping-party.json"), "w", encoding="utf-8") as f:
         json.dump(action, f)
     write_ontology(ontologies_dir, "acting", {"Claim": {"definition": "a claim"}}, {"about": {"domain": "Claim", "range": "Party", "definition": "about"}},
                    {"nodes": [_node("claim.1", "Claim", "One"), _node("party.x", "Party", "X")], "edges": []},
-                   manifest_body={"extends": ["base"], "carries": ["vocabulary", "rationale", "sample", "readme", "actions"]},
+                   manifest_body={"extends": ["base"], "carries": ["vocabulary", "rationale", "sample", "readme", "tools"]},
                    temporal=False)
-    os.makedirs(os.path.join(ontologies_dir, "acting", "actions"))
-    with open(os.path.join(ontologies_dir, "acting", "actions", "action.ping-party.json"), "w", encoding="utf-8") as f:
+    os.makedirs(os.path.join(ontologies_dir, "acting", "tools"))
+    with open(os.path.join(ontologies_dir, "acting", "tools", "tool.ping-party.json"), "w", encoding="utf-8") as f:
         json.dump(dict(action, description="Calls the party's endpoint, the extender's way."), f)
-    with open(os.path.join(ontologies_dir, "acting", "actions", "action.check-claim.json"), "w", encoding="utf-8") as f:
-        json.dump(dict(action, id="action.check-claim", label="Check a claim", subject="Claim", when=[{"node": "c", "type": "Claim"}],
+    with open(os.path.join(ontologies_dir, "acting", "tools", "tool.check-claim.json"), "w", encoding="utf-8") as f:
+        json.dump(dict(action, id="tool.check-claim", label="Check a claim", subject="Claim", when=[{"node": "c", "type": "Claim"}],
                        executed_by="party.x"), f)
     assert ontologies.self_check("acting") == []
     composed = ontologies.composed("acting")
-    assert [a["id"] for a in composed["actions"]] == ["action.ping-party", "action.check-claim"]
-    assert composed["actions"][0]["description"].endswith("the extender's way.")
-    assert any("action action.ping-party from base replaced by acting" in l for l in compose.report_lines(composed["report"]))
+    assert [a["id"] for a in composed["tools"]] == ["tool.ping-party", "tool.check-claim"]
+    assert composed["tools"][0]["description"].endswith("the extender's way.")
+    assert any("tool tool.ping-party from base replaced by acting" in l for l in compose.report_lines(composed["report"]))
     assert main(["ontology", "show", "acting"]) == 0
-    assert ", 2 action(s)" in capsys.readouterr().out
+    assert ", 2 tool(s)" in capsys.readouterr().out
     # a mistake in a shipped action, and a team the sample lacks, are named
-    with open(os.path.join(ontologies_dir, "acting", "actions", "action.bad.json"), "w", encoding="utf-8") as f:
-        json.dump(dict(action, id="action.bad", subject="Nope", executed_by="party.ghost"), f)
+    with open(os.path.join(ontologies_dir, "acting", "tools", "tool.bad.json"), "w", encoding="utf-8") as f:
+        json.dump(dict(action, id="tool.bad", subject="Nope", executed_by="party.ghost"), f)
     problems = "\n".join(ontologies.self_check("acting"))
     assert "subject class 'Nope' is not declared" in problems and "executed_by 'party.ghost', which the sample does not hold" in problems
-    os.remove(os.path.join(ontologies_dir, "acting", "actions", "action.bad.json"))
+    os.remove(os.path.join(ontologies_dir, "acting", "tools", "tool.bad.json"))
     with tempfile.TemporaryDirectory() as root:
         assert main(["init", "--slug", "a", "--name", "A", "--project", root, "--ontology", "acting"]) == 0
         out = capsys.readouterr().out
-        assert "actions/action.ping-party.json" in out and "actions/action.check-claim.json" in out
-        assert sorted(os.listdir(os.path.join(root, "actions"))) == ["action.check-claim.json", "action.ping-party.json"]
-        assert main(["actions", "check", "--project", root]) == 0
+        assert "tools/tool.ping-party.json" in out and "tools/tool.check-claim.json" in out
+        assert sorted(os.listdir(os.path.join(root, "tools"))) == ["tool.check-claim.json", "tool.ping-party.json"]
+        assert main(["tools", "check", "--project", root]) == 0
         capsys.readouterr()
         # exported: the actions ride along, executed_by remapped to the invented sample's Party
         project = Project.standard(root)
         path, problems = ontologies.export(project, "acting-copy")
         assert problems == [], problems
-        exported = ontologies.actions_for("acting-copy")
-        assert [a["id"] for a in exported] == ["action.check-claim", "action.ping-party"]
+        exported = ontologies.tools_for("acting-copy")
+        assert [a["id"] for a in exported] == ["tool.check-claim", "tool.ping-party"]
         sample_ids = {n["id"] for n in ontologies.composed("acting-copy")["sample"]["nodes"]}
         assert all(a["executed_by"] in sample_ids for a in exported)

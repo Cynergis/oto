@@ -1,5 +1,5 @@
 {
-  "id": "action.create-repository",
+  "id": "tool.create-repository",
   "label": "Create the repository",
   "description": "Creates the repository an intended Repository fact describes, under its owner, and records the result. Changes the world: a person confirms it by name.",
   "subject": "Repository",

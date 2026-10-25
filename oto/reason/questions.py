@@ -95,17 +95,24 @@ def read_lock(project):
         return dict(json.load(f).get("questions") or {})
 
 
-def diff(old, new):
+def diff(old, new, renamed=None):
     """(added, removed, changed, reworded) question ids. A changed question answers differently
     (breaking: what the graph was asked to answer is no longer the same question); a reworded one
-    keeps its ask (cosmetic)."""
+    keeps its ask (cosmetic). `renamed` maps a class's former name to its name now
+    (vocabulary.former_names): an ask that names the old one asks the same question."""
     old, new = dict(old or {}), dict(new or {})
     added = sorted(set(new) - set(old))
     removed = sorted(set(old) - set(new))
     changed, reworded = [], []
+
+    def as_now(value):
+        text = json.dumps(value, sort_keys=True)
+        for was, now in (renamed or {}).items():
+            text = text.replace('"type": "%s"' % was, '"type": "%s"' % now)
+        return text
     for qid in sorted(set(old) & set(new)):
         before, after = old[qid], new[qid]
-        if any(json.dumps(before.get(k), sort_keys=True) != json.dumps(after.get(k), sort_keys=True) for k in ANSWER_KEYS):
+        if any(as_now(before.get(k)) != as_now(after.get(k)) for k in ANSWER_KEYS):
             changed.append(qid)
         elif json.dumps(before, sort_keys=True) != json.dumps(after, sort_keys=True):
             reworded.append(qid)

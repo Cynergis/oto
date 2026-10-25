@@ -18,8 +18,8 @@ Each ontology is a directory holding a vocabulary and what goes with it:
     interview.md              the questions the interview asks in this domain (optional)
     guide.md                  what this domain's graph is for and how to read it: what the
                               concierge skill quotes to a newcomer (optional)
-    actions/<id>.json         what can be done about an entity, in MCP tool shape, bound to the
-                              graph; installed as the project's actions/ (optional)
+    tools/<id>.json           what can be done about an entity, in MCP tool shape, bound to the
+                              graph; installed as the project's tools/ (optional; `actions/` is read too)
     gold/patterns.jsonl       question patterns per class, for evaluation (optional)
 
 An ontology may extend others (`extends` in the manifest); `load` returns the composed result, so
@@ -65,7 +65,8 @@ BRIEFS_NAME = "briefs.json"
 LEXICON_NAME = "lexicon.json"
 INTERVIEW_NAME = "interview.md"
 GUIDE_NAME = "guide.md"
-ACTIONS_NAME = "actions"
+TOOLS_NAME = "tools"
+LEGACY_TOOLS_NAME = "actions"
 GOLD_NAME = os.path.join("gold", "patterns.jsonl")
 MANIFEST_NAME = _manifest.MANIFEST_NAME
 BUILTIN = "built-in"
@@ -269,16 +270,21 @@ def load_raw_dir(base):
             "lexicon": _read_json(os.path.join(base, LEXICON_NAME), None),
             "interview": _read_text(os.path.join(base, INTERVIEW_NAME)) or None,
             "guide": _read_text(os.path.join(base, GUIDE_NAME)) or None,
-            "actions": _read_actions(base),
+            "tools": _read_tools(base),
             "gold": _read_gold(os.path.join(base, GOLD_NAME)),
             "manifest": manifest_dir(base)}
 
 
-def _read_actions(base):
-    """The action files an ontology ships, readable ones only: [dict]. The self-check names the rest."""
-    from ..actions import model as _actions
-    return [action for _rel, action, error in _actions.load_dir(os.path.join(base, ACTIONS_NAME))
-            if not error and isinstance(action.get("id"), str)]
+def _tools_dir(base):
+    new, old = os.path.join(base, TOOLS_NAME), os.path.join(base, LEGACY_TOOLS_NAME)
+    return old if os.path.isdir(old) and not os.path.isdir(new) else new
+
+
+def _read_tools(base):
+    """The tool files an ontology ships, readable ones only: [dict]. The self-check names the rest."""
+    from ..tools import model as _tools
+    return [tool for _rel, tool, error in _tools.load_dir(_tools_dir(base))
+            if not error and isinstance(tool.get("id"), str)]
 
 
 def parts(name, roots=None):
@@ -328,9 +334,12 @@ def guide_for(name):
     return composed(name)["guide"]
 
 
-def actions_for(name):
-    """The actions an ontology ships, its bases included, or an empty list."""
-    return composed(name)["actions"]
+def tools_for(name):
+    """The tools an ontology ships, its bases included, or an empty list."""
+    return composed(name)["tools"]
+
+
+actions_for = tools_for          # the name before Actions became Tools (2026-10)
 
 
 def gold_for(name):
@@ -421,17 +430,17 @@ def self_check(name, roots=None):
     problems += _shapes.problems(config)
     if not question_problems:
         problems += _shapes.rule_question_problems(result["rules"], result["questions"])
-    from ..actions import model as _actions
-    own_actions = _actions.load_dir(os.path.join(base, ACTIONS_NAME))
-    for rel, _action, error in own_actions:
+    from ..tools import model as _tools
+    own_tools = _tools.load_dir(_tools_dir(base))
+    for rel, _tool, error in own_tools:
         if error:
             problems.append("%s: %s" % (rel, error))
-    composed_actions = [(os.path.join(ACTIONS_NAME, a["id"] + ".json"), a, None) for a in result["actions"]]
-    problems += _actions.problems(composed_actions, config) if composed_actions else []
+    composed_tools = [(os.path.join(TOOLS_NAME, a["id"] + ".json"), a, None) for a in result["tools"]]
+    problems += _tools.problems(composed_tools, config) if composed_tools else []
     sample_ids = {n.get("id") for n in (sample.get("nodes") or [])}
-    for action in result["actions"]:
-        if action.get("executed_by") and action["executed_by"] not in sample_ids:
-            problems.append("action %r is executed_by %r, which the sample does not hold" % (action["id"], action["executed_by"]))
+    for tool in result["tools"]:
+        if tool.get("executed_by") and tool["executed_by"] not in sample_ids:
+            problems.append("tool %r is executed_by %r, which the sample does not hold" % (tool["id"], tool["executed_by"]))
     # The questions are the ontology's contract: the sample must answer every one it must, and
     # every term must be cited by a question that runs, or nobody can tell what the term is for.
     if not question_problems:
@@ -771,7 +780,7 @@ def export(project, name, to=None, from_graph=None, summary=None, force=False, i
     from ..reason import briefs as _briefs
     shipped_briefs = _briefs.load(project)
     os.makedirs(target, exist_ok=True)
-    from ..actions import model as _actions
+    from ..tools import model as _actions
     sample_by_type = {}
     for n in sample.get("nodes") or []:
         sample_by_type.setdefault(n.get("type"), n.get("id"))
@@ -790,7 +799,7 @@ def export(project, name, to=None, from_graph=None, summary=None, force=False, i
                 action["executed_by"] = stand_in
             else:
                 action.pop("executed_by", None)
-        os.makedirs(os.path.join(target, ACTIONS_NAME), exist_ok=True)
+        os.makedirs(os.path.join(target, TOOLS_NAME), exist_ok=True)
         with open(os.path.join(target, rel), "w", encoding="utf-8", newline="\n") as f:
             json.dump(action, f, indent=2, ensure_ascii=False)
             f.write("\n")
@@ -930,7 +939,7 @@ def merge(names, roots=None):
             merged_questions.setdefault(qid, dict(question))
         for task, brief in result["briefs"].items():
             merged_briefs.setdefault(task, dict(brief))
-        for action in result.get("actions") or []:
+        for action in result.get("tools") or []:
             merged_actions.setdefault(action["id"], dict(action))
         for section in ("classes", "properties"):
             for key, entry in (record.get(section) or {}).items():
@@ -956,7 +965,7 @@ def merge(names, roots=None):
     config["_lexicon"] = {"entries": lexicon_entries} if lexicon_entries else None
     config["_interview"] = "\n\n".join(interviews) if interviews else None
     config["_guide"] = "\n\n".join(guides) if guides else None
-    config["_actions"] = list(merged_actions.values())
+    config["_tools"] = list(merged_actions.values())
     config["_gold"] = gold
     report["classes"] = len(classes)
     report["properties"] = len(properties)

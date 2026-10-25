@@ -53,7 +53,8 @@ CARRIES = {
     "lexicon": "lexicon.json",
     "interview": "interview.md",
     "guide": "guide.md",
-    "actions": "actions",
+    "tools": "tools",
+    "actions": "actions",                       # the name before Actions became Tools (2026-10)
     "gold": os.path.join("gold", "patterns.jsonl"),
 }
 FIELDS = ("name", "release", "domain", "product_type", "summary", "extends", "namespace", "engine", "carries", "maintainer", "changelog")

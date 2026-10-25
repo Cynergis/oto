@@ -174,8 +174,8 @@ Route to query-knowledge. Two exceptions the concierge handles itself:
   Say which station it is at and never present it as believed.
 - "What is this project?": `oto status`, then the project's `README.md` and `GUIDE.md` when it
   has one, then the counts from `oto query overview`, told in a few plain sentences.
-- "What can be done about X?": `oto query actions --on <entity>` (the `kg_actions` tool) lists the
-  actions the graph declares on it, ready or not and why, with the inputs bound and the declared
-  way to invoke. OTO never invokes; the caller does, then `oto actions record <id> --on <entity>
+- "What can be done about X?": `oto query tools --on <entity>` (the `kg_tools` tool) lists the
+  tools the graph declares on it, ready or not and why, with the inputs bound and the declared
+  way to invoke. OTO never invokes; the caller does, then `oto tools record <id> --on <entity>
   --by <who> --response <file>` turns the response into a run record, a source document and a
   proposal that goes through the gates. Say which.

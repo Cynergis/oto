@@ -131,6 +131,8 @@ class Vocabulary:
             for key, spec in table.items():
                 name = key[1] if kind == "attribute" else key
                 names = {name.lower(), _vocab.name_as_words(name)}
+                if kind == "class":
+                    names |= {w.lower() for w in spec.get("was") or []} | {_vocab.name_as_words(w) for w in spec.get("was") or []}
                 names |= {t.lower() for t in _vocab.texts(spec.get("label"), self.language).values()}
                 names |= {x.lower() for items in _vocab.alt_labels(spec.get("alt_labels"), self.language).values() for x in items}
                 if kind == "relation":
@@ -170,6 +172,7 @@ class Vocabulary:
         out = {"kind": kind, "name": name, "owner": owner, "iri": self.iri.get((kind, key)), "language": self.language,
                "labels": _vocab.texts(spec.get("label"), self.language) or {self.language: _vocab.name_as_words(name)},
                "alt_labels": _vocab.alt_labels(spec.get("alt_labels"), self.language),
+               "was": list(spec.get("was") or []) if kind == "class" else [],
                "rationale": self.rationale.get((kind, key)) or {}}
         for field in ("definition", "scope_note", "example", "inverse_label"):
             if spec.get(field):

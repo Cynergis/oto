@@ -493,7 +493,7 @@
     "SA14": {
       "who": "a developer",
       "question": "Where is the code for $COMPONENT: which repository, owned by whom, on which default branch?",
-      "why": "An action on a component starts from its repository; the repository's identity must be data, not a guess.",
+      "why": "A tool on a component starts from its repository; the repository's identity must be data, not a guess.",
       "validated_by": "",
       "params": {
         "COMPONENT": {

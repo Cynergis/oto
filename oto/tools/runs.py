@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
-"""Run records: the caller invoked an action and hands OTO the response. OTO writes the record,
+"""Run records: the caller invoked a tool and hands OTO the response. OTO writes the record,
 a source document for the inbox, and, for a `proposal` result, the proposal that realises what
 the action's `then` clause says. Nothing here writes `graph.json`; the proposal goes through the
 curate gates like any other.
 
-    runs/actions/<action-id>/<stamp>/run.json       what was invoked, on what, by whom, when, the
+    runs/tools/<tool-id>/<stamp>/run.json       what was invoked, on what, by whom, when, the
                                                     bound inputs, the response's hash and size
-    runs/actions/<action-id>/<stamp>/response.json  the response as handed over (or .txt)
+    runs/tools/<tool-id>/<stamp>/response.json  the response as handed over (or .txt)
     inbox/<at>-run-<action>-<subject>.md            the run as a source document: ingest it, and
                                                     the facts the run asserted cite it
     proposals/<action-id>.<stamp>.json              for a `proposal` result: the subject as the
                                                     `then` clause says, evidence pointing at the
                                                     run document
 
-At build time the records give each Action node its `acts_on` edges and its `last_run`.
+At build time the records give each Tool node its `acts_on` edges and its `last_run`.
 Environment variable values are never seen here; the record holds the names the action needs.
 """
 import datetime
@@ -24,7 +24,8 @@ import re
 
 from ..intake.document import slugify
 
-DIR = os.path.join("runs", "actions")
+DIR = os.path.join("runs", "tools")
+LEGACY_DIR = os.path.join("runs", "actions")            # where a project made before the rename keeps them
 RESPONSE_REF = re.compile(r"^\$response(?:\.(.+))?$")
 QUOTE_LIMIT = 200
 RESPONSE_LIMIT = 2_000_000
@@ -32,7 +33,9 @@ ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def directory(project, action_id=None):
-    base = os.path.join(project.data, DIR)
+    """`runs/tools/`, or `runs/actions/` where a project made before the rename still keeps them there."""
+    new, old = os.path.join(project.data, DIR), os.path.join(project.data, LEGACY_DIR)
+    base = old if os.path.isdir(old) and not os.path.isdir(new) else new
     return os.path.join(base, action_id) if action_id else base
 
 

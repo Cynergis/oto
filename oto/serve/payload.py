@@ -180,9 +180,9 @@ def tool_data(engine, name, args):
         return {"counts": store.counts(), "by_class": store.types_current(), "by_relation": store.rels_counts(int(args.get("limit", 10))),
                 "hubs": store.hubs(int(args.get("limit", 10))), "frontier": store.frontier(),
                 "ledger": store.changelog(int(args.get("limit", 10))) or []}
-    if name == "kg_actions":
+    if name in ("kg_tools", "kg_actions"):
         flag = lambda k: str(args.get(k, "")).lower() in ("1", "true", "yes", "on")   # noqa: E731
-        return engine.actions_data(args.get("action"), args.get("on"), flag("ready"), flag("due"))
+        return engine.tools_data(args.get("tool") or args.get("action"), args.get("on"), flag("ready"), flag("due"))
     if name == "kg_define":
         words = engine.vocabulary()
         return {"terms": [words.describe(kind, key) for kind, key in words.find(args.get("term", ""))]}

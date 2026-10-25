@@ -50,7 +50,8 @@ class Layout:
         self.runs = os.path.join(root, "runs")
         self.corpus = os.path.join(build, "documents")
         self.notes = os.path.join(root, "notes")
-        self.actions = os.path.join(root, "actions")
+        self.tools = os.path.join(root, "tools")
+        self.actions = os.path.join(root, "actions")        # where a project made before the rename keeps its tools
         self.entities = os.path.join(build, "entities")
         self.ontology = os.path.join(build, "ontology")
         self.cards = os.path.join(build, "cards")

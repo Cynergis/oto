@@ -10,7 +10,7 @@
     .github/workflows/oto-review.yml @claude on that PR: the agent revises on its branch
     .github/workflows/oto-checks.yml on a pull request: the gates, as status checks
     .github/workflows/oto-deploy.yml on a merge to main: build the store and publish it
-    .github/workflows/oto-actions.yml on a schedule: invoke the due read-only actions through the
+    .github/workflows/oto-tools.yml   on a schedule: invoke the due read-only tools through the
                                       script under .github/scripts/, record, curate, open a PR
     .gitignore                       generated files ignored, EXCEPT the corpus, which is an input
 
@@ -392,19 +392,19 @@ jobs:
 '''
 
 INVOKE_SCRIPT = r'''#!/usr/bin/env python3
-"""Invoke the due actions of an OTO project and record their responses. Written by `oto init --repo`.
+"""Invoke the due tools of an OTO project and record their responses. Written by `oto init --repo`.
 
-This script is the caller. OTO lists what is due (`oto actions list --due --json`), binds the
-inputs (`oto actions show <id> --on <entity> --json`), and records what came back (`oto actions
+This script is the caller. OTO lists what is due (`oto tools list --due --json`), binds the
+inputs (`oto tools show <id> --on <entity> --json`), and records what came back (`oto tools
 record`); the invocation itself happens here, over the transport each action declares:
 
     http    the request, with `{input}` placeholders substituted (URL-encoded) in the URL and the
             body, and a header value that names an environment variable taken from the environment
     cli     the command ontology with each input substituted, shell-quoted
-    script  the file under actions/ run with the inputs as JSON on stdin
+    script  the file under tools/ run with the inputs as JSON on stdin
     mcp     skipped: an MCP tool needs an agent (the act skill), not a cron job
 
-Only read-only scheduled actions are ever due, so nothing here changes the world. Environment
+Only read-only scheduled tools are ever due, so nothing here changes the world. Environment
 variable values are never printed; a missing one skips the action and says its name. Responses
 are read up to one megabyte. Standard library only.
 """
@@ -469,7 +469,9 @@ def invoke_cli(invoke, inputs, timeout):
 
 
 def invoke_script(invoke, inputs, timeout, project):
-    path = os.path.join(project, "actions", invoke["path"])
+    path = os.path.join(project, "tools", invoke["path"])
+    if not os.path.exists(path):
+        path = os.path.join(project, "actions", invoke["path"])      # a project made before the rename
     out = subprocess.run([path], input=json.dumps(inputs), capture_output=True, text=True, timeout=timeout, cwd=project)
     if out.returncode != 0:
         raise RuntimeError("exit %d: %s" % (out.returncode, out.stderr.strip()[-400:]))
@@ -477,17 +479,17 @@ def invoke_script(invoke, inputs, timeout, project):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="invoke the due actions of an OTO project and record their responses")
+    parser = argparse.ArgumentParser(description="invoke the due tools of an OTO project and record their responses")
     parser.add_argument("--project", default=".")
     parser.add_argument("--oto", default="oto", help="the engine command (default: oto)")
-    parser.add_argument("--by", default="oto actions workflow", help="who the runs are recorded by")
+    parser.add_argument("--by", default="oto tools workflow", help="who the runs are recorded by")
     parser.add_argument("--at", default=None, help="the run date (default: today)")
     parser.add_argument("--only", default=None, help="one action id")
     parser.add_argument("--summary", default=None, help="write the summary JSON here as well")
     args = parser.parse_args(argv)
     base = shlex.split(args.oto)
     project = os.path.abspath(args.project)
-    due = json.loads(oto(["actions", "list", "--due", "--json", "--project", project], base) or "[]")
+    due = json.loads(oto(["tools", "list", "--due", "--json", "--project", project], base) or "[]")
     summary = {"invoked": [], "skipped": [], "failed": []}
     for definition in due:
         aid = definition["name"]
@@ -495,7 +497,7 @@ def main(argv=None):
             continue
         m = definition["oto"]
         for entity in m.get("ready_on") or []:
-            bound = json.loads(oto(["actions", "show", aid, "--on", entity, "--json", "--project", project], base))["oto"]
+            bound = json.loads(oto(["tools", "show", aid, "--on", entity, "--json", "--project", project], base))["oto"]
             item = {"action": aid, "on": entity, "transport": (bound.get("invoke") or {}).get("transport")}
             missing_env = [n for n in bound.get("needs") or [] if n not in os.environ]
             if bound.get("inputs_missing"):
@@ -523,8 +525,8 @@ def main(argv=None):
                 f.write(response)
                 path = f.name
             try:
-                record_args = ["actions", "record", aid, "--on", entity, "--by", args.by, "--response", path,
-                               "--note", "invoked by the actions workflow", "--project", project]
+                record_args = ["tools", "record", aid, "--on", entity, "--by", args.by, "--response", path,
+                               "--note", "invoked by the tools workflow", "--project", project]
                 if args.at:
                     record_args += ["--at", args.at]
                 out = oto(record_args, base)
@@ -547,10 +549,10 @@ if __name__ == "__main__":
     sys.exit(main())
 '''
 
-ACTIONS = r'''name: oto actions
+ACTIONS = r'''name: oto tools
 
-# The graph's hands, on a schedule. Every day this lists the read-only actions the project declares
-# that are due (`oto actions list --due`), invokes each through the transport it declares with the
+# The graph's hands, on a schedule. Every day this lists the read-only tools the project declares
+# that are due (`oto tools list --due`), invokes each through the transport it declares with the
 # script under .github/scripts/ (OTO itself never invokes), records the responses as run records
 # and source documents, takes the proposals through the curate gates, and opens a pull request:
 # the merge is the human gate, as for every other change. An action bound to an MCP server is
@@ -569,7 +571,7 @@ on:
         required: false
 
 concurrency:
-  group: oto-actions
+  group: oto-tools
   cancel-in-progress: false
 
 permissions:
@@ -601,8 +603,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # OTHER_API_TOKEN: ${{ secrets.OTHER_API_TOKEN }}
         run: |
-          python .github/scripts/oto-actions-invoke.py --project . --summary runs/actions/last-workflow.json ${{ inputs.only && format('--only {0}', inputs.only) || '' }}
-          echo "invoked=$(python -c 'import json; print(len(json.load(open("runs/actions/last-workflow.json"))["invoked"]))')" >> "$GITHUB_OUTPUT"
+          python .github/scripts/oto-tools-invoke.py --project . --summary runs/tools/last-workflow.json ${{ inputs.only && format('--only {0}', inputs.only) || '' }}
+          echo "invoked=$(python -c 'import json; print(len(json.load(open("runs/tools/last-workflow.json"))["invoked"]))')" >> "$GITHUB_OUTPUT"
       - name: Take the proposals through the gates
         if: steps.invoke.outputs.invoked != '0'
         run: |
@@ -610,13 +612,13 @@ jobs:
           oto curate start --project .
           python - <<'PY'
           import json, subprocess
-          s = json.load(open("runs/actions/last-workflow.json"))
+          s = json.load(open("runs/tools/last-workflow.json"))
           for item in s["invoked"]:
               if item.get("proposal"):
                   subprocess.run(["oto", "curate", "add", "--project", ".", "--from", item["proposal"]], check=False)
           PY
           if oto curate check --project .; then
-            oto curate apply --project . --by "oto actions workflow" --note "recorded runs of the due actions; see runs/actions/last-workflow.json"
+            oto curate apply --project . --by "oto tools workflow" --note "recorded runs of the due tools; see runs/tools/last-workflow.json"
             oto build --project .
           else
             echo "the candidate needs a person: left open, the pull request says why"
@@ -628,24 +630,24 @@ jobs:
         run: |
           set -e
           stamp="$(date -u +%Y-%m-%d-%H%M)"
-          git config user.name "oto actions"
-          git config user.email "oto-actions@users.noreply.github.com"
-          git checkout -b "oto/actions-${stamp}"
+          git config user.name "oto tools"
+          git config user.email "oto-tools@users.noreply.github.com"
+          git checkout -b "oto/tools-${stamp}"
           git add -A
           git diff --cached --quiet && { echo "nothing changed"; exit 0; }
-          git commit -m "oto actions: recorded runs of the due actions (${stamp})"
-          git push -u origin "oto/actions-${stamp}"
+          git commit -m "oto tools: recorded runs of the due tools (${stamp})"
+          git push -u origin "oto/tools-${stamp}"
           {
-            echo "## Recorded runs of the due actions"
+            echo "## Recorded runs of the due tools"
             echo
-            echo "Invoked by the actions workflow; each response is a run record and a source document, and a proposal went through the gates."
+            echo "Invoked by the tools workflow; each response is a run record and a source document, and a proposal went through the gates."
             echo
-            echo '```json'; cat runs/actions/last-workflow.json; echo '```'
+            echo '```json'; cat runs/tools/last-workflow.json; echo '```'
             echo
             if [ -f graph.candidate.json ]; then echo "**The candidate is still open**: \`oto curate check\` was not clean. A person decides."; fi
           } > /tmp/pr-body.md
-          gh label create oto-actions --description "opened by the OTO actions workflow" --color 0E8A16 2>/dev/null || true
-          gh pr create --base main --head "oto/actions-${stamp}" --title "oto actions: recorded runs (${stamp})" --body-file /tmp/pr-body.md --label oto-actions
+          gh label create oto-tools --description "opened by the OTO tools workflow" --color 0E8A16 2>/dev/null || true
+          gh pr create --base main --head "oto/tools-${stamp}" --title "oto tools: recorded runs (${stamp})" --body-file /tmp/pr-body.md --label oto-tools
 '''
 
 REVIEW = r'''name: oto review
@@ -723,8 +725,8 @@ def files(slug, name, engine=None):
         os.path.join(".github", "workflows", "oto-deploy.yml"): DEPLOY.format(pip=pip, engine=engine, slug=slug),
         os.path.join(".github", "workflows", "oto-author.yml"): fill(AUTHOR),
         os.path.join(".github", "workflows", "oto-review.yml"): fill(REVIEW),
-        os.path.join(".github", "workflows", "oto-actions.yml"): fill(ACTIONS),
-        os.path.join(".github", "scripts", "oto-actions-invoke.py"): INVOKE_SCRIPT,
+        os.path.join(".github", "workflows", "oto-tools.yml"): fill(ACTIONS),
+        os.path.join(".github", "scripts", "oto-tools-invoke.py"): INVOKE_SCRIPT,
     }
 
 

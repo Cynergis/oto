@@ -1,6 +1,7 @@
-/* The workbench: Overview, Knowledge and Project over one snapshot and one graph. Where the reader is
- * lives in the address (#/overview, #/knowledge/<id>, #/knowledge/kind/<Class>, #/project/<station>),
- * so a link to a page can be shared and the browser's back button works. */
+/* The workbench: Overview, Knowledge, Project and, when the vocabulary has work items, Work, over one
+ * snapshot and one graph. Where the reader is lives in the address (#/overview, #/knowledge/<id>,
+ * #/knowledge/kind/<Class>, #/project/<station>, #/work), so a link to a page can be shared and the
+ * browser's back button works. */
 import * as React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { Badge } from "./components/ui/badge";
@@ -8,10 +9,11 @@ import { Empty } from "./components/common";
 import { Overview } from "./views/Overview";
 import { Knowledge } from "./views/Knowledge";
 import { Project } from "./views/Project";
+import { Work } from "./views/Work";
 import type { StationId } from "./types";
 import { follow, load, type Loaded } from "./data";
 
-type Route = { section: "overview" | "knowledge" | "project"; entity: string | null; kind: string | null; station: StationId };
+type Route = { section: "overview" | "knowledge" | "project" | "work"; entity: string | null; kind: string | null; station: StationId };
 const STATIONS: StationId[] = ["sources", "survey", "vocabulary", "curate", "build", "rules", "test", "deploy"];
 
 function parse(hash: string): Route {
@@ -24,6 +26,8 @@ function parse(hash: string): Route {
   } else if (parts[0] === "project") {
     route.section = "project";
     if (STATIONS.includes(parts[1] as StationId)) route.station = parts[1] as StationId;
+  } else if (parts[0] === "work") {
+    route.section = "work";
   }
   return route;
 }
@@ -31,6 +35,7 @@ function parse(hash: string): Route {
 function href(r: Partial<Route> & { section: Route["section"] }) {
   if (r.section === "knowledge") return "#/knowledge" + (r.entity ? "/" + encodeURIComponent(r.entity) : r.kind ? "/kind/" + encodeURIComponent(r.kind) : "");
   if (r.section === "project") return "#/project/" + (r.station || "vocabulary");
+  if (r.section === "work") return "#/work";
   return "#/overview";
 }
 
@@ -71,6 +76,7 @@ export function App() {
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="knowledge">Knowledge</TabsTrigger>
               <TabsTrigger value="project">Project</TabsTrigger>
+              {s?.work ? <TabsTrigger value="work">Work{s.work.counts.blocked ? <span className="ml-1.5 rounded-full bg-attention/15 px-1.5 text-xs text-attention">{s.work.counts.blocked}</span> : null}</TabsTrigger> : null}
             </TabsList>
           </Tabs>
           <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -95,6 +101,10 @@ export function App() {
             {s ? <Project snapshot={s} live={data.live} station={route.station} onStation={st => go({ section: "project", station: st })}
               onEntity={id => go({ section: "knowledge", entity: id })} onType={k => go({ section: "knowledge", kind: k })} />
               : <Empty>No project snapshot here: this copy carries the graph only.</Empty>}
+          </TabsContent>
+          <TabsContent value="work" className="mt-0">
+            {s?.work ? <Work board={s.work} published={s.published} live={data.live} onEntity={id => go({ section: "knowledge", entity: id })} />
+              : <Empty>This vocabulary has no work items; the board needs the work ontology.</Empty>}
           </TabsContent>
         </Tabs>
       </main>

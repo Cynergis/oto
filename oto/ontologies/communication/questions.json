@@ -1,0 +1,150 @@
+{
+  "_about": "What this ontology exists to answer. Each question runs over the graph in the pattern language of rules.json; `gate` says what an empty answer means; `terms` names the vocabulary the question covers.",
+  "questions": {
+    "CM1": {
+      "who": "anyone with a session open",
+      "question": "What waits for $PERSON: pending messages, from whom, about what, since when, due when?",
+      "why": "What a session opens with (N3): the messages addressed to this person that nobody has answered, each with its item.",
+      "validated_by": "",
+      "params": {
+        "PERSON": {
+          "type": "Person|Team|Role"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "m",
+              "sent_to",
+              "$PERSON"
+            ]
+          },
+          {
+            "node": "m",
+            "type": "Message",
+            "where": {
+              "status": "pending"
+            }
+          },
+          {
+            "edge": [
+              "m",
+              "regarding",
+              "w"
+            ]
+          },
+          {
+            "node": "w",
+            "type": "WorkItem"
+          }
+        ],
+        "select": [
+          "m",
+          "m.from",
+          "m.sent",
+          "m.due",
+          "m.body",
+          "w.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "CM2": {
+      "who": "a delivery lead",
+      "question": "What has been said about $ITEM, by whom, to whom, and is it settled?",
+      "why": "An item's conversation beside the item: who asked whom what, and whether it was resolved.",
+      "validated_by": "",
+      "params": {
+        "ITEM": {
+          "type": "WorkItem"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "m",
+              "regarding",
+              "$ITEM"
+            ]
+          },
+          {
+            "node": "m",
+            "type": "Message"
+          },
+          {
+            "edge": [
+              "m",
+              "sent_to",
+              "to"
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "m",
+                  "sent_by",
+                  "p"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "m.from",
+          "to.label",
+          "m.sent",
+          "m.status",
+          "m.body",
+          "p.label"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "Block"
+      ]
+    },
+    "CM3": {
+      "who": "a delivery lead",
+      "question": "Which messages are overdue: due date passed, not resolved?",
+      "why": "An unanswered request past its date is where the plan is stuck.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "m",
+            "type": "Message",
+            "where": {
+              "due": {
+                "<": "$today"
+              },
+              "status": {
+                "in": [
+                  "pending",
+                  "read",
+                  "replied"
+                ]
+              }
+            }
+          },
+          {
+            "edge": [
+              "m",
+              "sent_to",
+              "to"
+            ]
+          }
+        ],
+        "select": [
+          "m.from",
+          "to.label",
+          "m.due",
+          "m.status"
+        ]
+      },
+      "gate": "empty"
+    }
+  }
+}

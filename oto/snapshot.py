@@ -23,6 +23,10 @@ project gives the same snapshot.
     test        {gold: {questions, authored_by, audited_fraction}, bench: {at, systems} or None,
                  feedback: [{id, verdict, question, by, at, expected}]}
     deploy      {backend, targets, site, config, valid, connector, environments}
+    work        the board (work.board), or None when the vocabulary declares no work item:
+                {counts: {open, blocked, deployed}, open: [{id, label, kind, due}],
+                 blocked: [{id, label, since, reason, by, transition, waiting_on: {id, label, type}}],
+                 deployed: [{id, label, environment, at}]}
     open        [{station, what, detail}]: what waits on a person, in plain words
 
     published   false here; true in the copy a static site carries (see `published`)
@@ -37,7 +41,8 @@ what the site already publishes kept and what only the project's people should s
     kept        the overview and stations; the vocabulary with each class's reason and whether it is
                 confirmed; the questions; the documents' titles (data.json has them); the changelog
                 (data.json's ledger has it); rules, their reasons and findings; gold-set size and audit;
-                bench results; deploy
+                bench results; deploy; the board (a blocked item's reason is the plan's, and the person it
+                waits on is shown as initials like everyone else the project names)
     withheld    the files waiting or refused, and why (a refused file is often refused for what it
                 holds); survey decisions (rejected terms are often people's names); who confirmed a
                 class or a rule ("confirmed" stays); who wrote the gold set; feedback, which is people's
@@ -331,6 +336,8 @@ def build(project):
                    "valid": bool(deploy_config is not None and not _deploy.problems(deploy_config)),
                    "connector": (deploy_config or {}).get("connector"),
                    "environments": _deploy.chain(deploy_config) if deploy_config else []}
+    from . import work as _work
+    s["work"] = _work.board(project)
     captured = len([d for d in s["sources"]["documents"] if _captured(project, d["slug"])])
     s["overview"] = {"facts": len(current), "documents": len(s["sources"]["documents"]) - captured,
                      "conversations": captured + s["curate"]["assertions"],
@@ -373,11 +380,15 @@ PERSON = re.compile(r"^[A-Z][a-z'\u2019-]+(?: [A-Z][a-z'\u2019-]+){1,3}$")
 
 def people(live):
     """The people a project names, from the fields whose purpose is to name someone. Each field is
-    "Name, role, date"; a gold set's author may list several ("X, for Y + feedback from Z")."""
+    "Name, role, date"; a gold set's author may list several ("X, for Y + feedback from Z"). A block
+    names who raised it and, when it waits on a person, that person."""
     t = live["test"]
+    blocked = (live.get("work") or {}).get("blocked") or []
     fields = ([c.get("validated_by") for c in live["vocabulary"]["classes"]] + [r.get("validated_by") for r in live["rules"]["rules"]]
               + [d.get("by") for d in live["survey"]["latest"]] + [c.get("by") for c in live["curate"]["changes"]]
-              + [f.get("by") for f in t["feedback"]] + [(t["gold"] or {}).get("authored_by")])
+              + [f.get("by") for f in t["feedback"]] + [(t["gold"] or {}).get("authored_by")]
+              + [b.get("by") for b in blocked]
+              + [b["waiting_on"]["label"] for b in blocked if (b.get("waiting_on") or {}).get("type") == "Person"])
     found = set()
     for field in fields:
         for part in re.split(r"\s\+\s|\bfor\b|\bfrom\b", field or ""):

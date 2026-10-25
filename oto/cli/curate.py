@@ -210,6 +210,8 @@ def cmd_curate(args):
         if not restored:
             print("nothing to undo")
             return 1
+        from .. import audit as _audit, work as _work
+        _audit.append(project, "curate undo", args.by or _work.identity(project), [], "applied", detail="the previous graph restored")
         print("restored the previous graph. Run `oto build` to recompile.")
         return 0
 
@@ -364,6 +366,11 @@ def cmd_curate(args):
                                sources=_ledger.new_sources(live, proposed))
         result = _session.apply(project)
         _ledger.append(project, record)
+        from .. import audit as _audit, work as _work
+        _audit.append(project, "curate apply", args.by or _work.identity(project),
+                      list(summary["nodes_added"]) + [nid for nid, _f in summary["nodes_changed"]] + list(summary["nodes_removed"]),
+                      "applied", detail=args.note or "%d added, %d changed, %d removed" % (
+                          len(summary["nodes_added"]), len(summary["nodes_changed"]), len(summary["nodes_removed"])))
         print("\napplied. Previous graph kept at %s; `oto curate undo` restores it."
               % os.path.basename(result["previous"]))
         print("ledger: %s (%d retired). `oto curate log` reads it." % (_ledger.NAME, len(retired)))

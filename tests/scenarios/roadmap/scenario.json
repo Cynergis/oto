@@ -512,6 +512,31 @@
         }
       ],
       "say": "the thread beside the item: the question, resolved, and the answer, a message in its own right"
+    },
+    {
+      "say": "the audit log: every write chained, who touched the epic",
+      "run": [
+        "audit",
+        "verify"
+      ],
+      "out": [
+        "chain intact"
+      ]
+    },
+    {
+      "run": [
+        "audit",
+        "for",
+        "workitem.epic-m"
+      ],
+      "out": [
+        "work set",
+        "work notify",
+        "work reply",
+        "refused",
+        "Claude, in session",
+        "Chiheb Dkhil"
+      ]
     }
   ]
 }

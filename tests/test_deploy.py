@@ -216,3 +216,31 @@ def test_the_generated_workflow_checks_the_config_publishes_to_dev_and_promotes_
         assert '--to %s --promote "${{ github.sha }}"' % env in workflow
     assert "hashFiles('oto.deploy.json')" in workflow
     assert "github.actor" in workflow, "the approver is GitHub's reviewer, not a typed name"
+
+
+# ---- F2, F4: the audit log records what left the project, and a node keeps its IRI through the chain ----
+def test_publish_and_promotion_are_audited_and_a_node_keeps_its_iri_in_every_environment(project, tmp_path):
+    import sqlite3
+    from oto import audit
+    from oto.model.namespaces import Terms
+    target, dev = _published(project, tmp_path)
+    deploy.promote(project, "test", commit="abc123", by="Dana Reyes")
+    deploy.promote(project, "prod", commit="abc123", by="Dana Reyes")
+    records = audit.read(project)
+    assert [(r["action"], r["decision"]) for r in records] == [("publish", "published"), ("promote", "promoted"), ("promote", "promoted")], records
+    assert records[1]["principal"] == "Dana Reyes" and "test" in records[1]["detail"] and dev["sha256"][:12] in records[1]["detail"]
+    assert audit.verify(project)["ok"]
+    with open(project.ontology_config_path, encoding="utf-8") as f:
+        instances = Terms(json.load(f), project.identity()).instances
+    iris = {}
+    for environment in ("dev", "test", "prod"):
+        dest = str(tmp_path / ("reader-" + environment))
+        pub.sync(target, dest=dest, branch=environment)
+        con = sqlite3.connect(os.path.join(dest, "acme.db"))
+        try:
+            iris[environment] = {instances + row[0] for row in con.execute("SELECT id FROM nodes")}
+        finally:
+            con.close()
+        manifest = json.loads(_git(target, "show", "%s:MANIFEST.json" % environment))
+        assert manifest["sha256"] == dev["sha256"], "the same store in every environment, so the same ids under one namespace"
+    assert iris["dev"] and iris["dev"] == iris["test"] == iris["prod"], "a node keeps its IRI when promoted"

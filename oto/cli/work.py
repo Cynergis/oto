@@ -24,6 +24,8 @@ def cmd_work(args):
             done = _work.set_state(project, args.item, args.state, by, args.at, reason=args.reason,
                                    waiting_on=args.waiting_on, environment=args.environment, note=args.note)
         except _work.WorkError as exc:
+            if not str(exc).startswith("refused by the gates"):
+                _work.refused(project, "work set", by, args.item, exc)
             print("oto: %s" % exc, file=sys.stderr)
             return 1
         print("%s: %s -> %s%s (%s, by %s)" % (done["label"], done["from"], done["to"],
@@ -46,6 +48,8 @@ def cmd_work(args):
         try:
             done = _work.notify(project, args.item, by, args.at, body=args.body, to=args.to, due=args.due)
         except _work.WorkError as exc:
+            if not str(exc).startswith("refused by the gates"):
+                _work.refused(project, "work notify", by, args.item, exc)
             print("oto: %s" % exc, file=sys.stderr)
             return 1
         print("%s: message %s to %s%s, pending" % (done["label"], done["message"], done["to_label"], (", due " + args.due) if args.due else ""))
@@ -74,6 +78,8 @@ def cmd_work(args):
         try:
             done = _work.reply(project, args.item, args.body, by, args.at, resolve_it=args.resolve, to=args.to)
         except _work.WorkError as exc:
+            if not str(exc).startswith("refused by the gates"):
+                _work.refused(project, "work reply", by, args.item, exc)
             print("oto: %s" % exc, file=sys.stderr)
             return 1
         print("%s: %s %s, by %s (%s)%s" % (done["message"], done["reply"], done["outcome"], by, args.at,

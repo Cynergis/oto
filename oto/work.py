@@ -23,6 +23,7 @@ merged pull request deployed, once however often the event is delivered. Identit
 """
 import os
 
+from . import audit as _audit
 from .curate import assertions as _assertions, diff as _diff, ledger as _ledger, session as _session
 from .model.vocabulary import ISO_DATE, _union, covers as _covers
 from .project import ProjectError
@@ -142,10 +143,11 @@ def _no_candidate(project):
                         % os.path.basename(_session.candidate_path(project)))
 
 
-def _commit(project, text, by, at, about, edit):
+def _commit(project, text, by, at, about, edit, action="work"):
     """Record `text` as an assertion by `by`, let `edit(candidate, source)` append what cites it,
     hold the candidate to the gates and apply it. Returns what `edit` returned. Nothing refused is
-    written: a refusal aborts the candidate, and the assertion stands as what was said."""
+    written: a refusal aborts the candidate, and the assertion stands as what was said. Both
+    outcomes go to the audit log (audit.py), keyed to the nodes touched."""
     _no_candidate(project)
     vocabulary = _load_vocabulary(project)
     live = _session.live(project)
@@ -158,7 +160,9 @@ def _commit(project, text, by, at, about, edit):
                                 "status": "current", "aliases": [], "tags": []})
         problems = gates(project, live, candidate, vocabulary)
         if problems:
-            raise WorkError("refused by the gates:\n  - " + "\n  - ".join("%s: %s" % (f.subject, f.detail) for f in problems[:10]))
+            refusal = WorkError("refused by the gates:\n  - " + "\n  - ".join("%s: %s" % (f.subject, f.detail) for f in problems[:10]))
+            _audit.append(project, action, by, about, "refused", detail=str(refusal).splitlines()[1].strip(" -") if "\n" in str(refusal) else str(refusal))
+            raise refusal
         _session._write(candidate_path, candidate)
     except Exception:
         _session.abort(project)
@@ -169,7 +173,33 @@ def _commit(project, text, by, at, about, edit):
     _session.apply(project)
     _ledger.append(project, record)
     done["assertion"] = entry["id"]
+    touched = list(about) + list(summary.get("nodes_added") or []) + [nid for nid, _f in summary.get("nodes_changed") or []]
+    _audit.append(project, action, by, touched, "applied", detail=text)
     return done
+
+
+def refused(project, action, by, term, error):
+    """Record a refusal that happened before anything was written: what was asked, of which node,
+    and why not. The node is the term as given when it names nothing resolvable."""
+    node = term
+    try:
+        live = _session.live(project)
+        vocabulary = _load_vocabulary(project)
+        for kinds in (_kinds(vocabulary, ITEM), _kinds(vocabulary, MESSAGE) if MESSAGE in (vocabulary.get("classes") or {}) else set(), None):
+            try:
+                found = resolve(live, term or "", kinds) if kinds else None
+            except WorkError:
+                found = None
+            if found:
+                node = found["id"]
+                break
+        else:
+            found = [n for n in _session.find(live, term or "") if n.get("status", "current") == "current"]
+            if len(found) == 1:
+                node = found[0]["id"]
+    except (OSError, ValueError):
+        pass
+    return _audit.append(project, action, by, [node] if node else [], "refused", detail=str(error).splitlines()[0])
 
 
 def set_state(project, term, state, by, at, reason=None, waiting_on=None, environment=None, note=None):
@@ -214,7 +244,7 @@ def set_state(project, term, state, by, at, reason=None, waiting_on=None, enviro
     def edit(candidate, source):
         return dict(_append_transition(candidate, source, item, state, at, by, text, reason=reason, target=target, environment=environment),
                     **{"from": was})
-    return _commit(project, text, by, at, [item["id"]] + ([target["id"]] if target else []), edit)
+    return _commit(project, text, by, at, [item["id"]] + ([target["id"]] if target else []), edit, action="work set")
 
 
 def _append_transition(candidate, source, item, state, at, by, text, reason=None, target=None, environment=None, event=None):
@@ -393,7 +423,7 @@ def notify(project, term, by, at, body=None, to=None, due=None):
         if block:
             candidate["edges"].append({"from": new_id, "rel": REGARDING, "to": block["id"]})
         return {"message": new_id, "item": item["id"], "label": label, "to": target["id"], "to_label": to_label}
-    return _commit(project, "message to %s: %s" % (to_label, text), by, at.strip(), [item["id"], target["id"]], edit)
+    return _commit(project, "message to %s: %s" % (to_label, text), by, at.strip(), [item["id"], target["id"]], edit, action="work notify")
 
 
 def _message_rows(project, vocabulary, graph):
@@ -524,7 +554,7 @@ def reply(project, term, body, by, at, resolve_it=False, to=None):
             done["transition"], done["from"] = moved["transition"], "blocked"
         return done
     about = [original["id"]] + ([item["id"]] if item else [])
-    return _commit(project, text, by, at.strip(), about, edit)
+    return _commit(project, text, by, at.strip(), about, edit, action="work reply")
 
 
 def event_merged_pr(project, repo, number, term, environment, at, by=None):
@@ -540,24 +570,26 @@ def event_merged_pr(project, repo, number, term, environment, at, by=None):
     vocabulary = _load_vocabulary(project)
     live = _session.live(project)
     item = resolve(live, term, _kinds(vocabulary, ITEM))
+    who = (by or "").strip() or "pull request %s#%s merged" % (repo.strip(), str(number).strip())
     for t in transitions_of(live, item["id"]):
         if (t.get("attributes") or {}).get("event") == event:
+            _audit.append(project, "work event", who, [item["id"], t["id"]], "unchanged", detail="%s already recorded" % event)
             return {"already": True, "event": event, "transition": t["id"], "item": item["id"], "label": item.get("label") or item["id"]}
     was = current_state(live, item, vocabulary)
     if was == "deployed":
         seen = _seen(project, vocabulary, live)
         if seen.attribute(item["id"], "deployed_to") == environment:
             current = [t for t in transitions_of(live, item["id"]) if t.get("status", "current") == "current"]
+            _audit.append(project, "work event", who, [item["id"]], "unchanged", detail="%s: already deployed to %s" % (event, environment))
             return {"already": True, "event": event, "transition": current[0]["id"] if current else None,
                     "item": item["id"], "label": item.get("label") or item["id"],
                     "reason": "already deployed to %s" % environment}      # an epic's later pull requests change no state
-    who = (by or "").strip() or "pull request %s#%s merged" % (repo.strip(), str(number).strip())
     text = "%s: %s -> deployed to %s by %s" % (item.get("label") or item["id"], was, environment, event)
 
     def edit(candidate, source):
         return dict(_append_transition(candidate, source, item, "deployed", at.strip(), who, text, environment=environment, event=event),
                     **{"from": was, "event": event})
-    return _commit(project, text, who, at.strip(), [item["id"]], edit)
+    return _commit(project, "%s: %s" % (event, text), who, at.strip(), [item["id"]], edit, action="work event")
 
 
 def gates(project, live, candidate, vocabulary):

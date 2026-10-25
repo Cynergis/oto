@@ -164,6 +164,10 @@ def publish(project, repo=None, source=None, branch="main", token=None, engine=N
                                                 (" to " + environment) if environment else "")], cwd=work)
         _git(["push", "--quiet", _with_token(repo, token), "HEAD:%s" % branch], cwd=work)
         manifest["changed"] = True
+        from . import audit as _audit, work as _work
+        _audit.append(project, "publish", _work.identity(project), [], "published",
+                      detail="%s build_seq %d sha256 %s%s" % (environment or branch, manifest["build_seq"], str(manifest["sha256"])[:12],
+                                                            (" from " + source) if source else ""))
         return manifest
     finally:
         shutil.rmtree(work, ignore_errors=True)

@@ -579,7 +579,27 @@ open a Claude Code session in the project and the inbox is the first thing it sa
 project is [roadmap/](../roadmap/README.md): this roadmap, tracked with these commands, built and
 checked by `tests/test_roadmap_project.py`.
 
-## 19. The engine's own gates and CI
+## 19. Audit: every write on a chain
+
+Exercises: the audit log appended by every write path, `oto audit verify`, `oto audit for <node>`,
+and the stable IRI of a node promoted through the environments.
+
+```bash
+oto work set "Epic C" --state blocked --reason "..." --waiting-on "Chiheb Dkhil" --at 2026-10-27 --project roadmap
+oto work set "Epic C" --state blocked --at 2026-10-27 --project roadmap          # refused: recorded too
+oto audit verify --project roadmap                                              # chain intact
+oto audit for workitem.epic-c --project roadmap                                 # who did what to it, refusals included
+sed -i '' '2s/applied/refused/' roadmap/audit.jsonl && oto audit verify --project roadmap   # BROKEN at record 2: edited (then git checkout the file)
+oto publish --project plan --to dev ... && oto publish --project plan --to test --promote <commit> --by "<you>"   # publish and promote append
+```
+
+Pass when every write (the work pack's set, notify, reply and event, their refusals, a no-op event,
+`curate apply` and `undo`, `ingest complete`, `publish`, each promotion) appends one record with the
+principal, the nodes, the graph's version and the decision; an edited record breaks the chain at its
+number, a removed or reordered one at the record after it; and the node ids, hence the IRIs under the
+project's namespace, are the same in dev, test and prod.
+
+## 20. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.
 

@@ -17,7 +17,7 @@ from oto.project import Project
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROADMAP = os.path.join(ROOT, "roadmap")
 EPICS = "ABCDEFGHIJKLMN"
-SHIPPED = {"b": "Cynergis/oto#56", "f": "Cynergis/oto#62", "k": "Cynergis/oto#57", "l": "Cynergis/oto#54", "m": "Cynergis/oto#58", "n": "Cynergis/oto#60"}
+SHIPPED = {"b": "Cynergis/oto#56", "f": "Cynergis/oto#62", "g": "Cynergis/oto#65", "k": "Cynergis/oto#57", "l": "Cynergis/oto#54", "m": "Cynergis/oto#58", "n": "Cynergis/oto#60"}
 
 
 def _cli(*args):

@@ -644,6 +644,11 @@ oto graph depend --on policy.descriptor.json --by "<you>" --at 2026-10-27 --proj
 oto build --project roadmap && oto query --project roadmap ask CORE4 GRAPH=graph.oto-roadmap
 oto graph dependencies --project roadmap
 oto graph describe --record --by "<you>" --at 2026-10-27 --project <an older project>   # a project made before descriptors
+oto init --name "Policy KB, the copy" --slug policy-2 --ontology auto-claims --project policy-2
+oto graph describe --reach https://kg.example.org/policy-2 --project policy-2 > policy-2.descriptor.json
+oto graph depend --on policy-2.descriptor.json --by "<you>" --at 2026-10-27 --project roadmap   # warns: a near-duplicate of policy
+oto ontology check --project roadmap                                                            # the graphs section reports the pair
+oto graph describe --subject "Policy KB, the copy: the 2027 policy wording only" --project policy-2   # sharpen, then depend again
 ```
 
 Pass when a new project's graph holds `graph.<slug>` with its subject, classes, reach and slug (an
@@ -651,6 +656,10 @@ Pass when a new project's graph holds `graph.<slug>` with its subject, classes, 
 printed carries what another project needs and nothing of the graph's facts; `depend` adds the other
 graph's node and the edge through the gates and says so when it is already there; CORE4 lists the
 dependency with its reach; a descriptor missing its subject or reach, or a graph's own, is refused.
+Two descriptors that say nearly the same words are a near-duplicate: `depend` warns as the second is
+declared and `ontology check` prints "graphs: 3 descriptor(s); 1 near-duplicate pair(s)" with the
+words that tell them apart ("told apart only by (nothing) / copy"); it is advisory, so `--strict` and
+the build still pass, and a `--subject` that says what only that graph holds clears it.
 
 ```bash
 oto init --name "Concierge" --slug root --concierge --project root            # oto-core alone, no sample, descriptors only

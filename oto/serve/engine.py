@@ -1097,10 +1097,8 @@ def docs_text(query=None, limit=200):
 # question is given and forwards one tool call over HTTP when asked to. It never decides for the
 # agent: two candidates as close as each other are both offered.
 DEPENDS_ON_GRAPH = "depends_on_graph"
-STOP_WORDS = {"the", "a", "an", "and", "or", "of", "to", "in", "on", "for", "is", "are", "was", "were", "what", "which",
-              "who", "whom", "how", "when", "where", "why", "does", "do", "did", "it", "its", "this", "that", "these",
-              "those", "with", "by", "at", "from", "as", "be", "has", "have", "had", "not", "no", "we", "our", "us", "about",
-              "them", "they", "their", "there", "here", "also", "any", "all", "one", "exist", "exists", "list", "show", "tell"}
+from .. import graphs as _graphs_mod
+STOP_WORDS = _graphs_mod.STOP_WORDS
 
 
 def _graph_rows():
@@ -1139,14 +1137,7 @@ def _find_graph(rows, term):
     return None
 
 
-def _words(text):
-    return {w for w in re.findall(r"[a-z0-9]+", (text or "").lower()) if len(w) > 2 and w not in STOP_WORDS}
-
-
-def _stem(word):
-    """A crude stem: long words by their first five letters, so 'claims' finds 'claim' and 'adjusts'
-    'adjuster'; short words only as they are."""
-    return word[:5] if len(word) >= 6 else word
+_words, _stem = _graphs_mod.words, _graphs_mod.stem        # one measure for the ranking and the authoring lint
 
 
 def _score(descriptor, question):
@@ -1155,7 +1146,7 @@ def _score(descriptor, question):
     attrs = descriptor["attributes"]
     classes = set()
     for c in attrs.get("classes") or []:
-        classes |= {_stem(w) for w in _words(re.sub(r"([a-z])([A-Z])", r"\1 \2", c))}
+        classes |= {_stem(w) for w in _graphs_mod.class_words(c)}
     said = set()
     for text in (descriptor.get("label"), attrs.get("subject"), attrs.get("slug")):
         said |= {_stem(w) for w in _words(text)}

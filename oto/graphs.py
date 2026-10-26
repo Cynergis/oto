@@ -17,10 +17,16 @@ reads what each holds and chooses which to ask (CORE4) without custom modelling;
 The project's own descriptor is inferred from its config (`source_type: inference`, cited to
 project.config.json); a dependency is a person's declaration and goes through the gates like any
 other write (work._commit), recorded in the audit log.
+
+Two descriptors an agent could not tell apart are a near-duplicate (A4): `overlaps` names them, with
+the words that set them apart, at authoring (`oto graph depend` warns, `oto ontology check` reports);
+at runtime the engine offers both (serve/engine.py), so routing still resolves. The words a
+descriptor says are measured here, the one way the lint and the ranking share.
 """
 import datetime
 import json
 import os
+import re
 
 from .project import ProjectError
 
@@ -28,6 +34,28 @@ CLASS = "Graph"
 DEPENDS_ON = "depends_on_graph"
 DESCRIPTOR_KEYS = ("id", "label", "subject", "classes", "reach", "slug")
 MAX_CLASSES = 64
+CORE_CLASSES = ("Document", "Tool", CLASS)             # every graph has them: they tell nothing apart
+NEAR_DUPLICATE = 0.75                                  # share of the words two descriptors say in common
+STOP_WORDS = {"the", "a", "an", "and", "or", "of", "to", "in", "on", "for", "is", "are", "was", "were", "what", "which",
+              "who", "whom", "how", "when", "where", "why", "does", "do", "did", "it", "its", "this", "that", "these",
+              "those", "with", "by", "at", "from", "as", "be", "has", "have", "had", "not", "no", "we", "our", "us", "about",
+              "them", "they", "their", "there", "here", "also", "any", "all", "one", "exist", "exists", "list", "show", "tell"}
+
+
+def words(text):
+    """The words of a text worth matching: lowercase, three letters or more, no stop words."""
+    return {w for w in re.findall(r"[a-z0-9]+", (text or "").lower()) if len(w) > 2 and w not in STOP_WORDS}
+
+
+def stem(word):
+    """A crude stem: long words by their first five letters, so 'claims' finds 'claim' and 'adjusts'
+    'adjuster'; short words only as they are."""
+    return word[:5] if len(word) >= 6 else word
+
+
+def class_words(name):
+    """A class name read as words: WorkItem -> work, item."""
+    return words(re.sub(r"([a-z])([A-Z])", r"\1 \2", name or ""))
 
 
 class GraphError(ProjectError):
@@ -56,9 +84,10 @@ def main_classes(vocabulary, graph=None):
     return ordered[:MAX_CLASSES]
 
 
-def describe(project, vocabulary=None, graph=None, reach=None):
+def describe(project, vocabulary=None, graph=None, reach=None, subject=None):
     """This graph's descriptor, from the project's identity and vocabulary: what another project
-    stores when it depends on this one."""
+    stores when it depends on this one. `subject` replaces the inferred one, to say what only this
+    graph holds when another descriptor says nearly the same."""
     from . import __version__
     if vocabulary is None:
         with open(project.ontology_config_path, encoding="utf-8") as f:
@@ -68,8 +97,9 @@ def describe(project, vocabulary=None, graph=None, reach=None):
             graph = json.load(f)
     identity = project.identity()
     cfg = project.config()
-    subject = (vocabulary.get("_summary") or vocabulary.get("_about") or "").strip()
-    subject = "%s: %s" % (identity["name"], subject) if subject else identity["name"]
+    if not (subject or "").strip():
+        subject = (vocabulary.get("_summary") or vocabulary.get("_about") or "").strip()
+        subject = "%s: %s" % (identity["name"], subject) if subject else identity["name"]
     return {"id": node_id(identity["slug"]), "label": identity["name"], "subject": subject.split("\n")[0][:300],
             "classes": main_classes(vocabulary, graph), "reach": reach or identity["server_name"], "slug": identity["slug"],
             "namespace": cfg.get("namespace"), "engine": __version__, "described_at": datetime.date.today().isoformat()}
@@ -177,3 +207,61 @@ def dependencies(project):
             a = n.get("attributes") or {}
             out.append({"id": n["id"], "label": n.get("label"), "subject": a.get("subject"), "classes": a.get("classes") or [], "reach": a.get("reach")})
     return sorted(out, key=lambda d: d["id"])
+
+
+# ---- near-duplicates (A4) ----
+
+def _said(node):
+    """What a descriptor says, as stems: its label, subject and slug read as words, and its classes
+    other than the core three read as words."""
+    a = node.get("attributes") or {}
+    out = set()
+    for text in (node.get("label"), a.get("subject"), a.get("slug")):
+        out |= {stem(w) for w in words(text)}
+    for c in a.get("classes") or []:
+        if c not in CORE_CLASSES:
+            out |= {stem(w) for w in class_words(c)}
+    return out
+
+
+def _only(node, other_said):
+    """The words of `node`'s label and subject the other descriptor does not say, one per stem,
+    in the author's spelling."""
+    a = node.get("attributes") or {}
+    seen, out = set(), []
+    for w in sorted(words(node.get("label")) | words(a.get("subject"))):
+        if stem(w) not in other_said and stem(w) not in seen:
+            seen.add(stem(w))
+            out.append(w)
+    return out
+
+
+def overlaps(nodes):
+    """Pairs of current Graph descriptors an agent could not tell apart: those saying nearly the same
+    words (NEAR_DUPLICATE of them in common), or reached at the same place. Each finding names what
+    sets them apart, so the author can sharpen one subject or merge the graphs. Advisory: at runtime
+    both are offered."""
+    rows = sorted((n for n in nodes or [] if n.get("type") == CLASS and n.get("status", "current") == "current"), key=lambda n: n.get("id") or "")
+    out = []
+    for i, a in enumerate(rows):
+        said_a = _said(a)
+        for b in rows[i + 1:]:
+            said_b = _said(b)
+            union = said_a | said_b
+            similarity = (len(said_a & said_b) / len(union)) if union else 1.0
+            reach_a, reach_b = (a.get("attributes") or {}).get("reach"), (b.get("attributes") or {}).get("reach")
+            same_reach = bool(reach_a) and reach_a == reach_b
+            if similarity < NEAR_DUPLICATE and not same_reach:
+                continue
+            shared = sorted(set((a.get("attributes") or {}).get("classes") or []) & set((b.get("attributes") or {}).get("classes") or []) - set(CORE_CLASSES))
+            only_a, only_b = _only(a, said_b), _only(b, said_a)
+            if same_reach:
+                message = "%s ~ %s: same reach %s: one graph described twice; keep one" % (a["id"], b["id"], reach_a)
+            else:
+                message = ("%s ~ %s: told apart only by %s / %s; share %d class(es)%s. A question naming none of those words "
+                           "reaches both: say in one subject what only that graph holds (`oto graph describe --subject`), or merge them"
+                           % (a["id"], b["id"], ", ".join(only_a) or "(nothing)", ", ".join(only_b) or "(nothing)", len(shared),
+                              (" (%s%s)" % (", ".join(shared[:4]), " ..." if len(shared) > 4 else "")) if shared else ""))
+            out.append({"a": a["id"], "b": b["id"], "similarity": round(similarity, 2), "same_reach": same_reach,
+                        "shared_classes": shared, "only_a": only_a, "only_b": only_b, "message": message})
+    return out

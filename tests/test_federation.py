@@ -179,3 +179,19 @@ def test_kg_call_refuses_a_reach_that_is_not_http(world):
     assert error and "plan-kg" in text and "http" in text.lower()
     error, text = _call(engine, "kg_call", graph="graph.policy", tool="kg_search", arguments={"query": "x"})
     assert error and "could not be reached" in text, "a reach nothing listens on is an error in words, not a traceback"
+
+
+def test_near_duplicate_descriptors_are_both_offered_so_routing_still_resolves(world, tmp_path):
+    """The authoring lint warns; at runtime the engine never picks one of two it cannot tell apart."""
+    root = world["root"]
+    copy = str(tmp_path / "policy-2")
+    with contextlib.redirect_stdout(io.StringIO()):
+        init(copy, slug="policy-2", name="Claims policy, the copy", ontology="auto-claims")
+    code, out = _cli("graph", "depend", "--on", _descriptor_file(copy, tmp_path, "http://127.0.0.1:1/policy-2"), "--by", "Chiheb Dkhil", "--at", "2026-10-26", "--project", root)
+    assert code == 0 and "near-duplicate" in out, out
+    code, out = _cli("build", "--project", root)
+    assert code == 0, out
+    engine = _engine(Project.standard(root))
+    error, text = _call(engine, "kg_dependencies", question="which claims cover the vehicle in that incident")
+    assert not error, text
+    assert "graph.policy and graph.policy-2 are as close as each other" in text and "ask both" in text, text

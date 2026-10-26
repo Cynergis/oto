@@ -871,6 +871,31 @@ estate's `part_of` shape; a missing file, a file that is not JSON, a missing `--
 the graph lacks and a project without the architecture vocabulary are each refused in words, and
 `export` on a graph with no CALM facts says so.
 
+Then the code map and compile on merge (H2), against a git checkout of the code:
+
+```bash
+# the estate declares the repository: {"id": "repo.invoice-platform", "type": "Repository", "attributes": {"owner": "acme", "name": "invoice-platform"}}
+cat > /path/to/invoice-platform/oto.codemap.json <<'EOF'
+{"modules": [{"path": "src/*", "component": "component.invoice-{name}", "except": ["src/legacy"]}, {"path": "lib/*", "component": null}], "ignore": ["node_modules"]}
+EOF
+oto arch map --repo /path/to/invoice-platform --repository repo.invoice-platform --at 2026-10-27 --project invoice
+oto curate start --project invoice && oto curate add --from proposals/codemap-invoice-platform.json --project invoice
+oto curate check --project invoice && oto curate apply --by "<you>" --note "the code map" --project invoice && oto build --project invoice
+oto query --project invoice ask AR5 NODE=component.invoice-intake      # src/intake, python, its last commit
+oto query --project invoice ask AR9                                    # the modules no component implements
+# project.config.json: "arch": {"calm": ["architecture/invoice.calm.json"], "environment": "environment.production", "codemap": {"repo": "../invoice-platform", "repository": "repo.invoice-platform"}}
+oto arch compile --at 2026-10-28 --by "<you>" --note "compiled from <sha>" --project invoice
+oto init --name Invoice --slug invoice --ontology architecture --repo --project invoice-repo   # writes .github/workflows/oto-architecture.yml
+```
+
+Pass when the map lists each module with its language and component, the modules the convention
+cannot trace are proposed without `implemented_by` and AR9 lists them, each module's last commit is a
+`Commit` that `touches` it, mapping again after a new commit adds one node and changes no module,
+`compile` imports and maps what the config declares, applies with the note in the audit log and
+builds, a compile the gates refuse leaves no candidate and names the finding, a project with no
+`arch` section is refused in words, and the workflow file runs `oto arch compile` on every push to
+`main`, commits the graph as "oto architecture" and skips its own commits.
+
 ## 23. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.

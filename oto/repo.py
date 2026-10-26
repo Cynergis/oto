@@ -156,6 +156,61 @@ jobs:
           gh issue create --title "oto ingest $run_id: files need a person" --body "$body" --label oto-ingest || true
 """
 
+ARCHITECTURE = """name: oto architecture
+
+# Every merge to main compiles the architecture graph from what the repository holds: the CALM
+# model(s) and the code map that project.config.json names under `arch`, imported, held to the
+# four gates and applied with the merge's sha in the note, then built (roadmap H2). A merge the
+# gates refuse fails the job with the findings, and the graph stays as it was; nobody edits it by
+# hand. Its own commit never compiles again. A project with no `arch` section does nothing here.
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: oto-architecture
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  compile:
+    if: github.event.head_commit.author.name != 'oto architecture'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Reach the engine repository when it is private
+        run: if [ -n "$OTO_ENGINE_TOKEN" ]; then git config --global url."https://x-access-token:${{OTO_ENGINE_TOKEN}}@github.com/".insteadOf "https://github.com/"; fi
+        env:
+          OTO_ENGINE_TOKEN: ${{{{ secrets.OTO_ENGINE_TOKEN }}}}
+      - name: Install the engine from its repository
+        run: {pip}
+        env:
+          ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
+      - name: Compile the architecture from this merge
+        run: |
+          if python -c "import json,sys; sys.exit(0 if json.load(open('project.config.json')).get('arch') else 1)"; then
+            oto arch compile --project . --at "$(date -u +%F)" --by "oto architecture" --note "compiled from ${{{{ github.sha }}}}"
+          else
+            echo "project.config.json declares no arch section: nothing to compile"
+          fi
+      - name: Commit the compiled graph
+        run: |
+          git config user.name "oto architecture"
+          git config user.email "oto-architecture@users.noreply.github.com"
+          git add -A graph.json graph.previous.json changelog.jsonl audit.jsonl proposals archive build/documents 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "oto architecture: compiled from ${{{{ github.sha }}}}"
+          git push
+"""
+
 CHECKS = """name: oto checks
 
 # The gates, as status checks. A pull request that changes the graph, the vocabulary, the corpus or
@@ -787,6 +842,7 @@ def files(slug, name, engine=None):
         "CLAUDE.md": CLAUDE_MD.format(name=name, engine=engine),
         os.path.join(".github", "workflows", "oto-ingest.yml"): INGEST.format(pip=pip, engine=engine),
         os.path.join(".github", "workflows", "oto-checks.yml"): CHECKS.format(pip=pip, engine=engine),
+        os.path.join(".github", "workflows", "oto-architecture.yml"): ARCHITECTURE.format(pip=pip, engine=engine),
         os.path.join(".github", "workflows", "oto-deploy.yml"): DEPLOY.format(pip=pip, engine=engine, slug=slug),
         os.path.join(".github", "workflows", "oto-author.yml"): fill(AUTHOR),
         os.path.join(".github", "workflows", "oto-review.yml"): fill(REVIEW),

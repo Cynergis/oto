@@ -34,9 +34,11 @@ implemented and last changed (AR5), what measured a requirement (AR6), the open 
 
 **Filling it.** `oto arch import --calm model.json --at <date> [--environment environment.<id>]` reads a
 CALM 1.x model into a document and a proposal cited to it, deriving the estate's edges beside the
-reified ones, and `oto arch export --calm` writes it back, export of import equal to the input; `oto arch map` reads the
-code map; the Epic B pipeline compiles both on every merge; `arch_context` serves a path's node,
-requirements, decisions, budgets and controls.
+reified ones, and `oto arch export --calm` writes it back, export of import equal to the input; `oto arch map --repo <path> --repository repo.<id> --at <date>` reads a code repository by
+`oto.codemap.json` (or the default, every directory under `src/`) into modules, their commits and
+the components they implement; `oto arch compile` runs both as `project.config.json` declares, and
+the `oto architecture` workflow does so on every merge; `arch_context` (the next PR) serves a path's
+node, requirements, decisions, budgets and controls.
 
 This is a first draft: edit it. The sample is the roadmap's invoice-approval example; replace it with
 your CALM model as soon as you have imported one.

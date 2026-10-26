@@ -7,8 +7,8 @@ agent queries before it edits, so it avoids a violation instead of a gate reject
 Epic H).
 
 **A CALM node is an estate node.** No `Node` class: a CALM `system` or `ecosystem` is a `System`, a
-`service`, `ldap` or `webclient` is a `Component`, a `database` or `data-asset` is a `DataStore`, a
-`network` is an `Environment`, an `actor` is a `Role`. Each carries `calm_id` (the unique-id, so it
+`service` or `webclient` is a `Component`, a `database`, `data-asset` or `ldap` directory is a
+`DataStore`, a `network` is an `Environment`, an `actor` is a `Role`. Each carries `calm_id` (the unique-id, so it
 round-trips) and `calm_type` (which of the nine it was), and `calm_metadata` as the JSON the model
 gave. An `Interface` carries `calm_id`, `definition_url` and `config`.
 
@@ -32,8 +32,9 @@ safeguards it (AR2), a flow's sequence (AR3), the budgets a node must meet (AR4)
 implemented and last changed (AR5), what measured a requirement (AR6), the open change proposals
 (AR7), nodes no control safeguards (AR8), code modules nothing traces to (AR9).
 
-**Filling it.** `oto arch import --calm model.json` (the next PR) reads a CALM model into a proposal
-cited to it, and `oto arch export --calm` writes it back with nothing lost; `oto arch map` reads the
+**Filling it.** `oto arch import --calm model.json --at <date> [--environment environment.<id>]` reads a
+CALM 1.x model into a document and a proposal cited to it, deriving the estate's edges beside the
+reified ones, and `oto arch export --calm` writes it back, export of import equal to the input; `oto arch map` reads the
 code map; the Epic B pipeline compiles both on every merge; `arch_context` serves a path's node,
 requirements, decisions, budgets and controls.
 

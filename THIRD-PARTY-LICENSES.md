@@ -55,3 +55,10 @@ python -c "import importlib.metadata as m; print(m.metadata('pymupdf')['License'
 
 Re-check it whenever a dependency is added or upgraded. A dependency's licence can change between
 versions.
+
+## Test fixtures from other projects
+
+`tests/fixtures/calm/trading-system.architecture.json` is the trading-system example from the FINOS
+`architecture-as-code` repository (https://github.com/finos/architecture-as-code,
+`docs/static/calm-example/trading-system.architecture.json`), Apache-2.0, copied unchanged as the
+round-trip fixture for `oto arch import` and `export`.

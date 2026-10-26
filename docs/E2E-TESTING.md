@@ -680,7 +680,28 @@ prefixed with where it came from, refuses a `kg_call` of a `kg_call`, a tool a d
 answer, a graph not among the descriptors, and a reach that is not HTTP, and says in words when the
 reach does not answer.
 
-## 21. The engine's own gates and CI
+## 21. The data pack: a schema as facts, lineage back to the feed, who reads what
+
+Exercises: the `data` ontology on `software-architecture`, its shapes, DT1 to DT6, the `draft` default.
+
+```bash
+oto init --name "The ledger, described" --slug ledger --ontology data --project ledger
+oto build --project ledger
+oto query --project ledger ask DT1 TABLE=table.ledger-postings        # columns, types, keys, meaning, confirmed or draft
+oto query --project ledger ask DT2 TABLE=table.ledger-postings        # the job that loads it, its schedule and tool, the feed behind it
+oto query --project ledger ask DT3 TABLE=table.ledger-postings        # who reads it: the payment API, transactionally, from the log
+oto query --project ledger ask DT4                                    # every table and column whose meaning nobody confirmed
+oto query --project ledger ask DT5 STORE=datastore.ledger             # what the estate's ledger holds
+oto query --project ledger ask DT6 FEED=feed.custodian-settlements    # downstream of the custodian file
+oto ontology check --project ledger                                   # shapes: every node satisfies them
+```
+
+Pass when the sample's ledger answers all six (the store and the components are the architecture
+sample's own: one vocabulary); DT4 lists `posted_at` and `ledger.accounts`, which carry no status, and
+not `posting_id`, which is confirmed; a column attached to a second table or a `Usage` of no table
+fails `oto ontology check --strict` with the shape named.
+
+## 22. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.
 

@@ -1,0 +1,27 @@
+{
+  "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
+  "name": "data",
+  "release": 1,
+  "domain": "data",
+  "summary": "A database schema as facts, with what each table is about, where its rows come from and who reads them: tables and columns of the estate's stores, the feeds and jobs that load them, each consumer's use (transactional or analytical), and whether a meaning is a draft or confirmed.",
+  "extends": [
+    "software-architecture"
+  ],
+  "namespace": "https://cynergis.ai/ont/data#",
+  "engine": ">=0.11",
+  "carries": [
+    "vocabulary",
+    "rationale",
+    "questions",
+    "sample",
+    "readme"
+  ],
+  "maintainer": "OTO",
+  "changelog": [
+    {
+      "release": 1,
+      "at": "2026-10-26",
+      "note": "First release (roadmap Epic C, groundwork): Table, Column, Feed, LoadJob, Usage on software-architecture; a column is of one table, a use is of one table; a meaning is a draft until confirmed; DT1-DT6, awaiting confirmation."
+    }
+  ]
+}

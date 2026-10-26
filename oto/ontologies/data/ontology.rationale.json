@@ -1,0 +1,79 @@
+{
+  "_about": "Why each term exists: the data pack of roadmap Epic C, the groundwork release, as C1-C5 need it; awaiting confirmation.",
+  "classes": {
+    "Table": {
+      "question": "What does this table hold, and what does the store hold? (DT1, DT5)",
+      "why": "The unit a person asks about and a job loads. A table of its own rather than a DataStore attribute because columns, lineage and usage all hang off it, and the estate's DataStore is a whole database, the wrong grain for any of them.",
+      "alternatives": "Tables as DataStore nodes: rejected, the estate's grain is a database and a component reads from one; a table inside it needs its own node. Views as a separate class: rejected, `kind` tells them apart and every question treats them alike.",
+      "validated_by": ""
+    },
+    "Column": {
+      "question": "What does each column mean, what type is it, is it a key, and is the meaning confirmed? (DT1, DT4)",
+      "why": "Meaning lives at the column: the unit, the encoding, what a null means. A node per column so a foreign key can reference the column it points at and a description can be confirmed one column at a time.",
+      "alternatives": "Columns as a list attribute of the table: rejected, a list cannot carry a reference to another table's column nor a confirmation of its own.",
+      "validated_by": ""
+    },
+    "Feed": {
+      "question": "Where do the rows come from, before any job touched them? (DT2, DT6)",
+      "why": "The source of truth has a name: the custodian's file, the partner's API. Lineage that stops at the first job leaves the question it was meant to answer unanswered; a Feed is where it ends.",
+      "alternatives": "A feed as an Interface of the estate: rejected, an interface is a contract the estate exposes or consumes; a feed is a source of rows, often nobody's contract. A string on the job: rejected, two jobs from one feed would not share it.",
+      "validated_by": ""
+    },
+    "LoadJob": {
+      "question": "Which job loads this table, from what, on what schedule? (DT2, DT6)",
+      "why": "Lineage is a job between a source and a table, with a schedule and a tool, which is what breaks at three in the morning. A node so one job can load several tables and be sourced from several places.",
+      "alternatives": "A direct `sourced_from` edge table to feed: rejected, it loses the job, the schedule and the tool, which are what a person needs when the table is stale.",
+      "validated_by": ""
+    },
+    "Usage": {
+      "question": "Who reads this table, and how? (DT3)",
+      "why": "A read is a fact with two parts, who and how, and the how (transactional or analytical) decides who to tell before a change and when it may run. A reified use carries both, and how it is known, where an edge could not.",
+      "alternatives": "A `reads_from` edge from the component to the table: rejected, an edge carries no kind and no evidence, and a team or a report reads too. Widening the estate's `reads_from`: rejected for the same reason; it stays at the store's grain.",
+      "validated_by": ""
+    }
+  },
+  "properties": {
+    "column_of": {
+      "question": "What does this table hold? (DT1)",
+      "why": "Exactly one table per column, declared as a shape, so a schema introspected twice cannot attach a column to two tables and a join path reads one way.",
+      "alternatives": "The table as an attribute of the column: rejected, it would not be a walk.",
+      "validated_by": ""
+    },
+    "references": {
+      "question": "Which columns reference another table, and so how do the tables join? (DT1)",
+      "why": "A foreign key is the join path; as an edge between columns the graph can follow it from any table to any other, which the schema compiler and the agent both need.",
+      "alternatives": "Table to table: rejected, two tables can be joined on more than one pair of columns.",
+      "validated_by": ""
+    },
+    "loaded_by": {
+      "question": "Which job writes this table? (DT2, DT6)",
+      "why": "The first step back along the lineage, and the thing to look at when the rows are stale or wrong.",
+      "alternatives": "Writes recorded on the component (`writes_to` a store): kept for the estate, too coarse here; the table is the grain a job loads.",
+      "validated_by": ""
+    },
+    "sourced_from": {
+      "question": "Where does the job take its rows from? (DT2, DT6)",
+      "why": "The second step back along the lineage: a feed, which is the source of truth, a table, which makes a chain, or a store when the config says no more. One relation for the three so the walk is one pattern.",
+      "alternatives": "Three relations by source kind: rejected, every lineage question would need all three.",
+      "validated_by": ""
+    },
+    "use_of": {
+      "question": "Who reads this table? (DT3)",
+      "why": "Exactly one table per use, declared as a shape, so a use is a row of the table's readers and never a bag over several.",
+      "alternatives": "Several tables per use: rejected, the kind of use differs by table.",
+      "validated_by": ""
+    },
+    "used_by": {
+      "question": "Who is the reader? (DT3)",
+      "why": "The reader is a thing the estate already knows: a component, when software reads; a team or a role, when people and their reports do. So a change to a table reaches the owners the estate already names.",
+      "alternatives": "A reader string on the use: rejected, a reader must be a node to be asked what else it reads and who owns it.",
+      "validated_by": ""
+    },
+    "part_of": {
+      "question": "What does this store hold? (DT5)",
+      "why": "Widened so a table is part of the data store the estate declares, and a component that reads from the store and the tables inside it are one picture.",
+      "alternatives": "A new `in_store` relation: rejected, membership is what `part_of` already means everywhere else.",
+      "validated_by": ""
+    }
+  }
+}

@@ -1088,3 +1088,28 @@ workflow is green, including `publishable` in strict mode and `neo4j target and 
 Keep a short log as you go: the stage, the date, what surprised you. A surprise that is not a
 bug is a documentation gap, and an `oto feedback record` or an issue on the engine repository is
 the place for it.
+
+## 24. The ontology explorer: the vocabulary as a thing to browse
+
+Phase 6 of the roadmap (Epic D) shows the ontology itself, not the instances it types. The first cut
+is the class model (D1): a class with its parents, children, relations with cardinality and attributes.
+
+```bash
+oto init --ontology architecture --project arch && oto build --project arch
+oto serve --project arch --http 8765 --view workbench &
+curl -s localhost:8765/api/ontology | python3 -c "import json,sys; m=json.load(sys.stdin); print(m['counts'])"
+curl -s "localhost:8765/api/ontology?class=NFR" | python3 -c "import json,sys; c=json.load(sys.stdin); print(c['parents'], [r['name'] for r in c['relations_out'] if r['inherited_from']])"
+curl -s "localhost:8765/api/ontology?class=Nothing"                                             # 404, the classes it does declare
+curl -s "localhost:8765/api/graph?passages=0" | python3 -c "import json,sys; print(json.load(sys.stdin)['ontology']['counts'])"
+# in the browser: http://localhost:8765/#/ontology/Component  -> a kind of Asset; part_of 0..1 to a System, inverse contains;
+#   the attributes with their types; "n current things" opens the Knowledge page filtered to the class
+oto build --project arch --view workbench                                                        # the exported data.json carries the same model
+```
+
+Pass when `/api/ontology` lists every class once in name order with parents, children, relations in
+and out and attributes; an NFR carries what Requirement declares, marked inherited; `part_of` reads
+`0..1` with its inverse; a controlled attribute lists its values and a decision attribute says a person
+decides it; an unknown class is a 404 that names the classes; the payload and the exported site carry
+the same model; and the workbench's Ontology tab walks from any class to its parents, children and
+relationships by links alone.
+

@@ -70,5 +70,28 @@ export interface Payload {
   build_seq: string | number | null; token?: string;
   project: { name: string | null; slug: string | null };
   vocabulary: { classes: Record<string, { definition?: string }>; properties: Record<string, unknown> };
+  /* the vocabulary as a navigable model (oto/serve/ontology.py); absent in a payload older than it */
+  ontology?: OntologyModel | null;
   nodes: GraphNode[]; edges: GraphEdge[];
+}
+
+export interface OntologyAttribute {
+  name: string; label: string; type: string; values: string[] | null; definition: string;
+  required: boolean; default: unknown; decision: boolean;
+}
+export interface OntologyRelationOut { name: string; label: string; to: string[]; cardinality: string; inverse: string | null; definition: string; inherited_from: string | null }
+export interface OntologyRelationIn { name: string; label: string; from: string[]; inverse: string | null; inherited_from: string | null }
+export interface OntologyClass {
+  name: string; label: string; definition: string; scope_note: string; example: string;
+  parents: string[]; ancestors: string[]; children: string[]; requires: string[]; things: number;
+  attributes: OntologyAttribute[]; relations_out: OntologyRelationOut[]; relations_in: OntologyRelationIn[];
+}
+export interface OntologyRelation {
+  name: string; label: string; domain: string[]; range: string[]; inverse: string | null; inverse_label: string | null;
+  cardinality: string; definition: string; subproperty_of: string | null; derived: boolean; things: number;
+}
+export interface OntologyModel {
+  version: number | string | null; derived_from_data: boolean;
+  counts: { classes: number; relations: number; attributes: number; things: number | null };
+  classes: OntologyClass[]; relations: OntologyRelation[];
 }

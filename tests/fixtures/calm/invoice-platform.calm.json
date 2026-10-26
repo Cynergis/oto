@@ -1,0 +1,61 @@
+{
+  "$schema": "https://calm.finos.org/release/1.0/meta/core.json",
+  "$id": "https://invoice.example/calm/invoice-platform.json",
+  "title": "Invoice platform",
+  "unique-id": "invoice-platform-model",
+  "name": "Invoice platform",
+  "description": "The invoice approval platform as a CALM model: intake, approval policy and payment scheduling.",
+  "metadata": {"owner": "payments-platform", "tier": "2"},
+  "adrs": ["https://invoice.example/adrs/ADR-007.md"],
+  "nodes": [
+    {"unique-id": "invoice-platform", "node-type": "system", "name": "Invoice platform", "description": "Intake, approval and payment scheduling.",
+     "details": {"detailed-architecture": "https://invoice.example/calm/invoice-platform-detailed.json"}},
+    {"unique-id": "payments-network", "node-type": "network", "name": "Payments network", "description": "The network segment the services run in."},
+    {"unique-id": "ap-clerk", "node-type": "actor", "name": "Accounts payable clerk", "description": "Submits supplier invoices.", "metadata": {"department": "finance"}},
+    {"unique-id": "invoice-intake", "node-type": "service", "name": "Invoice intake", "description": "Accepts a submitted invoice, stores it and emits InvoiceSubmitted.",
+     "interfaces": [
+       {"unique-id": "invoice-api", "definition-url": "https://invoice.example/calm/interfaces/https-url.json", "config": {"url": "https://invoice.example/api/v1/invoices"}},
+       {"unique-id": "invoice-events", "name": "Invoice events", "protocol": "AMQP", "exchange": "invoices", "routing-key": "invoice.*"}
+     ],
+     "controls": {"input-validation": {"description": "Every submitted invoice is validated against the schema before it is stored.",
+                                       "requirements": [{"requirement-url": "https://invoice.example/calm/controls/input-validation.requirement.json", "config": {"schema": "invoice-v1"}}]}}},
+    {"unique-id": "approval-policy", "node-type": "service", "name": "Approval policy", "description": "Applies the approval rules and emits InvoiceApproved."},
+    {"unique-id": "payment-scheduler", "node-type": "service", "name": "Payment scheduler", "description": "Schedules the payment of an approved invoice."},
+    {"unique-id": "invoice-db", "node-type": "database", "name": "Invoice database", "description": "Where invoices and their approval state live."},
+    {"unique-id": "reporting-lake", "node-type": "lakehouse", "name": "Reporting lake", "description": "A custom node type: the finance reporting lakehouse."}
+  ],
+  "relationships": [
+    {"unique-id": "clerk-submits", "description": "The clerk submits an invoice through the intake.", "relationship-type": {"interacts": {"actor": "ap-clerk", "nodes": ["invoice-intake"]}}},
+    {"unique-id": "intake-stores", "description": "The intake writes the invoice to the database.", "protocol": "JDBC", "metadata": {"pii": true},
+     "relationship-type": {"connects": {"source": {"node": "invoice-intake"}, "destination": {"node": "invoice-db"}}},
+     "controls": {"pii-at-rest": {"description": "Supplier bank details are encrypted at rest and on the JDBC connection.",
+                                  "requirements": [{"requirement-url": "https://invoice.example/calm/controls/encryption-at-rest.requirement.json", "config-url": "https://invoice.example/calm/controls/encryption-at-rest.config.json"}]}}},
+    {"unique-id": "intake-emits", "description": "The intake publishes InvoiceSubmitted, which the approval policy consumes.", "protocol": "AMQP",
+     "relationship-type": {"connects": {"source": {"node": "invoice-intake", "interfaces": ["invoice-events"]}, "destination": {"node": "approval-policy"}}}},
+    {"unique-id": "policy-schedules", "protocol": "HTTPS", "relationship-type": {"connects": {"source": {"node": "approval-policy"}, "destination": {"node": "payment-scheduler"}}}},
+    {"unique-id": "deployed-in-network", "description": "The services and the database run in the payments network.",
+     "relationship-type": {"deployed-in": {"container": "payments-network", "nodes": ["invoice-intake", "approval-policy", "payment-scheduler", "invoice-db"]}}},
+    {"unique-id": "platform-composition", "description": "The platform is composed of its services.",
+     "relationship-type": {"composed-of": {"container": "invoice-platform", "nodes": ["invoice-intake", "approval-policy", "payment-scheduler", "invoice-db"]}}},
+    {"unique-id": "store-options", "description": "Where the invoice store lives.",
+     "relationship-type": {"options": [
+       {"description": "Keep the invoice store on Postgres.", "nodes": ["invoice-db"], "relationships": ["intake-stores"]},
+       {"description": "Move the invoice store to a managed ledger service.", "nodes": ["invoice-db"], "relationships": ["intake-stores"], "controls": ["pii-at-rest"]}
+     ]}}
+  ],
+  "controls": {
+    "encryption-in-transit": {"description": "Every connection between services is TLS 1.3 or better.",
+                              "requirements": [{"requirement-url": "https://invoice.example/calm/controls/encryption-in-transit.requirement.json", "config": {"protocol": "TLS", "minimumVersion": "1.3"}}]}
+  },
+  "flows": [
+    {"unique-id": "invoice-approval", "name": "Invoice approval", "description": "A submitted invoice is stored, judged and scheduled for payment.",
+     "requirement-url": "https://invoice.example/calm/flows/invoice-approval.requirement.json",
+     "transitions": [
+       {"relationship-unique-id": "clerk-submits", "sequence-number": 1, "description": "The clerk submits the invoice."},
+       {"relationship-unique-id": "intake-emits", "sequence-number": 2, "description": "The intake emits InvoiceSubmitted.", "direction": "source-to-destination"},
+       {"relationship-unique-id": "policy-schedules", "sequence-number": 3, "description": "The policy schedules the payment.", "direction": "destination-to-source"}
+     ],
+     "controls": {"four-eyes": {"description": "An approval above the threshold is confirmed by a second person.",
+                                "requirements": [{"requirement-url": "https://invoice.example/calm/controls/four-eyes.requirement.json", "config": {"threshold": 10000}}]}}}
+  ]
+}

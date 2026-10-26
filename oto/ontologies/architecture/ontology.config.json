@@ -150,12 +150,16 @@
         "definition": "The CALM node's unique-id, as the model gives it, so the node round-trips to CALM unchanged."
       },
       "calm_type": {
-        "type": "enum:actor|ecosystem|system|service|database|network|ldap|webclient|data-asset",
-        "definition": "The CALM node-type the model gave it. A system or an ecosystem is a System; a service, an ldap or a webclient is a Component; a database or a data-asset is a DataStore; a network is an Environment; an actor is a Role."
+        "type": "string",
+        "definition": "The CALM node-type the model gave it, kept as given. CALM names nine (actor, ecosystem, system, service, database, network, ldap, webclient, data-asset) and allows any other string: a system or an ecosystem is a System; a service or a webclient is a Component; a database, a data-asset, a datastore or an ldap directory (a store of identities) is a DataStore; a network is an Environment; an actor is a Role; any other type is a Component."
       },
       "calm_metadata": {
         "type": "string",
         "definition": "The CALM node's metadata, carried as the JSON the model gave and never read by the engine."
+      },
+      "calm_details": {
+        "type": "string",
+        "definition": "The CALM node's details (a detailed architecture, a required pattern), carried as the JSON the model gave."
       }
     },
     "Component": {
@@ -164,12 +168,16 @@
         "definition": "The CALM node's unique-id, as the model gives it, so the node round-trips to CALM unchanged."
       },
       "calm_type": {
-        "type": "enum:actor|ecosystem|system|service|database|network|ldap|webclient|data-asset",
-        "definition": "The CALM node-type the model gave it. A system or an ecosystem is a System; a service, an ldap or a webclient is a Component; a database or a data-asset is a DataStore; a network is an Environment; an actor is a Role."
+        "type": "string",
+        "definition": "The CALM node-type the model gave it, kept as given. CALM names nine (actor, ecosystem, system, service, database, network, ldap, webclient, data-asset) and allows any other string: a system or an ecosystem is a System; a service or a webclient is a Component; a database, a data-asset, a datastore or an ldap directory (a store of identities) is a DataStore; a network is an Environment; an actor is a Role; any other type is a Component."
       },
       "calm_metadata": {
         "type": "string",
         "definition": "The CALM node's metadata, carried as the JSON the model gave and never read by the engine."
+      },
+      "calm_details": {
+        "type": "string",
+        "definition": "The CALM node's details (a detailed architecture, a required pattern), carried as the JSON the model gave."
       }
     },
     "DataStore": {
@@ -178,12 +186,16 @@
         "definition": "The CALM node's unique-id, as the model gives it, so the node round-trips to CALM unchanged."
       },
       "calm_type": {
-        "type": "enum:actor|ecosystem|system|service|database|network|ldap|webclient|data-asset",
-        "definition": "The CALM node-type the model gave it. A system or an ecosystem is a System; a service, an ldap or a webclient is a Component; a database or a data-asset is a DataStore; a network is an Environment; an actor is a Role."
+        "type": "string",
+        "definition": "The CALM node-type the model gave it, kept as given. CALM names nine (actor, ecosystem, system, service, database, network, ldap, webclient, data-asset) and allows any other string: a system or an ecosystem is a System; a service or a webclient is a Component; a database, a data-asset, a datastore or an ldap directory (a store of identities) is a DataStore; a network is an Environment; an actor is a Role; any other type is a Component."
       },
       "calm_metadata": {
         "type": "string",
         "definition": "The CALM node's metadata, carried as the JSON the model gave and never read by the engine."
+      },
+      "calm_details": {
+        "type": "string",
+        "definition": "The CALM node's details (a detailed architecture, a required pattern), carried as the JSON the model gave."
       }
     },
     "Environment": {
@@ -192,18 +204,34 @@
         "definition": "The CALM node's unique-id, as the model gives it, so the node round-trips to CALM unchanged."
       },
       "calm_type": {
-        "type": "enum:actor|ecosystem|system|service|database|network|ldap|webclient|data-asset",
-        "definition": "The CALM node-type the model gave it. A system or an ecosystem is a System; a service, an ldap or a webclient is a Component; a database or a data-asset is a DataStore; a network is an Environment; an actor is a Role."
+        "type": "string",
+        "definition": "The CALM node-type the model gave it, kept as given. CALM names nine (actor, ecosystem, system, service, database, network, ldap, webclient, data-asset) and allows any other string: a system or an ecosystem is a System; a service or a webclient is a Component; a database, a data-asset, a datastore or an ldap directory (a store of identities) is a DataStore; a network is an Environment; an actor is a Role; any other type is a Component."
       },
       "calm_metadata": {
         "type": "string",
         "definition": "The CALM node's metadata, carried as the JSON the model gave and never read by the engine."
+      },
+      "calm_details": {
+        "type": "string",
+        "definition": "The CALM node's details (a detailed architecture, a required pattern), carried as the JSON the model gave."
       }
     },
     "Role": {
       "calm_id": {
         "type": "string",
         "definition": "The CALM actor's unique-id, when the role came from a CALM model."
+      },
+      "calm_type": {
+        "type": "string",
+        "definition": "The CALM node-type the model gave it, kept as given. CALM names nine (actor, ecosystem, system, service, database, network, ldap, webclient, data-asset) and allows any other string: a system or an ecosystem is a System; a service or a webclient is a Component; a database, a data-asset, a datastore or an ldap directory (a store of identities) is a DataStore; a network is an Environment; an actor is a Role; any other type is a Component."
+      },
+      "calm_metadata": {
+        "type": "string",
+        "definition": "The CALM node's metadata, carried as the JSON the model gave and never read by the engine."
+      },
+      "calm_details": {
+        "type": "string",
+        "definition": "The CALM node's details (a detailed architecture, a required pattern), carried as the JSON the model gave."
       }
     },
     "Interface": {
@@ -352,6 +380,18 @@
         "type": "enum:proposed|accepted|rejected|implemented",
         "definition": "Where the proposal stands. Proposed when unsaid.",
         "default": "proposed"
+      }
+    },
+    "Decision": {
+      "calm_option": {
+        "type": "string",
+        "definition": "For a decision an options relationship offers: the CALM decision object (description, nodes, relationships, controls), carried as the JSON the model gave."
+      }
+    },
+    "Document": {
+      "calm_header": {
+        "type": "string",
+        "definition": "For the document that is a CALM model: the model's top-level fields other than nodes, relationships, controls and flows ($schema, unique-id, name, description, metadata, adrs), carried as the JSON the model gave, so `oto arch export` writes the model back whole."
       }
     }
   }

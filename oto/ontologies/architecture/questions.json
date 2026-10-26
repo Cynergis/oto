@@ -74,7 +74,16 @@
         "Role.calm_id",
         "Interface.calm_id",
         "Interface.definition_url",
-        "Interface.config"
+        "Interface.config",
+        "System.calm_details",
+        "Component.calm_details",
+        "DataStore.calm_details",
+        "Environment.calm_details",
+        "Role.calm_type",
+        "Role.calm_metadata",
+        "Role.calm_details",
+        "Decision.calm_option",
+        "Document.calm_header"
       ]
     },
     "AR2": {

@@ -848,6 +848,29 @@ are one of each CALM shape with a protocol from CALM's list, the flow's steps co
 open proposal is listed and the implemented one is not, `src/legacy` is the one untraced module, and
 `oto ontology check` says every node satisfies the shapes.
 
+Then a real model in and out (the fixture is the FINOS trading-system example):
+
+```bash
+oto init --name "Trading system" --slug trading --ontology architecture --empty --project trading
+# the estate declares an environment first: {"id": "environment.production", "type": "Environment", ...} through the gates
+oto arch import --calm tests/fixtures/calm/trading-system.architecture.json --at 2026-10-27 --environment environment.production --project trading
+oto curate start --project trading && oto curate add --from proposals/calm-trading-system.json --project trading
+oto curate check --project trading && oto curate apply --by "<you>" --note "the CALM model" --project trading
+oto build --project trading
+oto query --project trading ask AR1 NODE=component.web-gui                 # five connections over HTTPS
+oto query --project trading ask SA1 SYSTEM=system.trading-system           # the estate's question, from the derived part_of and runs_in
+oto arch export --calm --out trading.exported.json --project trading       # equals the input, up to empty containers
+```
+
+Pass when import reports 13 nodes, 8 interfaces, 18 relationships, 2 controls and 7 flows, names
+what the model does not say (nothing deployed anywhere: `--environment` supplies it), the document
+has a line per fact and every quote holds at `curate check`, the gates apply, AR1 and SA1 answer, and
+the exported model equals the input once empty interface and control lists are dropped; a model
+without `--environment` whose services CALM composes in nothing is named at `curate check` by the
+estate's `part_of` shape; a missing file, a file that is not JSON, a missing `--at`, an environment
+the graph lacks and a project without the architecture vocabulary are each refused in words, and
+`export` on a graph with no CALM facts says so.
+
 ## 23. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.

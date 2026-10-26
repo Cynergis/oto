@@ -48,7 +48,7 @@ def _enum(spec):
 
 def test_the_pack_sits_on_software_architecture_and_pins_calm():
     manifest = ontologies.manifest_for("architecture")
-    assert manifest["extends"] == ["software-architecture"] and manifest["release"] == 1 and manifest["domain"] == "software"
+    assert manifest["extends"] == ["software-architecture"] and manifest["release"] == 2 and manifest["domain"] == "software"
     assert manifest["engine"] == ">=0.11" and CALM in manifest["summary"], "the CALM release is pinned where the pack says what it is"
     assert ontologies.self_check("architecture") == [], ontologies.self_check("architecture")
     config, _sample, readme = ontologies.load("architecture")
@@ -62,11 +62,14 @@ def test_the_pack_sits_on_software_architecture_and_pins_calm():
 
 def test_a_calm_node_is_an_estate_node_with_its_id_and_type():
     own = _own()
-    for kind in ("System", "Component", "DataStore", "Environment"):
+    for kind in ("System", "Component", "DataStore", "Environment", "Role"):
         assert own["attributes"][kind]["calm_id"]["type"] == "string", kind
-        assert _enum(own["attributes"][kind]["calm_type"]) == NODE_TYPES, kind
+        assert own["attributes"][kind]["calm_type"]["type"] == "string" and all(t in own["attributes"][kind]["calm_type"]["definition"] for t in NODE_TYPES), \
+            "CALM's nine node types are named, and any other string is kept as given (CALM allows one)"
         assert own["attributes"][kind]["calm_metadata"]["type"] == "string", "metadata carried as given, never read"
-    assert own["attributes"]["Role"]["calm_id"]["type"] == "string", "an actor is a role"
+        assert own["attributes"][kind]["calm_details"]["type"] == "string", "a node's details, carried as given"
+    assert own["attributes"]["Decision"]["calm_option"]["type"] == "string", "an options relationship's decision, carried as given"
+    assert own["attributes"]["Document"]["calm_header"]["type"] == "string", "the model's own header: schema, id, name, metadata, adrs"
     assert own["attributes"]["Interface"]["calm_id"]["type"] == "string"
     assert own["attributes"]["Interface"]["definition_url"]["type"] == "string" and own["attributes"]["Interface"]["config"]["type"] == "string", \
         "an interface definition: the schema it conforms to and its configuration, as given"

@@ -128,3 +128,60 @@ def test_a_project_made_before_descriptors_records_its_own_on_request(plan):
     assert [n["id"] for n in found] == ["graph.plan"]
     code, out = _cli("graph", "describe", "--record", "--by", "Chiheb Dkhil", "--at", "2026-10-26", "--project", plan)
     assert code == 0 and "already" in out
+
+
+# ---- near-duplicate descriptors (A4) ----
+
+def _node(slug, label, subject, classes, reach=None):
+    return {"id": "graph.%s" % slug, "type": "Graph", "label": label, "status": "current",
+            "attributes": {"slug": slug, "subject": subject, "classes": classes, "reach": reach or slug + "-kg"}}
+
+
+def test_overlaps_name_descriptors_an_agent_could_not_tell_apart():
+    claims = ["Policy", "Coverage", "Claim", "Incident", "Vehicle", "Document", "Tool", "Graph"]
+    a = _node("policy", "Claims policy", "Claims policy: Motor vehicle claims: policy, coverage, claim, incident, handling.", claims)
+    b = _node("policy-2", "Claims policy, the copy", "Claims policy, the copy: Motor vehicle claims: policy, coverage, claim, incident, handling.", claims)
+    c = _node("plan", "The payments plan", "The payments plan: Messages tied to the item they are about; what waits for a person.",
+              ["WorkItem", "Message", "Person", "Document", "Tool", "Graph"])
+    found = graphs.overlaps([a, b, c])
+    assert [(f["a"], f["b"]) for f in found] == [("graph.policy", "graph.policy-2")], found
+    f = found[0]
+    assert f["similarity"] >= graphs.NEAR_DUPLICATE and "Claim" in f["shared_classes"] and "Document" not in f["shared_classes"], "the core three every graph has say nothing"
+    assert "copy" in f["only_b"] and f["only_a"] == [], "what tells them apart is named: nothing on one side, one word on the other"
+    assert "told apart only by" in f["message"] and "graph.policy-2" in f["message"]
+    same_reach = graphs.overlaps([a, dict(c, attributes=dict(c["attributes"], reach=a["attributes"]["reach"]))])
+    assert len(same_reach) == 1 and "same reach" in same_reach[0]["message"], "two descriptors reached at one place are one graph twice"
+    assert graphs.overlaps([a, c]) == [] and graphs.overlaps([a]) == []
+    gone = dict(b, status="superseded")
+    assert graphs.overlaps([a, gone]) == [], "a superseded descriptor is history, not a duplicate"
+
+
+def test_ontology_check_warns_on_near_duplicates_and_depend_warns_when_declaring_one(plan, tmp_path):
+    for slug, name in (("policy", "Claims policy"), ("policy-2", "Claims policy, the copy")):
+        other = str(tmp_path / slug)
+        with contextlib.redirect_stdout(io.StringIO()):
+            init(other, slug=slug, name=name, ontology="auto-claims")
+        code, out = _cli("graph", "describe", "--reach", "https://kg.example.org/" + slug, "--project", other)
+        assert code == 0, out
+        path = str(tmp_path / (slug + ".json"))
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(out)
+        code, out = _cli("graph", "depend", "--on", path, "--by", "Chiheb Dkhil", "--at", "2026-10-26", "--project", plan)
+        assert code == 0, out
+        if slug == "policy":
+            assert "near-duplicate" not in out
+        else:
+            assert "near-duplicate" in out and "graph.policy" in out and "told apart only by" in out, "warned at authoring, when the second one is declared"
+    code, out = _cli("ontology", "check", "--project", plan)
+    assert code == 0, out
+    assert "graphs: 3 descriptor(s); 1 near-duplicate pair(s)" in out and "graph.policy ~ graph.policy-2" in out, out
+    assert "[advisory]" in out
+    code, out = _cli("ontology", "check", "--strict", "--project", plan)
+    assert code == 0, "a warning, never an error: both are still reached at runtime"
+    code, out = _cli("build", "--project", plan)
+    assert code == 0, out
+
+
+def test_describe_takes_a_subject_so_a_near_duplicate_can_be_sharpened(plan):
+    code, out = _cli("graph", "describe", "--subject", "The payments plan: settlement work and who waits on it", "--project", plan)
+    assert code == 0 and json.loads(out)["subject"] == "The payments plan: settlement work and who waits on it", out

@@ -25,7 +25,7 @@ def cmd_graph(args):
             else:
                 print("%s recorded: this graph now describes itself. Run `oto build`; commit the graph file." % written)
             return 0
-        print(json.dumps(_graphs.describe(project, reach=args.reach), indent=2, ensure_ascii=False))
+        print(json.dumps(_graphs.describe(project, reach=args.reach, subject=args.subject), indent=2, ensure_ascii=False))
         return 0
     if args.graph_command == "depend":
         if not args.on:
@@ -52,6 +52,10 @@ def cmd_graph(args):
         print("%s depends on %s (%s), reached at %s" % (_graphs.node_id(project.identity()["slug"]), done["node"],
                                                         descriptor.get("subject"), descriptor.get("reach")))
         print("  recorded, citing assertion %s. Run `oto build`; commit the graph file." % done["assertion"])
+        from ..curate import session as _session
+        for found in _graphs.overlaps(_session.live(project).get("nodes")):
+            if done["node"] in (found["a"], found["b"]):
+                print("  warning: near-duplicate descriptors: %s" % found["message"])
         return 0
     found = _graphs.dependencies(project)
     if not found:
@@ -69,6 +73,8 @@ def register(sub):
                        help="describe prints this graph's descriptor (--record writes it into a project made before descriptors); "
                             "depend --on <descriptor.json> declares a dependency; dependencies (the default) lists them")
     graph.add_argument("--reach", default=None, help="for describe: how the graph is reached from outside (default: its MCP server name)")
+    graph.add_argument("--subject", default=None, help="for describe: what this graph holds, in place of the inferred subject; "
+                                                        "say what only this graph holds when another descriptor says nearly the same")
     graph.add_argument("--record", action="store_true", help="for describe: write this graph's own descriptor into the graph, through the gates")
     graph.add_argument("--on", default=None, help="for depend: the other graph's descriptor file")
     graph.add_argument("--by", default=None, help="who declares it (default: the git identity in the project)")

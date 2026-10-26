@@ -313,6 +313,16 @@ def cmd_ontology(args):
         print("  undeclared %-27s %s.%s on %d node(s): declare it, or set strict_attributes to refuse it"
               % ("", kind, key, count))
 
+    from .. import graphs as _graphs
+    descriptors = [n for n in nodes if n.get("type") == _graphs.CLASS and n.get("status", "current") == "current"]
+    if descriptors:
+        near = _graphs.overlaps(nodes)
+        print("\ngraphs: %d descriptor(s); %s" % (len(descriptors),
+              ("%d near-duplicate pair(s): a question that names what they share reaches both" % len(near)) if near
+              else "none a near-duplicate of another"))
+        for found in near[:args.show]:
+            print("  [advisory] %s" % found["message"])
+
     from ..reason import engine as _engine, rules as _rules
     declared_rules = _rules.load(project)
     if declared_rules:

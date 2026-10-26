@@ -1,0 +1,157 @@
+{
+  "_about": "Why each term is here, in the shape `question`, `why`, `alternatives`, `validated_by`; the question names the questions.json ids it serves.",
+  "classes": {
+    "Relationship": {
+      "question": "What connects to what, over which protocol, and in which order does a flow walk it? (AR1, AR3)",
+      "why": "CALM gives a relationship an id, a protocol, controls and a place in flows. An edge in the graph carries none of those, so the relationship is a node and the plain estate edges (consumes, part_of, runs_in) are derived beside it.",
+      "alternatives": "Edges with attributes: the engine's edges are from, rel, to and nothing else, by design, so every fact about a thing is on a node. A relationship per CALM shape (Connection, Deployment, Composition): rejected, one class with a kind keeps the mapping to CALM one-to-one.",
+      "validated_by": ""
+    },
+    "Control": {
+      "question": "Which controls safeguard this node or connection, citing which requirement? (AR2, AR8)",
+      "why": "A control is the architecture's own statement of what must hold on a path (encryption at rest, no PII), the thing the gates check and the thing an agent must know before it edits.",
+      "alternatives": "A Policy of the product pack: rejected, a policy is a business obligation; a control is its technical enforcement on a named node, with a requirement schema and a configuration.",
+      "validated_by": ""
+    },
+    "Flow": {
+      "question": "What is the sequence of this flow? (AR3)",
+      "why": "A flow is the architecture read as a story: which relationship first, which next, which way. Impact of a change is read along it.",
+      "alternatives": "A UserJourney of the product pack: rejected, a journey is what a persona does; a flow is what the systems do, over relationships.",
+      "validated_by": ""
+    },
+    "FlowStep": {
+      "question": "Which relationship does step N walk, and in which direction? (AR3)",
+      "why": "A step reifies CALM's transition: a sequence number and a direction on a relationship, which an edge cannot carry.",
+      "alternatives": "An ordered list attribute on the flow: rejected, a step must be a node to be queried and governed.",
+      "validated_by": ""
+    },
+    "NFR": {
+      "question": "Which budgets must this node stay within, and is the measured value inside them? (AR4, AR6)",
+      "why": "A requirement with a metric and a budget is the one the architecture is measured against; the product pack's Requirement has neither, and the budget is what arch_context hands an agent.",
+      "alternatives": "Attributes on Requirement for every requirement: rejected, most requirements have no metric, and a subclass says which do.",
+      "validated_by": ""
+    },
+    "Evidence": {
+      "question": "What measured this requirement, when, and what raised this proposal? (AR6, AR7)",
+      "why": "A measured NFR is a promoted fact only if the measurement is a fact too, with its date and its source; a gate's verdict is evidence the same way.",
+      "alternatives": "A number on the NFR: rejected, a budget is a claim and a measurement is an observation at a date, and the two are different facts.",
+      "validated_by": ""
+    },
+    "CodeModule": {
+      "question": "Where is this component implemented, at which path? (AR5, AR9)",
+      "why": "arch_context takes a path; the walk from a path to a node and its requirements needs the module as a node, and a module nothing traces to is the untraced code H4 reports.",
+      "alternatives": "The Repository alone: kept, it is coarser; a module is the grain a change touches.",
+      "validated_by": ""
+    },
+    "Commit": {
+      "question": "What last changed this module, when, by whom? (AR5)",
+      "why": "The graph is compiled on merge; the commit is the link from a fact to the merge that made it true, and from a change proposal to its implementation.",
+      "alternatives": "A sha attribute on the module: rejected, one module has many commits and one commit many modules.",
+      "validated_by": ""
+    },
+    "ChangeProposal": {
+      "question": "Which changes are proposed, raised by what, about what, settled by which decision? (AR7)",
+      "why": "A gate failure or a budget overrun is the trigger of a change; recording the proposal as a node links trigger, evidence and decision, which the roadmap asks of H5.",
+      "alternatives": "A Decision with status proposed: rejected, a proposal may be rejected and still be worth keeping with what raised it; a decision settles it.",
+      "validated_by": ""
+    }
+  },
+  "properties": {
+    "connects_from": {
+      "question": "Where does this relationship start? (AR1)",
+      "why": "CALM's five shapes each have a source side (actor, source node, container); one relation names it for all five, so a walk reads the same whatever the shape.",
+      "alternatives": "Five pairs of relations, one per shape: rejected, five walks for one question.",
+      "validated_by": ""
+    },
+    "connects_to": {
+      "question": "Where does this relationship end? (AR1)",
+      "why": "The destination side, one edge per node for the shapes that name several (interacts, deployed-in, composed-of).",
+      "alternatives": "A list attribute of node ids: rejected, edges are how the graph walks.",
+      "validated_by": ""
+    },
+    "via": {
+      "question": "Through which interface does the connection go? (AR1)",
+      "why": "CALM's connects names interfaces at either end; the estate already has Interface, so the connection points at it and exposes and consumes are derived.",
+      "alternatives": "Interface ids in metadata: rejected, the interface is a node the estate owns.",
+      "validated_by": ""
+    },
+    "offers_option": {
+      "question": "Which options does this relationship offer? (AR1)",
+      "why": "CALM's options shape lists decisions; the product pack has Decision, so each option is one until accepted.",
+      "alternatives": "A class Option: rejected, an option is a decision not yet made.",
+      "validated_by": ""
+    },
+    "step_of": {
+      "question": "Which flow is this step in? (AR3)",
+      "why": "Exactly one, as CALM's transitions belong to one flow.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "over": {
+      "question": "Which relationship does this step walk? (AR3)",
+      "why": "Exactly one, as CALM's transition names one relationship-unique-id.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "measurement_of": {
+      "question": "Which requirement is this evidence checked against? (AR6)",
+      "why": "The measured value and the budget meet here.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "evidence_of": {
+      "question": "What is this evidence about? (AR6, AR7)",
+      "why": "A gate judges a node, a test exercises a connection, a review supports a proposal; the thing judged is named.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "implemented_by": {
+      "question": "Where is this component's code? (AR5)",
+      "why": "Widened from the repository to the module inside it, so a path answers and arch_context can start from one.",
+      "alternatives": "A new relation implemented_in_module: rejected, one question, one relation.",
+      "validated_by": ""
+    },
+    "located_in": {
+      "question": "Which repository holds this module? (AR5)",
+      "why": "A module's path is relative to a repository, and the same path may exist in two repositories; naming the repository makes the path an address.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "touches": {
+      "question": "Which modules did this commit touch? (AR5)",
+      "why": "The last change to a module is the commit to read.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "prompted_by": {
+      "question": "What raised this proposal? (AR7)",
+      "why": "The trigger is evidence: a gate verdict or a measurement. Named prompted_by, not triggered_by or raised_by, because the ddd pack declares both with other meanings and the packs compose.",
+      "alternatives": "triggered_by, raised_by: rejected for the collision.",
+      "validated_by": ""
+    },
+    "proposes_change_to": {
+      "question": "What would this proposal change? (AR7)",
+      "why": "Sibling impact is one walk from here along the relationships of the thing changed.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "decided_in": {
+      "question": "Which decision settled this proposal? (AR7)",
+      "why": "A proposal ends in a decision, accepted or rejected, recorded as the product pack records every decision.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "implemented_in": {
+      "question": "Which commit implemented this proposal? (AR7)",
+      "why": "The accepted change traces to the merge that made it real.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "safeguards": {
+      "question": "What does this control apply to? (AR2, AR8)",
+      "why": "A control's subject is its own relation rather than the estate's `governs` (what a decision shaped), because the gap list, what no control safeguards, is a negation over one relation, and a shared relation would hide an unprotected node behind a decision about it. Named safeguards because the agent pack's guardrails already `protect`.",
+      "alternatives": "Widening `governs` to Control: tried and rejected, AR8 could not be asked.",
+      "validated_by": ""
+    }
+  }
+}

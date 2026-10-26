@@ -1,0 +1,358 @@
+{
+  "_about": "The architecture graph for implementation (roadmap Epic H): a derived copy of the architecture that agents query before they edit. Aligned with CALM 1.0, the FINOS Common Architecture Language Model (https://calm.finos.org/release/1.0/meta/core.json): a CALM node is an estate node (System, Component, DataStore, Environment, Role) carrying its calm_id and calm_type; a CALM relationship is a Relationship node with its two ends, its kind and its protocol; controls (what they safeguard) and flows are nodes; and the implementation trace runs from a requirement with a budget, through the evidence that measured it, to the code modules and commits that implement a component, with change proposals raised by evidence and settled by decisions. On software-architecture, so the estate's questions keep answering. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
+  "_summary": "The architecture as agents consult it before they change code: CALM nodes, relationships, controls and flows as facts on the estate, requirements with budgets and the evidence that measured them, the code modules and commits that implement each component, and the change proposals evidence raised.",
+  "name": "Architecture",
+  "ontology_version": 1,
+  "strict_domains": false,
+  "languages": [
+    "en"
+  ],
+  "classes": {
+    "Relationship": {
+      "definition": "A CALM relationship as a node of its own: what interacts with, connects to, is deployed in or composed of what, over which protocol, or the options a decision chooses between. A node because a flow walks it in order and a control governs it, which an edge could carry neither of."
+    },
+    "Control": {
+      "definition": "A control the architecture declares, keyed by its CALM id: what it governs (a node, a connection, a flow) and the requirement schema it cites, with its configuration inline or by URL."
+    },
+    "Flow": {
+      "definition": "A business or technical flow through the architecture: an ordered walk over relationships, named, described, and traceable to the requirement it serves."
+    },
+    "FlowStep": {
+      "definition": "One step of a flow: its sequence number, the relationship it walks and the direction it walks it in."
+    },
+    "NFR": {
+      "definition": "A non-functional requirement with a metric and a budget: the number a node must stay within (p95 latency, availability, cost), which measured evidence is checked against.",
+      "subclass_of": [
+        "Requirement"
+      ]
+    },
+    "Evidence": {
+      "definition": "Something observed about the architecture at a date: a measurement, a test result, a review, a gate's verdict, a log. What a budget is checked against and what raises a change proposal."
+    },
+    "CodeModule": {
+      "definition": "A unit of code that implements a component: a package, a directory, a module, at a path in a repository."
+    },
+    "Commit": {
+      "definition": "A recorded change to code: the commit that changed a module, with its sha, date, author and message."
+    },
+    "ChangeProposal": {
+      "definition": "A proposed change to the architecture, raised by evidence (a gate that failed, a measurement over budget), about the nodes, relationships or controls it would change, settled by a decision and implemented in a commit."
+    }
+  },
+  "properties": {
+    "connects_from": {
+      "domain": "Relationship",
+      "range": "System|Component|DataStore|Environment|Role",
+      "inverse": "source_of",
+      "definition": "The relationship's source end: the actor that interacts, the node a connection comes from, the container a deployment or a composition names."
+    },
+    "connects_to": {
+      "domain": "Relationship",
+      "range": "System|Component|DataStore|Environment",
+      "inverse": "destination_of",
+      "definition": "The relationship's destination end: the nodes an actor interacts with, the node a connection goes to, the nodes deployed in or composing the container. One edge per node."
+    },
+    "via": {
+      "domain": "Relationship",
+      "range": "Interface",
+      "inverse": "routes",
+      "definition": "The interface a connection goes through, at either end, when the model names one."
+    },
+    "offers_option": {
+      "domain": "Relationship",
+      "range": "Decision",
+      "inverse": "option_of",
+      "definition": "The decisions an options relationship chooses between, each a Decision until one is accepted."
+    },
+    "safeguards": {
+      "domain": "Control",
+      "range": "System|Component|Interface|DataStore|Environment|Relationship|Flow",
+      "inverse": "safeguarded_by",
+      "definition": "What the control applies to: a node, a connection or a flow. Its own relation, apart from a decision's `governs`, so that what no control safeguards can be asked."
+    },
+    "step_of": {
+      "domain": "FlowStep",
+      "range": "Flow",
+      "inverse": "has_step",
+      "min": 1,
+      "max": 1,
+      "definition": "The one flow a step belongs to."
+    },
+    "over": {
+      "domain": "FlowStep",
+      "range": "Relationship",
+      "inverse": "stepped_by",
+      "min": 1,
+      "max": 1,
+      "definition": "The one relationship a step walks."
+    },
+    "measurement_of": {
+      "domain": "Evidence",
+      "range": "NFR",
+      "inverse": "has_measurement",
+      "definition": "The requirement a measurement is checked against: the value against the budget."
+    },
+    "evidence_of": {
+      "domain": "Evidence",
+      "range": "System|Component|Interface|DataStore|Relationship|Flow|Control|ChangeProposal|CodeModule",
+      "inverse": "evidenced_by",
+      "definition": "What the evidence is about: the node a gate judged, the connection a test exercised, the proposal a review supports."
+    },
+    "implemented_by": {
+      "domain": "Component",
+      "range": "Repository|CodeModule",
+      "inverse": "implements",
+      "definition": "Where the component's code lives: the repository, and the modules inside it. Widened to the module, so a path answers."
+    },
+    "located_in": {
+      "domain": "CodeModule",
+      "range": "Repository",
+      "inverse": "holds_module",
+      "max": 1,
+      "definition": "The repository a module's path is in."
+    },
+    "touches": {
+      "domain": "Commit",
+      "range": "CodeModule",
+      "inverse": "touched_by",
+      "definition": "The modules a commit touched."
+    },
+    "prompted_by": {
+      "domain": "ChangeProposal",
+      "range": "Evidence",
+      "inverse": "prompts",
+      "definition": "The evidence that raised the proposal: the gate that failed, the measurement over budget, the review that asked."
+    },
+    "proposes_change_to": {
+      "domain": "ChangeProposal",
+      "range": "System|Component|Interface|DataStore|Relationship|Control|Flow",
+      "inverse": "change_proposed_by",
+      "definition": "What the proposal would change, so the siblings it affects are one walk away."
+    },
+    "decided_in": {
+      "domain": "ChangeProposal",
+      "range": "Decision",
+      "inverse": "decides_proposal",
+      "max": 1,
+      "definition": "The decision that accepted or rejected the proposal."
+    },
+    "implemented_in": {
+      "domain": "ChangeProposal",
+      "range": "Commit",
+      "inverse": "implements_proposal",
+      "definition": "The commit that carried the accepted change into the code."
+    }
+  },
+  "attributes": {
+    "System": {
+      "calm_id": {
+        "type": "string",
+        "definition": "The CALM node's unique-id, as the model gives it, so the node round-trips to CALM unchanged."
+      },
+      "calm_type": {
+        "type": "enum:actor|ecosystem|system|service|database|network|ldap|webclient|data-asset",
+        "definition": "The CALM node-type the model gave it. A system or an ecosystem is a System; a service, an ldap or a webclient is a Component; a database or a data-asset is a DataStore; a network is an Environment; an actor is a Role."
+      },
+      "calm_metadata": {
+        "type": "string",
+        "definition": "The CALM node's metadata, carried as the JSON the model gave and never read by the engine."
+      }
+    },
+    "Component": {
+      "calm_id": {
+        "type": "string",
+        "definition": "The CALM node's unique-id, as the model gives it, so the node round-trips to CALM unchanged."
+      },
+      "calm_type": {
+        "type": "enum:actor|ecosystem|system|service|database|network|ldap|webclient|data-asset",
+        "definition": "The CALM node-type the model gave it. A system or an ecosystem is a System; a service, an ldap or a webclient is a Component; a database or a data-asset is a DataStore; a network is an Environment; an actor is a Role."
+      },
+      "calm_metadata": {
+        "type": "string",
+        "definition": "The CALM node's metadata, carried as the JSON the model gave and never read by the engine."
+      }
+    },
+    "DataStore": {
+      "calm_id": {
+        "type": "string",
+        "definition": "The CALM node's unique-id, as the model gives it, so the node round-trips to CALM unchanged."
+      },
+      "calm_type": {
+        "type": "enum:actor|ecosystem|system|service|database|network|ldap|webclient|data-asset",
+        "definition": "The CALM node-type the model gave it. A system or an ecosystem is a System; a service, an ldap or a webclient is a Component; a database or a data-asset is a DataStore; a network is an Environment; an actor is a Role."
+      },
+      "calm_metadata": {
+        "type": "string",
+        "definition": "The CALM node's metadata, carried as the JSON the model gave and never read by the engine."
+      }
+    },
+    "Environment": {
+      "calm_id": {
+        "type": "string",
+        "definition": "The CALM node's unique-id, as the model gives it, so the node round-trips to CALM unchanged."
+      },
+      "calm_type": {
+        "type": "enum:actor|ecosystem|system|service|database|network|ldap|webclient|data-asset",
+        "definition": "The CALM node-type the model gave it. A system or an ecosystem is a System; a service, an ldap or a webclient is a Component; a database or a data-asset is a DataStore; a network is an Environment; an actor is a Role."
+      },
+      "calm_metadata": {
+        "type": "string",
+        "definition": "The CALM node's metadata, carried as the JSON the model gave and never read by the engine."
+      }
+    },
+    "Role": {
+      "calm_id": {
+        "type": "string",
+        "definition": "The CALM actor's unique-id, when the role came from a CALM model."
+      }
+    },
+    "Interface": {
+      "calm_id": {
+        "type": "string",
+        "definition": "The CALM interface's unique-id."
+      },
+      "definition_url": {
+        "type": "string",
+        "definition": "The URI of the schema the interface configuration conforms to (CALM interface-definition)."
+      },
+      "config": {
+        "type": "string",
+        "definition": "The interface configuration as the model gave it, JSON, conforming to definition_url; or the typed interface's own fields."
+      }
+    },
+    "Relationship": {
+      "calm_id": {
+        "type": "string",
+        "definition": "The CALM relationship's unique-id.",
+        "required": true
+      },
+      "kind": {
+        "type": "enum:interacts|connects|deployed-in|composed-of|options",
+        "definition": "Which of CALM's five relationship shapes this is.",
+        "required": true
+      },
+      "protocol": {
+        "type": "enum:HTTP|HTTPS|FTP|SFTP|JDBC|WebSocket|SocketIO|LDAP|AMQP|TLS|mTLS|TCP",
+        "definition": "The protocol a connection speaks, from CALM's list."
+      },
+      "calm_metadata": {
+        "type": "string",
+        "definition": "The relationship's metadata, carried as given."
+      }
+    },
+    "Control": {
+      "calm_id": {
+        "type": "string",
+        "definition": "The control's id, the key CALM files it under (letters, digits, hyphens).",
+        "required": true
+      },
+      "requirement_url": {
+        "type": "string",
+        "definition": "The requirement schema that specifies how the control is defined.",
+        "required": true
+      },
+      "config_url": {
+        "type": "string",
+        "definition": "Where the configuration meeting the requirement lives, when it is not inline."
+      },
+      "config": {
+        "type": "string",
+        "definition": "The inline configuration meeting the requirement, as the JSON the model gave."
+      }
+    },
+    "Flow": {
+      "calm_id": {
+        "type": "string",
+        "definition": "The flow's unique-id.",
+        "required": true
+      },
+      "requirement_url": {
+        "type": "string",
+        "definition": "The requirement the flow serves, by URL."
+      },
+      "calm_metadata": {
+        "type": "string",
+        "definition": "The flow's metadata, carried as given."
+      }
+    },
+    "FlowStep": {
+      "sequence": {
+        "type": "integer",
+        "definition": "The step's place in the flow, from 1.",
+        "required": true
+      },
+      "direction": {
+        "type": "enum:source-to-destination|destination-to-source",
+        "definition": "Which way the step walks the relationship.",
+        "default": "source-to-destination"
+      }
+    },
+    "NFR": {
+      "metric": {
+        "type": "string",
+        "definition": "What is measured: p95 latency of the journey, monthly availability, cost per request.",
+        "required": true
+      },
+      "budget": {
+        "type": "string",
+        "definition": "The number to stay within, with its unit: 900 ms, 99.9 %, 0.002 USD."
+      }
+    },
+    "Evidence": {
+      "kind": {
+        "type": "enum:measurement|test|review|gate|log",
+        "definition": "What sort of observation it is.",
+        "required": true
+      },
+      "value": {
+        "type": "string",
+        "definition": "What was observed, with its unit where it has one."
+      },
+      "observed_on": {
+        "type": "date",
+        "definition": "When it was observed."
+      },
+      "source_url": {
+        "type": "string",
+        "definition": "Where the observation can be seen: the run, the report, the log."
+      }
+    },
+    "CodeModule": {
+      "path": {
+        "type": "string",
+        "definition": "The module's path within its repository.",
+        "required": true
+      },
+      "language": {
+        "type": "string",
+        "definition": "The language it is written in."
+      }
+    },
+    "Commit": {
+      "sha": {
+        "type": "string",
+        "definition": "The commit's hash.",
+        "required": true
+      },
+      "committed_on": {
+        "type": "date",
+        "definition": "When it was committed."
+      },
+      "author": {
+        "type": "string",
+        "definition": "Who committed it, as git records it."
+      },
+      "message": {
+        "type": "string",
+        "definition": "The first line of the commit message."
+      }
+    },
+    "ChangeProposal": {
+      "status": {
+        "type": "enum:proposed|accepted|rejected|implemented",
+        "definition": "Where the proposal stands. Proposed when unsaid.",
+        "default": "proposed"
+      }
+    }
+  }
+}

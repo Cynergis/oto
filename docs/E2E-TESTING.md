@@ -823,7 +823,32 @@ that is not a table or column, a missing `--at` and an empty `--by` are refused 
 ranks the data graph first for a question about a table and the plan first for a question about a
 work item.
 
-## 22. The engine's own gates and CI
+## 22. The architecture pack: CALM as facts, the trace to code
+
+Exercises: the `architecture` ontology on `software-architecture`, aligned with CALM 1.0, its shapes, AR1 to AR9.
+
+```bash
+oto init --name "Invoice approval, as architecture" --slug invoice --ontology architecture --project invoice
+oto build --project invoice
+oto query --project invoice ask AR1 NODE=component.invoice-intake      # what it connects to: the database over JDBC, the policy over AMQP via the events exchange
+oto query --project invoice ask AR2 NODE=datastore.invoice-db          # the control that safeguards it, with its requirement URL
+oto query --project invoice ask AR3 FLOW=flow.invoice-approval         # three steps, in order, over three relationships
+oto query --project invoice ask AR4 NODE=component.invoice-intake      # REQ-042, p95 within 900 ms
+oto query --project invoice ask AR5 NODE=component.invoice-intake      # src/intake, last touched by 9f3c2a1
+oto query --project invoice ask AR6 NFR=nfr.req-042                    # the k6 run: 870 ms on 2026-10-20
+oto query --project invoice ask AR7                                    # CP-001, open, prompted by the gate's verdict
+oto query --project invoice ask AR8                                    # nodes no control safeguards
+oto query --project invoice ask AR9                                    # src/legacy: a module nothing implements
+oto query --project invoice ask SA1 SYSTEM=system.invoice-platform     # the estate's own question still answers
+oto ontology check --project invoice
+```
+
+Pass when all nine answer from the sample (the roadmap's invoice-approval example), the relationships
+are one of each CALM shape with a protocol from CALM's list, the flow's steps come out in sequence, the
+open proposal is listed and the implemented one is not, `src/legacy` is the one untraced module, and
+`oto ontology check` says every node satisfies the shapes.
+
+## 23. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.
 

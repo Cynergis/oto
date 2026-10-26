@@ -767,6 +767,30 @@ DT6 answer after the apply; reading the same manifest again and applying it adds
 or `--sql`, both at once, a missing `--at`, a store the graph lacks, a file that is not a manifest
 and a directory with no `.sql` are each refused in words.
 
+Then who reads what, from the query log (the fixture under `tests/fixtures/usage/` is an exported
+log for the same ledger; the estate must declare the readers it names, here a component and a role):
+
+```bash
+oto data usage --log tests/fixtures/usage/ledger-log.json --store datastore.ledger --reader payment_api=component.payment-api --reader compliance=role.r-compliance --at 2026-10-27 --project ledger
+OTO_POSTGRES_DSN=... oto data usage --connector postgres --store datastore.ledger --at 2026-10-27 --project ledger   # pg_stat_statements, with the role
+oto curate start --project ledger && oto curate add --from proposals/usage-ledger-log.json --project ledger
+oto curate check --project ledger && oto curate apply --by "<you>" --note "the ledger's usage" --project ledger
+oto build --project ledger
+oto query --project ledger ask DT3 TABLE=table.ledger-postings        # the payment API transactionally, compliance analytically, both from the log
+grep -c SELECT build/documents/usage-ledger-log.md                    # 0: the statement text is hashed, never kept
+```
+
+Pass when the command proposes seven uses (the payment API's reads of `postings` and `accounts`
+transactional; compliance's aggregates analytical; the analyst's scan analytical; the ETL's insert
+transactional), reports the staging table the graph lacks and the two unmapped principals as gaps
+and proposes nothing for them, and the document holds a hash, a kind and a call count per statement
+shape and no query text; `curate check` holds every quote; DT3 answers with the reader's type, the
+kind and `query_log`; reading the same log again and applying it adds nothing; a log in which the
+payment API's reads of `postings` turned analytical is reported as a changed use before the gates
+and refused by `curate add` as a supersession; a reader map naming a node the graph lacks, a
+`--reader` without `=`, both `--log` and `--connector`, a missing `--at` and the SQLite overlay
+(which keeps no log) are each refused in words.
+
 ## 22. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.

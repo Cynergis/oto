@@ -3,7 +3,7 @@
 
 The catalog comes from the dataset's INFORMATION_SCHEMA (TABLES, COLUMNS, and the primary and
 foreign key constraints BigQuery declares without enforcing); the query log from the region's
-INFORMATION_SCHEMA.JOBS_BY_PROJECT, the jobs that referenced the dataset; a native read is dry-run
+INFORMATION_SCHEMA.JOBS_BY_PROJECT, the jobs that referenced the dataset, with the user that ran each; a native read is dry-run
 first, so a statement the words let through but BigQuery would execute as anything other than a
 SELECT is refused before it runs, then run with a cap on the bytes billed. The client is
 google-cloud-bigquery (Apache-2.0), installed by the `bigquery` extra, with Application Default
@@ -26,6 +26,7 @@ PROJECT_ENV, DATASET_ENV = "OTO_BIGQUERY_PROJECT", "OTO_BIGQUERY_DATASET"
 DEFAULT_REGION = "us"
 DEFAULT_MAX_BYTES = 1 << 30
 LOG_LIMIT = 500
+LOG_FIELDS = ("creation_time", "user_email", "query", "total_bytes_processed", "statement_type")
 
 
 def connector():
@@ -131,13 +132,13 @@ class BigQueryConnector(Connector):
         return {"store": session["dataset"], "tables": out}
 
     def query_log(self, session, since=None):
-        sql = ("SELECT creation_time, query, total_bytes_processed, statement_type FROM `region-%s`.INFORMATION_SCHEMA.JOBS_BY_PROJECT "
+        sql = ("SELECT %s FROM `region-%s`.INFORMATION_SCHEMA.JOBS_BY_PROJECT "
                "WHERE job_type = 'QUERY' AND state = 'DONE' AND EXISTS (SELECT 1 FROM UNNEST(referenced_tables) t WHERE t.dataset_id = '%s') "
-               "ORDER BY creation_time DESC LIMIT %d" % (session["region"], session["dataset"].replace("'", ""), LOG_LIMIT))
+               "ORDER BY creation_time DESC LIMIT %d" % (", ".join(LOG_FIELDS), session["region"], session["dataset"].replace("'", ""), LOG_LIMIT))
         _c, rows = self._rows(session, sql)
         out = []
-        for at, query, total_bytes, kind in rows:
-            out.append({"at": at.isoformat() if hasattr(at, "isoformat") else str(at), "sql": query, "bytes": total_bytes, "kind": kind})
+        for at, by, query, total_bytes, kind in rows:
+            out.append({"at": at.isoformat() if hasattr(at, "isoformat") else str(at), "by": by, "sql": query, "bytes": total_bytes, "kind": kind})
         return out
 
     def native_read(self, session, sql, limit=100):

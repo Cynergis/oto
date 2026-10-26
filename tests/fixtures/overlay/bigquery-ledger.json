@@ -105,12 +105,14 @@
  "log": [
   [
    "2026-10-26T02:10:00+00:00",
+   "api@acme.iam.gserviceaccount.com",
    "SELECT * FROM `acme.ledger.postings` WHERE account_id = 1",
    20480,
    "SELECT"
   ],
   [
    "2026-10-26T06:00:00+00:00",
+   "analyst@acme.com",
    "SELECT account_id, SUM(amount_cents) FROM `acme.ledger.postings` GROUP BY 1",
    1048576,
    "SELECT"

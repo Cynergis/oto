@@ -109,11 +109,13 @@
  ],
  "log": [
   [
+   "payment_api",
    "SELECT * FROM postings WHERE account_id = $1",
    1240,
    310.5
   ],
   [
+   "compliance",
    "SELECT account_id, sum(amount_cents) FROM postings GROUP BY 1",
    12,
    88.0

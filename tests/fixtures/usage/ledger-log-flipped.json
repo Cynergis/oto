@@ -1,0 +1,4 @@
+[
+  {"by": "payment_api", "sql": "SELECT account_id, sum(amount_cents) FROM postings GROUP BY 1", "calls": 5000},
+  {"by": "payment_api", "sql": "SELECT * FROM accounts WHERE account_id = $1", "calls": 900}
+]

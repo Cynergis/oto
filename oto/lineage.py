@@ -134,6 +134,8 @@ _WRITES = (re.compile(r"\bINSERT\s+(?:OVERWRITE\s+)?(?:INTO\s+)?(?:TABLE\s+)?(" 
            re.compile(r"\bMERGE\s+INTO\s+(" + NAME + r")", re.I),
            re.compile(r"\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:TEMP(?:ORARY)?\s+|TRANSIENT\s+)?(?:TABLE|(?:MATERIALIZED\s+)?VIEW)\s+"
                       r"(?:IF\s+NOT\s+EXISTS\s+)?(" + NAME + r")(?:\s*\([^)]*\))?\s+AS\b", re.I | re.S))
+_UPDATE = re.compile(r"\bUPDATE\s+(?:ONLY\s+)?(" + NAME + r")", re.I)
+_DELETE = re.compile(r"\bDELETE\s+FROM\s+(?:ONLY\s+)?(" + NAME + r")", re.I)
 _READS = re.compile(r"\b(?:FROM|JOIN)\s+(" + NAME + r")(?![\w$.\"`\[\]]|\s*\()", re.I)   # a whole name, not a function call
 _CTE = re.compile(r"\b(" + NAME + r")\s+(?:\([^)]*\)\s*)?AS\s*\(", re.I)
 _SKIP = re.compile(r"^\s*(?:DELETE|UPDATE|TRUNCATE|DROP|ALTER|GRANT|REVOKE|SET|BEGIN|COMMIT|ROLLBACK|START|END|USE|CALL|EXEC|EXECUTE|DECLARE"
@@ -154,6 +156,29 @@ def _feed_of_path(path):
     if sep and head and not head.endswith(":/"):
         return head
     return path
+
+
+def statement_tables(sql):
+    """One statement, comments already gone -> {"reads": [...], "writes": [...]}: the tables it
+    reads (FROM, JOIN, UPDATE ... FROM, DELETE ... USING) and writes (INSERT, MERGE, UPDATE, DELETE,
+    CREATE ... AS), by their own names, in order, each once; CTE names and function calls are not
+    tables."""
+    blank = _FROM_IN_FUNCTION.sub(lambda m: " " * len(m.group(0)), _LITERAL.sub(lambda m: "'" + " " * (len(m.group(0)) - 2) + "'", sql or ""))
+    writes = []
+    for pattern in _WRITES + (_UPDATE, _DELETE):
+        for m in pattern.finditer(blank):
+            t = _plain(m.group(1))
+            if t and t.lower() not in {x.lower() for x in writes}:
+                writes.append(t)
+    ctes = {_plain(m.group(1)).lower() for m in _CTE.finditer(blank)}
+    deleted = {_plain(m.group(1)).lower() for m in _DELETE.finditer(blank)}     # DELETE FROM t writes t, it does not read it
+    reads = []
+    for m in _READS.finditer(blank):
+        t = _plain(m.group(1))
+        if not t or t.lower() in _KEYWORDS or t.lower() in ctes or t.lower() in deleted or t.lower() in {x.lower() for x in reads}:
+            continue
+        reads.append(t)
+    return {"reads": reads, "writes": writes}
 
 
 def scan_sql(text, filename):

@@ -40,7 +40,7 @@ def _own():
 
 def test_the_pack_sits_on_software_architecture_and_passes_its_own_check():
     manifest = ontologies.manifest_for("data")
-    assert manifest["extends"] == ["software-architecture"] and manifest["release"] == 1 and manifest["domain"] == "data"
+    assert manifest["extends"] == ["software-architecture"] and manifest["release"] == 2 and manifest["domain"] == "data"
     assert manifest["engine"] == ">=0.11"
     assert ontologies.self_check("data") == [], ontologies.self_check("data")
     config, _sample, readme = ontologies.load("data")

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""The data semantic layer's commands (roadmap Epic C): introspection (C1) here, lineage (C3) in lineage.py, usage (C4) in usage.py.
+"""The data semantic layer's commands (roadmap Epic C): introspection (C1) here, lineage (C3) in lineage.py, usage (C4) in usage.py,
+meaning and confirmation (C2) in meaning.py.
 
     oto data introspect [--connector sqlite|postgres|bigquery] [--path <store>] [--store datastore.<id>] --at YYYY-MM-DD
 

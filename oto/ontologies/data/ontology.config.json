@@ -86,7 +86,8 @@
       "description_status": {
         "type": "enum:draft|confirmed",
         "definition": "Whether a person has confirmed the description. A draft until someone does; a description nobody confirmed is a guess, labelled as one.",
-        "default": "draft"
+        "default": "draft",
+        "decision": true
       }
     },
     "Column": {
@@ -110,7 +111,8 @@
       "description_status": {
         "type": "enum:draft|confirmed",
         "definition": "Whether a person has confirmed the column's description. A draft until someone does.",
-        "default": "draft"
+        "default": "draft",
+        "decision": true
       }
     },
     "Feed": {

@@ -168,7 +168,7 @@ def _commit(project, text, by, at, about, edit, action="work"):
         _session.abort(project)
         raise
     summary = _diff.summarize(live, candidate)
-    record = _ledger.entry(summary, _ledger.retirements(live, candidate), by=by.strip(), note="oto work: " + text,
+    record = _ledger.entry(summary, _ledger.retirements(live, candidate), by=by.strip(), note="oto %s: %s" % (action, text),
                            sources=_ledger.new_sources(live, candidate))
     _session.apply(project)
     _ledger.append(project, record)

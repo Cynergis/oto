@@ -1011,6 +1011,29 @@
         "environment": "prod",
         "event": "github:Cynergis/oto#83"
       }
+    },
+    {
+      "source_type": "human_assertion",
+      "sources": [
+        "assertion:a-0013"
+      ],
+      "source_doc": "assertion:a-0013",
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "status": "current",
+      "aliases": [],
+      "tags": [],
+      "id": "transition.epic-j-1",
+      "type": "Transition",
+      "label": "Epic J: Factory execution (Claude Code plugin) deployed",
+      "summary": "deployed on 2026-10-26, recorded by Chiheb Dkhil.",
+      "attributes": {
+        "to": "deployed",
+        "at": "2026-10-26",
+        "by": "Chiheb Dkhil",
+        "environment": "prod",
+        "event": "github:Cynergis/oto#86"
+      }
     }
   ],
   "edges": [
@@ -1188,6 +1211,11 @@
       "from": "transition.epic-i-1",
       "rel": "transition_of",
       "to": "workitem.epic-i"
+    },
+    {
+      "from": "transition.epic-j-1",
+      "rel": "transition_of",
+      "to": "workitem.epic-j"
     }
   ]
 }

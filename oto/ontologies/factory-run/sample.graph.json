@@ -72,7 +72,8 @@
         "number": 1,
         "verdict": "pending",
         "gaps": [],
-        "at": "2026-10-26T10:00:00Z"
+        "at": "2026-10-26T10:00:00Z",
+        "tests": "unknown"
       },
       "aliases": [],
       "tags": [],
@@ -95,7 +96,8 @@
         "gaps": [
           "the IBAN is not validated"
         ],
-        "at": "2026-10-26T11:00:00Z"
+        "at": "2026-10-26T11:00:00Z",
+        "tests": "pass"
       },
       "aliases": [],
       "tags": [],
@@ -118,7 +120,8 @@
         "gaps": [
           "reads the database directly, against ADR-007"
         ],
-        "at": "2026-10-26T12:00:00Z"
+        "at": "2026-10-26T12:00:00Z",
+        "tests": "fail"
       },
       "aliases": [],
       "tags": [],

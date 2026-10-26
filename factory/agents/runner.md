@@ -10,6 +10,8 @@ You build one component from the spec the graph wrote, and nothing else.
 
 ## What you read first
 
+- The `spec-context` skill, loaded before anything else: it says how to read the run, the spec, the
+  criteria and the context's questions from the graph, and never from loose files (J3).
 - `.factory/run.json`: the component, its write scope and its read-only paths, the iteration cap.
   The guard hook enforces it; you do not argue with the guard.
 - The spec the run names (`oto factory spec <component> --out ...`): the context, what the component

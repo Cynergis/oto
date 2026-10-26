@@ -67,7 +67,7 @@ def plan_file(domain, tmp_path):
 
 def test_the_run_pack_holds_runs_builds_and_iterations():
     manifest = ontologies.manifest_for("factory-run")
-    assert manifest["extends"] == ["oto-core"] and manifest["release"] == 1 and manifest["domain"] == "software"
+    assert manifest["extends"] == ["oto-core"] and manifest["release"] >= 1 and manifest["domain"] == "software"
     assert ontologies.self_check("factory-run") == [], ontologies.self_check("factory-run")
     config, _sample, readme = ontologies.load("factory-run")
     assert {"Run", "Build", "Iteration"} <= set(config["classes"])
@@ -76,7 +76,7 @@ def test_the_run_pack_holds_runs_builds_and_iterations():
     assert config["properties"]["build_of"] == dict(config["properties"]["build_of"], domain="Build", range="Run", min=1, max=1)
     assert config["properties"]["iteration_of"] == dict(config["properties"]["iteration_of"], domain="Iteration", range="Build", min=1, max=1)
     questions = ontologies.questions_for("factory-run")
-    assert [q for q in questions if q.startswith("FR")] == ["FR1", "FR2", "FR3"]
+    assert [q for q in questions if q.startswith("FR")] == ["FR1", "FR2", "FR3", "FR4", "FR5"]
     assert "never" in readme and "promot" in readme.lower()
     with open(os.path.join(ROOT, "oto", "ontologies", "product", "ontology.config.json"), encoding="utf-8") as f:
         assert "|run|" in json.load(f)["attributes"]["Document"]["kind"]["type"]
@@ -126,7 +126,7 @@ def test_iterations_are_recorded_in_full_and_a_run_replays(plan_file, tmp_path):
     build = nodes["build.r-002-invoice-intake"]
     assert build["attributes"]["state"] == "passed" and build["attributes"]["iterations"] == 2
     first = nodes["iteration.r-002-invoice-intake-1"]
-    assert first["attributes"] == {"number": 1, "verdict": "fail", "gaps": ["the IBAN is not validated", "no test for a duplicate invoice"], "at": "2026-10-27T10:00:00Z"}
+    assert first["attributes"] == {"number": 1, "verdict": "fail", "gaps": ["the IBAN is not validated", "no test for a duplicate invoice"], "at": "2026-10-27T10:00:00Z", "tests": "unknown"}
     edges = {(e["from"], e["rel"], e["to"]) for e in graph["edges"]}
     assert ("iteration.r-002-invoice-intake-1", "iteration_of", "build.r-002-invoice-intake") in edges
     assert ("iteration.r-002-invoice-intake-2", "follows", "iteration.r-002-invoice-intake-1") in edges, "the order is a fact, so the run replays"

@@ -100,6 +100,11 @@
       "at": {
         "type": "string",
         "definition": "When the loop made this decision, as the hook recorded it (ISO date and time)."
+      },
+      "tests": {
+        "type": "enum:pass|fail|unknown",
+        "default": "unknown",
+        "definition": "What the tests said when the evaluator judged: pass, fail, or unknown when none ran or the hook was not told. Disagreement with the verdict is a fact of the run (FR4, FR5)."
       }
     }
   }

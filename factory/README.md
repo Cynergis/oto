@@ -1,7 +1,7 @@
 # OTO Factory, the plugin
 
-The software factory on an OTO architecture graph (roadmap Epic J, first cut on files): three
-agents, two hooks, and a run snapshot. The engine writes the spec and the scope; the plugin builds
+The software factory on an OTO architecture graph (roadmap Epic J): three agents, one skill, two
+hooks, a run snapshot, and a workflow that runs the same hooks in GitHub Actions. The engine writes the spec and the scope; the plugin builds
 and judges inside them.
 
 **Agents.** `factory-runner` builds one component from its spec inside the run's write scope.
@@ -46,4 +46,34 @@ tracing to its nodes) for the evaluator to judge against; `oto factory deviate -
 found impossible as specified as a change proposal in the main graph, names the siblings reached through the
 contract, and fails the build until a person decides.
 
-What comes next in the roadmap: the spec-context skill (J3), both execution environments (J5), metrics (J6), and the release (J7).
+**The spec-context skill** (J3) is what the runner loads first: the run snapshot, the spec as `oto
+factory spec` projects it (checked against the snapshot's hash), the criteria `oto factory criteria`
+draws, the context's own questions (DD22, DD4, DD5, AR1, AR4, AR10, AR11 through `oto query ask`)
+and `arch_context` for the path about to change. A runner starts from the graph, never from loose
+files; what the graph does not say is a deviation, never something filled in from memory.
+
+**Both execution environments** (J5). Locally, Claude Code with the plugin installed: the hooks
+read `.factory/run.json` in the working directory. In CI, `workflows/oto-factory.yml`, copied to
+`.github/workflows/` of the code repository, runs the same plugin through `anthropics/claude-code-action`,
+so the same hooks apply: the engine writes the spec, the scope and the criteria from the graph,
+starts the run project, the runner builds on a branch, the Stop hook runs the loop to the cap, then
+`oto factory run sync` reads the events into the run graph, `status` and `metrics` print it, the
+run graph is kept as the workflow's artifact (the audit trail of the run), and a pull request
+carries the branch. Nothing is promoted there: a person runs `oto factory run promote`.
+`oto init --repo` does not write this workflow; the factory is installed where it is wanted.
+
+**Metrics** (J6) are queries over the run graph: `oto factory run metrics --run <dir> | --runs
+<dir> [--json]` gives iterations to pass (mean, min, max over the passed builds), the escalation
+rate over the builds that ended, and the iterations where the evaluator and the tests disagreed
+(FR4: tests passed, verdict fail; FR5: tests failed, verdict pass), from the `tests` field the
+evaluator writes in `verdict.json` and the loop hook carries into the events. Cost is not recorded
+by the hooks and the metrics say so; the traces of Epic F hold it.
+
+## Releases
+
+- **0.2.0** (2026-10-26): the spec-context skill; `workflows/oto-factory.yml`, the same hooks in
+  GitHub Actions; `verdict.json` carries `tests`, the loop hook carries it into the events, and
+  `oto factory run metrics` reads iterations to pass, escalation rate and the disagreements of FR4
+  and FR5 from the run graph (factory-run pack release 2). Phase 5 of the roadmap closes here.
+- **0.1.0** (2026-10-26): runner, evaluator and aggregator agents; the guard and loop hooks; the run
+  snapshot from `oto factory scope`; the run graph and promotion; criteria and deviations.

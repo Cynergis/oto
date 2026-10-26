@@ -882,7 +882,9 @@
       },
       "state": {
         "type": "enum:planned|reached|missed",
-        "definition": "Whether it was reached."
+        "definition": "Whether it was reached: planned until a named person decides it reached or missed with `oto decide`, recorded as their assertion under the gates; never derived, because a phase is reached when its owner says so, not when a count of merges says so.",
+        "default": "planned",
+        "decision": true
       }
     },
     "Message": {

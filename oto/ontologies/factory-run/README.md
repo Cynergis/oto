@@ -18,7 +18,15 @@ of what happened, not a claim about the world.
 document, the evaluator's verdict as evidence of the component, the commit that touches its
 modules; that proposal goes through the gates like any other change. Run state stays here.
 
-Questions (FR1 to FR3, awaiting confirmation): the state of each build of a run, the builds
-escalated to a person, a build's iterations in order with their verdicts and gaps.
+Questions (FR1 to FR5, awaiting confirmation): the state of each build of a run, the builds
+escalated to a person, a build's iterations in order with their verdicts and gaps, and the
+iterations where the evaluator and the tests disagreed (FR4: tests passed, verdict fail; FR5: tests
+failed, verdict pass). Each `Iteration` carries `tests`, what the tests said beside the verdict, as
+the evaluator wrote it in `verdict.json` and the loop hook carried it into the events (release 2).
+
+**Metrics are queries over this graph** (roadmap J6): `oto factory run metrics --run <dir> | --runs
+<dir> [--json]` gives iterations to pass (mean, min, max over the passed builds), the escalation rate
+over the builds that ended, and the disagreements of FR4 and FR5 with their gaps. Cost is not
+recorded by the hooks and is said so, never guessed: the traces of Epic F hold it.
 
 This is a first draft: edit it. The sample is one run of the invoice platform.

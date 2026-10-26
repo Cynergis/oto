@@ -133,7 +133,7 @@
       "label": "Phase 5: Implementation",
       "summary": "Share one architecture ontology; J1, J2 and J7 can start now with files; M4 automatic status lands as factory events exist.",
       "attributes": {
-        "state": "planned"
+        "state": "reached"
       },
       "evidence": [
         {
@@ -145,11 +145,12 @@
       "aliases": [],
       "tags": [],
       "status": "current",
-      "as_of": "2026-10-22",
+      "as_of": "2026-10-26",
       "valid_from": "2026-10-22",
       "source_doc": "oto-roadmap-2-0",
       "sources": [
-        "oto-roadmap-2-0"
+        "oto-roadmap-2-0",
+        "assertion:a-0014"
       ]
     },
     {

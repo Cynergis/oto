@@ -363,8 +363,8 @@
     },
     "Document": {
       "kind": {
-        "type": "enum:brief|prd|ux-spec|architecture|transcript|decision-log|adr|other",
-        "definition": "What sort of artifact. An `adr` is an architecture decision record, compiled into a Decision (oto/adr.py)."
+        "type": "enum:brief|prd|ux-spec|architecture|transcript|decision-log|adr|schema|other",
+        "definition": "What sort of artifact. An `adr` is an architecture decision record, compiled into a Decision (oto/adr.py). A `schema` is a store's catalog as `oto data introspect` read it, the document its Table and Column facts quote."
       }
     },
     "Scenario": {

@@ -610,3 +610,27 @@ def gates(project, live, candidate, vocabulary):
             findings += [_diff.Finding(_diff.Finding.BLOCKING, f.get("node") or "(graph)", "policy %s: %s" % (f["rule"], f["message"]))
                          for f in outcome["findings"] if f["severity"] == "blocking"]
     return findings
+
+
+def event_verdict(project, term, run_id, component, verdict, at, by=None, gaps=(), waiting_on=None):
+    """A factory verdict on the work item (roadmap M4): a failed or escalated build blocks the item
+    on a named person, with the run, the component and the gaps as the reason; a pass changes no
+    state (deployed is set by a merge or a promotion) and is noted in the audit log."""
+    verdict = (verdict or "").strip().lower()
+    if verdict not in ("pass", "fail", "escalated"):
+        raise WorkError("--verdict is pass, fail or escalated, not %r" % verdict)
+    if not (run_id or "").strip() or not (component or "").strip():
+        raise WorkError("a factory verdict names its run (--run) and its component (--component)")
+    who = (by or "").strip() or "oto factory run %s" % run_id.strip()
+    if verdict == "pass":
+        from . import audit as _audit
+        vocabulary = _load_vocabulary(project)
+        item = resolve(_session.live(project), term, _kinds(vocabulary, ITEM))
+        _audit.append(project, "work event", who, [item["id"]], "unchanged", detail="run %s: %s passed; no state changes on a pass" % (run_id.strip(), component.strip()))
+        return {"noted": True, "item": item["id"], "label": item.get("label") or item["id"]}
+    if not (waiting_on or "").strip():
+        raise WorkError("a failed or escalated build blocks the item on a person: --waiting-on names whom")
+    reason = "the factory could not build %s in run %s (%s): %s" % (component.strip(), run_id.strip(), verdict, "; ".join(str(g) for g in gaps) if gaps else "no gaps named")
+    done = set_state(project, term, "blocked", who, at, reason=reason, waiting_on=waiting_on)
+    done["noted"] = False
+    return done

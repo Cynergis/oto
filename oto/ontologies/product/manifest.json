@@ -1,7 +1,7 @@
 {
   "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
   "name": "product",
-  "release": 13,
+  "release": 14,
   "domain": "product",
   "summary": "What a product must do, for whom, under what rules, why: personas, journeys, requirements, releases, constraints, assumptions, risks, decisions, open questions, objectives, policies, terms. The core every product type extends.",
   "extends": [
@@ -22,6 +22,11 @@
   ],
   "maintainer": "OTO",
   "changelog": [
+    {
+      "release": 14,
+      "at": "2026-10-26",
+      "note": "Document.kind gains `run`: a factory run as `oto factory run promote` recorded it (roadmap I8)."
+    },
     {
       "release": 13,
       "at": "2026-10-26",

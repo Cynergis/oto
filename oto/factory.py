@@ -6,6 +6,11 @@
     oto factory spec --check <file>                    # the shape holds and nobody edited it by hand
     oto factory plan [--all | --context <id>] [--json] [--out <file>]
     oto factory scope <component> [--cap N] [--allow <path>]... [--read-only <path>]... [--out .factory/run.json]
+    oto factory run start --plan <plan.json> --at <date> [--id <run-id>] [--runs <dir>]
+    oto factory run record --run <dir> --component <id> --iteration N --verdict pending|pass|fail|escalated [--gap ...] --at <when>
+    oto factory run sync --run <dir> --events .factory/events.jsonl
+    oto factory run status | replay --run <dir> [--component <id>]
+    oto factory run promote --run <dir> --component <id> --commit <sha> --at <date> --into <main project>
 
 A spec is a projection: the component (a CALM node), the bounded context it carries and the use
 cases of that context, what it exposes and consumes with each contract's version and status, the
@@ -26,14 +31,26 @@ A scope is the run snapshot the factory plugin's hooks read (`factory/`, roadmap
 component's write scope is the modules the code map says implement it (plus `--allow`), its
 read-only paths are `contracts/` (plus `--read-only`), with the iteration cap and the hash of the
 spec the run builds against. Epic E replaces the file with a signed policy snapshot.
+
+A run is a graph of its own (I8, J4): one OTO project per run under `--runs`, on the `factory-run`
+ontology, written by the engine and never by hand or by a model. `start` records the plan instance
+and a Build per component; the loop hook appends its decisions to `.factory/events.jsonl` and
+`sync` reads them in, each once; `record` writes an iteration by hand; `status` and `replay` read
+the run back. Every write is in the run project's audit log. Only results are promoted: `promote`
+writes, for a passed build, a proposal into the main graph (the run as a document, the evaluator's
+verdict as evidence of the component, the commit that touches its modules) that goes through the
+gates like any other change; run state stays in the run graph.
 """
 import datetime
 import hashlib
 import json
+import os
+import re
 
 from .project import ProjectError
 
 SCHEMA_VERSION = 1
+ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 LISTS = ("use_cases", "exposes", "consumes", "requirements", "decisions", "controls", "connections", "modules", "open_change_proposals")
 
 
@@ -302,3 +319,327 @@ def scope(graph, component_id, cap=5, allow=(), read_only=(), at=None):
     return {"component": component_id, "label": n.get("label") or component_id, "write_scope": write_scope, "read_only": paths, "cap": cap, "iteration": 0,
             "spec_hash": spec(graph, component_id, at=at)["generated"]["hash"],
             "generated": {"by": "oto factory scope", "at": at or datetime.date.today().isoformat()}}
+
+
+# ---- the run graph ----
+
+RUN_PRINCIPAL = "oto factory"
+VERDICTS = ("pending", "pass", "fail", "escalated")
+
+
+def _slug_of(component_id):
+    from .data import _slug
+    return _slug(component_id.split(".", 1)[1] if "." in component_id else component_id)
+
+
+def _run_project(run_dir):
+    from .project import Project, ProjectError
+    if not run_dir or not os.path.isdir(run_dir):
+        raise FactoryError("no such run: %s (oto factory run start makes one)" % run_dir)
+    project = Project.standard(run_dir)
+    try:
+        config = project.config()
+    except ProjectError as exc:
+        raise FactoryError("%s is not a run project: %s" % (run_dir, exc))
+    if (config.get("ontology") or {}).get("name") != "factory-run":
+        raise FactoryError("%s is not a run project: its ontology is %r, not factory-run" % (run_dir, (config.get("ontology") or {}).get("name")))
+    return project
+
+
+def _run_node(graph):
+    runs = [n for n in graph.get("nodes") or [] if n.get("type") == "Run"]
+    if not runs:
+        raise FactoryError("the run project holds no Run")
+    return runs[0]
+
+
+def _record(project, nodes, edges, action, detail, touched=None):
+    """Merge nodes (by id: new ones appended, existing ones' attributes updated) and edges (each
+    once) into the run graph, and append the audit record. The engine's own record, no gates."""
+    from . import audit as _audit
+    from .curate import session as _session
+    graph = _session.live(project)
+    by_id = {n["id"]: n for n in graph.get("nodes") or [] if n.get("id")}
+    for n in nodes:
+        if n["id"] in by_id:
+            by_id[n["id"]].setdefault("attributes", {}).update(n.get("attributes") or {})
+            if n.get("summary"):
+                by_id[n["id"]]["summary"] = n["summary"]
+        else:
+            graph.setdefault("nodes", []).append(n)
+            by_id[n["id"]] = n
+    seen = {(e.get("from"), e.get("rel"), e.get("to")) for e in graph.get("edges") or []}
+    for e in edges:
+        if (e["from"], e["rel"], e["to"]) not in seen:
+            graph.setdefault("edges", []).append(e)
+            seen.add((e["from"], e["rel"], e["to"]))
+    _session._write(project.graph_path, graph)
+    _audit.append(project, action, RUN_PRINCIPAL, touched if touched is not None else [n["id"] for n in nodes], "applied", detail=detail)
+    return graph
+
+
+def _node(nid, kind, label, summary, when, **attributes):
+    """A node of the run graph, dated `when` (a date, or a date and time whose date is taken)."""
+    return {"id": nid, "type": kind, "label": label, "summary": summary, "attributes": attributes, "aliases": [], "tags": [],
+            "as_of": when[:10], "valid_from": when[:10], "source_doc": "run", "source_type": "observation", "status": "current", "sources": ["run"]}
+
+
+def run_start(plan_doc, at, run_id=None, runs_dir=".factory/runs"):
+    """Create the run project from a plan. Returns {"id", "dir", "builds", "groups"}."""
+    from .scaffold import init as _init
+    import contextlib
+    import io
+    if not at or not ISO_DATE.match(str(at)):
+        raise FactoryError("--at YYYY-MM-DD is required: the date the run started is never defaulted")
+    groups = plan_doc.get("groups") if isinstance(plan_doc, dict) else None
+    if not isinstance(groups, list) or not any(groups):
+        raise FactoryError("the plan holds no groups: `oto factory plan --json` writes one")
+    labels = plan_doc.get("labels") or {}
+    run_id = (run_id or "").strip() or "r-%s" % datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d-%H%M%S")
+    run_dir = os.path.join(runs_dir, run_id)
+    if os.path.exists(run_dir):
+        raise FactoryError("run %s exists at %s: a run is a partition of its own, never overwritten; pick another --id" % (run_id, run_dir))
+    os.makedirs(runs_dir, exist_ok=True)
+    with contextlib.redirect_stdout(io.StringIO()):
+        _init(run_dir, slug="run-%s" % run_id, name="Factory run %s" % run_id, ontology="factory-run", empty=True)
+    project = _run_project(run_dir)
+    run_node_id = "run.%s" % run_id
+    nodes = [_node(run_node_id, "Run", "Run %s" % run_id, "A factory run started on %s from a plan of %d group(s)." % (at, len(groups)), at,
+                   started_on=at, state="running", plan=json.dumps({"groups": groups, "edges": plan_doc.get("edges") or []}, ensure_ascii=False))]
+    edges = []
+    for n, group in enumerate(groups, 1):
+        for cid in group:
+            bid = "build.%s-%s" % (run_id, _slug_of(cid))
+            nodes.append(_node(bid, "Build", labels.get(cid) or _slug_of(cid), "The build of %s in group %d." % (cid, n), at, component=cid, group=n, state="planned", iterations=0))
+            edges.append({"from": bid, "rel": "build_of", "to": run_node_id})
+    _record(project, nodes, edges, "factory run start", "run %s from a plan of %d group(s), %d build(s)" % (run_id, len(groups), len(nodes) - 1))
+    return {"id": run_id, "dir": run_dir, "builds": len(nodes) - 1, "groups": len(groups)}
+
+
+def _build_for(graph, run_id, component):
+    bid = "build.%s-%s" % (run_id, _slug_of(component))
+    for n in graph.get("nodes") or []:
+        if n.get("id") == bid and n.get("type") == "Build":
+            return n
+    raise FactoryError("run %s has no build of %s: it is not in the plan" % (run_id, component))
+
+
+def run_record(run_dir, component, iteration, verdict, gaps=(), at=None):
+    """One iteration of a build: recorded once, the order a fact. Returns {"build", "iteration", "state"}."""
+    from .curate import session as _session
+    project = _run_project(run_dir)
+    graph = _session.live(project)
+    run = _run_node(graph)
+    run_id = run["id"].split(".", 1)[1]
+    try:
+        number = int(iteration)
+    except (TypeError, ValueError):
+        raise FactoryError("--iteration is the iteration's number, from 1")
+    if number < 1:
+        raise FactoryError("--iteration is the iteration's number, from 1")
+    verdict = (verdict or "").strip().lower()
+    if verdict not in VERDICTS:
+        raise FactoryError("--verdict is one of %s, not %r" % (", ".join(VERDICTS), verdict))
+    at = (at or datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")).strip()
+    build = _build_for(graph, run_id, component)
+    iid = "iteration.%s-%s-%d" % (run_id, _slug_of(component), number)
+    if any(n.get("id") == iid for n in graph.get("nodes") or []):
+        raise FactoryError("iteration %d of %s is recorded in run %s already; a run is kept in full, never rewritten" % (number, component, run_id))
+    previous = sorted((n for n in graph.get("nodes") or [] if n.get("type") == "Iteration" and n["id"].startswith("iteration.%s-%s-" % (run_id, _slug_of(component)))),
+                      key=lambda n: (n.get("attributes") or {}).get("number") or 0)
+    node = _node(iid, "Iteration", "%s, iteration %d" % (build.get("label") or component, number),
+                 {"pending": "No verdict yet: sent to the evaluator.", "pass": "The evaluator passed it.", "fail": "The evaluator failed the previous attempt.",
+                  "escalated": "The iteration cap was reached without a pass."}[verdict], at, number=number, verdict=verdict, gaps=[str(g) for g in gaps or []], at=at)
+    edges = [{"from": iid, "rel": "iteration_of", "to": build["id"]}]
+    if previous:
+        edges.append({"from": iid, "rel": "follows", "to": previous[-1]["id"]})
+    state = {"pending": "building", "fail": "building", "pass": "passed", "escalated": "escalated"}[verdict]
+    build_update = _node(build["id"], "Build", build.get("label"), build.get("summary"), at, state=state, iterations=max(int((build.get("attributes") or {}).get("iterations") or 0), number))
+    build_update["summary"] = None
+    _record(project, [node, build_update], edges, "factory run record", "%s iteration %d: %s%s" % (component, number, verdict, " (%s)" % "; ".join(gaps) if gaps else ""),
+            touched=[iid, build["id"]])
+    _refresh_run_state(project)
+    return {"build": build["id"], "iteration": iid, "state": state}
+
+
+def _refresh_run_state(project):
+    from .curate import session as _session
+    graph = _session.live(project)
+    run = _run_node(graph)
+    builds = [n for n in graph.get("nodes") or [] if n.get("type") == "Build"]
+    states = {(b.get("attributes") or {}).get("state") for b in builds}
+    new = "escalated" if "escalated" in states or "failed" in states else ("done" if builds and states <= {"passed"} else "running")
+    if (run.get("attributes") or {}).get("state") != new:
+        run.setdefault("attributes", {})["state"] = new
+        _session._write(project.graph_path, graph)
+
+
+def run_set_build(run_dir, component, state, iterations=None, commit=None, at=None, detail=None):
+    from .curate import session as _session
+    project = _run_project(run_dir)
+    graph = _session.live(project)
+    run = _run_node(graph)
+    run_id = run["id"].split(".", 1)[1]
+    build = _build_for(graph, run_id, component)
+    attributes = {"state": state}
+    if iterations is not None:
+        attributes["iterations"] = max(int((build.get("attributes") or {}).get("iterations") or 0), int(iterations))
+    if commit:
+        attributes["commit"] = commit
+    update = _node(build["id"], "Build", build.get("label"), build.get("summary"), (at or datetime.date.today().isoformat()), **attributes)
+    update["summary"] = None
+    _record(project, [update], [], "factory run record", detail or "%s: %s" % (component, state), touched=[build["id"]])
+    _refresh_run_state(project)
+    return build["id"]
+
+
+def run_sync(run_dir, events_path):
+    """Read the loop hook's events into the run graph, each once. Returns {"events", "new", "iterations", "passed", "escalated", "skipped"}."""
+    from .curate import session as _session
+    if not os.path.isfile(events_path):
+        raise FactoryError("no such events file: %s (the loop hook writes .factory/events.jsonl beside run.json)" % events_path)
+    project = _run_project(run_dir)
+    run_id = _run_node(_session.live(project))["id"].split(".", 1)[1]
+    counts = {"events": 0, "new": 0, "iterations": 0, "passed": 0, "escalated": 0, "skipped": 0}
+    with open(events_path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                e = json.loads(line)
+            except ValueError:
+                counts["skipped"] += 1
+                continue
+            counts["events"] += 1
+            if e.get("run") and e["run"] != run_id:
+                counts["skipped"] += 1
+                continue
+            component = e.get("component")
+            kind = e.get("event")
+            graph = _session.live(project)
+            try:
+                build = _build_for(graph, run_id, component or "")
+            except FactoryError:
+                counts["skipped"] += 1
+                continue
+            state = (build.get("attributes") or {}).get("state")
+            if kind == "iteration":
+                iid = "iteration.%s-%s-%s" % (run_id, _slug_of(component), e.get("iteration"))
+                if any(n.get("id") == iid for n in graph.get("nodes") or []):
+                    continue
+                run_record(run_dir, component, e.get("iteration"), e.get("verdict") or "pending", e.get("gaps") or [], at=e.get("at"))
+                counts["new"] += 1
+                counts["iterations"] += 1
+            elif kind == "pass":
+                if state == "passed":
+                    continue
+                run_set_build(run_dir, component, "passed", iterations=e.get("iteration") or 0, at=(e.get("at") or "")[:10] or None, detail="%s passed (event)" % component)
+                counts["new"] += 1
+                counts["passed"] += 1
+            elif kind == "escalated":
+                if state == "escalated":
+                    continue
+                run_set_build(run_dir, component, "escalated", iterations=e.get("iteration") or 0, at=(e.get("at") or "")[:10] or None, detail="%s escalated at the cap (event)" % component)
+                counts["new"] += 1
+                counts["escalated"] += 1
+            else:
+                counts["skipped"] += 1
+    return counts
+
+
+def run_status(run_dir):
+    from .curate import session as _session
+    project = _run_project(run_dir)
+    graph = _session.live(project)
+    run = _run_node(graph)
+    builds = sorted((n for n in graph.get("nodes") or [] if n.get("type") == "Build"), key=lambda b: ((b.get("attributes") or {}).get("group") or 0, b.get("label") or ""))
+    L = ["%s (%s): %d build(s), started %s" % (run["id"], (run.get("attributes") or {}).get("state"), len(builds), (run.get("attributes") or {}).get("started_on"))]
+    for b in builds:
+        a = b.get("attributes") or {}
+        L.append("  group %s: %s (%s): %s, %d iteration(s)%s" % (a.get("group"), b.get("label"), a.get("component"), a.get("state"), int(a.get("iterations") or 0),
+                                                              ", commit %s" % a["commit"] if a.get("commit") else ""))
+    return "\n".join(L) + "\n"
+
+
+def run_replay(run_dir, component):
+    from .curate import session as _session
+    project = _run_project(run_dir)
+    graph = _session.live(project)
+    run_id = _run_node(graph)["id"].split(".", 1)[1]
+    build = _build_for(graph, run_id, component)
+    iterations = sorted((n for n in graph.get("nodes") or [] if n.get("type") == "Iteration" and n["id"].startswith("iteration.%s-%s-" % (run_id, _slug_of(component)))),
+                        key=lambda n: (n.get("attributes") or {}).get("number") or 0)
+    L = ["%s (%s): %s after %d iteration(s)" % (build.get("label"), component, (build.get("attributes") or {}).get("state"), len(iterations))]
+    for i in iterations:
+        a = i.get("attributes") or {}
+        L.append("  iteration %s: %s%s (%s)" % (a.get("number"), a.get("verdict"), " — " + "; ".join(a.get("gaps") or []) if a.get("gaps") else "", a.get("at")))
+    return "\n".join(L) + "\n"
+
+
+def run_promote(run_dir, component, commit, at, into_project):
+    """A passed build's verdict and commit as a proposal into the main graph. Returns {"doc", "document", "archive", "proposal", "run"}."""
+    from .curate import session as _session
+    if not (commit or "").strip():
+        raise FactoryError("--commit is the commit the passed build is promoted with: its sha")
+    if not at or not ISO_DATE.match(str(at)):
+        raise FactoryError("--at YYYY-MM-DD is required: the date of the promotion is never defaulted")
+    project = _run_project(run_dir)
+    graph = _session.live(project)
+    run = _run_node(graph)
+    run_id = run["id"].split(".", 1)[1]
+    build = _build_for(graph, run_id, component)
+    a = build.get("attributes") or {}
+    if a.get("state") != "passed":
+        raise FactoryError("only a passed build is promoted: %s is %s in run %s" % (component, a.get("state"), run_id))
+    main = _session.live(into_project)
+    nodes_main, out, inc = _index(main)
+    if component not in nodes_main:
+        raise FactoryError("the main graph holds no %s" % component)
+    iterations = int(a.get("iterations") or 0)
+    sha = commit.strip()
+    doc = "run-%s" % run_id
+    slug = _slug_of(component)
+    builds = sorted((n for n in graph.get("nodes") or [] if n.get("type") == "Build"), key=lambda b: ((b.get("attributes") or {}).get("group") or 0, b.get("id")))
+    lines = ["# Factory run %s" % run_id, "", "Recorded by `oto factory run promote` on %s from the run graph at %s. One line per build: its state, its iterations and, "
+             "for a promoted build, the commit; the run's iterations stay in the run graph." % (at, os.path.basename(os.path.abspath(run_dir))), "", "## Builds", ""]
+    for b in builds:
+        ba = b.get("attributes") or {}
+        bslug = _slug_of(ba.get("component") or b["id"])
+        line = "- %s: %s after %d iteration(s)" % (bslug, ba.get("state"), int(ba.get("iterations") or 0))
+        if bslug == slug:
+            line += ", commit %s" % sha
+        elif ba.get("commit"):
+            line += ", commit %s" % ba["commit"]
+        lines.append(line)
+    text = "\n".join(lines) + "\n"
+    quote = "%s: passed after %d iteration(s), commit %s" % (slug, iterations, sha)
+    corpus = os.path.join(into_project.layout.corpus, doc + ".md")
+    archive = os.path.join(into_project.layout.archive, doc + ".md")
+    for target in (corpus, archive):
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+    evidence_id = "evidence.run-%s-%s" % (run_id, slug)
+    commit_id = "commit.%s" % sha[:12]
+    proposal = {"source_doc": doc, "as_of": at, "nodes": [
+        {"id": "document.%s" % doc, "type": "Document", "label": "Factory run %s" % run_id, "summary": "The factory run %s as promoted; the date is the fact's own." % run_id,
+         "attributes": {"kind": "run"}, "valid_from": at, "evidence": [{"doc": doc, "where": "title", "quote": "Factory run %s" % run_id}]},
+        {"id": evidence_id, "type": "Evidence", "label": "Run %s: %s passed" % (run_id, build.get("label") or slug), "summary": "The evaluator passed the build of %s in run %s after %d iteration(s)." % (component, run_id, iterations),
+         "attributes": {"kind": "review", "value": "pass after %d iteration(s)" % iterations, "observed_on": at, "source_url": "run %s" % run_id}, "valid_from": at,
+         "evidence": [{"doc": doc, "where": "builds", "quote": quote}]},
+        {"id": commit_id, "type": "Commit", "label": "%s factory run %s: %s" % (sha[:7], run_id, slug), "summary": "The commit the passed build of %s was promoted with." % component,
+         "attributes": {"sha": sha, "committed_on": at, "author": RUN_PRINCIPAL, "message": "factory run %s: %s" % (run_id, slug)}, "valid_from": at,
+         "evidence": [{"doc": doc, "where": "builds", "quote": quote}]}],
+        "edges": [{"from": evidence_id, "rel": "evidence_of", "to": component}]}
+    for mid in out.get((component, "implemented_by"), []):
+        if nodes_main.get(mid, {}).get("type") == "CodeModule":
+            proposal["edges"].append({"from": commit_id, "rel": "touches", "to": mid})
+    out_dir = os.path.join(into_project.data, "proposals")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "%s-%s.json" % (doc, slug))
+    with open(out_path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(proposal, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    run_set_build(run_dir, component, "passed", commit=sha, at=at, detail="%s promoted with commit %s" % (component, sha))
+    return {"doc": doc, "document": corpus, "archive": archive, "proposal": out_path, "run": run_id, "iterations": iterations}

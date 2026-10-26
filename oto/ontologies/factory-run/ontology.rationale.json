@@ -1,0 +1,43 @@
+{
+  "_about": "Why each term is here.",
+  "classes": {
+    "Run": {
+      "question": "What is the state of each build of this run? (FR1)",
+      "why": "A run is the partition: one project per run, kept in full, so what one run did never blurs into another and the main graph holds only results.",
+      "alternatives": "Runs as nodes in the main graph: rejected, run state is high-volume and short-lived, and the roadmap keeps it apart.",
+      "validated_by": ""
+    },
+    "Build": {
+      "question": "Where does each component's build stand, in which group? (FR1, FR2)",
+      "why": "The unit the plan orders and the loop works on; its state is what the aggregator and the work pack read.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "Iteration": {
+      "question": "What happened, pass by pass, with which verdict and gaps? (FR3)",
+      "why": "Kept in full so the run replays: which components needed more than three loops is a query, not a memory.",
+      "alternatives": "Only the last verdict: rejected, the roadmap asks for the whole run.",
+      "validated_by": ""
+    }
+  },
+  "properties": {
+    "build_of": {
+      "question": "Which run is this build in? (FR1)",
+      "why": "Exactly one run: a build belongs to the run that planned it, and a run is the partition nothing else shares.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "iteration_of": {
+      "question": "Which build is this iteration of? (FR3)",
+      "why": "Exactly one build: an iteration is a pass of one build's loop, and the replay of a build is the walk over its iterations.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "follows": {
+      "question": "Which iteration came before this one? (FR3)",
+      "why": "The order as a fact, not an inference from numbers, so a replay is a walk.",
+      "alternatives": "The number alone: kept too; the edge makes the chain explicit.",
+      "validated_by": ""
+    }
+  }
+}

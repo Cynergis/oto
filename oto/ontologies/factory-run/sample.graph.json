@@ -1,0 +1,166 @@
+{
+  "nodes": [
+    {
+      "id": "run.r-sample",
+      "type": "Run",
+      "label": "Run r-sample",
+      "summary": "A sample run of the invoice platform: one build passed, one escalated.",
+      "attributes": {
+        "started_on": "2026-10-26",
+        "state": "escalated",
+        "plan": "{\"groups\": [[\"component.invoice-intake\", \"component.payment-scheduler\"]]}"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "build.r-sample-invoice-intake",
+      "type": "Build",
+      "label": "Invoice intake",
+      "summary": "The intake's build: passed after two iterations.",
+      "attributes": {
+        "component": "component.invoice-intake",
+        "group": 1,
+        "state": "passed",
+        "iterations": 2,
+        "commit": "abc1234"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "build.r-sample-payment-scheduler",
+      "type": "Build",
+      "label": "Payment scheduler",
+      "summary": "The scheduler's build: the cap of three was reached.",
+      "attributes": {
+        "component": "component.payment-scheduler",
+        "group": 1,
+        "state": "escalated",
+        "iterations": 3
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "iteration.r-sample-invoice-intake-1",
+      "type": "Iteration",
+      "label": "Invoice intake, iteration 1",
+      "summary": "No verdict yet: sent to the evaluator.",
+      "attributes": {
+        "number": 1,
+        "verdict": "pending",
+        "gaps": [],
+        "at": "2026-10-26T10:00:00Z"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "iteration.r-sample-invoice-intake-2",
+      "type": "Iteration",
+      "label": "Invoice intake, iteration 2",
+      "summary": "The evaluator failed the first attempt.",
+      "attributes": {
+        "number": 2,
+        "verdict": "fail",
+        "gaps": [
+          "the IBAN is not validated"
+        ],
+        "at": "2026-10-26T11:00:00Z"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "iteration.r-sample-payment-scheduler-3",
+      "type": "Iteration",
+      "label": "Payment scheduler, iteration 3",
+      "summary": "The cap.",
+      "attributes": {
+        "number": 3,
+        "verdict": "escalated",
+        "gaps": [
+          "reads the database directly, against ADR-007"
+        ],
+        "at": "2026-10-26T12:00:00Z"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "build.r-sample-invoice-intake",
+      "rel": "build_of",
+      "to": "run.r-sample"
+    },
+    {
+      "from": "build.r-sample-payment-scheduler",
+      "rel": "build_of",
+      "to": "run.r-sample"
+    },
+    {
+      "from": "iteration.r-sample-invoice-intake-1",
+      "rel": "iteration_of",
+      "to": "build.r-sample-invoice-intake"
+    },
+    {
+      "from": "iteration.r-sample-invoice-intake-2",
+      "rel": "iteration_of",
+      "to": "build.r-sample-invoice-intake"
+    },
+    {
+      "from": "iteration.r-sample-invoice-intake-2",
+      "rel": "follows",
+      "to": "iteration.r-sample-invoice-intake-1"
+    },
+    {
+      "from": "iteration.r-sample-payment-scheduler-3",
+      "rel": "iteration_of",
+      "to": "build.r-sample-payment-scheduler"
+    }
+  ]
+}

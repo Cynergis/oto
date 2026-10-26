@@ -6,13 +6,27 @@ Reads the hook's JSON on stdin (cwd, stop_hook_active) and the run snapshot at
 `<cwd>/.factory/run.json` ({"cap", "iteration", ...}); the evaluator's verdict is
 `<cwd>/.factory/verdict.json` ({"verdict": "pass" | "fail", "gaps": [...]}). No snapshot: not a
 factory run, the session stops as usual. A pass ends the loop. Otherwise the hook counts the
-iteration and answers {"decision": "block", "reason": ...} so the agent keeps going on the gaps
+iteration, appends what it decided to `events.jsonl` beside the snapshot (J4: `oto factory run
+sync` reads it into the run graph) and answers {"decision": "block", "reason": ...} so the agent keeps going on the gaps
 (or, with no readable verdict, runs the evaluator first), until the cap, where it lets the session
 stop, marks the run escalated and says so: a person takes it from there. Plain Python, no engine.
 """
+import datetime
 import json
 import os
 import sys
+
+
+def event(snapshot, run, kind, iteration, verdict=None, gaps=None):
+    """One line appended to events.jsonl beside the snapshot: what the loop decided, for
+    `oto factory run sync` to read into the run graph (roadmap J4)."""
+    line = {"event": kind, "run": run.get("run"), "component": run.get("component"), "iteration": iteration, "verdict": verdict or "pending",
+            "gaps": list(gaps or []), "at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+    try:
+        with open(os.path.join(os.path.dirname(snapshot), "events.jsonl"), "a", encoding="utf-8") as f:
+            f.write(json.dumps(line) + "\n")
+    except OSError:
+        pass
 
 
 def main():
@@ -55,18 +69,21 @@ def main():
         except (OSError, ValueError) as exc:
             problem = "verdict.json cannot be read (%s)" % exc
     if verdict == "pass":
+        event(snapshot, run, "pass", iteration, "pass", gaps)
         sys.stdout.write("factory: the evaluator passed %s after %d iteration(s); the run is done\n" % (label, iteration))
         return 0
     if iteration >= cap:
         run["escalated"] = True
         with open(snapshot, "w", encoding="utf-8") as f:
             json.dump(run, f, indent=2)
+        event(snapshot, run, "escalated", iteration, verdict or "pending", gaps)
         sys.stdout.write("factory: the iteration cap of %d is reached for %s without a pass; the run is escalated to a person and stays recorded in %s\n"
                          % (cap, label, snapshot))
         return 0
     run["iteration"] = iteration + 1
     with open(snapshot, "w", encoding="utf-8") as f:
         json.dump(run, f, indent=2)
+    event(snapshot, run, "iteration", iteration + 1, verdict or "pending", gaps)
     if verdict == "fail":
         what = "the evaluator's gaps: %s. Act on each, run the tests, then run the evaluator again" % ("; ".join(gaps) if gaps else "none listed; run the evaluator again")
     elif problem:

@@ -32,5 +32,11 @@ they refuse.
 `/plugin marketplace add Cynergis/oto`, then `/plugin install oto-factory@cynergis-engine`. It needs
 the engine plugin for the graph tools, and a graph with the `architecture` or `ddd` ontology.
 
-What comes next in the roadmap: the spec-context skill (J3), the loop reading the plan and writing
-the run graph (J4), both execution environments (J5), metrics (J6), and the release (J7).
+**The run graph.** Each decision of the Stop hook is appended to `.factory/events.jsonl` beside the
+snapshot (`run.json` names the run under `"run"`), and `oto factory run sync --run <run project>
+--events .factory/events.jsonl` reads it into the run's own graph, one OTO project per run that
+`oto factory run start --plan <plan.json>` made; `status` and `replay` read it back, and `oto
+factory run promote` proposes a passed build's verdict and commit into the main graph through its
+gates. Run state never enters the main graph.
+
+What comes next in the roadmap: the spec-context skill (J3), both execution environments (J5), metrics (J6), and the release (J7).

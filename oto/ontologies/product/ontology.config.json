@@ -363,8 +363,8 @@
     },
     "Document": {
       "kind": {
-        "type": "enum:brief|prd|ux-spec|architecture|transcript|decision-log|adr|schema|lineage|usage|other",
-        "definition": "What sort of artifact. An `adr` is an architecture decision record, compiled into a Decision (oto/adr.py). A `schema` is a store's catalog as `oto data introspect` read it, the document its Table and Column facts quote. A `lineage` is what a dbt manifest or the ETL's SQL says about what loads a table and from where, as `oto data lineage` read it, the document its LoadJob and Feed facts quote. A `usage` is who uses a store's tables and how, as `oto data usage` read it from the query log with the statement text hashed, the document its Usage facts quote."
+        "type": "enum:brief|prd|ux-spec|architecture|transcript|decision-log|adr|schema|lineage|usage|run|other",
+        "definition": "What sort of artifact. An `adr` is an architecture decision record, compiled into a Decision (oto/adr.py). A `schema` is a store's catalog as `oto data introspect` read it, the document its Table and Column facts quote. A `lineage` is what a dbt manifest or the ETL's SQL says about what loads a table and from where, as `oto data lineage` read it, the document its LoadJob and Feed facts quote. A `usage` is who uses a store's tables and how, as `oto data usage` read it from the query log with the statement text hashed, the document its Usage facts quote. A `run` is a factory run as `oto factory run promote` recorded it, the document its promoted evidence and commit quote."
       }
     },
     "Scenario": {

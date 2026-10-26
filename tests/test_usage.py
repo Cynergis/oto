@@ -317,7 +317,7 @@ def test_the_product_vocabulary_knows_a_usage_document():
     assert "|usage|" in kinds, kinds
     with open(os.path.join(HERE, "..", "oto", "ontologies", "product", "manifest.json"), encoding="utf-8") as f:
         manifest = json.load(f)
-    assert manifest["release"] == 13 and manifest["changelog"][0]["release"] == 13 and "usage" in manifest["changelog"][0]["note"]
+    assert manifest["release"] >= 13 and any(c["release"] == 13 and "usage" in c["note"] for c in manifest["changelog"])
 
 
 def test_the_store_logs_say_who_ran_each_statement():

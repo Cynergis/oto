@@ -987,6 +987,31 @@ without a verdict, back to the gaps on a fail, ends on a pass, and at the cap le
 with the run escalated; the agents' definitions give the evaluator no edit tool and say it never
 sees the runner's reasoning; and the marketplace lists `oto-factory` beside `oto`.
 
+Then the run graph and promotion (I8, J4, M4):
+
+```bash
+oto factory plan --all --json --out plan.json --project domain
+oto factory run start --plan plan.json --at 2026-10-27 --id r-001 --runs .factory/runs          # one OTO project per run
+oto factory run status --run .factory/runs/r-001                                                 # 3 builds, planned
+# the loop hook appends its decisions to .factory/events.jsonl in the code repository (run.json names the run: "run": "r-001")
+oto factory run sync --run .factory/runs/r-001 --events /path/to/invoice-platform/.factory/events.jsonl
+oto factory run record --run .factory/runs/r-001 --component component.invoice-intake --iteration 2 --verdict pass --at 2026-10-27T11:00:00Z
+oto factory run replay --run .factory/runs/r-001 --component component.invoice-intake
+oto build --project .factory/runs/r-001 && oto query --project .factory/runs/r-001 ask FR1 RUN=run.r-001
+oto factory run promote --run .factory/runs/r-001 --component component.invoice-intake --commit <sha> --at 2026-10-28 --into domain
+oto curate start --project domain && oto curate add --from proposals/run-r-001-invoice-intake.json --project domain && oto curate check --project domain && oto curate apply --by "<you>" --note "promoted from run r-001" --project domain
+oto work event verdict --item workitem.e-checkout --run r-001 --component component.payment-scheduler --verdict escalated --gap "cap reached" --waiting-on person.m-okafor --at 2026-10-28 --project plan
+```
+
+Pass when the run project holds the Run with its plan instance and a planned Build per component,
+its audit log names the engine, and starting the same id again is refused; `sync` reads each event
+once (a second sync adds nothing) and the builds read passed or escalated with their iterations; an
+iteration is recorded once and `replay` lists them in order with their gaps; FR1 to FR3 answer;
+`promote` refuses a build that has not passed, and for one that has writes the run document and a
+proposal with the evidence, the commit touching the component's modules and no run state, which
+the gates take and AR5 then shows; and a failed or escalated verdict blocks the work item on the
+named person with the gaps as the reason while a pass is noted and changes no state.
+
 ## 23. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.

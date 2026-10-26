@@ -223,12 +223,15 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write              # the impact of a changed decision record, as a comment
 
 jobs:
   gates:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -256,6 +259,16 @@ jobs:
           if [ -f gold/questions.jsonl ]; then oto bench validate --project .; else echo "no gold set yet"; fi
       - name: Provenance
         run: oto vet --project . || echo "::warning::some facts cite documents the corpus does not hold"
+      - name: Impact of the decision records this pull request changes
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{{{ github.token }}}}
+        run: |
+          changed=$(git diff --name-only "${{{{ github.event.pull_request.base.sha }}}}" "${{{{ github.event.pull_request.head.sha }}}}" -- 'docs/adr/' || true)
+          if [ -n "$changed" ]; then
+            report=$(oto arch impact --files $changed --format markdown --project . || true)
+            if [ -n "$report" ]; then gh pr comment "${{{{ github.event.pull_request.number }}}}" --body "$report"; fi
+          fi
 """
 
 DEPLOY = """name: oto deploy

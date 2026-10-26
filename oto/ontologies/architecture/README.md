@@ -37,8 +37,9 @@ CALM 1.x model into a document and a proposal cited to it, deriving the estate's
 reified ones, and `oto arch export --calm` writes it back, export of import equal to the input; `oto arch map --repo <path> --repository repo.<id> --at <date>` reads a code repository by
 `oto.codemap.json` (or the default, every directory under `src/`) into modules, their commits and
 the components they implement; `oto arch compile` runs both as `project.config.json` declares, and
-the `oto architecture` workflow does so on every merge; `arch_context` (the next PR) serves a path's
-node, requirements, decisions, budgets and controls.
+the `oto architecture` workflow does so on every merge; `arch_context` serves a path's or a node's
+requirements with their budgets and measurements, decisions, controls, connections, modules and open
+proposals, and `oto arch impact` reads what a decision affects, the orphans and the untraced code.
 
 This is a first draft: edit it. The sample is the roadmap's invoice-approval example; replace it with
 your CALM model as soon as you have imported one.

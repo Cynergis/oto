@@ -896,6 +896,28 @@ builds, a compile the gates refuse leaves no candidate and names the finding, a 
 `arch` section is refused in words, and the workflow file runs `oto arch compile` on every push to
 `main`, commits the graph as "oto architecture" and skips its own commits.
 
+Then what an agent reads before it edits, and what a change reaches (H3, H4), on the pack's sample:
+
+```bash
+oto init --name "Invoice approval" --slug invoice --ontology architecture --project invoice && oto build --project invoice
+oto serve --project invoice --http 8797 &
+curl 'http://127.0.0.1:8797/api/arch-context?path=src/scheduler/jobs/nightly.py'    # the scheduler: ADR-007, no control, CP-001 open
+curl 'http://127.0.0.1:8797/api/arch-context?node=component.invoice-intake'         # REQ-042 budget 900 ms, measured 870 ms; the PII control on its JDBC connection
+oto arch impact --decision ADR-007 --project invoice                                 # what it governs, what that reaches, the modules, CP-001
+oto arch impact --orphans --untraced --project invoice
+oto arch impact --files docs/adr/0007-read-through-the-intake-api.md --format markdown --project invoice   # what the checks workflow posts
+```
+
+Pass when the tool answers a path through the longest module that covers it and says so when no
+component implements the module; a node's requirements come with their budget and latest
+measurement; a control on a connection of the node is listed with the connection; `impact` of a
+decision names what it governs, the modules that implement it, the open proposals and what the
+connections reach, and says when the decision is superseded; `--orphans` lists the estate sample's
+components no relationship reaches and not the invoice platform's; `--untraced` lists `src/legacy`
+and the components with no module; `--files` prints a markdown report for a decision record, nothing
+for a file that is not one, and a note for a record the graph does not hold yet; and the checks
+workflow comments the report on a pull request that changes `docs/adr/`.
+
 ## 23. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.

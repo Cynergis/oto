@@ -25,8 +25,16 @@ store holds (DT5), what is downstream of a feed (DT6).
 **Filling it.** `oto data introspect [--path <store>] --store datastore.<id> --at <date>` reads a
 store's catalog through an overlay connector (SQLite, Postgres or BigQuery) into a schema document and a proposal
 in this vocabulary, every fact quoting its line, through the gates (C1). The store is a `DataStore`
-the estate declares first. Lineage readers for dbt manifests and SQL files (C3), query-log readers
-(C4), `oto data confirm` (C2) and the data project as a dependency of a concierge (C5) come next.
+the estate declares first. `oto data lineage --dbt target/manifest.json | --sql <dir|file> --store
+datastore.<id> --at <date>` reads what the ETL already says into a lineage document and a proposal
+of `LoadJob` and `Feed` nodes with `loaded_by` and `sourced_from` edges to the tables the graph holds
+(C3): a dbt model, seed or snapshot is a job (tool `dbt`, schedule from `meta.schedule`), an
+ephemeral model collapses to what it reads, a dbt source is a feed whose kind its `loader` suggests;
+a SQL file is one job whose INSERT, MERGE, CREATE ... AS, COPY and LOAD say what it writes and whose
+FROM and JOIN say what it reads, with `-- schedule:` and `-- tool:` comments for the rest. A job
+that loads a table the graph lacks is a gap the command reports, never a table it invents: the
+catalog says what exists, lineage says how it is loaded. Query-log readers (C4), `oto data confirm`
+(C2) and the data project as a dependency of a concierge (C5) come next.
 
 This is a first draft: edit it. The sample describes the estate sample's ledger; replace it with your
 store's tables as soon as you have introspected one.

@@ -1012,6 +1012,29 @@ proposal with the evidence, the commit touching the component's modules and no r
 the gates take and AR5 then shows; and a failed or escalated verdict blocks the work item on the
 named person with the gaps as the reason while a pass is noted and changes no state.
 
+Then the criteria, a deviation and a measurement (I6, I7, H5, H6):
+
+```bash
+oto factory criteria --context bc.checkout --out criteria/checkout --project domain          # criteria.md, criteria.json, test_criteria_checkout.py
+oto factory criteria --component component.invoice-intake --out criteria/intake --project domain   # its context's scenarios and rules, its budget, its control
+oto factory deviate --run .factory/runs/r-001 --component component.approval-policy --about contract.invoice-events-v1 \
+  --observed "InvoiceSubmitted carries no supplier id, which the approval rules need" --proposes "Add supplier_id as version 2 of the invoice events contract" \
+  --at 2026-10-28 --into domain                                                                 # the siblings through the contract, the build failed
+oto curate start --project domain && oto curate add --from proposals/deviation-r-001-1.json --project domain && oto curate check --project domain && oto curate apply --by "<you>" --note "a deviation" --project domain
+oto query --project domain ask AR7                                                              # the proposal, prompted by what was observed
+oto arch measure --nfr nfr.req-042 --from k6-summary.json --at 2026-10-29 --source https://ci.invoice.example/runs/2026-10-29/k6 --project domain
+oto curate start --project domain && oto curate add --from proposals/measure-req-042-2026-10-29.json --project domain && oto curate check --project domain && oto curate apply --by "<you>" --note "the k6 run" --project domain
+oto build --project domain && oto query --project domain ask AR6 NFR=nfr.req-042                # p95 870 ms over 5000 requests
+```
+
+Pass when the criteria name every scenario (given, when, then), rule, policy, budget and control
+with the nodes they came from, the skeleton compiles with one skipped test per criterion, a
+component no context runs as is refused with the way out; the deviation's document, evidence and
+change proposal cite each other, the siblings are the components that consume or expose the
+contract and never the deviating one, the run's build reads failed, and AR7 lists the proposal
+after the gates; and a JUnit, a coverage.py and a k6 report each read as one value, the
+measurement goes through the gates, and AR6 and `arch_context` show it next to the budget.
+
 ## 23. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.

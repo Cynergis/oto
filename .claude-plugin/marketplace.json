@@ -12,6 +12,12 @@
       "source": "./",
       "version": "0.11.31",
       "description": "The OTO engine: the kg_* query tools as an MCP server, the generic skills, and the session hook. Every pack depends on it."
+    },
+    {
+      "name": "oto-factory",
+      "source": "./factory",
+      "version": "0.1.0",
+      "description": "The software factory on an OTO architecture graph: runner, evaluator and aggregator agents, a guard hook for the write scope and a Stop hook for the loop to an iteration cap. Depends on the oto plugin."
     }
   ]
 }

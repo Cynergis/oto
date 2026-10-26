@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+"""The factory's Stop hook (roadmap J2): the loop runs on the evaluator's gaps and stops at the
+iteration cap, so it can be neither skipped nor run forever.
+
+Reads the hook's JSON on stdin (cwd, stop_hook_active) and the run snapshot at
+`<cwd>/.factory/run.json` ({"cap", "iteration", ...}); the evaluator's verdict is
+`<cwd>/.factory/verdict.json` ({"verdict": "pass" | "fail", "gaps": [...]}). No snapshot: not a
+factory run, the session stops as usual. A pass ends the loop. Otherwise the hook counts the
+iteration and answers {"decision": "block", "reason": ...} so the agent keeps going on the gaps
+(or, with no readable verdict, runs the evaluator first), until the cap, where it lets the session
+stop, marks the run escalated and says so: a person takes it from there. Plain Python, no engine.
+"""
+import json
+import os
+import sys
+
+
+def main():
+    try:
+        payload = json.load(sys.stdin)
+    except ValueError:
+        payload = {}
+    cwd = payload.get("cwd") or os.getcwd()
+    snapshot = os.environ.get("FACTORY_RUN") or os.path.join(cwd, ".factory", "run.json")
+    if not os.path.isfile(snapshot):
+        return 0
+    try:
+        with open(snapshot, encoding="utf-8") as f:
+            run = json.load(f)
+        if not isinstance(run, dict):
+            raise ValueError("not an object")
+    except (OSError, ValueError) as exc:
+        sys.stdout.write(json.dumps({"decision": "block", "reason": "factory: %s cannot be read (%s); fix the run snapshot before stopping" % (snapshot, exc)}) + "\n")
+        return 0
+    label = run.get("label") or run.get("component") or "the component"
+    try:
+        cap = max(int(run.get("cap") or 5), 1)
+    except (TypeError, ValueError):
+        cap = 5
+    try:
+        iteration = max(int(run.get("iteration") or 0), 0)
+    except (TypeError, ValueError):
+        iteration = 0
+    verdict_path = os.path.join(os.path.dirname(snapshot), "verdict.json")
+    verdict, gaps, problem = None, [], None
+    if os.path.isfile(verdict_path):
+        try:
+            with open(verdict_path, encoding="utf-8") as f:
+                data = json.load(f)
+            verdict = str((data or {}).get("verdict") or "").strip().lower()
+            gaps = [str(g) for g in ((data or {}).get("gaps") or [])]
+            if verdict not in ("pass", "fail"):
+                problem = "verdict.json says %r; a verdict is pass or fail" % verdict
+                verdict = None
+        except (OSError, ValueError) as exc:
+            problem = "verdict.json cannot be read (%s)" % exc
+    if verdict == "pass":
+        sys.stdout.write("factory: the evaluator passed %s after %d iteration(s); the run is done\n" % (label, iteration))
+        return 0
+    if iteration >= cap:
+        run["escalated"] = True
+        with open(snapshot, "w", encoding="utf-8") as f:
+            json.dump(run, f, indent=2)
+        sys.stdout.write("factory: the iteration cap of %d is reached for %s without a pass; the run is escalated to a person and stays recorded in %s\n"
+                         % (cap, label, snapshot))
+        return 0
+    run["iteration"] = iteration + 1
+    with open(snapshot, "w", encoding="utf-8") as f:
+        json.dump(run, f, indent=2)
+    if verdict == "fail":
+        what = "the evaluator's gaps: %s. Act on each, run the tests, then run the evaluator again" % ("; ".join(gaps) if gaps else "none listed; run the evaluator again")
+    elif problem:
+        what = "%s; run the evaluator on the spec, the criteria and the diff, and write a verdict.json with pass or fail and the gaps" % problem
+    else:
+        what = "no verdict.json yet: run the evaluator on the spec, the criteria and the diff, and act on its gaps"
+    reason = "factory iteration %d of %d for %s: %s" % (iteration + 1, cap, label, what)
+    sys.stdout.write(json.dumps({"decision": "block", "reason": reason}) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main() or 0)

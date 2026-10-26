@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """`oto factory`: the factory's inputs read from the graph. spec projects a component's spec,
-schema-checked and hashed (roadmap I3); plan derives the build order from contract dependencies (I5)."""
+schema-checked and hashed (roadmap I3); plan derives the build order from contract dependencies (I5);
+scope writes the run snapshot the factory plugin's hooks enforce (J2)."""
 import json
 import os
 import sys
@@ -78,20 +79,42 @@ def cmd_factory(args):
         else:
             sys.stdout.write(text)
         return 0
+    if args.factory_command == "scope":
+        if not args.component:
+            print("oto: scope takes the component (component.<id>) a run builds", file=sys.stderr)
+            return 1
+        try:
+            run = _factory.scope(_session.live(project), args.component, cap=args.cap if args.cap is not None else 5, allow=args.allow or (),
+                                 read_only=args.read_only or (), at=args.at)
+        except _factory.FactoryError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        out = args.out or os.path.join(".factory", "run.json")
+        os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+        with open(out, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(run, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+        print("%s: the run snapshot of %s, write scope %s, read-only %s, cap %d" % (out, run["label"], ", ".join(run["write_scope"]), ", ".join(run["read_only"]), run["cap"]))
+        print("  the factory plugin's hooks read it from the code repository's .factory/run.json; the spec it builds against is hash %s" % run["spec_hash"][:12])
+        return 0
     print("oto: unknown factory command %r" % args.factory_command, file=sys.stderr)
     return 1
 
 
 def register(sub):
     factory = sub.add_parser("factory", help="the factory's inputs, read from the graph: a component's spec, the build plan")
-    factory.add_argument("factory_command", choices=["spec", "plan"],
-                         help="spec projects a component's spec as schema-checked, hashed JSON (--check a file); plan derives the build order from contract dependencies")
-    factory.add_argument("component", nargs="?", default=None, help="for spec: the component, component.<id>")
+    factory.add_argument("factory_command", choices=["spec", "plan", "scope"],
+                         help="spec projects a component's spec as schema-checked, hashed JSON (--check a file); plan derives the build order from contract dependencies; "
+                              "scope writes the run snapshot the factory plugin's hooks enforce")
+    factory.add_argument("component", nargs="?", default=None, help="for spec and scope: the component, component.<id>")
     factory.add_argument("--check", default=None, metavar="FILE", help="for spec: verify a written spec's shape and hash")
     factory.add_argument("--out", default=None, help="write the spec or the plan here instead of printing it")
     factory.add_argument("--at", default=None, help="for spec: the date to record as generated (default: today)")
     factory.add_argument("--all", action="store_true", help="for plan: every CALM component, whatever its context's readiness")
     factory.add_argument("--context", default=None, help="for plan: the components one bounded context runs as")
     factory.add_argument("--json", action="store_true", help="for plan: the plan as JSON")
+    factory.add_argument("--cap", type=int, default=None, help="for scope: the iteration cap of the run (default 5)")
+    factory.add_argument("--allow", action="append", default=None, metavar="PATH", help="for scope: a path or glob added to the write scope; repeatable")
+    factory.add_argument("--read-only", dest="read_only", action="append", default=None, metavar="PATH", help="for scope: a path added to the read-only paths beside contracts/; repeatable")
     project_arguments(factory)
     factory.set_defaults(func=cmd_factory)

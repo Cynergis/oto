@@ -963,6 +963,30 @@ is frozen, two groups once one is a draft, nothing while no context is signed of
 command that signs one off), the signed-off context's component once one is, and a cycle of draft
 dependencies is named rather than looped.
 
+Then the factory plugin on files (J1, J2, J7 first cut), in the code repository:
+
+```bash
+oto factory spec component.invoice-intake --out /path/to/invoice-platform/.factory/spec.json --project domain
+oto factory scope component.invoice-intake --cap 3 --allow tests/intake --out /path/to/invoice-platform/.factory/run.json --project domain
+cd /path/to/invoice-platform
+echo '{"tool_name": "Edit", "tool_input": {"file_path": "src/scheduler/main.py"}, "cwd": "'$PWD'"}' | python3 -I /path/to/oto/factory/hooks/guard.py; echo "exit $?"      # 2: outside the scope
+echo '{"tool_name": "Write", "tool_input": {"file_path": "contracts/x.json"}, "cwd": "'$PWD'"}' | python3 -I /path/to/oto/factory/hooks/guard.py; echo "exit $?"      # 2: read-only
+echo '{"tool_name": "Edit", "tool_input": {"file_path": "src/intake/app.py"}, "cwd": "'$PWD'"}' | python3 -I /path/to/oto/factory/hooks/guard.py; echo "exit $?"      # 0
+echo '{"cwd": "'$PWD'", "stop_hook_active": false}' | python3 -I /path/to/oto/factory/hooks/loop.py                                                             # block: no verdict yet
+echo '{"verdict": "fail", "gaps": ["the IBAN is not validated"]}' > .factory/verdict.json
+echo '{"cwd": "'$PWD'", "stop_hook_active": true}' | python3 -I /path/to/oto/factory/hooks/loop.py                                                              # block: the gap
+# twice more: the cap of 3 is reached, the run is escalated
+/plugin marketplace add Cynergis/oto && /plugin install oto-factory@cynergis-engine                                                                              # in Claude Code
+```
+
+Pass when the scope names the component's modules and what `--allow` adds, `contracts/` read-only,
+the cap and the spec's hash; the guard refuses an edit outside the scope or into `contracts/`, and
+a shell command that writes a contract, allows reads and edits inside the scope, does nothing with
+no run and blocks every write with a broken snapshot; the loop sends the runner to the evaluator
+without a verdict, back to the gaps on a fail, ends on a pass, and at the cap lets the session stop
+with the run escalated; the agents' definitions give the evaluator no edit tool and say it never
+sees the runner's reasoning; and the marketplace lists `oto-factory` beside `oto`.
+
 ## 23. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.

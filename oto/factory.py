@@ -5,6 +5,7 @@
     oto factory spec <component> [--out <file>]        # the component's spec, as the graph says it
     oto factory spec --check <file>                    # the shape holds and nobody edited it by hand
     oto factory plan [--all | --context <id>] [--json] [--out <file>]
+    oto factory scope <component> [--cap N] [--allow <path>]... [--read-only <path>]... [--out .factory/run.json]
 
 A spec is a projection: the component (a CALM node), the bounded context it carries and the use
 cases of that context, what it exposes and consumes with each contract's version and status, the
@@ -20,6 +21,11 @@ interface with none, or depends on a component with no interface between them, w
 The groups are the levels of that order; a cycle of draft dependencies is named, never looped.
 By default the plan is for the components a signed-off context (`readiness` ready or built)
 runs as; `--context` for one context; `--all` for every CALM component.
+
+A scope is the run snapshot the factory plugin's hooks read (`factory/`, roadmap J2): the
+component's write scope is the modules the code map says implement it (plus `--allow`), its
+read-only paths are `contracts/` (plus `--read-only`), with the iteration cap and the hash of the
+spec the run builds against. Epic E replaces the file with a signed policy snapshot.
 """
 import datetime
 import hashlib
@@ -259,3 +265,40 @@ def render_plan(result, nodes_by_id=None):
     for u in result["unplanned"]:
         L.append("  unplanned: %s %s" % (label(u["id"]), u["why"]))
     return "\n".join(L) + "\n"
+
+
+# ---- the run snapshot ----
+
+def scope(graph, component_id, cap=5, allow=(), read_only=(), at=None):
+    nodes, out, inc = _index(graph)
+    n = nodes.get(component_id)
+    if n is None:
+        raise FactoryError("the graph holds no %s" % component_id)
+    if n.get("type") != "Component":
+        raise FactoryError("%s is a %s, not a Component: a run builds a component" % (component_id, n.get("type")))
+    try:
+        cap = int(cap)
+    except (TypeError, ValueError):
+        raise FactoryError("--cap is the iteration cap, a whole number from 1")
+    if cap < 1:
+        raise FactoryError("--cap is the iteration cap, a whole number from 1: a loop with no cap runs forever")
+    modules = []
+    for mid in out.get((component_id, "implemented_by"), []):
+        m = nodes.get(mid)
+        if m is not None and m.get("type") == "CodeModule" and _a(m).get("path"):
+            modules.append(_a(m)["path"].strip("/"))
+    write_scope = sorted(set(modules))
+    for extra in allow or ():
+        extra = str(extra).strip().strip("/")
+        if extra and extra not in write_scope:
+            write_scope.append(extra)
+    if not write_scope:
+        raise FactoryError("no module implements %s: the code map names none (oto arch map maps the repository), and --allow <path> names a scope by hand" % component_id)
+    paths = ["contracts"]
+    for extra in read_only or ():
+        extra = str(extra).strip().strip("/")
+        if extra and extra not in paths:
+            paths.append(extra)
+    return {"component": component_id, "label": n.get("label") or component_id, "write_scope": write_scope, "read_only": paths, "cap": cap, "iteration": 0,
+            "spec_hash": spec(graph, component_id, at=at)["generated"]["hash"],
+            "generated": {"by": "oto factory scope", "at": at or datetime.date.today().isoformat()}}

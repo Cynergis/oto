@@ -1,0 +1,426 @@
+{
+  "_about": "What this ontology exists to answer. Each question runs over the graph in the pattern language of the rules (`when` with node, edge, not_edge, optional, where; `select`); `gate` says what the self-check demands of the sample; `terms` cites vocabulary the pattern does not name.",
+  "questions": {
+    "AR1": {
+      "who": "an agent about to change a component",
+      "question": "What does $NODE connect to or interact with, over which protocol, through which interface?",
+      "why": "The coupling an edit must respect: every connection from the node, its protocol and the interface it goes through, so a change to a contract is checked against who speaks it.",
+      "validated_by": "",
+      "params": {
+        "NODE": {
+          "type": "System|Component|DataStore"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "r",
+              "connects_from",
+              "$NODE"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Relationship"
+          },
+          {
+            "edge": [
+              "r",
+              "connects_to",
+              "d"
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "r",
+                  "via",
+                  "i"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "r",
+          "r.label",
+          "r.kind",
+          "r.protocol",
+          "d",
+          "d.label",
+          "d.type",
+          "i.label"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "Relationship.calm_id",
+        "Relationship.calm_metadata",
+        "offers_option",
+        "System.calm_id",
+        "System.calm_type",
+        "System.calm_metadata",
+        "Component.calm_id",
+        "Component.calm_type",
+        "Component.calm_metadata",
+        "DataStore.calm_id",
+        "DataStore.calm_type",
+        "DataStore.calm_metadata",
+        "Environment.calm_id",
+        "Environment.calm_type",
+        "Environment.calm_metadata",
+        "Role.calm_id",
+        "Interface.calm_id",
+        "Interface.definition_url",
+        "Interface.config"
+      ]
+    },
+    "AR2": {
+      "who": "an agent or a reviewer before a change on a path",
+      "question": "Which controls safeguard $NODE, and which requirement does each cite?",
+      "why": "What must hold on the path (encryption, no PII, rate limits) before anything is edited there, with the requirement schema and the configuration to read.",
+      "validated_by": "",
+      "params": {
+        "NODE": {
+          "type": "System|Component|DataStore"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "c",
+              "safeguards",
+              "$NODE"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "Control"
+          }
+        ],
+        "select": [
+          "c",
+          "c.label",
+          "c.requirement_url",
+          "c.config_url"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "Control.calm_id",
+        "Control.config"
+      ]
+    },
+    "AR3": {
+      "who": "an engineer reading how a business flow crosses the systems",
+      "question": "What is the sequence of $FLOW: which step walks which relationship, in which direction?",
+      "why": "The architecture read as a story, in order, so the impact of a change is read along the flow it sits in.",
+      "validated_by": "",
+      "params": {
+        "FLOW": {
+          "type": "Flow"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "s",
+              "step_of",
+              "$FLOW"
+            ]
+          },
+          {
+            "node": "s",
+            "type": "FlowStep"
+          },
+          {
+            "edge": [
+              "s",
+              "over",
+              "r"
+            ]
+          }
+        ],
+        "select": [
+          "s.sequence",
+          "s.direction",
+          "r",
+          "r.label",
+          "r.protocol"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "Flow.calm_id",
+        "Flow.requirement_url",
+        "Flow.calm_metadata"
+      ]
+    },
+    "AR4": {
+      "who": "an agent before it changes a component on a measured path",
+      "question": "Which non-functional requirements does $NODE satisfy: which metric, within what budget?",
+      "why": "The budget is the number the change must keep: p95 under 900 ms, 99.9 % up. The agent reads it before editing instead of a gate rejecting after.",
+      "validated_by": "",
+      "params": {
+        "NODE": {
+          "type": "System|Component|DataStore"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$NODE",
+              "satisfies",
+              "q"
+            ]
+          },
+          {
+            "node": "q",
+            "type": "NFR"
+          }
+        ],
+        "select": [
+          "q",
+          "q.label",
+          "q.metric",
+          "q.budget"
+        ]
+      },
+      "gate": "any",
+      "terms": []
+    },
+    "AR5": {
+      "who": "an agent given a path, or a reviewer given a component",
+      "question": "Where is $NODE implemented: which code modules, in which language and repository, last changed by which commit?",
+      "why": "arch_context starts from a path: the walk from a module to its component and back to the modules and commits is what makes a path answerable.",
+      "validated_by": "",
+      "params": {
+        "NODE": {
+          "type": "System|Component|DataStore"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$NODE",
+              "implemented_by",
+              "m"
+            ]
+          },
+          {
+            "node": "m",
+            "type": "CodeModule"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "m",
+                  "located_in",
+                  "repo"
+                ]
+              }
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "k",
+                  "touches",
+                  "m"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "m",
+          "m.path",
+          "m.language",
+          "repo.label",
+          "k.sha",
+          "k.committed_on",
+          "k.author"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "Commit",
+        "Commit.sha",
+        "Commit.committed_on",
+        "Commit.author",
+        "Commit.message"
+      ]
+    },
+    "AR6": {
+      "who": "an engineer asked whether a budget holds",
+      "question": "What evidence measures $NFR: what value, observed when, from where?",
+      "why": "A measured NFR is a promoted fact: the value, the date and the run it came from, next to the budget it is checked against.",
+      "validated_by": "",
+      "params": {
+        "NFR": {
+          "type": "NFR"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "e",
+              "measurement_of",
+              "$NFR"
+            ]
+          },
+          {
+            "node": "e",
+            "type": "Evidence"
+          }
+        ],
+        "select": [
+          "e",
+          "e.kind",
+          "e.value",
+          "e.observed_on",
+          "e.source_url"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "evidence_of"
+      ]
+    },
+    "AR7": {
+      "who": "an architect or a reviewer",
+      "question": "Which change proposals are open: raised by what evidence, about what, and settled by which decision?",
+      "why": "Every proposal links its trigger, its subject and its decision; the open ones are the review's agenda, and the settled ones are the record.",
+      "validated_by": "",
+      "params": {},
+      "ask": {
+        "when": [
+          {
+            "node": "p",
+            "type": "ChangeProposal",
+            "where": {
+              "status": "proposed"
+            }
+          },
+          {
+            "edge": [
+              "p",
+              "prompted_by",
+              "e"
+            ]
+          },
+          {
+            "edge": [
+              "p",
+              "proposes_change_to",
+              "t"
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "p",
+                  "decided_in",
+                  "d"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "p",
+          "p.label",
+          "p.status",
+          "e.label",
+          "e.kind",
+          "t",
+          "t.label",
+          "d.label"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "implemented_in"
+      ]
+    },
+    "AR8": {
+      "who": "a security or platform reviewer",
+      "question": "Which systems, components and stores does no control safeguard at all?",
+      "why": "The gap list: a node nothing governs is either harmless or forgotten, and the reviewer decides which.",
+      "validated_by": "",
+      "params": {},
+      "ask": {
+        "when": [
+          {
+            "node": "n",
+            "type": "System|Component|DataStore"
+          },
+          {
+            "not_edge": [
+              "*",
+              "safeguards",
+              "n"
+            ]
+          }
+        ],
+        "select": [
+          "n",
+          "n.label",
+          "n.type"
+        ]
+      },
+      "gate": "any",
+      "terms": []
+    },
+    "AR9": {
+      "who": "an architect keeping the code map honest",
+      "question": "Which code modules trace to no node: implemented by nothing the architecture knows?",
+      "why": "Untraced code is where the architecture and the repository have drifted apart; H4 reports it on every merge.",
+      "validated_by": "",
+      "params": {},
+      "ask": {
+        "when": [
+          {
+            "node": "m",
+            "type": "CodeModule"
+          },
+          {
+            "not_edge": [
+              "*",
+              "implemented_by",
+              "m"
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "m",
+                  "located_in",
+                  "repo"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "m",
+          "m.path",
+          "repo.label"
+        ]
+      },
+      "gate": "any",
+      "terms": []
+    }
+  }
+}

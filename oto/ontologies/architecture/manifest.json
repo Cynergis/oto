@@ -1,0 +1,27 @@
+{
+  "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
+  "name": "architecture",
+  "release": 1,
+  "domain": "software",
+  "summary": "The architecture graph for implementation, aligned with CALM 1.0 (https://calm.finos.org/release/1.0/meta/core.json): CALM nodes as estate nodes with their id and type, relationships, controls and flows as nodes, requirements with budgets and the evidence that measured them, the code modules and commits that implement each component, and the change proposals evidence raised.",
+  "extends": [
+    "software-architecture"
+  ],
+  "namespace": "https://cynergis.ai/ont/architecture#",
+  "engine": ">=0.11",
+  "carries": [
+    "vocabulary",
+    "rationale",
+    "questions",
+    "sample",
+    "readme"
+  ],
+  "maintainer": "OTO",
+  "changelog": [
+    {
+      "release": 1,
+      "at": "2026-10-26",
+      "note": "First release (roadmap Epic H, H1): CALM 1.0 nodes, relationships, controls and flows on software-architecture; NFR, Evidence, CodeModule, Commit, ChangeProposal; AR1-AR9, awaiting confirmation."
+    }
+  ]
+}

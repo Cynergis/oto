@@ -1,0 +1,1019 @@
+{
+  "nodes": [
+    {
+      "id": "system.invoice-platform",
+      "type": "System",
+      "label": "Invoice platform",
+      "summary": "The invoice approval platform: intake, approval policy and payment scheduling, one CALM architecture.",
+      "attributes": {
+        "calm_id": "invoice-platform",
+        "calm_type": "system",
+        "calm_metadata": "{\"owner\": \"payments-platform\", \"tier\": \"2\"}"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "capability.pay-suppliers",
+      "type": "Capability",
+      "label": "Pay suppliers on time",
+      "summary": "The business capability the invoice platform makes possible: approving and paying supplier invoices within terms.",
+      "attributes": {},
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "team.payments-platform",
+      "type": "Team",
+      "label": "Payments platform team",
+      "summary": "The team that owns the invoice platform and the capability it enables.",
+      "attributes": {},
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "environment.payments-network",
+      "type": "Environment",
+      "label": "Payments network",
+      "summary": "The network segment the invoice services are deployed in.",
+      "attributes": {
+        "calm_id": "payments-network",
+        "calm_type": "network"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "role.ap-clerk",
+      "type": "Role",
+      "label": "Accounts payable clerk",
+      "summary": "The person who submits a supplier invoice for approval.",
+      "attributes": {
+        "calm_id": "ap-clerk"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "component.invoice-intake",
+      "type": "Component",
+      "label": "Invoice intake",
+      "summary": "Accepts a submitted invoice, stores it and emits InvoiceSubmitted.",
+      "attributes": {
+        "calm_id": "invoice-intake",
+        "calm_type": "service"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "component.approval-policy",
+      "type": "Component",
+      "label": "Approval policy",
+      "summary": "Applies the approval rules to a submitted invoice and emits InvoiceApproved.",
+      "attributes": {
+        "calm_id": "approval-policy",
+        "calm_type": "service"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "component.payment-scheduler",
+      "type": "Component",
+      "label": "Payment scheduler",
+      "summary": "Schedules the payment of an approved invoice.",
+      "attributes": {
+        "calm_id": "payment-scheduler",
+        "calm_type": "service"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "datastore.invoice-db",
+      "type": "DataStore",
+      "label": "Invoice database",
+      "summary": "Where submitted invoices and their approval state live.",
+      "attributes": {
+        "calm_id": "invoice-db",
+        "calm_type": "database"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "interface.invoice-api",
+      "type": "Interface",
+      "label": "Invoice API",
+      "summary": "The HTTPS API an invoice is submitted through.",
+      "attributes": {
+        "url": "https://invoice.example/api/v1/invoices",
+        "calm_id": "invoice-api",
+        "definition_url": "https://invoice.example/calm/interfaces/https-url.json",
+        "config": "{\"url\": \"https://invoice.example/api/v1/invoices\"}"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "interface.invoice-events",
+      "type": "Interface",
+      "label": "Invoice events",
+      "summary": "The AMQP exchange invoice events are published on.",
+      "attributes": {
+        "calm_id": "invoice-events",
+        "definition_url": "https://invoice.example/calm/interfaces/amqp-exchange.json",
+        "config": "{\"exchange\": \"invoices\", \"routing-key\": \"invoice.*\"}"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "repo.invoice-platform",
+      "type": "Repository",
+      "label": "invoice-platform repository",
+      "summary": "The monorepo of the invoice platform.",
+      "attributes": {
+        "owner": "acme",
+        "name": "invoice-platform",
+        "url": "https://github.com/acme/invoice-platform",
+        "default_branch": "main"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "relationship.clerk-submits",
+      "type": "Relationship",
+      "label": "Clerk submits an invoice",
+      "summary": "The accounts payable clerk interacts with the invoice intake.",
+      "attributes": {
+        "calm_id": "clerk-submits",
+        "kind": "interacts"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "relationship.intake-stores",
+      "type": "Relationship",
+      "label": "Intake stores the invoice",
+      "summary": "The intake writes the invoice to the database over JDBC.",
+      "attributes": {
+        "calm_id": "intake-stores",
+        "kind": "connects",
+        "protocol": "JDBC",
+        "calm_metadata": "{\"pii\": true}"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "relationship.intake-emits",
+      "type": "Relationship",
+      "label": "Intake emits InvoiceSubmitted",
+      "summary": "The intake publishes InvoiceSubmitted on the invoice events exchange, which the approval policy consumes.",
+      "attributes": {
+        "calm_id": "intake-emits",
+        "kind": "connects",
+        "protocol": "AMQP"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "relationship.policy-schedules",
+      "type": "Relationship",
+      "label": "Policy schedules the payment",
+      "summary": "The approval policy calls the payment scheduler over HTTPS once an invoice is approved.",
+      "attributes": {
+        "calm_id": "policy-schedules",
+        "kind": "connects",
+        "protocol": "HTTPS"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "relationship.deployed-in-network",
+      "type": "Relationship",
+      "label": "Deployed in the payments network",
+      "summary": "The three services and the database are deployed in the payments network.",
+      "attributes": {
+        "calm_id": "deployed-in-network",
+        "kind": "deployed-in"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "relationship.platform-composition",
+      "type": "Relationship",
+      "label": "The platform is composed of its services",
+      "summary": "The invoice platform is composed of the three services.",
+      "attributes": {
+        "calm_id": "platform-composition",
+        "kind": "composed-of"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "decision.adr-007",
+      "type": "Decision",
+      "label": "ADR-007: read invoice data only through the intake's API",
+      "summary": "The scheduler and the policy read invoice data through the intake's API, never by a direct database import.",
+      "attributes": {
+        "rationale": "One writer and one read path keep the invoice state consistent and the schema free to change.",
+        "decided_on": "2026-09-30",
+        "status": "accepted"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "decision.store-postgres",
+      "type": "Decision",
+      "label": "Option: keep the invoice store on Postgres",
+      "summary": "One of the two options for the invoice store.",
+      "attributes": {
+        "status": "proposed"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "decision.store-managed",
+      "type": "Decision",
+      "label": "Option: move the invoice store to a managed ledger service",
+      "summary": "The other option for the invoice store.",
+      "attributes": {
+        "status": "proposed"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "relationship.store-options",
+      "type": "Relationship",
+      "label": "Where the invoice store lives",
+      "summary": "The options for the invoice store, a decision still open.",
+      "attributes": {
+        "calm_id": "store-options",
+        "kind": "options"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "control.pii-at-rest",
+      "type": "Control",
+      "label": "PII encrypted at rest",
+      "summary": "Invoice data carries supplier bank details: encrypted at rest and in the JDBC connection.",
+      "attributes": {
+        "calm_id": "pii-at-rest",
+        "requirement_url": "https://invoice.example/calm/controls/encryption-at-rest.requirement.json",
+        "config_url": "https://invoice.example/calm/controls/encryption-at-rest.config.json"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "flow.invoice-approval",
+      "type": "Flow",
+      "label": "Invoice approval",
+      "summary": "A submitted invoice is stored, judged by the approval policy and scheduled for payment.",
+      "attributes": {
+        "calm_id": "invoice-approval",
+        "requirement_url": "https://invoice.example/calm/flows/invoice-approval.requirement.json"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "flowstep.invoice-approval-1",
+      "type": "FlowStep",
+      "label": "Invoice approval, step 1",
+      "summary": "The clerk submits the invoice.",
+      "attributes": {
+        "sequence": 1
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "flowstep.invoice-approval-2",
+      "type": "FlowStep",
+      "label": "Invoice approval, step 2",
+      "summary": "The intake emits InvoiceSubmitted.",
+      "attributes": {
+        "sequence": 2
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "flowstep.invoice-approval-3",
+      "type": "FlowStep",
+      "label": "Invoice approval, step 3",
+      "summary": "The policy schedules the payment.",
+      "attributes": {
+        "sequence": 3
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "nfr.req-042",
+      "type": "NFR",
+      "label": "REQ-042: invoice submission under one second",
+      "summary": "The p95 latency of submitting an invoice stays under one second on the approval journey.",
+      "attributes": {
+        "kind": "non-functional",
+        "priority": "must",
+        "metric": "p95 latency of invoice submission",
+        "budget": "900 ms"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "evidence.k6-2026-10-20",
+      "type": "Evidence",
+      "label": "k6 run of 2026-10-20",
+      "summary": "The load test's p95 for invoice submission.",
+      "attributes": {
+        "kind": "measurement",
+        "value": "870 ms",
+        "observed_on": "2026-10-20",
+        "source_url": "https://ci.invoice.example/runs/2026-10-20/k6"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "evidence.gate-2026-10-21",
+      "type": "Evidence",
+      "label": "Architecture gate of 2026-10-21",
+      "summary": "The gate found a direct database import in the payment scheduler, against ADR-007.",
+      "attributes": {
+        "kind": "gate",
+        "value": "ADR-007 violated: src/scheduler imports the invoice database",
+        "observed_on": "2026-10-21",
+        "source_url": "https://ci.invoice.example/runs/2026-10-21/gate"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "codemodule.src-intake",
+      "type": "CodeModule",
+      "label": "src/intake",
+      "summary": "The src/intake module.",
+      "attributes": {
+        "path": "src/intake",
+        "language": "python"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "codemodule.src-scheduler",
+      "type": "CodeModule",
+      "label": "src/scheduler",
+      "summary": "The src/scheduler module.",
+      "attributes": {
+        "path": "src/scheduler",
+        "language": "python"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "codemodule.src-legacy",
+      "type": "CodeModule",
+      "label": "src/legacy",
+      "summary": "A module no component of the architecture claims.",
+      "attributes": {
+        "path": "src/legacy",
+        "language": "python"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "commit.9f3c2a1",
+      "type": "Commit",
+      "label": "9f3c2a1 intake: validate supplier IBAN",
+      "summary": "The last change to the intake module.",
+      "attributes": {
+        "sha": "9f3c2a1",
+        "committed_on": "2026-10-18",
+        "author": "Sam Lee",
+        "message": "intake: validate supplier IBAN before storing"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "changeproposal.cp-001",
+      "type": "ChangeProposal",
+      "label": "CP-001: scheduler reads through the intake API",
+      "summary": "Replace the scheduler's direct database import with a call to the intake API, as ADR-007 says.",
+      "attributes": {},
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "changeproposal.cp-000",
+      "type": "ChangeProposal",
+      "label": "CP-000: validate the supplier IBAN at intake",
+      "summary": "Validate the IBAN at intake rather than at payment time.",
+      "attributes": {
+        "status": "implemented"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "system.invoice-platform",
+      "rel": "enables",
+      "to": "capability.pay-suppliers"
+    },
+    {
+      "from": "capability.pay-suppliers",
+      "rel": "owned_by",
+      "to": "team.payments-platform"
+    },
+    {
+      "from": "system.invoice-platform",
+      "rel": "owned_by",
+      "to": "team.payments-platform"
+    },
+    {
+      "from": "component.invoice-intake",
+      "rel": "part_of",
+      "to": "system.invoice-platform"
+    },
+    {
+      "from": "component.invoice-intake",
+      "rel": "runs_in",
+      "to": "environment.payments-network"
+    },
+    {
+      "from": "component.approval-policy",
+      "rel": "part_of",
+      "to": "system.invoice-platform"
+    },
+    {
+      "from": "component.approval-policy",
+      "rel": "runs_in",
+      "to": "environment.payments-network"
+    },
+    {
+      "from": "component.payment-scheduler",
+      "rel": "part_of",
+      "to": "system.invoice-platform"
+    },
+    {
+      "from": "component.payment-scheduler",
+      "rel": "runs_in",
+      "to": "environment.payments-network"
+    },
+    {
+      "from": "datastore.invoice-db",
+      "rel": "runs_in",
+      "to": "environment.payments-network"
+    },
+    {
+      "from": "component.invoice-intake",
+      "rel": "exposes",
+      "to": "interface.invoice-api"
+    },
+    {
+      "from": "component.invoice-intake",
+      "rel": "exposes",
+      "to": "interface.invoice-events"
+    },
+    {
+      "from": "component.approval-policy",
+      "rel": "consumes",
+      "to": "interface.invoice-events"
+    },
+    {
+      "from": "component.invoice-intake",
+      "rel": "writes_to",
+      "to": "datastore.invoice-db"
+    },
+    {
+      "from": "component.approval-policy",
+      "rel": "reads_from",
+      "to": "datastore.invoice-db"
+    },
+    {
+      "from": "component.approval-policy",
+      "rel": "depends_on",
+      "to": "component.invoice-intake"
+    },
+    {
+      "from": "component.payment-scheduler",
+      "rel": "depends_on",
+      "to": "component.approval-policy"
+    },
+    {
+      "from": "component.invoice-intake",
+      "rel": "implemented_by",
+      "to": "repo.invoice-platform"
+    },
+    {
+      "from": "relationship.clerk-submits",
+      "rel": "connects_from",
+      "to": "role.ap-clerk"
+    },
+    {
+      "from": "relationship.clerk-submits",
+      "rel": "connects_to",
+      "to": "component.invoice-intake"
+    },
+    {
+      "from": "relationship.intake-stores",
+      "rel": "connects_from",
+      "to": "component.invoice-intake"
+    },
+    {
+      "from": "relationship.intake-stores",
+      "rel": "connects_to",
+      "to": "datastore.invoice-db"
+    },
+    {
+      "from": "relationship.intake-emits",
+      "rel": "connects_from",
+      "to": "component.invoice-intake"
+    },
+    {
+      "from": "relationship.intake-emits",
+      "rel": "connects_to",
+      "to": "component.approval-policy"
+    },
+    {
+      "from": "relationship.intake-emits",
+      "rel": "via",
+      "to": "interface.invoice-events"
+    },
+    {
+      "from": "relationship.policy-schedules",
+      "rel": "connects_from",
+      "to": "component.approval-policy"
+    },
+    {
+      "from": "relationship.policy-schedules",
+      "rel": "connects_to",
+      "to": "component.payment-scheduler"
+    },
+    {
+      "from": "relationship.deployed-in-network",
+      "rel": "connects_from",
+      "to": "environment.payments-network"
+    },
+    {
+      "from": "relationship.deployed-in-network",
+      "rel": "connects_to",
+      "to": "component.invoice-intake"
+    },
+    {
+      "from": "relationship.deployed-in-network",
+      "rel": "connects_to",
+      "to": "component.approval-policy"
+    },
+    {
+      "from": "relationship.deployed-in-network",
+      "rel": "connects_to",
+      "to": "component.payment-scheduler"
+    },
+    {
+      "from": "relationship.deployed-in-network",
+      "rel": "connects_to",
+      "to": "datastore.invoice-db"
+    },
+    {
+      "from": "relationship.platform-composition",
+      "rel": "connects_from",
+      "to": "system.invoice-platform"
+    },
+    {
+      "from": "relationship.platform-composition",
+      "rel": "connects_to",
+      "to": "component.invoice-intake"
+    },
+    {
+      "from": "relationship.platform-composition",
+      "rel": "connects_to",
+      "to": "component.approval-policy"
+    },
+    {
+      "from": "relationship.platform-composition",
+      "rel": "connects_to",
+      "to": "component.payment-scheduler"
+    },
+    {
+      "from": "decision.adr-007",
+      "rel": "governs",
+      "to": "component.payment-scheduler"
+    },
+    {
+      "from": "decision.adr-007",
+      "rel": "governs",
+      "to": "component.approval-policy"
+    },
+    {
+      "from": "relationship.store-options",
+      "rel": "offers_option",
+      "to": "decision.store-postgres"
+    },
+    {
+      "from": "relationship.store-options",
+      "rel": "offers_option",
+      "to": "decision.store-managed"
+    },
+    {
+      "from": "control.pii-at-rest",
+      "rel": "safeguards",
+      "to": "datastore.invoice-db"
+    },
+    {
+      "from": "control.pii-at-rest",
+      "rel": "safeguards",
+      "to": "relationship.intake-stores"
+    },
+    {
+      "from": "flowstep.invoice-approval-1",
+      "rel": "step_of",
+      "to": "flow.invoice-approval"
+    },
+    {
+      "from": "flowstep.invoice-approval-1",
+      "rel": "over",
+      "to": "relationship.clerk-submits"
+    },
+    {
+      "from": "flowstep.invoice-approval-2",
+      "rel": "step_of",
+      "to": "flow.invoice-approval"
+    },
+    {
+      "from": "flowstep.invoice-approval-2",
+      "rel": "over",
+      "to": "relationship.intake-emits"
+    },
+    {
+      "from": "flowstep.invoice-approval-3",
+      "rel": "step_of",
+      "to": "flow.invoice-approval"
+    },
+    {
+      "from": "flowstep.invoice-approval-3",
+      "rel": "over",
+      "to": "relationship.policy-schedules"
+    },
+    {
+      "from": "component.invoice-intake",
+      "rel": "satisfies",
+      "to": "nfr.req-042"
+    },
+    {
+      "from": "evidence.k6-2026-10-20",
+      "rel": "measurement_of",
+      "to": "nfr.req-042"
+    },
+    {
+      "from": "evidence.k6-2026-10-20",
+      "rel": "evidence_of",
+      "to": "component.invoice-intake"
+    },
+    {
+      "from": "evidence.gate-2026-10-21",
+      "rel": "evidence_of",
+      "to": "component.payment-scheduler"
+    },
+    {
+      "from": "codemodule.src-intake",
+      "rel": "located_in",
+      "to": "repo.invoice-platform"
+    },
+    {
+      "from": "component.invoice-intake",
+      "rel": "implemented_by",
+      "to": "codemodule.src-intake"
+    },
+    {
+      "from": "codemodule.src-scheduler",
+      "rel": "located_in",
+      "to": "repo.invoice-platform"
+    },
+    {
+      "from": "component.payment-scheduler",
+      "rel": "implemented_by",
+      "to": "codemodule.src-scheduler"
+    },
+    {
+      "from": "codemodule.src-legacy",
+      "rel": "located_in",
+      "to": "repo.invoice-platform"
+    },
+    {
+      "from": "commit.9f3c2a1",
+      "rel": "touches",
+      "to": "codemodule.src-intake"
+    },
+    {
+      "from": "changeproposal.cp-001",
+      "rel": "prompted_by",
+      "to": "evidence.gate-2026-10-21"
+    },
+    {
+      "from": "changeproposal.cp-001",
+      "rel": "proposes_change_to",
+      "to": "component.payment-scheduler"
+    },
+    {
+      "from": "changeproposal.cp-001",
+      "rel": "proposes_change_to",
+      "to": "relationship.policy-schedules"
+    },
+    {
+      "from": "changeproposal.cp-000",
+      "rel": "prompted_by",
+      "to": "evidence.k6-2026-10-20"
+    },
+    {
+      "from": "changeproposal.cp-000",
+      "rel": "proposes_change_to",
+      "to": "component.invoice-intake"
+    },
+    {
+      "from": "changeproposal.cp-000",
+      "rel": "decided_in",
+      "to": "decision.adr-007"
+    },
+    {
+      "from": "changeproposal.cp-000",
+      "rel": "implemented_in",
+      "to": "commit.9f3c2a1"
+    }
+  ]
+}

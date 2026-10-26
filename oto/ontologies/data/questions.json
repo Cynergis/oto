@@ -1,0 +1,263 @@
+{
+  "_about": "What this ontology exists to answer. Each question runs over the graph in the pattern language of rules.json; `gate` says what an empty answer means; `terms` names the vocabulary the question covers.",
+  "questions": {
+    "DT1": {
+      "who": "an engineer about to change or query a table",
+      "question": "What does $TABLE hold: its columns, their types, which are keys, what each means, and is the meaning confirmed?",
+      "why": "The schema with its meaning in one answer: a column's type and key from the catalog, its description from whoever drafted or confirmed it. A foreign key names the column it references, so the join path is here too.",
+      "validated_by": "",
+      "params": {
+        "TABLE": {
+          "type": "Table"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "c",
+              "column_of",
+              "$TABLE"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "Column"
+          }
+        ],
+        "select": [
+          "c.label",
+          "c.type",
+          "c.key",
+          "c.nullable",
+          "c.description",
+          "c.description_status"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "column_of",
+              "$TABLE"
+            ]
+          }
+        ],
+        "say": "no column is recorded for the table: introspect the store"
+      },
+      "terms": [
+        "references"
+      ]
+    },
+    "DT2": {
+      "who": "an engineer when the rows are stale or wrong",
+      "question": "Where does $TABLE come from: which job loads it, on what schedule, with what tool, and from which feed, table or store?",
+      "why": "Lineage, the priority of the data layer: the job to look at and the source of truth behind it, which the schema alone cannot tell.",
+      "validated_by": "",
+      "params": {
+        "TABLE": {
+          "type": "Table"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$TABLE",
+              "loaded_by",
+              "j"
+            ]
+          },
+          {
+            "node": "j",
+            "type": "LoadJob"
+          },
+          {
+            "edge": [
+              "j",
+              "sourced_from",
+              "s"
+            ]
+          }
+        ],
+        "select": [
+          "j",
+          "j.label",
+          "j.schedule",
+          "j.tool",
+          "s",
+          "s.label",
+          "s.type"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "Feed",
+        "Feed.kind"
+      ]
+    },
+    "DT3": {
+      "who": "an engineer before changing a table",
+      "question": "Who reads $TABLE, and how: transactionally or analytically, known from a query log or declared?",
+      "why": "Usage, the other priority: whom to tell before a change and when it may run. A transactional reader is an application serving users; an analytical one is a report that can wait.",
+      "validated_by": "",
+      "params": {
+        "TABLE": {
+          "type": "Table"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "u",
+              "use_of",
+              "$TABLE"
+            ]
+          },
+          {
+            "node": "u",
+            "type": "Usage"
+          },
+          {
+            "edge": [
+              "u",
+              "used_by",
+              "x"
+            ]
+          }
+        ],
+        "select": [
+          "x",
+          "x.label",
+          "x.type",
+          "u.kind",
+          "u.evidence"
+        ]
+      },
+      "gate": "any"
+    },
+    "DT4": {
+      "who": "a data steward",
+      "question": "Which tables and columns have a meaning nobody confirmed yet: still a draft?",
+      "why": "The steward's list: what an agent drafted and no person has read. The default reads as the value, so a column with no status at all is a draft too, never silently confirmed.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "t",
+            "type": "Table|Column",
+            "where": {
+              "description_status": "draft"
+            }
+          }
+        ],
+        "select": [
+          "t",
+          "t.label",
+          "t.type",
+          "t.description"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "Table.description_status",
+        "Column.description_status",
+        "Table.description",
+        "Column.description"
+      ]
+    },
+    "DT5": {
+      "who": "an architect or an on-call engineer",
+      "question": "What does $STORE hold: which tables and views, and what is each about?",
+      "why": "The store the estate declares, opened: its tables with their grain in a sentence, so a component's `reads_from` the store can be read down to the table.",
+      "validated_by": "",
+      "params": {
+        "STORE": {
+          "type": "DataStore"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "t",
+              "part_of",
+              "$STORE"
+            ]
+          },
+          {
+            "node": "t",
+            "type": "Table"
+          }
+        ],
+        "select": [
+          "t",
+          "t.label",
+          "t.kind",
+          "t.description",
+          "t.description_status"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "part_of",
+              "$STORE"
+            ]
+          }
+        ],
+        "say": "no table is recorded in the store: introspect it"
+      }
+    },
+    "DT6": {
+      "who": "an engineer when a feed changes or fails",
+      "question": "What is downstream of $FEED: the jobs sourced from it and the tables they load?",
+      "why": "Impact from the source: when the custodian changes its file, which jobs break and which tables go stale, by walking the lineage forward.",
+      "validated_by": "",
+      "params": {
+        "FEED": {
+          "type": "Feed"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "j",
+              "sourced_from",
+              "$FEED"
+            ]
+          },
+          {
+            "node": "j",
+            "type": "LoadJob"
+          },
+          {
+            "edge": [
+              "t",
+              "loaded_by",
+              "j"
+            ]
+          },
+          {
+            "node": "t",
+            "type": "Table"
+          }
+        ],
+        "select": [
+          "j",
+          "j.label",
+          "t",
+          "t.label"
+        ]
+      },
+      "gate": "any"
+    }
+  }
+}

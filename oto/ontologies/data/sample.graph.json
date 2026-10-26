@@ -1,0 +1,369 @@
+{
+  "_about": "The estate's ledger database described: two tables and a view in datastore.ledger, their columns, the custodian feed and the two jobs that load them, and who reads what. Composed on the software-architecture sample, so the store and the components are its.",
+  "nodes": [
+    {
+      "id": "table.ledger-postings",
+      "type": "Table",
+      "label": "ledger.postings",
+      "summary": "One row per posting: a captured or settled amount against an account.",
+      "attributes": {
+        "kind": "table",
+        "description": "One row per posting: a captured or settled amount against an account, in cents, at the time it was posted.",
+        "description_status": "confirmed"
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "ledger-schema",
+      "status": "current",
+      "sources": [
+        "ledger-schema"
+      ],
+      "aliases": [
+        "postings"
+      ],
+      "tags": []
+    },
+    {
+      "id": "table.ledger-accounts",
+      "type": "Table",
+      "label": "ledger.accounts",
+      "summary": "The accounts postings are made against.",
+      "attributes": {
+        "kind": "table",
+        "description": "One row per account a posting can be made against."
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "ledger-schema",
+      "status": "current",
+      "sources": [
+        "ledger-schema"
+      ],
+      "aliases": [
+        "accounts"
+      ],
+      "tags": []
+    },
+    {
+      "id": "table.ledger-daily-balances",
+      "type": "Table",
+      "label": "ledger.daily_balances",
+      "summary": "Each account's balance at the end of each day, rolled up from the postings.",
+      "attributes": {
+        "kind": "view",
+        "description": "One row per account per day: the balance at the end of the day, rolled up from the postings."
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "ledger-schema",
+      "status": "current",
+      "sources": [
+        "ledger-schema"
+      ],
+      "aliases": [
+        "daily balances"
+      ],
+      "tags": []
+    },
+    {
+      "id": "column.ledger-postings-posting-id",
+      "type": "Column",
+      "label": "posting_id",
+      "summary": "The posting's identifier.",
+      "attributes": {
+        "type": "integer",
+        "nullable": false,
+        "key": "primary",
+        "description": "The posting's identifier, assigned by the ledger on insert.",
+        "description_status": "confirmed"
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "ledger-schema",
+      "status": "current",
+      "sources": [
+        "ledger-schema"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "column.ledger-postings-account-id",
+      "type": "Column",
+      "label": "account_id",
+      "summary": "The account the posting is against.",
+      "attributes": {
+        "type": "integer",
+        "nullable": false,
+        "key": "foreign",
+        "description": "The account the posting is against; references accounts.account_id."
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "ledger-schema",
+      "status": "current",
+      "sources": [
+        "ledger-schema"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "column.ledger-postings-amount-cents",
+      "type": "Column",
+      "label": "amount_cents",
+      "summary": "The amount, in cents.",
+      "attributes": {
+        "type": "bigint",
+        "nullable": false,
+        "description": "The amount in cents; negative for a reversal."
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "ledger-schema",
+      "status": "current",
+      "sources": [
+        "ledger-schema"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "column.ledger-postings-posted-at",
+      "type": "Column",
+      "label": "posted_at",
+      "summary": "When the posting was made.",
+      "attributes": {
+        "type": "timestamp",
+        "nullable": false
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "ledger-schema",
+      "status": "current",
+      "sources": [
+        "ledger-schema"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "column.ledger-accounts-account-id",
+      "type": "Column",
+      "label": "account_id",
+      "summary": "The account's identifier.",
+      "attributes": {
+        "type": "integer",
+        "nullable": false,
+        "key": "primary",
+        "description": "The account's identifier.",
+        "description_status": "confirmed"
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "ledger-schema",
+      "status": "current",
+      "sources": [
+        "ledger-schema"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "column.ledger-accounts-currency",
+      "type": "Column",
+      "label": "currency",
+      "summary": "The account's currency.",
+      "attributes": {
+        "type": "char(3)",
+        "nullable": false,
+        "description": "The account's currency, ISO 4217."
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "ledger-schema",
+      "status": "current",
+      "sources": [
+        "ledger-schema"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "column.ledger-daily-balances-account-id",
+      "type": "Column",
+      "label": "account_id",
+      "summary": "The account the balance is of.",
+      "attributes": {
+        "type": "integer",
+        "nullable": false,
+        "key": "foreign"
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "ledger-schema",
+      "status": "current",
+      "sources": [
+        "ledger-schema"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "column.ledger-daily-balances-day",
+      "type": "Column",
+      "label": "day",
+      "summary": "The day the balance is at the end of.",
+      "attributes": {
+        "type": "date",
+        "nullable": false
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "ledger-schema",
+      "status": "current",
+      "sources": [
+        "ledger-schema"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "column.ledger-daily-balances-balance-cents",
+      "type": "Column",
+      "label": "balance_cents",
+      "summary": "The balance at the end of the day, in cents.",
+      "attributes": {
+        "type": "bigint",
+        "nullable": false,
+        "description": "The sum of the account's postings up to the end of the day, in cents."
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "ledger-schema",
+      "status": "current",
+      "sources": [
+        "ledger-schema"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "feed.custodian-settlements",
+      "type": "Feed",
+      "label": "Custodian settlement file",
+      "summary": "The custodian's nightly file of settled payments, the source of truth for postings.",
+      "attributes": {
+        "kind": "file"
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "ledger-schema",
+      "status": "current",
+      "sources": [
+        "ledger-schema"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "loadjob.posting-load",
+      "type": "LoadJob",
+      "label": "Posting load",
+      "summary": "Loads the night's settlements from the custodian file into the postings.",
+      "attributes": {
+        "schedule": "nightly at 02:00",
+        "tool": "settlement-job"
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "ledger-schema",
+      "status": "current",
+      "sources": [
+        "ledger-schema"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "loadjob.balance-rollup",
+      "type": "LoadJob",
+      "label": "Balance rollup",
+      "summary": "Rolls the postings up into the daily balances after the posting load.",
+      "attributes": {
+        "schedule": "nightly at 03:00",
+        "tool": "dbt"
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "ledger-schema",
+      "status": "current",
+      "sources": [
+        "ledger-schema"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "usage.payment-api-postings",
+      "type": "Usage",
+      "label": "Payment API reads postings",
+      "summary": "The payment API reads a customer's postings by account when it serves a statement.",
+      "attributes": {
+        "kind": "transactional",
+        "evidence": "query_log"
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "ledger-schema",
+      "status": "current",
+      "sources": [
+        "ledger-schema"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "usage.compliance-daily-balances",
+      "type": "Usage",
+      "label": "Compliance reads daily balances",
+      "summary": "Compliance aggregates the daily balances for the monthly report.",
+      "attributes": {
+        "kind": "analytical"
+      },
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "ledger-schema",
+      "status": "current",
+      "sources": [
+        "ledger-schema"
+      ],
+      "aliases": [],
+      "tags": []
+    }
+  ],
+  "edges": [
+    {"from": "table.ledger-postings", "rel": "part_of", "to": "datastore.ledger"},
+    {"from": "table.ledger-accounts", "rel": "part_of", "to": "datastore.ledger"},
+    {"from": "table.ledger-daily-balances", "rel": "part_of", "to": "datastore.ledger"},
+    {"from": "column.ledger-postings-posting-id", "rel": "column_of", "to": "table.ledger-postings"},
+    {"from": "column.ledger-postings-account-id", "rel": "column_of", "to": "table.ledger-postings"},
+    {"from": "column.ledger-postings-amount-cents", "rel": "column_of", "to": "table.ledger-postings"},
+    {"from": "column.ledger-postings-posted-at", "rel": "column_of", "to": "table.ledger-postings"},
+    {"from": "column.ledger-accounts-account-id", "rel": "column_of", "to": "table.ledger-accounts"},
+    {"from": "column.ledger-accounts-currency", "rel": "column_of", "to": "table.ledger-accounts"},
+    {"from": "column.ledger-daily-balances-account-id", "rel": "column_of", "to": "table.ledger-daily-balances"},
+    {"from": "column.ledger-daily-balances-day", "rel": "column_of", "to": "table.ledger-daily-balances"},
+    {"from": "column.ledger-daily-balances-balance-cents", "rel": "column_of", "to": "table.ledger-daily-balances"},
+    {"from": "column.ledger-postings-account-id", "rel": "references", "to": "column.ledger-accounts-account-id"},
+    {"from": "column.ledger-daily-balances-account-id", "rel": "references", "to": "column.ledger-accounts-account-id"},
+    {"from": "table.ledger-postings", "rel": "loaded_by", "to": "loadjob.posting-load"},
+    {"from": "table.ledger-daily-balances", "rel": "loaded_by", "to": "loadjob.balance-rollup"},
+    {"from": "loadjob.posting-load", "rel": "sourced_from", "to": "feed.custodian-settlements"},
+    {"from": "loadjob.balance-rollup", "rel": "sourced_from", "to": "table.ledger-postings"},
+    {"from": "usage.payment-api-postings", "rel": "use_of", "to": "table.ledger-postings"},
+    {"from": "usage.payment-api-postings", "rel": "used_by", "to": "component.payment-api"},
+    {"from": "usage.compliance-daily-balances", "rel": "use_of", "to": "table.ledger-daily-balances"},
+    {"from": "usage.compliance-daily-balances", "rel": "used_by", "to": "role.r-compliance"}
+  ]
+}

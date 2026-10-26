@@ -1,0 +1,145 @@
+{
+  "_about": "The data semantic layer: a database schema recorded as facts, with what the schema alone cannot tell, what each table is about, where its rows come from and who reads them. On software-architecture: a table is part of a DataStore the estate already declares, and a consumer is a Component, Team or Role that already exists, so the data layer and the architecture graph are one vocabulary. The schema is introspected from the store (a fact cited to a schema snapshot); meaning is drafted by an agent and confirmed by a person; lineage comes from ETL code and job configs; usage from query logs and declared readers. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
+  "_summary": "A database schema as facts, with what each table is about, where its rows come from and who reads them: tables and columns of the estate's stores, the feeds and jobs that load them, each consumer's use (transactional or analytical), and whether a meaning is a draft or confirmed.",
+  "name": "Data",
+  "ontology_version": 1,
+  "strict_domains": false,
+  "languages": [
+    "en"
+  ],
+  "classes": {
+    "Table": {
+      "definition": "A relation in a data store: a table or a view, with its columns. Part of the DataStore it lives in. What it is about is a description that is a draft until a person confirms it."
+    },
+    "Column": {
+      "definition": "One column of one table: its type, whether it may be null, whether it is a key, and what it means. A foreign key references the column it points at."
+    },
+    "Feed": {
+      "definition": "An external source a store is loaded from: a file dropped by a partner, an API, a stream, another organisation's database. Where the rows come from before any job touched them, so the source of truth is named."
+    },
+    "LoadJob": {
+      "definition": "The process that loads a table: an ETL or ELT job, a scheduled query, a replication task. Sourced from a feed, a table or a store; loads one or more tables. Its schedule and tool are what the config says."
+    },
+    "Usage": {
+      "definition": "One consumer's use of one table: who reads it (a component, a team or a role) and how, transactionally (reads by key, as an application does) or analytically (aggregates, as a report does). Known from a query log or declared by a person."
+    }
+  },
+  "properties": {
+    "column_of": {
+      "domain": "Column",
+      "range": "Table",
+      "inverse": "has_column",
+      "min": 1,
+      "max": 1,
+      "definition": "The one table a column belongs to. A column of two tables is two columns."
+    },
+    "references": {
+      "domain": "Column",
+      "range": "Column",
+      "inverse": "referenced_by",
+      "definition": "The column a foreign key points at, so a join path is a walk in the graph."
+    },
+    "loaded_by": {
+      "domain": "Table",
+      "range": "LoadJob",
+      "inverse": "loads",
+      "definition": "The job that writes the table's rows. A table nothing loads is either a source itself or a gap to record."
+    },
+    "sourced_from": {
+      "domain": "LoadJob",
+      "range": "Feed|Table|DataStore",
+      "inverse": "feeds",
+      "definition": "Where a job takes its input: an external feed, another table, or a whole store when the config says no more. Lineage is this edge followed back to a feed."
+    },
+    "use_of": {
+      "domain": "Usage",
+      "range": "Table",
+      "inverse": "used_as",
+      "min": 1,
+      "max": 1,
+      "definition": "The one table a use is about."
+    },
+    "used_by": {
+      "domain": "Usage",
+      "range": "Component|Team|Role",
+      "inverse": "uses",
+      "definition": "Who reads the table in this use: the component, when the reader is software; the team or role, when the reader is people and their reports."
+    },
+    "part_of": {
+      "domain": "Feature|JourneyStep|Component|Interface|DataStore|Table",
+      "range": "Product|Feature|UserJourney|System|DataStore",
+      "inverse": "contains",
+      "max": 1,
+      "definition": "Membership in a larger whole. Widened to the estate: a component is part of a system. Widened to the data layer: a table is part of the data store it lives in, the store the estate already declares, so a component that reads from the store and the tables it holds are one picture."
+    }
+  },
+  "attributes": {
+    "Table": {
+      "kind": {
+        "type": "enum:table|view",
+        "definition": "A table holds rows; a view is a query over other tables."
+      },
+      "description": {
+        "type": "string",
+        "definition": "What the table is about, in a sentence: the grain (one row per what) and the subject. Drafted by an agent from the schema and the lineage; a person confirms it."
+      },
+      "description_status": {
+        "type": "enum:draft|confirmed",
+        "definition": "Whether a person has confirmed the description. A draft until someone does; a description nobody confirmed is a guess, labelled as one.",
+        "default": "draft"
+      }
+    },
+    "Column": {
+      "type": {
+        "type": "string",
+        "definition": "The store's type for the column, as the catalog says it: integer, text, timestamp, numeric(12,2).",
+        "required": true
+      },
+      "nullable": {
+        "type": "boolean",
+        "definition": "Whether the column may be null."
+      },
+      "key": {
+        "type": "enum:primary|foreign",
+        "definition": "Primary when the column identifies the row; foreign when it references another table's column (`references` says which)."
+      },
+      "description": {
+        "type": "string",
+        "definition": "What the column means: the unit, the encoding, what a null means. Drafted by an agent; a person confirms it."
+      },
+      "description_status": {
+        "type": "enum:draft|confirmed",
+        "definition": "Whether a person has confirmed the column's description. A draft until someone does.",
+        "default": "draft"
+      }
+    },
+    "Feed": {
+      "kind": {
+        "type": "enum:file|api|stream|database",
+        "definition": "How the feed arrives: a file, an API, a stream, or a database read directly."
+      }
+    },
+    "LoadJob": {
+      "schedule": {
+        "type": "string",
+        "definition": "When the job runs, as the config says it: nightly at 02:00, every 15 minutes, on arrival."
+      },
+      "tool": {
+        "type": "string",
+        "definition": "What runs it: dbt, Airflow, a cron script, a component of the estate by name."
+      }
+    },
+    "Usage": {
+      "kind": {
+        "type": "enum:transactional|analytical",
+        "definition": "Transactional: reads by key, a few rows at a time, as an application serving a user does. Analytical: scans and aggregates, as a report or a model does. The two have different owners, different hours and different tolerance for change.",
+        "required": true
+      },
+      "evidence": {
+        "type": "enum:query_log|declared",
+        "definition": "How the use is known: observed in the store's query log, or declared by a person who knows the reader. Declared when unsaid.",
+        "default": "declared"
+      }
+    }
+  }
+}

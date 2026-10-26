@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """`oto arch`: the architecture graph for implementation. import reads a CALM model into a document
-and a proposal in the architecture vocabulary (roadmap H1); export writes the graph's CALM facts back."""
+and a proposal in the architecture vocabulary (roadmap H1); export writes the graph's CALM facts back;
+map reads a code repository into a code map; compile runs what the project declares, on every merge (H2)."""
 import json
 import os
 import sys
@@ -47,18 +48,55 @@ def cmd_arch(args):
         else:
             sys.stdout.write(text)
         return 0
+    if args.arch_command == "map":
+        if not args.repo:
+            print("oto: map takes --repo <path>, the code repository to read, and --repository repo.<id>, the estate's node for it", file=sys.stderr)
+            return 1
+        try:
+            done = _arch.map_repo(project, args.repo, args.repository, args.at, name=args.name)
+        except _arch.ArchError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        rel = lambda p: os.path.relpath(p, project.data)  # noqa: E731
+        print("%s: %d module(s), %d commit(s) read from %s (%s)" % (done["doc"], done["modules"], done["commits"], args.repo, done["convention"]))
+        print("  document %s (kept in %s)" % (rel(done["document"]), rel(done["archive"])))
+        print("  proposal %s" % rel(done["proposal"]))
+        if done["gaps"]:
+            print("  what the code map cannot say:")
+            for gap in done["gaps"]:
+                print("    %s" % gap)
+        print("  next: oto curate start (if no candidate is open), oto curate add --from %s, oto curate check, oto curate apply --by <you> --note \"...\"" % rel(done["proposal"]))
+        return 0
+    if args.arch_command == "compile":
+        try:
+            done = _arch.compile_project(project, args.at, args.by, note=args.note)
+        except _arch.ArchError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        rel = lambda p: os.path.relpath(p, project.data)  # noqa: E731
+        print("compiled %d proposal(s): %s" % (len(done["proposals"]), ", ".join(rel(p) for p in done["proposals"])))
+        for gap in done["gaps"]:
+            print("  noted: %s" % gap)
+        print("  applied by %s on %s%s, and built" % (args.by, args.at, " (%s)" % args.note if args.note else ""))
+        return 0
     print("oto: unknown arch command %r" % args.arch_command, file=sys.stderr)
     return 1
 
 
 def register(sub):
     arch = sub.add_parser("arch", help="the architecture graph for implementation: a CALM model in, through the gates, and back out")
-    arch.add_argument("arch_command", choices=["import", "export"],
-                      help="import reads a CALM model (--calm <file>) into a document and a proposal; export writes the graph's CALM facts as a model")
+    arch.add_argument("arch_command", choices=["import", "export", "map", "compile"],
+                      help="import reads a CALM model (--calm <file>) into a document and a proposal; export writes the graph's CALM facts as a model; "
+                           "map reads a code repository (--repo, --repository) into a code-map document and a proposal; "
+                           "compile runs what project.config.json declares under `arch` through the gates and builds")
     arch.add_argument("--calm", nargs="?", const=True, default=None, help="for import: the CALM model file; for export: the format (the only one)")
     arch.add_argument("--at", default=None, help="for import: the date the model was read, YYYY-MM-DD; never defaulted")
     arch.add_argument("--name", default=None, help="for import: the document's slug (default: the file's stem)")
     arch.add_argument("--environment", default=None, help="for import: the Environment the estate declares, for what the model deploys nowhere")
     arch.add_argument("--out", default=None, help="for export: write the model here instead of printing it")
+    arch.add_argument("--repo", default=None, help="for map: the code repository to read (a git checkout records its commits)")
+    arch.add_argument("--repository", default=None, help="for map: the Repository node the estate declares for it, repo.<id>")
+    arch.add_argument("--by", default=None, help="for compile: who compiles (the workflow names itself)")
+    arch.add_argument("--note", default=None, help="for compile: what to record with the apply, such as the merge's sha")
     project_arguments(arch)
     arch.set_defaults(func=cmd_arch)

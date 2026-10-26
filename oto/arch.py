@@ -1,8 +1,25 @@
 # -*- coding: utf-8 -*-
-"""The architecture graph's commands (roadmap Epic H). This release: a CALM model in and out (H1).
+"""The architecture graph's commands (roadmap Epic H): a CALM model in and out (H1), the code map
+and compile on merge (H2).
 
     oto arch import --calm model.json --at YYYY-MM-DD [--name <slug>] [--environment environment.<id>]
     oto arch export --calm [--out model.json]
+    oto arch map --repo <path> --repository repo.<id> --at YYYY-MM-DD [--name <slug>]
+    oto arch compile --at YYYY-MM-DD --by <who> [--note "..."]
+
+`map` scans a code repository by a declared convention (`oto.codemap.json` at its root, else every
+directory under `src/` is a module of the component named after it) into a code-map document and a
+proposal: a `CodeModule` per module with its path and language, `located_in` the repository the
+estate declares, `implemented_by` from the component the convention names when the graph holds it
+(a module whose component the graph lacks is proposed untraced, never a component invented: AR9
+lists it), and the last `Commit` that `touches` each module when the repository is a git checkout.
+Mapped again after a merge, the modules are the same facts and the new commit is one more node.
+
+`compile` runs what project.config.json declares under `arch` ({"calm": [paths], "environment":
+environment.<id>, "codemap": {"repo": path, "repository": repo.<id>}}): the imports and the map,
+through the gates and applied with the merge in the note, then built. A merge the gates refuse
+leaves no candidate behind and names the findings. The `oto architecture` workflow runs it on
+every merge to main, so the graph matches main and nobody edits it by hand.
 
 `import` reads a CALM 1.x model (the FINOS Common Architecture Language Model; the pack is aligned
 with release 1.0 and the core schema is unchanged through 1.3) into a document in the corpus
@@ -23,9 +40,15 @@ What CALM does not say is not invented: a node CALM deploys nowhere runs nowhere
 `--environment` names the estate's environment it runs in, and a node CALM composes in nothing is
 part of nothing, which the estate's shape names at the gate.
 """
+import collections
+import contextlib
+import fnmatch
+import glob as _glob
+import io
 import json
 import os
 import re
+import subprocess
 
 from .data import _slug
 from .project import ProjectError
@@ -39,6 +62,13 @@ SHAPES = ("interacts", "connects", "deployed-in", "composed-of", "options")
 PROTOCOLS = ("HTTP", "HTTPS", "FTP", "SFTP", "JDBC", "WebSocket", "SocketIO", "LDAP", "AMQP", "TLS", "mTLS", "TCP")
 HEADER_SKIP = ("nodes", "relationships", "controls", "flows")
 RELATIONSHIP, CONTROL, FLOW, STEP, INTERFACE, DECISION, DOCUMENT = "Relationship", "Control", "Flow", "FlowStep", "Interface", "Decision", "Document"
+MODULE, COMMIT = "CodeModule", "Commit"
+CONVENTION_NAME = "oto.codemap.json"
+DEFAULT_CONVENTION = {"modules": [{"path": "src/*", "component": "component.{name}"}]}
+DEFAULT_IGNORE = (".git", "node_modules", "__pycache__", ".venv", "venv", "build", "dist", "target", ".tox", ".mypy_cache", ".pytest_cache")
+LANGUAGES = {".py": "python", ".ts": "typescript", ".tsx": "typescript", ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript", ".java": "java",
+             ".go": "go", ".rs": "rust", ".kt": "kotlin", ".cs": "csharp", ".rb": "ruby", ".sql": "sql", ".sh": "shell", ".scala": "scala", ".php": "php",
+             ".swift": "swift", ".c": "c", ".h": "c", ".cpp": "cpp", ".hpp": "cpp", ".tf": "terraform", ".dart": "dart", ".ex": "elixir", ".exs": "elixir"}
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -495,3 +525,242 @@ def export_calm(project):
     if flows:
         model["flows"] = flows
     return model
+
+
+# ---- the code map ----
+
+def convention_for(repo_path):
+    """`oto.codemap.json` at the repository root, else the default: every directory under src/ is a
+    module of the component named after it."""
+    path = os.path.join(repo_path, CONVENTION_NAME)
+    if not os.path.isfile(path):
+        return DEFAULT_CONVENTION
+    with open(path, encoding="utf-8") as f:
+        try:
+            return json.load(f)
+        except ValueError as exc:
+            raise ArchError("%s is not JSON: %s" % (path, exc))
+
+
+def _ignored(relative, ignore):
+    parts = relative.replace(os.sep, "/").split("/")
+    for pattern in ignore:
+        if any(fnmatch.fnmatch(part, pattern) for part in parts) or fnmatch.fnmatch(relative.replace(os.sep, "/"), pattern):
+            return True
+    return False
+
+
+def _language(directory, ignore):
+    counts = collections.Counter()
+    for root, dirs, files in os.walk(directory):
+        dirs[:] = [d for d in dirs if not _ignored(d, ignore)]
+        for name in files:
+            ext = os.path.splitext(name)[1].lower()
+            if ext in LANGUAGES:
+                counts[LANGUAGES[ext]] += 1
+    return counts.most_common(1)[0][0] if counts else None
+
+
+def _last_commit(repo_path, relative):
+    try:
+        out = subprocess.run(["git", "-C", repo_path, "log", "-1", "--format=%H%x1f%ad%x1f%an%x1f%s", "--date=short", "--", relative],
+                             check=True, capture_output=True, text=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    if not out:
+        return None
+    sha, date, author, subject = (out.split("\x1f") + ["", "", "", ""])[:4]
+    return {"sha": sha, "committed_on": date, "author": author, "message": subject}
+
+
+def scan(repo_path, convention):
+    """{"modules": [{"path", "component", "language", "commit"}], "git": bool}: the repository read by
+    the convention, modules in path order, each once (the first spec that names a path wins)."""
+    if not isinstance(convention, dict) or not isinstance(convention.get("modules"), list):
+        raise ArchError("a code-map convention is {\"modules\": [{\"path\": \"src/*\", \"component\": \"component.{name}\"}, ...], \"ignore\": [...]}")
+    ignore = list(DEFAULT_IGNORE) + [str(x) for x in convention.get("ignore") or []]
+    is_git = os.path.isdir(os.path.join(repo_path, ".git"))
+    found, seen = [], set()
+    for spec in convention["modules"]:
+        if not isinstance(spec, dict) or not isinstance(spec.get("path"), str) or not spec["path"].strip():
+            raise ArchError("every module spec names a `path` (a directory or a glob, relative to the repository) and a `component` (an id with {name}, or null)")
+        excepted = {str(x).strip("/") for x in spec.get("except") or []}
+        matches = sorted(d for d in _glob.glob(os.path.join(repo_path, spec["path"].strip("/"))) if os.path.isdir(d))
+        for directory in matches:
+            relative = os.path.relpath(directory, repo_path).replace(os.sep, "/")
+            if relative in seen or relative in excepted or _ignored(relative, ignore):
+                continue
+            seen.add(relative)
+            component = spec.get("component")
+            if isinstance(component, str):
+                component = component.replace("{name}", _slug(relative.rsplit("/", 1)[-1])) or None
+            found.append({"path": relative, "component": component, "language": _language(directory, ignore),
+                          "commit": _last_commit(repo_path, relative) if is_git else None})
+    found.sort(key=lambda m: m["path"])
+    return {"modules": found, "git": is_git}
+
+
+def _repository_slug(repository_id):
+    return _slug(repository_id.split(".", 1)[1] if "." in repository_id else repository_id)
+
+
+def module_id(repository_id, path):
+    return "codemodule.%s-%s" % (_repository_slug(repository_id), _slug(path))
+
+
+def module_line(module):
+    return "%s (%s)" % (module["path"], module.get("language") or "unknown")
+
+
+def commit_line(commit):
+    """The full sha, so the gate finds the value the fact carries in the document it cites."""
+    return "%s %s %s" % (commit["sha"], commit["committed_on"], commit["author"])
+
+
+def codemap_document(found, repository_id, repo_path, at, source):
+    repo = _repository_slug(repository_id)
+    title = "Code map of %s" % repo
+    lines = ["# %s" % title, "", "Read from %s on %s by `oto arch map` (%s). One line per module, with its language and the component the convention "
+             "names, and one per last commit that touched it; each fact in the graph quotes its line here." % (repo_path, at, source), "", "## Modules", ""]
+    for m in found["modules"]:
+        lines.append("- %s: %s" % (module_line(m), m["component"] or "no component"))
+        if m.get("commit"):
+            lines.append("  - %s: %s" % (commit_line(m["commit"]), m["commit"]["message"]))
+    return title, "\n".join(lines).rstrip() + "\n"
+
+
+def propose_codemap(found, repository_id, doc, at, graph_ids, repo_path, source):
+    """(proposal, gaps): modules, their commits and the edges to the estate's repository and components."""
+    repo = _repository_slug(repository_id)
+    title, _text = codemap_document(found, repository_id, repo_path, at, source)
+    nodes = [{"id": "document.%s" % doc, "type": DOCUMENT, "label": title, "summary": "The code map of %s as `oto arch map` read it; the date is the fact's own." % repo,
+              "attributes": {"kind": "architecture"}, "valid_from": at, "evidence": [{"doc": doc, "where": "title", "quote": title}]}]
+    edges, gaps, commits = [], [], {}
+    for m in found["modules"]:
+        mid = module_id(repository_id, m["path"])
+        attributes = {"path": m["path"]}
+        if m.get("language"):
+            attributes["language"] = m["language"]
+        nodes.append({"id": mid, "type": MODULE, "label": m["path"], "summary": "The %s module of %s." % (m["path"], repo), "attributes": attributes,
+                      "valid_from": at, "evidence": [{"doc": doc, "where": "modules", "quote": module_line(m)}]})
+        edges.append({"from": mid, "rel": "located_in", "to": repository_id})
+        if m["component"]:
+            if m["component"] in graph_ids:
+                edges.append({"from": m["component"], "rel": "implemented_by", "to": mid})
+            else:
+                gaps.append("%s: the convention names %s, which the graph lacks; the module is proposed untraced (AR9 lists it)" % (m["path"], m["component"]))
+        if m.get("commit"):
+            c = m["commit"]
+            cid = "commit.%s" % c["sha"][:12]
+            if cid not in commits:
+                commits[cid] = True
+                nodes.append({"id": cid, "type": COMMIT, "label": "%s %s" % (c["sha"][:7], c["message"]), "summary": c["message"],
+                              "attributes": {"sha": c["sha"], "committed_on": c["committed_on"], "author": c["author"], "message": c["message"]},
+                              "valid_from": c["committed_on"] or at, "evidence": [{"doc": doc, "where": "modules", "quote": commit_line(c)}]})
+            edges.append({"from": cid, "rel": "touches", "to": mid})
+    if not found["git"]:
+        gaps.append("%s is not a git checkout: no commits recorded" % repo_path)
+    return {"source_doc": doc, "as_of": at, "nodes": nodes, "edges": edges}, gaps
+
+
+def map_repo(project, repo_path, repository_id, at, name=None):
+    """Scan, write the document and the proposal. Returns {"doc", "document", "archive", "proposal",
+    "modules", "commits", "gaps", "convention"}."""
+    if not at or not ISO_DATE.match(str(at)):
+        raise ArchError("--at YYYY-MM-DD is required: the date the code was read is never defaulted")
+    if not repository_id:
+        raise ArchError("--repository repo.<id> names the Repository the estate declares (SA14), where these modules live")
+    with open(project.ontology_config_path, encoding="utf-8") as f:
+        classes = json.load(f).get("classes") or {}
+    if MODULE not in classes or COMMIT not in classes:
+        raise ArchError("the vocabulary declares no CodeModule and Commit: the architecture ontology does (oto init --ontology architecture, or compose it)")
+    if not os.path.isdir(repo_path):
+        raise ArchError("no such repository: %s" % repo_path)
+    from .data import _graph_ids
+    graph_ids = _graph_ids(project)
+    if repository_id not in graph_ids:
+        raise ArchError("the graph holds no %s. The estate declares the repository (a Repository node, SA14) before the code map describes it" % repository_id)
+    convention = convention_for(repo_path)
+    source = CONVENTION_NAME if os.path.isfile(os.path.join(repo_path, CONVENTION_NAME)) else "the default convention, src/*"
+    found = scan(repo_path, convention)
+    doc = "codemap-%s" % (_slug(name) if name else _repository_slug(repository_id))
+    title, text = codemap_document(found, repository_id, repo_path, at, source)
+    proposal, gaps = propose_codemap(found, repository_id, doc, at, graph_ids, repo_path, source)
+    corpus = os.path.join(project.layout.corpus, doc + ".md")
+    archive = os.path.join(project.layout.archive, doc + ".md")
+    for target in (corpus, archive):
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+    out_dir = os.path.join(project.data, "proposals")
+    os.makedirs(out_dir, exist_ok=True)
+    out = os.path.join(out_dir, doc + ".json")
+    with open(out, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(proposal, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    return {"doc": doc, "document": corpus, "archive": archive, "proposal": out, "modules": len(found["modules"]),
+            "commits": sum(1 for n in proposal["nodes"] if n["type"] == COMMIT), "gaps": gaps, "convention": source}
+
+
+# ---- compile on merge ----
+
+def compile_project(project, at, by, note=None):
+    """What project.config.json declares under `arch`, imported and mapped, through the gates, applied
+    and built. Returns {"proposals": [...], "gaps": [...], "applied": True, "built": True}. Refused
+    at the gate, it aborts the candidate and raises with the findings."""
+    from .cli import main as _main
+    from .curate import session as _session
+    if not at or not ISO_DATE.match(str(at)):
+        raise ArchError("--at YYYY-MM-DD is required: the date of the merge is never defaulted")
+    if not (by or "").strip():
+        raise ArchError("--by names who compiles: the workflow, or a person")
+    arch_cfg = project.config().get("arch") or {}
+    calm_paths = arch_cfg.get("calm") or []
+    codemap = arch_cfg.get("codemap") or {}
+    if not calm_paths and not codemap:
+        raise ArchError("project.config.json declares no `arch`: {\"calm\": [\"<model.json>\", ...], \"environment\": \"environment.<id>\", "
+                        "\"codemap\": {\"repo\": \"<path>\", \"repository\": \"repo.<id>\"}}. Nothing to compile")
+    if _session.exists(project):
+        raise ArchError("a candidate is open: apply or abort it before compiling (oto curate apply / abort)")
+    proposals, gaps = [], []
+    for relative in calm_paths:
+        done = import_calm(project, os.path.join(project.data, relative), at, environment=arch_cfg.get("environment"))
+        proposals.append(done["proposal"])
+        gaps += done["gaps"]
+    if codemap:
+        if not codemap.get("repository"):
+            raise ArchError("arch.codemap names no `repository`: the Repository the estate declares")
+        done = map_repo(project, os.path.join(project.data, codemap.get("repo") or "."), codemap["repository"], at)
+        proposals.append(done["proposal"])
+        gaps += done["gaps"]
+    root = project.data
+
+    def run(*args):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
+            code = _main(list(args) + ["--project", root])
+        return code, out.getvalue()
+
+    code, out = run("curate", "start")
+    if code != 0:
+        raise ArchError("could not open a candidate:\n%s" % out.strip())
+    try:
+        for path in proposals:
+            code, out = run("curate", "add", "--from", path)
+            if code != 0:
+                raise ArchError("refused while adding %s:\n%s" % (os.path.relpath(path, root), out.strip()))
+        code, out = run("curate", "check")
+        if code != 0:
+            findings = out.split("gap (")[0] if "blocking (" in out.split("gap (")[0] else out
+            findings = findings[findings.index("blocking ("):] if "blocking (" in findings else findings
+            raise ArchError("refused at the gate; the graph is unchanged:\n%s" % findings.strip())
+        code, out = run("curate", "apply", "--by", by.strip(), "--note", (note or "compiled by oto arch compile").strip())
+        if code != 0:
+            raise ArchError("could not apply:\n%s" % out.strip())
+    except ArchError:
+        run("curate", "abort")
+        raise
+    code, out = run("build")
+    if code != 0:
+        raise ArchError("applied, but the build failed:\n%s" % out.strip())
+    return {"proposals": proposals, "gaps": gaps, "applied": True, "built": True}

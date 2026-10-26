@@ -1,20 +1,27 @@
 # -*- coding: utf-8 -*-
-"""The SQLite connector: the indexed store every machine has, in one file beside the build.
+"""The SQLite connector: the indexed store every machine has, in one file beside the build; and the
+reference overlay, reading any SQLite file's catalog in place.
 
 The store's schema is fixed (`targets/sqlite.py`): entities, aliases, edges, derived facts, findings,
 the corpus passages, the lexicon, the vocabulary's terms, the questions and the recent ledger, each a
 table, with the node's id as primary key. A publish writes a fresh file next to the old one and
 replaces it in one step, so a server holding the old file never reads a half-written store.
+
+As an overlay (`introspect`, `query_log`, `native_read`) it reads a store OTO does not own: the
+tables and views from sqlite_master, the columns from PRAGMA table_info and the foreign keys from
+PRAGMA foreign_key_list; a read-only query runs on a connection opened read-only with query_only
+set, one SELECT at a time, so nothing it is asked can write. SQLite keeps no query log.
 """
 import json
 import os
+import re
 import sqlite3
 
 from . import Connector
 from ..targets import sqlite as _target
 
 MANIFEST = {
-    "name": "sqlite", "version": "1.0.0", "modes": ["materialize"], "query_language": "sql",
+    "name": "sqlite", "version": "1.1.0", "modes": ["materialize", "overlay"], "query_language": "sql",
     "capabilities": {"named_graphs": False, "schema_constraints": True, "transactions": True, "vector_index": False,
                      "full_text": True},
     "auth": ["file"], "conformance": "kit@1",
@@ -148,6 +155,62 @@ class SqliteConnector(Connector):
             differences.append("relationships: planned %d, found %d" % (len(want_rels), len(got["relationships"])))
         return differences
 
+    # ---- overlay: the store read in place ----
+    def introspect(self, session):
+        """The catalog of the file at session["path"]: tables and views in name order, each with
+        its columns in declared order. A column SQLite gives no type (an expression in a view) is
+        typed ANY, SQLite's own name for it."""
+        path = session["path"]
+        if not os.path.exists(path):
+            raise FileNotFoundError("%s: no such file" % path)
+        con = sqlite3.connect("file:%s?mode=ro" % path, uri=True)
+        try:
+            tables = []
+            rows = con.execute("SELECT name, type FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name").fetchall()
+            for name, kind in rows:
+                foreign = {}
+                for fk in con.execute("PRAGMA foreign_key_list(%s)" % _quote(name)):
+                    # id, seq, table, from, to, on_update, on_delete, match
+                    foreign[fk[3]] = "%s.%s" % (fk[2], fk[4] or fk[3])
+                columns = []
+                for c in con.execute("PRAGMA table_info(%s)" % _quote(name)):
+                    # cid, name, type, notnull, dflt_value, pk
+                    cname, ctype, notnull, pk = c[1], (c[2] or "").strip() or "ANY", bool(c[3]), bool(c[5])
+                    key = "primary" if pk else ("foreign" if cname in foreign else None)
+                    columns.append({"name": cname, "type": ctype, "nullable": not notnull and not pk, "key": key,
+                                    "references": foreign.get(cname)})
+                tables.append({"name": name, "kind": kind, "columns": columns})
+        finally:
+            con.close()
+        return {"store": os.path.splitext(os.path.basename(path))[0], "tables": tables}
+
+    def query_log(self, session, since=None):
+        """SQLite keeps no query log: nothing to read, and that is not an error."""
+        return []
+
+    def native_read(self, session, sql, limit=100):
+        """One SELECT, read-only, at most `limit` rows. Refused in words when it is not a SELECT (or a
+        WITH that selects), when it is more than one statement, or when the store would have to write:
+        the connection is opened read-only and query_only is set, so the refusal does not rest on the
+        words alone."""
+        text = (sql or "").strip().rstrip(";").strip()
+        if ";" in text:
+            raise ValueError("read-only: one statement at a time")
+        if not re.match(r"(?is)^(select|with)\b", text):
+            raise ValueError("read-only: a native read is a SELECT (or a WITH ... SELECT); %r is not" % text[:40])
+        con = sqlite3.connect("file:%s?mode=ro" % session["path"], uri=True)
+        try:
+            con.execute("PRAGMA query_only = 1")
+            try:
+                cursor = con.execute(text)
+                rows = cursor.fetchmany(limit + 1)
+            except sqlite3.Error as exc:
+                raise ValueError("read-only query refused by the store: %s" % exc)
+            columns = [d[0] for d in cursor.description or []]
+        finally:
+            con.close()
+        return {"columns": columns, "rows": [list(r) for r in rows[:limit]], "truncated": len(rows) > limit}
+
     # ---- the build stage ----
     def stage(self, project):
         """What `oto build` runs: the plan into the project's store, and one line about it."""
@@ -167,3 +230,7 @@ class SqliteConnector(Connector):
         print(f"{os.path.basename(path)}: {counts['nodes']} nodes, {counts['edges']} edges ({counts['derived']} derived), "
               f"{counts['passages']} passages, {counts['lexicon']} lexicon rows, {counts['terms']} terms, "
               f"{counts['questions']} questions -> {os.path.relpath(path, project.src)}")
+
+
+def _quote(name):
+    return '"%s"' % str(name).replace('"', '""')

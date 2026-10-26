@@ -3,9 +3,11 @@
 
 OTO's model is store-neutral. A connector translates it into one store and says in its manifest what
 that store can do. Two modes exist: **materialize**, OTO pushes nodes and edges into a store it owns
-(SQLite, Neo4j); **overlay**, OTO defines a graph over tables that already exist (BigQuery graph,
-Postgres), the data semantic layer's way in. This package ships the materialize connectors; the
-build stages call them and nothing else of OTO talks to a store directly.
+(SQLite, Neo4j); **overlay**, OTO reads a store that already exists, in place, and never copies a
+row: its catalog, its query log, a read-only query. The overlay is the data semantic layer's way in
+(roadmap C1): `oto data introspect` turns the catalog into Table and Column facts. SQLite is both,
+the reference overlay every machine can run; Postgres and BigQuery follow. The build stages and
+`oto data` call connectors and nothing else of OTO talks to a store directly.
 
     MANIFEST        name, version, modes, query_language, capabilities, auth, conformance ("kit@N")
     settings        what the project config says about the store
@@ -18,6 +20,11 @@ build stages call them and nothing else of OTO talks to a store directly.
     snapshot        the store's contents in one canonical shape, to compare two publishes or two stores
     drop            a plan without one node and its edges, for the retirement check
 
+    introspect      (overlay) the store's catalog: tables and views, columns with type, nullability,
+                    key and the column a foreign key references; the same catalog read twice is equal
+    query_log       (overlay) what was asked of the store, when the store keeps a log; [] when it does not
+    native_read     (overlay) one read-only query, refused unless it is a SELECT and cannot write
+
 A connector is listed (`oto connectors`) only with a manifest that validates and a conformance run
 (`conformance.py`): round trip, idempotency, IRI stability across two stores, retirement. The suite
 runs the kit for SQLite on every machine and for Neo4j where one is reachable (CI's neo4j job).
@@ -29,6 +36,9 @@ MODES = ("materialize", "overlay")
 CAPABILITIES = ("named_graphs", "schema_constraints", "transactions", "vector_index", "full_text")
 MANIFEST_KEYS = ("name", "version", "modes", "query_language", "capabilities", "auth", "conformance")
 METHODS = ("settings", "connect", "close", "apply_schema", "schema_snapshot", "plan", "publish", "read_back", "snapshot", "drop")
+SESSION_METHODS = ("settings", "connect", "close")                 # every mode opens a session
+MATERIALIZE_METHODS = ("apply_schema", "schema_snapshot", "plan", "publish", "read_back", "snapshot", "drop")
+OVERLAY_METHODS = ("introspect", "query_log", "native_read")
 REGISTRY = {"neo4j": "oto.connectors.neo4j", "sqlite": "oto.connectors.sqlite"}
 
 
@@ -66,6 +76,19 @@ class Connector:
         raise NotImplementedError
 
     def drop(self, plan, node_id):
+        raise NotImplementedError
+
+    # ---- overlay ----
+    def introspect(self, session):
+        """{"store": name, "tables": [{"name", "kind": table|view, "columns": [{"name", "type", "nullable", "key", "references"}]}]}, sorted."""
+        raise NotImplementedError
+
+    def query_log(self, session, since=None):
+        """[{"at", "sql", ...}] the store recorded, or [] when it keeps no log."""
+        raise NotImplementedError
+
+    def native_read(self, session, sql, limit=100):
+        """{"columns", "rows", "truncated"} for one SELECT; ValueError for anything that could write."""
         raise NotImplementedError
 
 
@@ -107,10 +130,18 @@ def manifest_problems(manifest):
 
 
 def interface_problems(connector):
-    """The methods a connector class or instance does not implement."""
+    """The methods a connector does not implement of the modes its manifest declares: a session
+    always, the materialize methods for `materialize`, the overlay methods for `overlay`."""
     cls = connector if isinstance(connector, type) else type(connector)
-    return ["%s does not implement %s" % (getattr(connector, "name", None) or cls.__name__, method)
-            for method in METHODS if getattr(cls, method, None) is getattr(Connector, method)]
+    modes = (getattr(connector, "MANIFEST", None) or {}).get("modes") or list(MODES)
+    wanted = list(SESSION_METHODS)
+    if "materialize" in modes:
+        wanted += MATERIALIZE_METHODS
+    if "overlay" in modes:
+        wanted += OVERLAY_METHODS
+    return ["%s does not implement %s (%s)" % (getattr(connector, "name", None) or cls.__name__, method,
+                                              "overlay" if method in OVERLAY_METHODS else "materialize" if method in MATERIALIZE_METHODS else "session")
+            for method in wanted if getattr(cls, method, None) is getattr(Connector, method)]
 
 
 def available():

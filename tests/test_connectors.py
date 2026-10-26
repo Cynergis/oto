@@ -47,7 +47,7 @@ def test_the_shipped_connectors_are_listed_with_valid_manifests():
     for name in connectors.available():
         manifest = connectors.get(name).MANIFEST
         assert connectors.manifest_problems(manifest) == [], name
-        assert manifest["name"] == name and manifest["modes"] == ["materialize"]
+        assert manifest["name"] == name and manifest["modes"] == (["materialize", "overlay"] if name == "sqlite" else ["materialize"])
         assert manifest["conformance"] == "kit@%d" % conformance.KIT_VERSION
     assert connectors.get("sqlite").MANIFEST["query_language"] == "sql" and connectors.get("neo4j").MANIFEST["query_language"] == "cypher"
     assert connectors.get("neo4j").MANIFEST["capabilities"]["full_text"] is True
@@ -115,7 +115,7 @@ def test_the_kit_passes_for_sqlite_and_says_what_it_checked(project, tmp_path):
     report = conformance.run(lite, project, lambda name: lite.connect({"path": next(paths)}))
     assert report["passed"] is True and report["connector"] == "sqlite" and report["kit"] == conformance.KIT_VERSION
     assert [c["name"] for c in report["checks"]] == ["manifest", "interface", "schema", "round trip", "idempotency",
-                                                     "iri stability", "retirement"]
+                                                     "iri stability", "retirement", "overlay introspect", "overlay read-only", "overlay log"]
     assert all(c["passed"] for c in report["checks"]), report["checks"]
 
 

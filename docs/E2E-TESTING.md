@@ -701,6 +701,26 @@ sample's own: one vocabulary); DT4 lists `posted_at` and `ledger.accounts`, whic
 not `posting_id`, which is confirmed; a column attached to a second table or a `Usage` of no table
 fails `oto ontology check --strict` with the shape named.
 
+Then a real store, read in place through the SQLite overlay (the project's own built store will do):
+
+```bash
+oto connectors check sqlite --project ledger                          # the kit's overlay half: introspect, read-only, log
+oto data introspect --store datastore.ledger --at 2026-10-27 --project ledger        # this project's own store, as the catalog says it
+oto data introspect --path /path/to/any.sqlite --store datastore.ledger --at 2026-10-27 --project ledger
+oto curate start --project ledger && oto curate add --from proposals/schema-ledger.json --project ledger
+oto curate check --project ledger && oto curate apply --by "<you>" --note "the ledger's schema" --project ledger
+oto build --project ledger && oto query --project ledger ask DT5 STORE=datastore.ledger
+```
+
+Pass when the kit lists `overlay introspect`, `overlay read-only` and `overlay log` as ok; introspect
+writes `build/documents/schema-ledger.md` (one line per table and column) and
+`proposals/schema-ledger.json` with a `Table` per table or view, a `Column` per column carrying type,
+nullability and key, `column_of`, `references` and `part_of` edges and a `Document` of kind `schema`,
+every node quoting its line; `curate check` holds every quote and shows no blocking problem; DT5 lists
+the store's tables and DT4 lists every column as a draft; introspecting the unchanged store again and
+applying it adds nothing; a project whose vocabulary has no `Table`, a store the graph does not hold,
+a missing file and a missing `--at` are each refused in words.
+
 ## 22. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.

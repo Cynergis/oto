@@ -13,6 +13,15 @@ Run against a built project and a way to open fresh sessions (`sessions(name)`, 
                     every node, which derives from its id, is the same in dev and in prod
     retirement      a plan without one node, published, retires that node and its edges
 
+and, for a connector whose manifest declares `overlay`, against a populated store (the one the kit
+just published when the connector materializes too, else the project's own):
+
+    overlay introspect  the catalog read twice is the same catalog; every table has a name and a kind,
+                        every column a name and a type
+    overlay read-only   a SELECT answers; a statement that would write is refused in words and
+                        changes nothing
+    overlay log         the query log is a list (empty where the store keeps none)
+
 A failed check carries what differed. The suite runs this for SQLite everywhere and for Neo4j where
 one is reachable; `oto connectors check <name>` runs it by hand.
 """
@@ -36,6 +45,17 @@ def run(connector, project, sessions):
 
     check("manifest", lambda: "; ".join(manifest_problems(getattr(connector, "MANIFEST", None))))
     check("interface", lambda: "; ".join(interface_problems(connector)))
+    modes = (getattr(connector, "MANIFEST", None) or {}).get("modes") or []
+
+    if "materialize" not in modes:
+        if "overlay" in modes:
+            own = connector.connect(connector.settings(project))
+            try:
+                _overlay_checks(connector, own, check)
+            finally:
+                connector.close(own)
+        return {"connector": getattr(connector, "name", None), "kit": KIT_VERSION,
+                "passed": all(c["passed"] for c in checks), "checks": checks}
 
     a = sessions("a")
     try:
@@ -97,11 +117,55 @@ def run(connector, project, sessions):
                 return "node %s is gone but its edges are still in the store" % gone
             return "; ".join(connector.read_back(a, smaller)[:5])
         check("retirement", retirement)
+
+        if "overlay" in modes:
+            _overlay_checks(connector, a, check)
     finally:
         connector.close(a)
 
     return {"connector": getattr(connector, "name", None), "kit": KIT_VERSION,
             "passed": all(c["passed"] for c in checks), "checks": checks}
+
+
+def _overlay_checks(connector, own, check):
+    """The overlay half, against a populated store `own`: the catalog read in place, a read-only
+    query answered, a write refused, the log a list."""
+    def introspect():
+        first = connector.introspect(own)
+        second = connector.introspect(own)
+        if first != second:
+            return "the catalog read twice differs"
+        if not isinstance(first.get("tables"), list) or not first.get("store"):
+            return "introspect returns {store, tables}"
+        for t in first["tables"]:
+            if not t.get("name") or t.get("kind") not in ("table", "view"):
+                return "table %r has no name or no kind (table or view)" % (t.get("name"),)
+            for c in t.get("columns") or []:
+                if not c.get("name") or not c.get("type"):
+                    return "column %r of %s has no name or no type" % (c.get("name"), t["name"])
+        return "" if first["tables"] else "the store has no table to describe"
+    check("overlay introspect", introspect)
+
+    def read_only():
+        answered = connector.native_read(own, "SELECT 1 AS one")
+        if answered.get("rows") != [[1]] or answered.get("columns") != ["one"]:
+            return "SELECT 1 did not answer [[1]]: %s" % (answered,)
+        before = connector.introspect(own)
+        for sql in ("DELETE FROM %s" % before["tables"][0]["name"], "CREATE TABLE oto_kit_probe (a)"):
+            try:
+                connector.native_read(own, sql)
+            except ValueError:
+                continue
+            return "%r was not refused" % sql
+        if connector.introspect(own) != before:
+            return "a refused statement changed the catalog"
+        return ""
+    check("overlay read-only", read_only)
+
+    def log():
+        entries = connector.query_log(own)
+        return "" if isinstance(entries, list) else "query_log returns a list"
+    check("overlay log", log)
 
 
 def report(result):

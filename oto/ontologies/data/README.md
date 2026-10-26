@@ -22,9 +22,11 @@ Questions (DT1–DT6, awaiting confirmation): what a table holds and whether its
 (DT1), where it comes from (DT2), who reads it and how (DT3), what is still a draft (DT4), what a
 store holds (DT5), what is downstream of a feed (DT6).
 
-**This release is the vocabulary.** The commands that fill it come next: `oto data introspect`
-through an overlay connector (C1), lineage readers for dbt manifests and SQL files (C3), query-log
-readers (C4), `oto data confirm` (C2), and the data project as a dependency of a concierge (C5).
+**Filling it.** `oto data introspect [--path <store>] --store datastore.<id> --at <date>` reads a
+store's catalog through an overlay connector (SQLite first) into a schema document and a proposal
+in this vocabulary, every fact quoting its line, through the gates (C1). The store is a `DataStore`
+the estate declares first. Lineage readers for dbt manifests and SQL files (C3), query-log readers
+(C4), `oto data confirm` (C2) and the data project as a dependency of a concierge (C5) come next.
 
 This is a first draft: edit it. The sample describes the estate sample's ledger; replace it with your
 store's tables as soon as you have introspected one.

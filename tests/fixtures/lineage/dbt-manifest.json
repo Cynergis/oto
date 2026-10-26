@@ -1,0 +1,82 @@
+{
+  "metadata": {
+    "dbt_schema_version": "https://schemas.getdbt.com/dbt/manifest/v12.json",
+    "dbt_version": "1.8.0",
+    "generated_at": "2026-10-20T02:00:00Z",
+    "project_name": "ledger"
+  },
+  "sources": {
+    "source.ledger.custodian.settlements": {
+      "resource_type": "source",
+      "source_name": "custodian",
+      "name": "settlements",
+      "identifier": "settlements",
+      "loader": "s3 file drop",
+      "database": "raw",
+      "schema": "custodian",
+      "description": "The custodian's nightly file of settled payments."
+    }
+  },
+  "nodes": {
+    "model.ledger.stg_settlements": {
+      "resource_type": "model",
+      "name": "stg_settlements",
+      "alias": "stg_settlements",
+      "schema": "public",
+      "config": {"materialized": "ephemeral", "meta": {}},
+      "meta": {},
+      "depends_on": {"nodes": ["source.ledger.custodian.settlements"]},
+      "original_file_path": "models/stg_settlements.sql",
+      "description": "Settlements typed and renamed."
+    },
+    "model.ledger.postings": {
+      "resource_type": "model",
+      "name": "postings",
+      "alias": "postings",
+      "schema": "public",
+      "config": {"materialized": "incremental", "meta": {}},
+      "meta": {"schedule": "nightly at 02:00"},
+      "depends_on": {"nodes": ["model.ledger.stg_settlements", "seed.ledger.accounts"]},
+      "original_file_path": "models/postings.sql",
+      "description": "Settled payments as postings."
+    },
+    "model.ledger.daily_balances": {
+      "resource_type": "model",
+      "name": "daily_balances",
+      "alias": "daily_balances",
+      "schema": "public",
+      "config": {"materialized": "view", "meta": {"schedule": "nightly at 03:00"}},
+      "meta": {},
+      "depends_on": {"nodes": ["model.ledger.postings"]},
+      "original_file_path": "models/daily_balances.sql",
+      "description": ""
+    },
+    "model.ledger.unknown_report": {
+      "resource_type": "model",
+      "name": "unknown_report",
+      "alias": "unknown_report",
+      "schema": "reporting",
+      "config": {"materialized": "table", "meta": {}},
+      "meta": {},
+      "depends_on": {"nodes": ["model.ledger.daily_balances"]},
+      "original_file_path": "models/unknown_report.sql",
+      "description": "A report nobody introspected yet."
+    },
+    "seed.ledger.accounts": {
+      "resource_type": "seed",
+      "name": "accounts",
+      "alias": "accounts",
+      "schema": "public",
+      "config": {"materialized": "seed", "meta": {}},
+      "meta": {},
+      "depends_on": {"nodes": []},
+      "original_file_path": "seeds/accounts.csv",
+      "description": "The chart of accounts."
+    },
+    "test.ledger.not_null_postings_posting_id": {
+      "resource_type": "test",
+      "name": "not_null_postings_posting_id",
+      "depends_on": {"nodes": ["model.ledger.postings"]}
+    }
+  }
+}

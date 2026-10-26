@@ -742,6 +742,31 @@ what to set) without `overlay.native_read: true` in `oto.deploy.json`; `deploy c
 overlay naming a connector that is not one, a `native_read` that is not true or false, and a
 password inside the endpoint.
 
+Then where the rows come from, read from what the ETL already says (the fixtures under
+`tests/fixtures/lineage/` are a dbt manifest and three SQL files for the same ledger):
+
+```bash
+oto data lineage --dbt tests/fixtures/lineage/dbt-manifest.json --store datastore.ledger --at 2026-10-27 --project ledger
+oto data lineage --sql tests/fixtures/lineage/sql --store datastore.ledger --at 2026-10-27 --project ledger
+oto data lineage --sql etl/nightly.sql --tool airflow --store datastore.ledger --at 2026-10-27 --project ledger
+oto curate start --project ledger && oto curate add --from proposals/lineage-ledger-dbt.json --project ledger
+oto curate check --project ledger && oto curate apply --by "<you>" --note "the ledger's lineage" --project ledger
+oto build --project ledger
+oto query --project ledger ask DT2 TABLE=table.ledger-daily-balances  # the dbt job, nightly at 03:00, sourced from postings
+oto query --project ledger ask DT6 FEED=feed.custodian-settlements    # the jobs the custodian file feeds and the tables they load
+```
+
+Pass when the dbt reader proposes three jobs (`postings`, `daily_balances`, the seed `accounts`) and
+two feeds, reports `unknown_report` as a gap (it loads a table the graph lacks) and proposes nothing
+for the ephemeral model or the test; the SQL reader proposes one job per file with its `-- schedule:`
+and `-- tool:`, `posting_load` sourced from the `s3://custodian/settlements` feed and the `accounts`
+table and not from its own staging table, `balance_rollup` sourced from `postings` and not from its
+CTE, and `audit_export` reported as a gap; `build/documents/lineage-ledger-dbt.md` has a section per
+job and a Feeds section and every node quotes its line; `curate check` holds every quote; DT2 and
+DT6 answer after the apply; reading the same manifest again and applying it adds nothing; no `--dbt`
+or `--sql`, both at once, a missing `--at`, a store the graph lacks, a file that is not a manifest
+and a directory with no `.sql` are each refused in words.
+
 ## 22. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.

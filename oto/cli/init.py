@@ -7,7 +7,7 @@ def cmd_init(args):
     from ..scaffold import init
 
     try:
-        init(args.project, slug=args.slug, name=args.name, namespace=args.namespace,
+        init(args.project, slug=args.slug, name=args.name, namespace=args.namespace, concierge=args.concierge,
              prefix=args.prefix, force=args.force, ontology=args.ontology,
              repo=args.repo, engine=args.engine, pack=args.pack, empty=args.empty)
     except ValueError as exc:
@@ -38,6 +38,9 @@ def register(sub):
     init.add_argument("--empty", action="store_true",
                       help="install the vocabulary and leave the graph empty: a real product's graph holds what "
                            "its people said, not the ontology's example")
+    init.add_argument("--concierge", action="store_true",
+                      help="a concierge root: the one graph every question starts at, holding nothing but the descriptors "
+                           "of the graphs it routes to (oto-core alone, no sample); add them with `oto graph depend`")
     init.add_argument("--repo", action="store_true",
                       help="lay the project out to live in a GitHub repository: workflows for ingest, "
                            "checks and deploy, a CLAUDE.md, an .mcp.json, and a corpus that is committed")

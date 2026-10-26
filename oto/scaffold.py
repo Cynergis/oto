@@ -224,7 +224,7 @@ def _ontology_record(name, ontologies, bases, pack=None):
 
 
 def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, ontology=None,
-         repo=False, engine=None, pack=None, empty=False):
+         repo=False, engine=None, pack=None, empty=False, concierge=False):
     """Create or top up a project. Never overwrites authored data unless force is set.
 
     One of `slug` and `name` is enough: the other derives from it. With an ontology, the vocabulary
@@ -245,6 +245,10 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
     print("oto init: %s (slug=%s) -> %s" % (name, slug, root))
     print("  created %d directories" % len(DIRS))
 
+    if concierge:
+        # A concierge root (roadmap A5): the single entry point that routes to every other graph. It
+        # holds nothing but descriptors, so it rests on oto-core alone, with no sample.
+        ontology, empty = ontology or "oto-core", True
     ontology_config = None
     sample_graph = None
     ontology_notes = None
@@ -352,6 +356,7 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
         "prefix": prefix or slug,
         "db_name": "%s.db" % slug,
         "server_name": "%s-kg" % slug,
+        **({"kind": "concierge"} if concierge else {}),
         "oto_version": __version__,
     }
     if ontology_record:

@@ -632,10 +632,10 @@ arguments redacted (`arguments.query` is a size and a hash, never the words), th
 inside `oto.work.set` carries that span's trace id, and no prompt, body, reason or email appears in any
 span's attributes; without `OTO_TRACE`, or without the packages, nothing changes and no span exists.
 
-## 20. Graphs that know each other: descriptors and dependencies
+## 20. Graphs that know each other: descriptors, dependencies, the concierge root
 
 Exercises: the descriptor `oto init` writes, `oto graph describe`, `oto graph depend`, `oto graph
-dependencies`, CORE4.
+dependencies`, CORE4, a concierge root, `kg_dependencies` and `kg_call` across two served graphs.
 
 ```bash
 oto init --name "Policy KB" --slug policy --ontology auto-claims --project policy
@@ -651,6 +651,25 @@ Pass when a new project's graph holds `graph.<slug>` with its subject, classes, 
 printed carries what another project needs and nothing of the graph's facts; `depend` adds the other
 graph's node and the edge through the gates and says so when it is already there; CORE4 lists the
 dependency with its reach; a descriptor missing its subject or reach, or a graph's own, is refused.
+
+```bash
+oto init --name "Concierge" --slug root --concierge --project root            # oto-core alone, no sample, descriptors only
+oto serve --project roadmap --http 8790 &  oto serve --project policy --http 8791 &
+oto graph describe --reach http://127.0.0.1:8790 --project roadmap > roadmap.descriptor.json
+oto graph describe --reach http://127.0.0.1:8791 --project policy  > policy.descriptor.json
+oto graph depend --on roadmap.descriptor.json --by "<you>" --at 2026-10-27 --project root
+oto graph depend --on policy.descriptor.json  --by "<you>" --at 2026-10-27 --project root
+oto build --project root && oto serve --project root --http 8789 &
+curl 'http://127.0.0.1:8789/api/dependencies?question=which+epics+are+blocked'   # the roadmap ranks first
+curl 'http://127.0.0.1:8789/api/call?graph=graph.oto-roadmap&tool=kg_ask&question=WK11'   # answered from the roadmap, over HTTP
+```
+
+Pass when the root's graph holds nothing but Graph nodes (a stray Document fails its build with
+"descriptors only"), `kg_dependencies` ranks the roadmap first for a question about epics and offers
+both when neither descriptor says more than the other, `kg_call` returns the dependency's own text
+prefixed with where it came from, refuses a `kg_call` of a `kg_call`, a tool a dependency does not
+answer, a graph not among the descriptors, and a reach that is not HTTP, and says in words when the
+reach does not answer.
 
 ## 21. The engine's own gates and CI
 

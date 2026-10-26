@@ -37,7 +37,9 @@ def cmd_connectors(args):
             settings = connector.settings(project)
 
             def sessions(name):
-                return connector.connect(dict(settings, project="%s-kit-%s" % (settings["project"], name)))
+                if "project" in settings and name != "overlay":
+                    return connector.connect(dict(settings, project="%s-kit-%s" % (settings["project"], name)))
+                return connector.connect(settings)
         result = _conformance.run(connector, project, sessions)
     finally:
         import shutil

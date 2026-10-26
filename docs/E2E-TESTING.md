@@ -721,6 +721,27 @@ the store's tables and DT4 lists every column as a draft; introspecting the unch
 applying it adds nothing; a project whose vocabulary has no `Table`, a store the graph does not hold,
 a missing file and a missing `--at` are each refused in words.
 
+Then a store OTO does not own, and the passthrough:
+
+```bash
+OTO_POSTGRES_DSN=postgresql://ledger@db.internal:5432/ledger PGPASSWORD=... oto connectors check postgres --project ledger
+OTO_POSTGRES_DSN=... oto data introspect --connector postgres --store datastore.ledger --at 2026-10-27 --project ledger
+OTO_BIGQUERY_PROJECT=acme OTO_BIGQUERY_DATASET=ledger oto data introspect --connector bigquery --store datastore.ledger --at 2026-10-27 --project ledger
+# oto.deploy.json: "overlay": {"connector": "postgres", "connection": {"endpoint": "postgresql://ledger@db.internal/ledger", "auth": "basic", "secret": "PGPASSWORD"}, "native_read": true}
+oto deploy check --project ledger
+oto serve --project ledger --http 8795 &
+curl 'http://127.0.0.1:8795/api/read?sql=SELECT+count(*)+AS+n+FROM+postings'        # read-only, through the postgres overlay
+curl 'http://127.0.0.1:8795/api/read?sql=DELETE+FROM+postings'                        # refused in words
+```
+
+Pass when the kit's overlay half passes against the live store; introspect reads the same tables,
+columns, keys and references from information_schema as from SQLite (`pip install "oto-kg[postgres]"`
+or `"oto-kg[bigquery]"` first; without the package the connector says so); `kg_read` answers a SELECT
+with where it was read and that nothing could be written, refuses anything else, and is off (saying
+what to set) without `overlay.native_read: true` in `oto.deploy.json`; `deploy check` refuses an
+overlay naming a connector that is not one, a `native_read` that is not true or false, and a
+password inside the endpoint.
+
 ## 22. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.

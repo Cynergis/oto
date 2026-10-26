@@ -6,8 +6,9 @@ that store can do. Two modes exist: **materialize**, OTO pushes nodes and edges 
 (SQLite, Neo4j); **overlay**, OTO reads a store that already exists, in place, and never copies a
 row: its catalog, its query log, a read-only query. The overlay is the data semantic layer's way in
 (roadmap C1): `oto data introspect` turns the catalog into Table and Column facts. SQLite is both,
-the reference overlay every machine can run; Postgres and BigQuery follow. The build stages and
-`oto data` call connectors and nothing else of OTO talks to a store directly.
+the reference overlay every machine can run; Postgres (`postgres` extra) and BigQuery (`bigquery`
+extra) are overlays. The build stages, `oto data` and the served `kg_read` call connectors and
+nothing else of OTO talks to a store directly.
 
     MANIFEST        name, version, modes, query_language, capabilities, auth, conformance ("kit@N")
     settings        what the project config says about the store
@@ -30,6 +31,7 @@ A connector is listed (`oto connectors`) only with a manifest that validates and
 runs the kit for SQLite on every machine and for Neo4j where one is reachable (CI's neo4j job).
 """
 import importlib
+import re
 
 KIT_VERSION = 1
 MODES = ("materialize", "overlay")
@@ -39,7 +41,20 @@ METHODS = ("settings", "connect", "close", "apply_schema", "schema_snapshot", "p
 SESSION_METHODS = ("settings", "connect", "close")                 # every mode opens a session
 MATERIALIZE_METHODS = ("apply_schema", "schema_snapshot", "plan", "publish", "read_back", "snapshot", "drop")
 OVERLAY_METHODS = ("introspect", "query_log", "native_read")
-REGISTRY = {"neo4j": "oto.connectors.neo4j", "sqlite": "oto.connectors.sqlite"}
+REGISTRY = {"bigquery": "oto.connectors.bigquery", "neo4j": "oto.connectors.neo4j", "postgres": "oto.connectors.postgres",
+            "sqlite": "oto.connectors.sqlite"}
+
+
+def select_only(sql):
+    """The one statement a native read may run, cleaned: a SELECT (or a WITH that selects), alone.
+    ValueError, in words, for anything else; the store's own read-only mode then catches what the
+    words let through."""
+    text = (sql or "").strip().rstrip(";").strip()
+    if ";" in text:
+        raise ValueError("read-only: one statement at a time")
+    if not re.match(r"(?is)^(select|with)\b", text):
+        raise ValueError("read-only: a native read is a SELECT (or a WITH ... SELECT); %r is not" % text[:40])
+    return text
 
 
 class Connector:
@@ -90,6 +105,11 @@ class Connector:
     def native_read(self, session, sql, limit=100):
         """{"columns", "rows", "truncated"} for one SELECT; ValueError for anything that could write."""
         raise NotImplementedError
+
+    def from_deploy(self, project, overlay):
+        """Settings from the deploy config's `overlay` section (oto/deploy.py); the project's own
+        settings when the connector has nothing to read there."""
+        return self.settings(project)
 
 
 def manifest_problems(manifest):

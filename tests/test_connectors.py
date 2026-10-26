@@ -43,11 +43,11 @@ def project(tmp_path):
 # ---- K1: the interface and the manifest ----
 
 def test_the_shipped_connectors_are_listed_with_valid_manifests():
-    assert connectors.available() == ["neo4j", "sqlite"]
+    assert connectors.available() == ["bigquery", "neo4j", "postgres", "sqlite"]
     for name in connectors.available():
         manifest = connectors.get(name).MANIFEST
         assert connectors.manifest_problems(manifest) == [], name
-        assert manifest["name"] == name and manifest["modes"] == (["materialize", "overlay"] if name == "sqlite" else ["materialize"])
+        assert manifest["name"] == name and manifest["modes"] == {"sqlite": ["materialize", "overlay"], "neo4j": ["materialize"]}.get(name, ["overlay"])
         assert manifest["conformance"] == "kit@%d" % conformance.KIT_VERSION
     assert connectors.get("sqlite").MANIFEST["query_language"] == "sql" and connectors.get("neo4j").MANIFEST["query_language"] == "cypher"
     assert connectors.get("neo4j").MANIFEST["capabilities"]["full_text"] is True

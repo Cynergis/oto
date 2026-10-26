@@ -39,9 +39,10 @@ from .project import ProjectError
 NAME = "oto.deploy.json"
 RECORD = "PROMOTIONS.jsonl"
 CONNECTORS = ("sqlite", "neo4j")
-AUTH = ("basic", "oidc", "token", "workload-identity")
-KEYS = ("repo", "graph", "connector", "connection", "publish", "environments", "promotion")
+AUTH = ("basic", "oidc", "token", "workload-identity", "file", "env", "adc", "service-account")
+KEYS = ("repo", "graph", "connector", "connection", "publish", "environments", "promotion", "overlay")
 CONNECTION_KEYS = ("endpoint", "auth", "secret", "database", "note")
+OVERLAY_KEYS = ("connector", "connection", "native_read", "schema", "region")
 PROMOTION = "same-commit"
 ENV_NAME = re.compile(r"^[a-z][a-z0-9-]{0,31}$")
 ENV_VAR = re.compile(r"^[A-Z][A-Z0-9_]*$")
@@ -89,19 +90,10 @@ def problems(config):
     if connector == "neo4j" and not isinstance(connection, dict):
         out.append("`connection` is required for neo4j: endpoint, auth and the secret's variable name")
     if connection is not None:
-        if not isinstance(connection, dict):
-            out.append("`connection` must be an object")
-        else:
-            unknown = sorted(set(connection) - set(CONNECTION_KEYS))
-            if unknown:
-                out.append("unknown key(s) in `connection`: %s" % ", ".join(unknown))
-            if not isinstance(connection.get("endpoint"), str) or not connection["endpoint"]:
-                out.append("`connection.endpoint` is required")
-            if connection.get("auth") not in AUTH:
-                out.append("`connection.auth` %r is not one of %s" % (connection.get("auth"), ", ".join(AUTH)))
-            secret = connection.get("secret")
-            if secret is not None and not (isinstance(secret, str) and ENV_VAR.match(secret)):
-                out.append("`connection.secret` must be the name of an environment variable (NEO4J_PASSWORD), never a value")
+        out += _connection_problems(connection, "connection")
+    overlay = config.get("overlay")
+    if overlay is not None:
+        out += _overlay_problems(overlay)
     publish = config.get("publish")
     if not isinstance(publish, dict) or not isinstance(publish.get("to"), str) or not publish["to"]:
         out.append("`publish.to` names the query repository the store is published to")
@@ -129,6 +121,66 @@ def problems(config):
     for kind in sorted({f.kind for f in _privacy.blocking(_privacy.scan(json.dumps(config, ensure_ascii=False)))}):
         out.append("%s found in the config: a secret never goes in the file; name the environment variable that holds it" % kind)
     return out
+
+
+def _connection_problems(connection, where):
+    out = []
+    if not isinstance(connection, dict):
+        return ["`%s` must be an object" % where]
+    unknown = sorted(set(connection) - set(CONNECTION_KEYS))
+    if unknown:
+        out.append("unknown key(s) in `%s`: %s" % (where, ", ".join(unknown)))
+    endpoint = connection.get("endpoint")
+    if not isinstance(endpoint, str) or not endpoint:
+        out.append("`%s.endpoint` is required" % where)
+    elif "://" in endpoint:
+        import urllib.parse
+        try:
+            if urllib.parse.urlsplit(endpoint).password:
+                out.append("a password in `%s.endpoint`: a secret never goes in the file; name the environment variable that holds it in `secret`" % where)
+        except ValueError:
+            out.append("`%s.endpoint` is not a URL that reads" % where)
+    if connection.get("auth") not in AUTH:
+        out.append("`%s.auth` %r is not one of %s" % (where, connection.get("auth"), ", ".join(AUTH)))
+    secret = connection.get("secret")
+    if secret is not None and not (isinstance(secret, str) and ENV_VAR.match(secret)):
+        out.append("`%s.secret` must be the name of an environment variable (NEO4J_PASSWORD), never a value" % where)
+    return out
+
+
+def overlay_connectors():
+    """The connectors whose manifest declares `overlay`."""
+    from . import connectors as _connectors
+    return [n for n in _connectors.available() if "overlay" in (_connectors.get(n).MANIFEST.get("modes") or [])]
+
+
+def _overlay_problems(overlay):
+    """The `overlay` section: an overlay connector, its connection, and whether a native read is allowed."""
+    if not isinstance(overlay, dict):
+        return ["`overlay` must be an object: connector, connection, native_read"]
+    out = []
+    unknown = sorted(set(overlay) - set(OVERLAY_KEYS))
+    if unknown:
+        out.append("unknown key(s) in `overlay`: %s (it takes %s)" % (", ".join(unknown), ", ".join(OVERLAY_KEYS)))
+    name = overlay.get("connector")
+    if name not in overlay_connectors():
+        out.append("`overlay.connector` %r is not an overlay connector; one of %s" % (name, ", ".join(overlay_connectors())))
+    if "native_read" in overlay and not isinstance(overlay["native_read"], bool):
+        out.append("`overlay.native_read` must be true or false: whether the served kg_read may run a native read")
+    if overlay.get("connection") is not None:
+        out += _connection_problems(overlay["connection"], "overlay.connection")
+    elif name in ("postgres", "bigquery"):
+        out.append("`overlay.connection` is required for %s: the endpoint, and the secret's variable name when one is needed" % name)
+    for key in ("schema", "region"):
+        if key in overlay and not (isinstance(overlay[key], str) and overlay[key]):
+            out.append("`overlay.%s` must be a non-empty string" % key)
+    return out
+
+
+def native_read_allowed(config):
+    """Whether the served kg_read may run: the overlay section says so, in so many words."""
+    overlay = (config or {}).get("overlay") or {}
+    return isinstance(overlay, dict) and overlay.get("native_read") is True
 
 
 def chain(config):

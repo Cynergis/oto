@@ -17,7 +17,7 @@ import os
 import re
 import sqlite3
 
-from . import Connector
+from . import Connector, select_only
 from ..targets import sqlite as _target
 
 MANIFEST = {
@@ -42,6 +42,11 @@ class SqliteConnector(Connector):
 
     def connect(self, settings):
         return {"path": settings["path"]}
+
+    def from_deploy(self, project, overlay):
+        """The endpoint is a file; without one, the project's own store."""
+        endpoint = (overlay.get("connection") or {}).get("endpoint")
+        return {"path": endpoint or project.layout.database, "project": project.identity()["slug"]}
 
     def close(self, session):
         pass
@@ -193,11 +198,7 @@ class SqliteConnector(Connector):
         WITH that selects), when it is more than one statement, or when the store would have to write:
         the connection is opened read-only and query_only is set, so the refusal does not rest on the
         words alone."""
-        text = (sql or "").strip().rstrip(";").strip()
-        if ";" in text:
-            raise ValueError("read-only: one statement at a time")
-        if not re.match(r"(?is)^(select|with)\b", text):
-            raise ValueError("read-only: a native read is a SELECT (or a WITH ... SELECT); %r is not" % text[:40])
+        text = select_only(sql)
         con = sqlite3.connect("file:%s?mode=ro" % session["path"], uri=True)
         try:
             con.execute("PRAGMA query_only = 1")

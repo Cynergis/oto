@@ -32,8 +32,8 @@ def register(sub):
     data = sub.add_parser("data", help="the data semantic layer: a store's schema, lineage, usage and meaning as facts")
     data.add_argument("data_command", choices=["introspect"],
                       help="introspect reads a store's catalog through an overlay connector into a schema document and a proposal")
-    data.add_argument("--connector", default="sqlite", help="the overlay connector (default: sqlite)")
-    data.add_argument("--path", default=None, help="the store to read (default: this project's own built store)")
+    data.add_argument("--connector", default="sqlite", help="the overlay connector: sqlite (default), postgres or bigquery")
+    data.add_argument("--path", default=None, help="for sqlite: the file to read (default: this project's own built store); postgres and bigquery read their connection from project.config.json or the environment")
     data.add_argument("--store", default=None, help="the DataStore node the tables are part of, datastore.<id> (default: datastore.<store name>); proposed when the graph lacks it")
     data.add_argument("--at", default=None, help="the date the catalog was read, YYYY-MM-DD; never defaulted")
     project_arguments(data)

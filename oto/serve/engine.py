@@ -1204,6 +1204,49 @@ def dependencies_text(graph=None, question=None):
     return "\n".join(L)
 
 
+def read_text(sql, limit=50):
+    """One read-only query against the store the deploy config's overlay names: off unless
+    `oto.deploy.json` says `overlay.native_read: true`. The passthrough of roadmap K5: OTO's own tools
+    answer from the graph; this one reads the client's rows in place, and never writes."""
+    from .. import connectors as _connectors, deploy as _deploy
+    from ..project import Project, ProjectError
+    if not PROJECT_ROOT:
+        raise ValueError("kg_read is off: no project here, so no oto.deploy.json allows a native read")
+    project = Project.standard(PROJECT_ROOT)
+    if not _deploy.exists(project):
+        raise ValueError("kg_read is off: no oto.deploy.json allows a native read (overlay.native_read: true)")
+    try:
+        config = _deploy.load(project)
+    except ProjectError as exc:
+        raise ValueError("kg_read is off: %s" % exc)
+    if not _deploy.native_read_allowed(config):
+        raise ValueError("kg_read is off: oto.deploy.json does not allow a native read; set overlay.native_read to true to turn it on")
+    overlay = config["overlay"]
+    name = overlay.get("connector") or "sqlite"
+    connector = _connectors.get(name)
+    if connector is None or "overlay" not in (connector.MANIFEST.get("modes") or []):
+        raise ValueError("kg_read: %r is not an overlay connector" % name)
+    try:
+        settings = connector.from_deploy(project, overlay)
+        session = connector.connect(settings)
+    except ProjectError as exc:
+        raise ValueError("kg_read: %s" % exc)
+    try:
+        result = connector.native_read(session, sql, limit=max(1, int(limit or 50)))
+    finally:
+        connector.close(session)
+    rows = result.get("rows") or []
+    L = ["read-only, through the %s overlay: %d row(s)%s" % (name, len(rows), " shown, more follow: raise limit" if result.get("truncated") else "")]
+    columns = result.get("columns") or []
+    if columns:
+        L.append(" | ".join(str(c) for c in columns))
+    for row in rows:
+        L.append(" | ".join("" if v is None else str(v) for v in row))
+    if not rows:
+        L.append("(no rows)")
+    return "\n".join(L)
+
+
 FORWARDABLE = {"kg_entity", "kg_neighbors", "kg_search", "kg_by_type", "kg_count", "kg_group_by", "kg_explain", "kg_policy",
                "kg_overview", "kg_stale", "kg_resolve", "kg_docs", "kg_define", "kg_questions", "kg_ask", "kg_brief", "kg_dependencies"}
 ROUTE_OF = {"kg_entity": "entity", "kg_neighbors": "neighbors", "kg_search": "search", "kg_by_type": "by-type", "kg_count": "count",
@@ -1423,6 +1466,15 @@ TOOLS = [
          "required": ["graph", "tool"]},
      "fn": lambda a: call_text(a.get("graph"), a.get("tool"),
                                a.get("arguments") if "arguments" in a else {k: v for k, v in a.items() if k not in ("graph", "tool")})},
+    {"name": "kg_read",
+     "description": "One read-only SQL query against the data store this graph describes, read in place through the "
+                    "overlay connector the deploy config names. Off unless oto.deploy.json says overlay.native_read: "
+                    "true. A SELECT only, at most `limit` rows; the graph's own tools answer everything about the facts.",
+     "inputSchema": {"type": "object", "properties": {
+         "sql": {"type": "string", "description": "the SELECT to run"},
+         "limit": {"type": "integer", "description": "at most this many rows (default 50)"}},
+         "required": ["sql"]},
+     "fn": lambda a: read_text(a.get("sql"), a.get("limit") or 50)},
 ]
 TOOL_BY_NAME = {t["name"]: t for t in TOOLS}
 

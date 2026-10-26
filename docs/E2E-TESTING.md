@@ -943,6 +943,26 @@ moves readiness with an assertion by the named person and the chain verifies, re
 vocabulary does not take, an attribute that is a fact, a node the graph lacks, a missing name or date,
 and says when nothing changes; and DD23 names the ready context's draft aggregate.
 
+Then the factory's inputs, read from the graph (I3 to I5):
+
+```bash
+oto query --project domain ask AR10 NODE=component.approval-policy            # the contracts it consumes, frozen
+oto factory spec component.invoice-intake --out specs/invoice-intake.spec.json --project domain
+oto factory spec --check specs/invoice-intake.spec.json --project domain       # holds; edit the file by hand and it is refused
+oto factory plan --all --project domain                                         # 3 build(s) in 1 group(s): the contracts are frozen
+oto decide contract.invoice-events-v1 status=draft --by "Sam Lee" --at 2026-10-27 --project domain
+oto factory plan --all --project domain                                         # 2 groups: the policy waits for the intake
+oto factory plan --project domain                                               # the components of the contexts a person signed off
+```
+
+Pass when AR10 lists the policy's two frozen contracts; the spec carries the context, the use case,
+the exposed interfaces with their contracts, REQ-042 with its budget and measurement, the PII
+control on the JDBC connection, the connections, the module with its last commit, and a hash that
+`--check` holds and that a hand edit breaks; the plan is three parallel builds while every contract
+is frozen, two groups once one is a draft, nothing while no context is signed off (said with the
+command that signs one off), the signed-off context's component once one is, and a cycle of draft
+dependencies is named rather than looped.
+
 ## 23. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.

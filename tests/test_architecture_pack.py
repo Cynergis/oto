@@ -48,14 +48,14 @@ def _enum(spec):
 
 def test_the_pack_sits_on_software_architecture_and_pins_calm():
     manifest = ontologies.manifest_for("architecture")
-    assert manifest["extends"] == ["software-architecture"] and manifest["release"] == 2 and manifest["domain"] == "software"
+    assert manifest["extends"] == ["software-architecture"] and manifest["release"] == 3 and manifest["domain"] == "software"
     assert manifest["engine"] == ">=0.11" and CALM in manifest["summary"], "the CALM release is pinned where the pack says what it is"
     assert ontologies.self_check("architecture") == [], ontologies.self_check("architecture")
     config, _sample, readme = ontologies.load("architecture")
     assert {"Relationship", "Control", "Flow", "FlowStep", "NFR", "Evidence", "CodeModule", "Commit", "ChangeProposal"} <= set(config["classes"])
     assert {"System", "Component", "Interface", "DataStore", "Environment", "Role", "Requirement", "Decision", "Repository"} <= set(config["classes"]), \
         "composed on the estate: nothing is declared twice"
-    assert set(_own()["classes"]) == {"Relationship", "Control", "Flow", "FlowStep", "NFR", "Evidence", "CodeModule", "Commit", "ChangeProposal"}, \
+    assert set(_own()["classes"]) == {"Relationship", "Control", "Flow", "FlowStep", "NFR", "Evidence", "CodeModule", "Commit", "ChangeProposal", "Contract"}, \
         "a CALM node is an estate node, not a class of its own"
     assert CALM in readme and ("first draft" in readme.lower() or "edit it" in readme.lower())
 
@@ -129,8 +129,8 @@ def test_implementation_traces_from_a_requirement_through_evidence_code_and_comm
 def test_no_relation_or_inverse_name_collides_with_another_pack():
     """The packs compose: a name declared twice with two meanings is a composition error, so none is."""
     own = _own()
-    names = {rel for rel in own["properties"] if rel != "implemented_by"}
-    names |= {spec["inverse"] for rel, spec in own["properties"].items() if rel != "implemented_by" and spec.get("inverse")}
+    names = {rel for rel in own["properties"] if rel not in ("implemented_by", "supersedes")}
+    names |= {spec["inverse"] for rel, spec in own["properties"].items() if rel not in ("implemented_by", "supersedes") and spec.get("inverse")}
     import glob
     for path in glob.glob(os.path.join(ROOT, "oto", "ontologies", "*", "ontology.config.json")):
         pack = os.path.basename(os.path.dirname(path))
@@ -148,7 +148,7 @@ def test_no_relation_or_inverse_name_collides_with_another_pack():
 def test_the_questions_say_what_the_graph_is_for():
     questions = ontologies.questions_for("architecture")
     ids = [q for q in questions if q.startswith("AR")]
-    assert ids == ["AR%d" % i for i in range(1, 10)], ids
+    assert ids == ["AR%d" % i for i in range(1, 12)], ids
     asks = {q: questions[q]["question"].lower() for q in ids}
     assert "NODE" in questions["AR1"]["params"] and "protocol" in asks["AR1"], "AR1: what a node connects to"
     assert "NODE" in questions["AR2"]["params"] and "control" in asks["AR2"], "AR2: what safeguards it"

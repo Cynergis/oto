@@ -687,6 +687,90 @@
       "sources": [
         "invoice-architecture"
       ]
+    },
+    {
+      "id": "interface.scheduling-api",
+      "type": "Interface",
+      "label": "Scheduling API",
+      "summary": "The HTTPS API the approval policy calls to schedule an approved invoice's payment.",
+      "attributes": {
+        "url": "https://invoice.example/api/v1/schedules",
+        "calm_id": "scheduling-api",
+        "definition_url": "https://invoice.example/calm/interfaces/https-url.json",
+        "config": "{\"url\": \"https://invoice.example/api/v1/schedules\"}"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "contract.invoice-events-v1",
+      "type": "Contract",
+      "label": "invoice-events v1",
+      "summary": "The InvoiceSubmitted and InvoiceApproved event schemas, version 1.",
+      "attributes": {
+        "version": "1",
+        "status": "frozen",
+        "kind": "event",
+        "schema_url": "https://invoice.example/contracts/invoice-events/v1.json"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "contract.invoice-api-v1",
+      "type": "Contract",
+      "label": "invoice-api v1",
+      "summary": "The invoice submission API, version 1.",
+      "attributes": {
+        "version": "1",
+        "status": "frozen",
+        "kind": "api",
+        "schema_url": "https://invoice.example/contracts/invoice-api/v1.json"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
+    },
+    {
+      "id": "contract.scheduling-api-v1",
+      "type": "Contract",
+      "label": "scheduling-api v1",
+      "summary": "The payment scheduling API, version 1.",
+      "attributes": {
+        "version": "1",
+        "status": "frozen",
+        "kind": "api",
+        "schema_url": "https://invoice.example/contracts/scheduling-api/v1.json"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "invoice-architecture",
+      "status": "current",
+      "sources": [
+        "invoice-architecture"
+      ]
     }
   ],
   "edges": [
@@ -769,11 +853,6 @@
       "from": "component.approval-policy",
       "rel": "depends_on",
       "to": "component.invoice-intake"
-    },
-    {
-      "from": "component.payment-scheduler",
-      "rel": "depends_on",
-      "to": "component.approval-policy"
     },
     {
       "from": "component.invoice-intake",
@@ -1014,6 +1093,36 @@
       "from": "changeproposal.cp-000",
       "rel": "implemented_in",
       "to": "commit.9f3c2a1"
+    },
+    {
+      "from": "component.payment-scheduler",
+      "rel": "exposes",
+      "to": "interface.scheduling-api"
+    },
+    {
+      "from": "component.approval-policy",
+      "rel": "consumes",
+      "to": "interface.scheduling-api"
+    },
+    {
+      "from": "relationship.policy-schedules",
+      "rel": "via",
+      "to": "interface.scheduling-api"
+    },
+    {
+      "from": "contract.invoice-events-v1",
+      "rel": "contract_of",
+      "to": "interface.invoice-events"
+    },
+    {
+      "from": "contract.invoice-api-v1",
+      "rel": "contract_of",
+      "to": "interface.invoice-api"
+    },
+    {
+      "from": "contract.scheduling-api-v1",
+      "rel": "contract_of",
+      "to": "interface.scheduling-api"
     }
   ]
 }

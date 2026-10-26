@@ -430,6 +430,96 @@
       },
       "gate": "any",
       "terms": []
+    },
+    "AR10": {
+      "who": "a builder before it changes a consumer, and the planner",
+      "question": "Which contracts does $NODE consume, at which version, frozen or still a draft, so a change to a provider is checked against it?",
+      "why": "A frozen contract lets the consumer build in parallel with its provider; a draft one makes it wait. The planner reads this; a builder reads it before touching the consumer.",
+      "validated_by": "",
+      "params": {
+        "NODE": {
+          "type": "System|Component"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$NODE",
+              "consumes",
+              "i"
+            ]
+          },
+          {
+            "edge": [
+              "c",
+              "contract_of",
+              "i"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "Contract"
+          }
+        ],
+        "select": [
+          "i",
+          "i.label",
+          "c",
+          "c.version",
+          "c.status",
+          "c.kind",
+          "c.schema_url"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "supersedes"
+      ]
+    },
+    "AR11": {
+      "who": "a builder before it changes a provider",
+      "question": "Which contracts does $NODE expose, at which version, frozen or still a draft, so a change to it is a new version and never a rewrite?",
+      "why": "Exposing a frozen contract means a change is a new version that supersedes it; the provider's builder reads this before touching the interface.",
+      "validated_by": "",
+      "params": {
+        "NODE": {
+          "type": "System|Component"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$NODE",
+              "exposes",
+              "i"
+            ]
+          },
+          {
+            "edge": [
+              "c",
+              "contract_of",
+              "i"
+            ]
+          },
+          {
+            "node": "c",
+            "type": "Contract"
+          }
+        ],
+        "select": [
+          "i",
+          "i.label",
+          "c",
+          "c.version",
+          "c.status",
+          "c.kind",
+          "c.schema_url"
+        ]
+      },
+      "gate": "any",
+      "terms": []
     }
   }
 }

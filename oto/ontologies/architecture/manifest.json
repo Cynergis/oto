@@ -1,7 +1,7 @@
 {
   "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
   "name": "architecture",
-  "release": 2,
+  "release": 3,
   "domain": "software",
   "summary": "The architecture graph for implementation, aligned with CALM 1.0 (https://calm.finos.org/release/1.0/meta/core.json): CALM nodes as estate nodes with their id and type, relationships, controls and flows as nodes, requirements with budgets and the evidence that measured them, the code modules and commits that implement each component, and the change proposals evidence raised.",
   "extends": [
@@ -18,6 +18,11 @@
   ],
   "maintainer": "OTO",
   "changelog": [
+    {
+      "release": 3,
+      "at": "2026-10-26",
+      "note": "Contract: a version of an interface, its status a decision (draft, frozen, retired), contract_of the interface, supersedes widened to it; AR10 and AR11 (roadmap I4). The sample's invoice platform builds contract-first: three frozen contracts and a scheduling API."
+    },
     {
       "release": 2,
       "at": "2026-10-26",

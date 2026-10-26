@@ -1,5 +1,5 @@
 {
-  "_about": "The architecture graph for implementation (roadmap Epic H): a derived copy of the architecture that agents query before they edit. Aligned with CALM 1.0, the FINOS Common Architecture Language Model (https://calm.finos.org/release/1.0/meta/core.json): a CALM node is an estate node (System, Component, DataStore, Environment, Role) carrying its calm_id and calm_type; a CALM relationship is a Relationship node with its two ends, its kind and its protocol; controls (what they safeguard) and flows are nodes; and the implementation trace runs from a requirement with a budget, through the evidence that measured it, to the code modules and commits that implement a component, with change proposals raised by evidence and settled by decisions. On software-architecture, so the estate's questions keep answering. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
+  "_about": "The architecture graph for implementation (roadmap Epic H): a derived copy of the architecture that agents query before they edit. Aligned with CALM 1.0, the FINOS Common Architecture Language Model (https://calm.finos.org/release/1.0/meta/core.json): a CALM node is an estate node (System, Component, DataStore, Environment, Role) carrying its calm_id and calm_type; a CALM relationship is a Relationship node with its two ends, its kind and its protocol; controls (what they safeguard) and flows are nodes; and the implementation trace runs from a requirement with a budget, through the evidence that measured it, to the code modules and commits that implement a component, with change proposals raised by evidence and settled by decisions; a Contract is a version of an interface, frozen by a named person so consumer and provider build in parallel against it. On software-architecture, so the estate's questions keep answering. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
   "_summary": "The architecture as agents consult it before they change code: CALM nodes, relationships, controls and flows as facts on the estate, requirements with budgets and the evidence that measured them, the code modules and commits that implement each component, and the change proposals evidence raised.",
   "name": "Architecture",
   "ontology_version": 1,
@@ -37,6 +37,9 @@
     },
     "ChangeProposal": {
       "definition": "A proposed change to the architecture, raised by evidence (a gate that failed, a measurement over budget), about the nodes, relationships or controls it would change, settled by a decision and implemented in a commit."
+    },
+    "Contract": {
+      "definition": "A version of an interface the estate declares: an event schema, an API, a file layout, with a status that is a decision. A draft until a named person freezes it; frozen means nobody changes it without a new version that supersedes it, so a consumer and its provider build in parallel against it; retired once superseded."
     }
   },
   "properties": {
@@ -63,6 +66,20 @@
       "range": "Decision",
       "inverse": "option_of",
       "definition": "The decisions an options relationship chooses between, each a Decision until one is accepted."
+    },
+    "contract_of": {
+      "domain": "Contract",
+      "range": "Interface",
+      "inverse": "versioned_as",
+      "min": 1,
+      "max": 1,
+      "definition": "The one interface this contract is a version of."
+    },
+    "supersedes": {
+      "domain": "Interface|Component|System|Contract",
+      "range": "Interface|Component|System|Contract",
+      "inverse": "superseded_by",
+      "definition": "This replaced that. Use with the temporal fields, never by overwriting. Widened to the contract: a new version supersedes the old, which is retired."
     },
     "safeguards": {
       "domain": "Control",
@@ -392,6 +409,27 @@
       "calm_header": {
         "type": "string",
         "definition": "For the document that is a CALM model: the model's top-level fields other than nodes, relationships, controls and flows ($schema, unique-id, name, description, metadata, adrs), carried as the JSON the model gave, so `oto arch export` writes the model back whole."
+      }
+    },
+    "Contract": {
+      "version": {
+        "type": "string",
+        "definition": "The contract's version, as its schema names it: 1, 2.1, 2026-10.",
+        "required": true
+      },
+      "status": {
+        "type": "enum:draft|frozen|retired",
+        "definition": "Where the contract stands. A draft when unsaid; frozen by a named person (`oto decide`), the factory's freeze; retired when a new version supersedes it.",
+        "default": "draft",
+        "decision": true
+      },
+      "kind": {
+        "type": "enum:event|api|schema|file|other",
+        "definition": "What sort of contract: an event's schema, an API, a data schema, a file layout."
+      },
+      "schema_url": {
+        "type": "string",
+        "definition": "Where the contract's schema is read: the file in the repository, or a URL."
       }
     }
   }

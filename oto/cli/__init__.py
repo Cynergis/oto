@@ -19,6 +19,7 @@ One module per command, in the order a project moves through them:
     arch.py        oto arch                     the architecture graph: a CALM model in, through the gates, and back out
     ddd.py         oto ddd                      the factory's domain graph: an event-storming board in, through the capture form
     decide.py      oto decide                   a named person moves a decision attribute: readiness, a confirmation
+    factory.py     oto factory                  the factory's inputs from the graph: a component's spec, the build plan
     draft.py       oto draft                    a model drafts one document's proposal (optional extra)
     vet.py         oto vet                      audit citations against the corpus
     build.py       oto build, oto clean, oto verify
@@ -38,9 +39,9 @@ import sys
 
 from .. import __version__
 from ..project import ProjectError
-from . import arch, audit, bench, build, capture, clipboard, connectors, curate, data, ddd, decide, deploy, draft, feedback, graphs, ingest, init, lexicon, lock, ontology, pack, preview, publish, publishable, query, registry, rules, sandbox, status, tools, vet, work
+from . import arch, audit, bench, build, capture, clipboard, connectors, curate, data, ddd, decide, deploy, draft, factory, feedback, graphs, ingest, init, lexicon, lock, ontology, pack, preview, publish, publishable, query, registry, rules, sandbox, status, tools, vet, work
 
-COMMANDS = (init, status, lock, sandbox, ingest, capture, clipboard, ontology, lexicon, pack, registry, rules, tools, curate, data, deploy, connectors, draft, vet, build, preview, query, publish, publishable, bench, feedback, work, audit, graphs, arch, ddd, decide)
+COMMANDS = (init, status, lock, sandbox, ingest, capture, clipboard, ontology, lexicon, pack, registry, rules, tools, curate, data, deploy, connectors, draft, vet, build, preview, query, publish, publishable, bench, feedback, work, audit, graphs, arch, ddd, decide, factory)
 
 
 def cmd_version(args):

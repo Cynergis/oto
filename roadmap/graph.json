@@ -988,6 +988,29 @@
         "environment": "prod",
         "event": "github:Cynergis/oto#78"
       }
+    },
+    {
+      "source_type": "human_assertion",
+      "sources": [
+        "assertion:a-0012"
+      ],
+      "source_doc": "assertion:a-0012",
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "status": "current",
+      "aliases": [],
+      "tags": [],
+      "id": "transition.epic-i-1",
+      "type": "Transition",
+      "label": "Epic I: Domain graphs for the software factory deployed",
+      "summary": "deployed on 2026-10-26, recorded by Chiheb Dkhil.",
+      "attributes": {
+        "to": "deployed",
+        "at": "2026-10-26",
+        "by": "Chiheb Dkhil",
+        "environment": "prod",
+        "event": "github:Cynergis/oto#83"
+      }
     }
   ],
   "edges": [
@@ -1160,6 +1183,11 @@
       "from": "transition.epic-h-1",
       "rel": "transition_of",
       "to": "workitem.epic-h"
+    },
+    {
+      "from": "transition.epic-i-1",
+      "rel": "transition_of",
+      "to": "workitem.epic-i"
     }
   ]
 }

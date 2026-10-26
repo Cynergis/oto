@@ -15,7 +15,7 @@ One module per command, in the order a project moves through them:
     deploy.py      oto deploy                   the deploy config, checked; what each environment holds
     connectors.py  oto connectors               the stores a build publishes to, and the conformance kit
     curate.py      oto curate                   gated changes to the curated graph, batches via add
-    data.py        oto data                     the data layer: a store's schema introspected, its lineage from dbt or SQL, its usage from the query log
+    data.py        oto data                     the data layer: a store's schema, lineage and usage read in; a meaning drafted (skeleton) and confirmed by a person
     draft.py       oto draft                    a model drafts one document's proposal (optional extra)
     vet.py         oto vet                      audit citations against the corpus
     build.py       oto build, oto clean, oto verify

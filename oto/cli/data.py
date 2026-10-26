@@ -70,16 +70,60 @@ def cmd_data(args):
         print("  next: oto curate start (if no candidate is open), oto curate add --from %s, oto curate check, oto curate apply --by <you> --note \"...\""
               % rel(done["proposal"]))
         return 0
+    if args.data_command == "meaning":
+        from .. import meaning as _meaning
+        rel = lambda p: os.path.relpath(p, project.data)  # noqa: E731
+        try:
+            if args.check:
+                done = _meaning.check(project, args.check)
+                if done["problems"]:
+                    print("oto: %s is not ready for the gates:" % rel(args.check), file=sys.stderr)
+                    for problem in done["problems"]:
+                        print("  %s" % problem, file=sys.stderr)
+                    return 1
+                print("%s: %d description(s), all draft" % (rel(args.check), done["count"]))
+                print("  next: oto curate start (if no candidate is open), oto curate add --from %s, oto curate check, oto curate apply --by <you> --note \"...\";"
+                      " then, for each one a person has read: oto data confirm <id> --by <name> --at <date>" % rel(args.check))
+                return 0
+            done = _meaning.skeleton(project, args.store, args.at)
+        except _data.DataError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        print("%s: %d table(s) and column(s) without a description" % (done["store"], done["count"]))
+        print("  skeleton %s, each with its schema line as evidence and its context" % rel(done["proposal"]))
+        print("  next: load the data-meaning skill; fill every description in one sentence or drop the node; then oto data meaning --check %s"
+              % rel(done["proposal"]))
+        return 0
+    if args.data_command == "confirm":
+        from .. import meaning as _meaning
+        if not args.node:
+            print("oto: confirm takes the table or column: oto data confirm table.<store>-<table> --by <name> --at <date>", file=sys.stderr)
+            return 1
+        try:
+            done = _meaning.confirm(project, args.node, args.by, args.at, description=args.description, note=args.note)
+        except _data.DataError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        if done["already"]:
+            print("%s (%s) is already confirmed; nothing recorded" % (done["label"], done["node"]))
+            return 0
+        print("%s (%s) confirmed by %s on %s: %s" % (done["label"], done["node"], args.by, args.at, done["description"]))
+        print("  recorded as assertion %s; the audit log has it" % done.get("assertion"))
+        print("  next: oto build, then DT1 says it is confirmed and DT4 no longer lists it")
+        return 0
     print("oto: unknown data command %r" % args.data_command, file=sys.stderr)
     return 1
 
 
 def register(sub):
     data = sub.add_parser("data", help="the data semantic layer: a store's schema, lineage, usage and meaning as facts")
-    data.add_argument("data_command", choices=["introspect", "lineage", "usage"],
+    data.add_argument("data_command", choices=["introspect", "lineage", "usage", "meaning", "confirm"],
                       help="introspect reads a store's catalog through an overlay connector into a schema document and a proposal; "
                            "lineage reads a dbt manifest (--dbt) or SQL files (--sql) into a lineage document and a proposal of jobs and feeds; "
-                           "usage reads the store's query log (--connector) or an exported one (--log) into a usage document and a proposal of who uses what, and how")
+                           "usage reads the store's query log (--connector) or an exported one (--log) into a usage document and a proposal of who uses what, and how; "
+                           "meaning lists what has no description as a skeleton proposal for the data-meaning skill (--check a filled one); "
+                           "confirm records a named person's confirmation of a table's or column's description")
+    data.add_argument("node", nargs="?", default=None, help="for confirm: the table or column, table.<store>-<table> or column.<store>-<table>-<column>")
     data.add_argument("--connector", default=None, help="the overlay connector: sqlite (introspect's default), postgres or bigquery")
     data.add_argument("--path", default=None, help="for sqlite: the file to read (default: this project's own built store); postgres and bigquery read their connection from project.config.json or the environment")
     data.add_argument("--store", default=None, help="the DataStore node the tables are part of, datastore.<id> (default for introspect: datastore.<store name>); the graph must hold it")
@@ -88,6 +132,10 @@ def register(sub):
     data.add_argument("--sql", default=None, help="for lineage: a .sql file or a directory of them, one job per file")
     data.add_argument("--tool", default=None, help="for lineage --sql: what runs the files when no `-- tool:` comment says (default: sql)")
     data.add_argument("--log", default=None, help="for usage: a query log a person exported (JSON list, JSON lines, or one statement per line)")
+    data.add_argument("--check", default=None, metavar="PROPOSAL", help="for meaning: the filled proposal to check before the gates")
+    data.add_argument("--by", default=None, help="for confirm: who confirms; a decision has a name")
+    data.add_argument("--description", default=None, help="for confirm: the description the person states, when none was drafted or the draft is wrong")
+    data.add_argument("--note", default=None, help="for confirm: anything worth recording with the decision")
     data.add_argument("--reader", action="append", default=None, metavar="PRINCIPAL=NODE",
                       help="for usage: who a principal in the log is, as the component, team or role the estate declares; repeatable, "
                            "merged over usage.readers in project.config.json")

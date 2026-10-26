@@ -791,6 +791,38 @@ and refused by `curate add` as a supersession; a reader map naming a node the gr
 `--reader` without `=`, both `--log` and `--connector`, a missing `--at` and the SQLite overlay
 (which keeps no log) are each refused in words.
 
+Then what it all means, drafted by an agent and confirmed by a person, and the graph as a dependency
+of a concierge:
+
+```bash
+oto data meaning --store datastore.ledger --at 2026-10-28 --project ledger            # the skeleton: every table and column without a description
+# load the data-meaning skill: fill one sentence per node or drop it, keep description_status draft
+oto data meaning --check proposals/meaning-ledger.json --project ledger
+oto curate start --project ledger && oto curate add --from proposals/meaning-ledger.json --project ledger
+oto curate check --project ledger && oto curate apply --by "<you>" --note "meanings drafted" --project ledger
+oto build --project ledger && oto query --project ledger ask DT4                       # the drafts, with their sentences
+oto data confirm table.ledger-postings --by "<you>" --at 2026-10-29 --project ledger
+oto data confirm column.ledger-postings-posted-at --description "When the posting was booked, in UTC." --by "<you>" --at 2026-10-29 --project ledger
+oto build --project ledger && oto query --project ledger ask DT1 TABLE=table.ledger-postings   # confirmed
+oto audit verify --project ledger
+oto graph describe --reach http://127.0.0.1:8795/ledger --project ledger > ledger.descriptor.json
+oto init --name Concierge --slug root --concierge --project root
+oto graph depend --on ledger.descriptor.json --by "<you>" --at 2026-10-29 --project root && oto build --project root
+oto serve --project root --http 8796 &
+curl 'http://127.0.0.1:8796/api/dependencies?question=which+job+loads+the+postings+table'   # ask graph.ledger
+```
+
+Pass when the skeleton lists twelve nodes with their schema lines as evidence and a `_context` that
+never carries a meaning; `--check` refuses the unfilled skeleton ("12 empty description(s)") and a
+node whose status is `confirmed` (naming `oto data confirm`); the filled drafts pass the gates and
+DT4 lists each with its sentence; `confirm` records an assertion by the person, moves the status,
+passes the gates and the audit chain verifies; confirming again changes nothing and says so; a
+column with no draft is refused unless the person states it with `--description`; a store or a node
+that is not a table or column, a missing `--at` and an empty `--by` are refused in words;
+`curate add` of a proposal that says `confirmed` is refused as a supersession; and the concierge
+ranks the data graph first for a question about a table and the plan first for a question about a
+work item.
+
 ## 22. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.

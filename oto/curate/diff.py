@@ -17,6 +17,7 @@ VALID_STATUS = ("current", "superseded", "proposed", "intended")
 
 #: Fields whose change means the graph now asserts something different.
 FACTUAL_FIELDS = ("type", "label", "summary", "attributes")
+PLAIN_ATTRIBUTES = False      #: the contradiction names the attributes that moved
 
 #: Fields that record provenance and time rather than the fact itself.
 TEMPORAL_FIELDS = ("as_of", "valid_from", "valid_to", "status", "supersedes", "superseded_by",
@@ -52,6 +53,21 @@ class Finding:
         return "%s %s: %s" % (self.severity, self.subject, self.detail)
 
 
+def _decisions(vocabulary):
+    """{class: {attribute, ...}}: the attributes the vocabulary marks `decision`, a person's call
+    about the fact (a confirmation, a status) that moves without a supersession when the node cites
+    the assertion that moved it."""
+    out = {}
+    if not vocabulary:
+        return out
+    from ..model.vocabulary import declared_attributes
+    for kind in vocabulary.get("classes") or {}:
+        names = {name for name, spec in (declared_attributes(vocabulary, kind) or {}).items() if isinstance(spec, dict) and spec.get("decision") is True}
+        if names:
+            out[kind] = names
+    return out
+
+
 def index_nodes(graph):
     return {n.get("id"): n for n in (graph.get("nodes") or []) if n.get("id")}
 
@@ -60,15 +76,17 @@ def edge_key(edge):
     return (edge.get("from"), edge.get("rel"), edge.get("to"))
 
 
-def _changed_fields(old, new):
+def _changed_fields(old, new, decided=()):
     """The factual fields whose value changed. An attribute added to a node is new knowledge, not
-    a change; an attribute whose value differs, or that went missing, is."""
+    a change; an attribute whose value differs, or that went missing, is. `decided` names the
+    attributes allowed to move: the decisions a person has just signed (see `_decisions`)."""
     out = []
     for f in FACTUAL_FIELDS:
         if f == "attributes":
             a, b = old.get(f) or {}, new.get(f) or {}
-            if any(k not in b or b[k] != v for k, v in a.items()):
-                out.append(f)
+            moved = sorted(k for k, v in a.items() if k not in b or (b[k] != v and k not in decided))
+            if moved:
+                out.append("attributes (%s)" % ", ".join(moved) if not PLAIN_ATTRIBUTES else f)
         elif old.get(f) != new.get(f):
             out.append(f)
     return out
@@ -183,9 +201,11 @@ def check(live, candidate, vocabulary=None, known_assertions=None):
             findings.append(Finding(Finding.BLOCKING, nid, detail))
 
     # ---- contradiction: a fact changed with no supersession record ----
+    decisions = _decisions(vocabulary)
     for nid in sorted(set(by_id) & set(live_by_id)):
         old, new = live_by_id[nid], by_id[nid]
-        fields = _changed_fields(old, new)
+        signed = set(new.get("sources") or []) - set(old.get("sources") or [])
+        fields = _changed_fields(old, new, decided=decisions.get(new.get("type"), ()) if signed else ())
         if not fields:
             continue
         recorded = bool(new.get("supersedes")) or bool(new.get("superseded_by")) \

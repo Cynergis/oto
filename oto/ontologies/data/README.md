@@ -43,8 +43,17 @@ reader invented) (C4). The kind is one deterministic rule, weighted by calls: a 
 key is transactional, an aggregate, grouping, window, DISTINCT, scan or range is analytical, and a
 tie is transactional, the reader you must tell before a change. The statement text is hashed into
 the document and never kept; counts are the document's, not the fact's, so the same log read twice
-is one set of facts and a kind that flipped is a supersession the merge refuses. `oto data confirm`
-(C2) and the data project as a dependency of a concierge (C5) come next.
+is one set of facts and a kind that flipped is a supersession the merge refuses. Meaning is the
+data-meaning skill's: `oto data meaning --store datastore.<id> --at <date>` lists every table and
+column without a description as a skeleton proposal, each with its schema line as evidence and what
+the catalog, lineage and usage say about it; the skill fills one sentence per node, `oto data
+meaning --check` refuses an empty description or a status other than draft, and the drafts go
+through the gates (C2). A named person confirms with `oto data confirm <id> --by <name> --at
+<date> [--description "..."]`: an assertion by them, `description_status` moved to `confirmed`
+under the gates, which allow the move because the attribute is marked a `decision` and the node
+now cites the assertion; no proposal can confirm. A concierge that depends on this graph routes a
+question about a table to it (C5): `oto graph describe --reach <url>` here, `oto graph depend --on`
+there.
 
 This is a first draft: edit it. The sample describes the estate sample's ledger; replace it with your
 store's tables as soon as you have introspected one.

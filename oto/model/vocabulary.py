@@ -71,7 +71,7 @@ KEYS = {"schemes": ("definition", "label", "alt_labels", "scope_note", "example"
         "properties": ("domain", "range", "inverse", "definition", "label", "inverse_label", "alt_labels",
                        "scope_note", "example", "subproperty_of", "min", "max", "derived"),
         "attributes": ("type", "definition", "label", "alt_labels", "scope_note", "example", "required",
-                       "pattern", "min_value", "max_value", "min_length", "default", "was"),
+                       "pattern", "min_value", "max_value", "min_length", "default", "was", "decision"),
         "temporal": ("type", "definition", "label")}
 TEMPORAL_TYPES = ("date", "string", "ref")
 DEFAULT_LANGUAGE = "en"
@@ -212,6 +212,10 @@ def _shape(section, label, spec):
         elif key == "default":
             if isinstance(value, (dict, list)) or value == "":
                 return "%s: `default` is the value an instance has when none is asserted or derived" % label
+        elif key == "decision":
+            if value is not True and value is not False:
+                return ("%s: `decision` is true or false: true marks a person's call about the fact (a confirmation, a status) that moves "
+                        "without a supersession when the node cites the assertion that moved it" % label)
         elif key == "pattern":
             if not isinstance(value, str) or not value:
                 return "%s: `pattern` is a regular expression the value must match (anywhere, as sh:pattern; anchor it with ^ and $ for the whole value)" % label

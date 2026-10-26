@@ -11,6 +11,11 @@ transition is open (the attribute's default). The superseded chain is the histor
 entity <transition> --as-of <date>` says what the state was. `deployed` is set by events, a merged
 pull request or a promotion, never by hand; `oto work set` refuses it.
 
+**A milestone is reached when a person says so.** `Milestone.state` (planned, reached, missed) is a
+`decision` attribute (release 6): `oto decide milestone.<id> state=reached --by <who> --at <date>` records
+the named person's assertion and moves it under the gates; it is never derived from a count of merges,
+because a phase is done when its owner says so. The OTO roadmap's own phases are recorded that way.
+
 **A block carries its context.** A `Block` is a transition to blocked that must carry a `reason`
 and a `waiting_on` (a person, a team, an item, a decision, a question, a risk): the class requires
 both, so a block without them is refused at the gate. `oto work set <item> --state blocked

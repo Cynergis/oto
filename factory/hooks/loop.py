@@ -4,7 +4,7 @@ iteration cap, so it can be neither skipped nor run forever.
 
 Reads the hook's JSON on stdin (cwd, stop_hook_active) and the run snapshot at
 `<cwd>/.factory/run.json` ({"cap", "iteration", ...}); the evaluator's verdict is
-`<cwd>/.factory/verdict.json` ({"verdict": "pass" | "fail", "gaps": [...]}). No snapshot: not a
+`<cwd>/.factory/verdict.json` ({"verdict": "pass" | "fail", "gaps": [...], "tests": "pass" | "fail"}). No snapshot: not a
 factory run, the session stops as usual. A pass ends the loop. Otherwise the hook counts the
 iteration, appends what it decided to `events.jsonl` beside the snapshot (J4: `oto factory run
 sync` reads it into the run graph) and answers {"decision": "block", "reason": ...} so the agent keeps going on the gaps
@@ -17,11 +17,13 @@ import os
 import sys
 
 
-def event(snapshot, run, kind, iteration, verdict=None, gaps=None):
+def event(snapshot, run, kind, iteration, verdict=None, gaps=None, tests=None):
     """One line appended to events.jsonl beside the snapshot: what the loop decided, for
-    `oto factory run sync` to read into the run graph (roadmap J4)."""
+    `oto factory run sync` to read into the run graph (roadmap J4); `tests` is what the evaluator
+    said the tests said, so the metrics can tell where the two disagreed (J6)."""
     line = {"event": kind, "run": run.get("run"), "component": run.get("component"), "iteration": iteration, "verdict": verdict or "pending",
-            "gaps": list(gaps or []), "at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+            "gaps": list(gaps or []), "tests": tests if tests in ("pass", "fail") else "unknown",
+            "at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
     try:
         with open(os.path.join(os.path.dirname(snapshot), "events.jsonl"), "a", encoding="utf-8") as f:
             f.write(json.dumps(line) + "\n")
@@ -56,34 +58,35 @@ def main():
     except (TypeError, ValueError):
         iteration = 0
     verdict_path = os.path.join(os.path.dirname(snapshot), "verdict.json")
-    verdict, gaps, problem = None, [], None
+    verdict, gaps, tests, problem = None, [], None, None
     if os.path.isfile(verdict_path):
         try:
             with open(verdict_path, encoding="utf-8") as f:
                 data = json.load(f)
             verdict = str((data or {}).get("verdict") or "").strip().lower()
             gaps = [str(g) for g in ((data or {}).get("gaps") or [])]
+            tests = str((data or {}).get("tests") or "").strip().lower() or None
             if verdict not in ("pass", "fail"):
                 problem = "verdict.json says %r; a verdict is pass or fail" % verdict
                 verdict = None
         except (OSError, ValueError) as exc:
             problem = "verdict.json cannot be read (%s)" % exc
     if verdict == "pass":
-        event(snapshot, run, "pass", iteration, "pass", gaps)
+        event(snapshot, run, "pass", iteration, "pass", gaps, tests)
         sys.stdout.write("factory: the evaluator passed %s after %d iteration(s); the run is done\n" % (label, iteration))
         return 0
     if iteration >= cap:
         run["escalated"] = True
         with open(snapshot, "w", encoding="utf-8") as f:
             json.dump(run, f, indent=2)
-        event(snapshot, run, "escalated", iteration, verdict or "pending", gaps)
+        event(snapshot, run, "escalated", iteration, verdict or "pending", gaps, tests)
         sys.stdout.write("factory: the iteration cap of %d is reached for %s without a pass; the run is escalated to a person and stays recorded in %s\n"
                          % (cap, label, snapshot))
         return 0
     run["iteration"] = iteration + 1
     with open(snapshot, "w", encoding="utf-8") as f:
         json.dump(run, f, indent=2)
-    event(snapshot, run, "iteration", iteration + 1, verdict or "pending", gaps)
+    event(snapshot, run, "iteration", iteration + 1, verdict or "pending", gaps, tests)
     if verdict == "fail":
         what = "the evaluator's gaps: %s. Act on each, run the tests, then run the evaluator again" % ("; ".join(gaps) if gaps else "none listed; run the evaluator again")
     elif problem:

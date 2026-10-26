@@ -1,0 +1,130 @@
+name: oto factory
+
+# The factory's second execution environment (roadmap J5): the same plugin, so the same hooks, in
+# GitHub Actions beside local Claude Code. The engine writes the spec, the scope and the criteria
+# from the graph; the runner builds inside the write scope the guard enforces; the Stop hook runs
+# the loop to the iteration cap and appends its decisions to .factory/events.jsonl; then the engine
+# reads them into the run's own graph, prints the status and keeps the run graph as the workflow's
+# artifact, the audit trail of the run. A passed build is promoted by a person with
+# `oto factory run promote`, never here.
+#
+# Copy this file to .github/workflows/ in the code repository. Needs: the repository secret
+# ANTHROPIC_API_KEY. Optional repository variables: OTO_ENGINE (the engine repository, also the
+# plugin marketplace; default Cynergis/oto), OTO_MODEL (default claude-opus-5), OTO_GRAPH (the graph
+# project's path or repository, when it is not the `graph/` directory of this repository).
+
+on:
+  workflow_dispatch:
+    inputs:
+      component:
+        description: "the component to build, component.<id>"
+        required: true
+      graph:
+        description: "the graph project (default: the OTO_GRAPH variable, else graph/)"
+        required: false
+      cap:
+        description: "the iteration cap of the run"
+        required: false
+        default: "5"
+
+concurrency:
+  group: oto-factory-${{ github.event.inputs.component }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the engine from its repository
+        run: python -m pip install "oto-kg @ git+https://github.com/${ENGINE}"
+        env:
+          ENGINE: ${{ vars.OTO_ENGINE || 'Cynergis/oto' }}
+      - name: Write the spec, the scope and the criteria from the graph
+        id: spec
+        env:
+          GRAPH: ${{ github.event.inputs.graph || vars.OTO_GRAPH || 'graph' }}
+          COMPONENT: ${{ github.event.inputs.component }}
+          CAP: ${{ github.event.inputs.cap || '5' }}
+        run: |
+          mkdir -p .factory
+          oto build --project "$GRAPH"
+          oto factory spec "$COMPONENT" --out .factory/spec.json --project "$GRAPH"
+          oto factory scope "$COMPONENT" --cap "$CAP" --out .factory/run.json --project "$GRAPH"
+          oto factory criteria --component "$COMPONENT" --out .factory/criteria --project "$GRAPH"
+          oto factory plan --all --json --out .factory/plan.json --project "$GRAPH"
+          oto factory run start --plan .factory/plan.json --at "$(date -u +%F)" --id "r-${{ github.run_id }}" --runs .factory/runs
+          python - <<'PY'
+          import json
+          run = json.load(open(".factory/run.json"))
+          run["run"] = "r-${{ github.run_id }}"
+          json.dump(run, open(".factory/run.json", "w"), indent=2)
+          PY
+          echo "run=.factory/runs/r-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+      - name: Start the branch
+        run: |
+          git config user.name "oto factory"
+          git config user.email "oto-factory@users.noreply.github.com"
+          git checkout -b "factory/${{ github.event.inputs.component }}-${{ github.run_id }}"
+      - name: Build the component with the factory plugin
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          plugin_marketplaces: |
+            https://github.com/${{ vars.OTO_ENGINE || 'Cynergis/oto' }}.git
+          plugins: |
+            oto@oto
+            oto-factory@oto
+          claude_args: |
+            --model "${{ vars.OTO_MODEL || 'claude-opus-5' }}"
+            --allowedTools "Bash,Edit,Write,MultiEdit,Read,Glob,Grep"
+            --max-turns 300
+          prompt: |
+            You are the factory-runner agent of the oto-factory plugin, running unattended in this code repository on the branch
+            factory/${{ github.event.inputs.component }}-${{ github.run_id }}. Load the spec-context
+            skill first and follow it: the run is .factory/run.json, the spec .factory/spec.json
+            (checked against the graph at ${{ github.event.inputs.graph || vars.OTO_GRAPH || 'graph' }}),
+            the criteria under .factory/criteria/. Build ${{ github.event.inputs.component }} inside
+            the write scope, run the tests, and stop: the Stop hook runs the evaluator loop to the
+            cap. Do not commit or push; this workflow commits your working tree. A gap in the graph
+            is a deviation (`oto factory deviate`), never something you fill in from memory.
+      - name: Read the hooks' events into the run graph
+        if: always()
+        run: |
+          oto factory run sync --run "${{ steps.spec.outputs.run }}" --events .factory/events.jsonl || true
+          oto factory run status --run "${{ steps.spec.outputs.run }}"
+          oto factory run metrics --run "${{ steps.spec.outputs.run }}"
+      - name: Keep the run graph as the audit trail
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: factory-run-${{ github.run_id }}
+          path: |
+            .factory/runs
+            .factory/events.jsonl
+            .factory/run.json
+            .factory/verdict.json
+            .factory/criteria
+          if-no-files-found: warn
+      - name: Commit the branch and open the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git add -A ':!.factory'
+          if git diff --cached --quiet; then echo "nothing built; no pull request"; exit 0; fi
+          git commit -m "oto factory: ${{ github.event.inputs.component }}, run r-${{ github.run_id }}"
+          git push -u origin "factory/${{ github.event.inputs.component }}-${{ github.run_id }}"
+          gh label create oto-factory --description "built by the OTO factory" --color 1D76DB 2>/dev/null || true
+          body="$(oto factory run status --run "${{ steps.spec.outputs.run }}"; echo; oto factory run metrics --run "${{ steps.spec.outputs.run }}"; echo; echo "The run graph is the artifact factory-run-${{ github.run_id }}. Promote a passed build with \`oto factory run promote\`; a person decides.")"
+          gh pr create --base "${{ github.ref_name }}" --head "factory/${{ github.event.inputs.component }}-${{ github.run_id }}" --title "oto factory: ${{ github.event.inputs.component }} (run r-${{ github.run_id }})" --body "$body" --label oto-factory

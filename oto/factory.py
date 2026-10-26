@@ -339,6 +339,8 @@ def scope(graph, component_id, cap=5, allow=(), read_only=(), at=None):
 
 RUN_PRINCIPAL = "oto factory"
 VERDICTS = ("pending", "pass", "fail", "escalated")
+TEST_RESULTS = ("pass", "fail", "unknown")
+COST_NOTE = "not recorded by the hooks; the traces of Epic F hold it"
 
 
 def _slug_of(component_id):
@@ -438,8 +440,9 @@ def _build_for(graph, run_id, component):
     raise FactoryError("run %s has no build of %s: it is not in the plan" % (run_id, component))
 
 
-def run_record(run_dir, component, iteration, verdict, gaps=(), at=None):
-    """One iteration of a build: recorded once, the order a fact. Returns {"build", "iteration", "state"}."""
+def run_record(run_dir, component, iteration, verdict, gaps=(), at=None, tests=None):
+    """One iteration of a build: recorded once, the order a fact; `tests` is what the tests said beside
+    the verdict (pass, fail, unknown), so a disagreement is a fact of the run (J6). Returns {"build", "iteration", "state"}."""
     from .curate import session as _session
     project = _run_project(run_dir)
     graph = _session.live(project)
@@ -454,6 +457,9 @@ def run_record(run_dir, component, iteration, verdict, gaps=(), at=None):
     verdict = (verdict or "").strip().lower()
     if verdict not in VERDICTS:
         raise FactoryError("--verdict is one of %s, not %r" % (", ".join(VERDICTS), verdict))
+    tests = (tests or "unknown").strip().lower()
+    if tests not in TEST_RESULTS:
+        raise FactoryError("--tests is one of %s, not %r" % (", ".join(TEST_RESULTS), tests))
     at = (at or datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")).strip()
     build = _build_for(graph, run_id, component)
     iid = "iteration.%s-%s-%d" % (run_id, _slug_of(component), number)
@@ -463,7 +469,7 @@ def run_record(run_dir, component, iteration, verdict, gaps=(), at=None):
                       key=lambda n: (n.get("attributes") or {}).get("number") or 0)
     node = _node(iid, "Iteration", "%s, iteration %d" % (build.get("label") or component, number),
                  {"pending": "No verdict yet: sent to the evaluator.", "pass": "The evaluator passed it.", "fail": "The evaluator failed the previous attempt.",
-                  "escalated": "The iteration cap was reached without a pass."}[verdict], at, number=number, verdict=verdict, gaps=[str(g) for g in gaps or []], at=at)
+                  "escalated": "The iteration cap was reached without a pass."}[verdict], at, number=number, verdict=verdict, gaps=[str(g) for g in gaps or []], at=at, tests=tests)
     edges = [{"from": iid, "rel": "iteration_of", "to": build["id"]}]
     if previous:
         edges.append({"from": iid, "rel": "follows", "to": previous[-1]["id"]})
@@ -542,7 +548,7 @@ def run_sync(run_dir, events_path):
                 iid = "iteration.%s-%s-%s" % (run_id, _slug_of(component), e.get("iteration"))
                 if any(n.get("id") == iid for n in graph.get("nodes") or []):
                     continue
-                run_record(run_dir, component, e.get("iteration"), e.get("verdict") or "pending", e.get("gaps") or [], at=e.get("at"))
+                run_record(run_dir, component, e.get("iteration"), e.get("verdict") or "pending", e.get("gaps") or [], at=e.get("at"), tests=e.get("tests"))
                 counts["new"] += 1
                 counts["iterations"] += 1
             elif kind == "pass":
@@ -588,6 +594,78 @@ def run_replay(run_dir, component):
     for i in iterations:
         a = i.get("attributes") or {}
         L.append("  iteration %s: %s%s (%s)" % (a.get("number"), a.get("verdict"), " — " + "; ".join(a.get("gaps") or []) if a.get("gaps") else "", a.get("at")))
+    return "\n".join(L) + "\n"
+
+
+def _run_dirs(runs_dir):
+    """The run projects under a directory, in name order."""
+    if not os.path.isdir(runs_dir):
+        raise FactoryError("no such runs directory: %s" % runs_dir)
+    found = sorted(os.path.join(runs_dir, d) for d in os.listdir(runs_dir) if os.path.isfile(os.path.join(runs_dir, d, "project.config.json")))
+    if not found:
+        raise FactoryError("no run project under %s (oto factory run start makes one per run)" % runs_dir)
+    return found
+
+
+def run_metrics(run_dir=None, runs_dir=None):
+    """The factory's metrics as queries over the run graph (roadmap J6), for one run or every run under
+    a directory: iterations to pass (mean, min, max over the passed builds), the escalation rate over
+    the builds that ended, and the iterations where the evaluator and the tests disagreed (FR4: tests
+    passed, verdict fail; FR5: tests failed, verdict pass). Cost is not the hooks' to know and is said
+    so, never guessed. Returns a dict."""
+    from .curate import session as _session
+    dirs = [run_dir] if run_dir else _run_dirs(runs_dir or os.path.join(".factory", "runs"))
+    m = {"runs": 0, "run_ids": [], "builds": 0, "passed": 0, "escalated": 0, "failed": 0, "building": 0, "planned": 0, "iterations": 0,
+         "iterations_to_pass": {"mean": None, "min": None, "max": None, "builds": 0}, "escalation_rate": None,
+         "disagreements": 0, "disagreement_list": [], "cost": COST_NOTE}
+    to_pass = []
+    for d in dirs:
+        project = _run_project(d)
+        graph = _session.live(project)
+        run = _run_node(graph)
+        m["runs"] += 1
+        m["run_ids"].append(run["id"])
+        nodes = graph.get("nodes") or []
+        builds = {b["id"]: b for b in nodes if b.get("type") == "Build"}
+        build_of = {}
+        for e in graph.get("edges") or []:
+            if e.get("rel") == "iteration_of":
+                build_of[e["from"]] = e["to"]
+        for b in builds.values():
+            a = b.get("attributes") or {}
+            m["builds"] += 1
+            state = a.get("state") or "planned"
+            if state in ("passed", "escalated", "failed", "building", "planned"):
+                m[state if state != "passed" else "passed"] += 1
+            if state == "passed":
+                to_pass.append(max(int(a.get("iterations") or 0), 1))
+        for i in sorted((n for n in nodes if n.get("type") == "Iteration"), key=lambda n: ((n.get("attributes") or {}).get("at") or "", n["id"])):
+            a = i.get("attributes") or {}
+            m["iterations"] += 1
+            tests, verdict = a.get("tests") or "unknown", a.get("verdict")
+            if (tests, verdict) in (("pass", "fail"), ("fail", "pass")):
+                b = builds.get(build_of.get(i["id"]), {})
+                m["disagreements"] += 1
+                m["disagreement_list"].append({"run": run["id"], "build": b.get("id"), "component": (b.get("attributes") or {}).get("component"), "iteration": a.get("number"),
+                                               "tests": tests, "verdict": verdict, "gaps": list(a.get("gaps") or []), "question": "FR4" if tests == "pass" else "FR5"})
+    if to_pass:
+        m["iterations_to_pass"] = {"mean": sum(to_pass) / len(to_pass), "min": min(to_pass), "max": max(to_pass), "builds": len(to_pass)}
+    ended = m["passed"] + m["escalated"] + m["failed"]
+    if ended:
+        m["escalation_rate"] = m["escalated"] / ended
+    return m
+
+
+def render_metrics(m):
+    L = ["%d run(s) %s: %d build(s), %d passed, %d escalated, %d failed, %d building, %d planned; %d iteration(s)" % (
+        m["runs"], ", ".join(m["run_ids"]), m["builds"], m["passed"], m["escalated"], m["failed"], m["building"], m["planned"], m["iterations"])]
+    itp = m["iterations_to_pass"]
+    L.append("  iterations to pass: %s" % ("mean %.2f, min %d, max %d over %d passed build(s)" % (itp["mean"], itp["min"], itp["max"], itp["builds"]) if itp["builds"] else "no build passed yet"))
+    L.append("  escalation rate: %s" % ("%.0f%% of %d ended build(s)" % (m["escalation_rate"] * 100, m["passed"] + m["escalated"] + m["failed"]) if m["escalation_rate"] is not None else "no build ended yet"))
+    L.append("  evaluator and tests disagree: %d iteration(s)%s" % (m["disagreements"], "" if m["disagreements"] else " (FR4, FR5)"))
+    for d in m["disagreement_list"]:
+        L.append("    %s iteration %s: tests %s, verdict %s (%s)%s" % (d["component"], d["iteration"], d["tests"], d["verdict"], d["question"], " — " + "; ".join(d["gaps"]) if d["gaps"] else ""))
+    L.append("  cost: %s" % m["cost"])
     return "\n".join(L) + "\n"
 
 

@@ -1035,6 +1035,40 @@ contract and never the deviating one, the run's build reads failed, and AR7 list
 after the gates; and a JUnit, a coverage.py and a k6 report each read as one value, the
 measurement goes through the gates, and AR6 and `arch_context` show it next to the budget.
 
+**The last cut of phase 5: the spec-context skill, the Actions path, metrics, the release.** The
+runner starts from the graph, both execution environments run the same hooks, and the metrics are
+queries over the run graph.
+
+```bash
+# the runner's first move, locally in Claude Code with the oto-factory plugin: load the spec-context skill, then
+oto factory spec component.invoice-intake --out .factory/spec.json --project domain
+oto factory spec --check .factory/spec.json --project domain                                    # the hash in run.json must agree
+oto factory criteria --component component.invoice-intake --out .factory/criteria --project domain
+oto query --project domain ask DD22 CONTEXT=bc.invoice-approval                                 # what the builder must produce
+oto query --project domain ask AR10 NODE=component.invoice-intake                               # the contracts it consumes, frozen or draft
+# in CI: copy factory/workflows/oto-factory.yml to .github/workflows/ of the code repository, set ANTHROPIC_API_KEY,
+# run it with component=component.invoice-intake; the same plugin, so the same guard and loop hooks; the run graph is the artifact
+# the evaluator writes what the tests said beside its verdict: {"verdict": "fail", "gaps": [...], "tests": "pass"}
+oto factory run record --run .factory/runs/r-001 --component component.invoice-intake --iteration 2 --verdict fail --tests pass \
+  --gap "the IBAN is not validated" --at 2026-10-27T11:00:00Z                                  # by hand, where there is no hook
+oto factory run metrics --run .factory/runs/r-001                                               # iterations to pass, escalation rate, disagreements, cost
+oto factory run metrics --runs .factory/runs --json                                             # over every run
+oto build --project .factory/runs/r-001 && oto query --project .factory/runs/r-001 ask FR4 RUN=run.r-001   # tests passed, the evaluator failed
+# the release: factory/.claude-plugin/plugin.json and .claude-plugin/marketplace.json both say 0.2.0; the README has a Releases section
+# the roadmap: a phase is reached when a named person says so
+oto decide milestone.phase-5 state=reached --by "Chiheb Dkhil" --at 2026-10-26 --project roadmap
+oto build --project roadmap && oto audit verify --project roadmap
+```
+
+Pass when the skill parses, names only commands the engine has and the runner loads it first; the
+workflow runs `anthropics/claude-code-action` with the `oto-factory` plugin, writes spec, scope and
+criteria from the graph, syncs the events after the build and uploads the run graph; `--tests` is
+kept on the iteration and the loop hook carries it from `verdict.json` into the events; the metrics
+give the mean iterations to pass over the passed builds, the escalation rate over the ended ones,
+the FR4 and FR5 disagreements by build, and say cost is not recorded; the two version numbers are
+equal; and `milestone.phase-5` reads reached with the assertion among its sources, phase 6 still
+planned, the audit chain intact.
+
 ## 23. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.

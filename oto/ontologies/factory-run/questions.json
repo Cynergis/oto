@@ -111,6 +111,102 @@
       "terms": [
         "follows"
       ]
+    },
+    "FR4": {
+      "who": "the engineer tuning the evaluator, and the metrics (J6)",
+      "question": "In $RUN, which iterations did the tests pass while the evaluator said fail: which build, which iteration, with what gaps?",
+      "why": "The evaluator holding the line where the tests were green: a stricter judge, a criterion the tests do not cover, or an evaluator that is wrong. Either way it is where the criteria and the tests disagree, and a person reads it.",
+      "validated_by": "",
+      "params": {
+        "RUN": {
+          "type": "Run"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "b",
+              "build_of",
+              "$RUN"
+            ]
+          },
+          {
+            "node": "b",
+            "type": "Build"
+          },
+          {
+            "edge": [
+              "i",
+              "iteration_of",
+              "b"
+            ]
+          },
+          {
+            "node": "i",
+            "type": "Iteration",
+            "where": {
+              "tests": "pass",
+              "verdict": "fail"
+            }
+          }
+        ],
+        "select": [
+          "b.component",
+          "i.number",
+          "i.gaps",
+          "i.at"
+        ]
+      },
+      "gate": "any"
+    },
+    "FR5": {
+      "who": "the engineer tuning the evaluator, and the metrics (J6)",
+      "question": "In $RUN, which iterations did the tests fail while the evaluator said pass: which build, which iteration, with what gaps?",
+      "why": "A pass over red tests is the worse disagreement: the evaluator passed what the tests refused. Every one is read before the build is promoted.",
+      "validated_by": "",
+      "params": {
+        "RUN": {
+          "type": "Run"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "b",
+              "build_of",
+              "$RUN"
+            ]
+          },
+          {
+            "node": "b",
+            "type": "Build"
+          },
+          {
+            "edge": [
+              "i",
+              "iteration_of",
+              "b"
+            ]
+          },
+          {
+            "node": "i",
+            "type": "Iteration",
+            "where": {
+              "tests": "fail",
+              "verdict": "pass"
+            }
+          }
+        ],
+        "select": [
+          "b.component",
+          "i.number",
+          "i.gaps",
+          "i.at"
+        ]
+      },
+      "gate": "any"
     }
   }
 }

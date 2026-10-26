@@ -114,8 +114,18 @@ def cmd_factory(args):
                 print("  the hooks append their decisions to .factory/events.jsonl; oto factory run sync --run %s --events <file> reads them in" % done["dir"])
                 return 0
             if action == "record":
-                done = _factory.run_record(args.run, args.component_id, args.iteration, args.verdict, gaps=args.gap or [], at=args.at)
+                done = _factory.run_record(args.run, args.component_id, args.iteration, args.verdict, gaps=args.gap or [], at=args.at, tests=args.tests)
                 print("%s: iteration %s recorded as %s; the build is %s" % (args.component_id, args.iteration, args.verdict, done["state"]))
+                return 0
+            if action == "metrics":
+                if not args.run and not args.runs:
+                    print("oto: run metrics takes --run <run project> or --runs <directory of runs>", file=sys.stderr)
+                    return 1
+                m = _factory.run_metrics(run_dir=args.run, runs_dir=args.runs)
+                if args.json:
+                    print(json.dumps(m, indent=2, ensure_ascii=False))
+                else:
+                    sys.stdout.write(_factory.render_metrics(m))
                 return 0
             if action == "sync":
                 counts = _factory.run_sync(args.run, args.events)
@@ -148,7 +158,7 @@ def cmd_factory(args):
         except _factory.FactoryError as exc:
             print("oto: %s" % exc, file=sys.stderr)
             return 1
-        print("oto: run takes start, record, sync, status, replay or promote", file=sys.stderr)
+        print("oto: run takes start, record, sync, status, replay, metrics or promote", file=sys.stderr)
         return 1
     if args.factory_command == "criteria":
         if not args.context and not args.component_id:
@@ -197,9 +207,9 @@ def register(sub):
     factory = sub.add_parser("factory", help="the factory's inputs, read from the graph: a component's spec, the build plan")
     factory.add_argument("factory_command", choices=["spec", "plan", "scope", "run", "criteria", "deviate"],
                          help="spec projects a component's spec as schema-checked, hashed JSON (--check a file); plan derives the build order from contract dependencies; "
-                              "scope writes the run snapshot the factory plugin's hooks enforce; run keeps a run's own graph (start, record, sync, status, replay, promote); "
+                              "scope writes the run snapshot the factory plugin's hooks enforce; run keeps a run's own graph (start, record, sync, status, replay, metrics, promote); "
                               "criteria writes the acceptance criteria and a test skeleton from the graph; deviate records what was found impossible as specified")
-    factory.add_argument("component", nargs="?", default=None, help="for spec and scope: the component, component.<id>; for run: start, record, sync, status, replay or promote")
+    factory.add_argument("component", nargs="?", default=None, help="for spec and scope: the component, component.<id>; for run: start, record, sync, status, replay, metrics or promote")
     factory.add_argument("--check", default=None, metavar="FILE", help="for spec: verify a written spec's shape and hash")
     factory.add_argument("--out", default=None, help="write the spec or the plan here instead of printing it; for criteria, the directory (default criteria/)")
     factory.add_argument("--at", default=None, help="for spec: the date to record as generated (default: today)")
@@ -211,12 +221,13 @@ def register(sub):
     factory.add_argument("--read-only", dest="read_only", action="append", default=None, metavar="PATH", help="for scope: a path added to the read-only paths beside contracts/; repeatable")
     factory.add_argument("--plan", default=None, help="for run start: the plan file `oto factory plan --json --out` wrote")
     factory.add_argument("--id", default=None, help="for run start: the run's id (default: r-<date>-<time>)")
-    factory.add_argument("--runs", default=None, help="for run start: the directory the run projects live in (default .factory/runs)")
-    factory.add_argument("--run", default=None, help="for run record, sync, status, replay, promote: the run project's directory")
+    factory.add_argument("--runs", default=None, help="for run start and run metrics: the directory the run projects live in (default .factory/runs)")
+    factory.add_argument("--run", default=None, help="for run record, sync, status, replay, metrics, promote: the run project's directory")
     factory.add_argument("--component", dest="component_id", default=None, help="for run record, replay, promote: the component, component.<id>")
     factory.add_argument("--iteration", default=None, help="for run record: the iteration's number, from 1")
     factory.add_argument("--verdict", default=None, help="for run record: pending, pass, fail or escalated")
     factory.add_argument("--gap", action="append", default=None, help="for run record: a gap the evaluator named; repeatable")
+    factory.add_argument("--tests", default=None, help="for run record: what the tests said, pass, fail or unknown (default unknown)")
     factory.add_argument("--events", default=None, help="for run sync: the events file the loop hook wrote (.factory/events.jsonl)")
     factory.add_argument("--commit", default=None, help="for run promote: the sha the passed build is promoted with")
     factory.add_argument("--into", default=None, help="for run promote and deviate: the main project the result is proposed into")

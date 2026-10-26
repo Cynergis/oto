@@ -965,6 +965,29 @@
         "environment": "prod",
         "event": "github:Cynergis/oto#71"
       }
+    },
+    {
+      "source_type": "human_assertion",
+      "sources": [
+        "assertion:a-0011"
+      ],
+      "source_doc": "assertion:a-0011",
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "status": "current",
+      "aliases": [],
+      "tags": [],
+      "id": "transition.epic-h-1",
+      "type": "Transition",
+      "label": "Epic H: Architecture graph for implementation deployed",
+      "summary": "deployed on 2026-10-26, recorded by Chiheb Dkhil.",
+      "attributes": {
+        "to": "deployed",
+        "at": "2026-10-26",
+        "by": "Chiheb Dkhil",
+        "environment": "prod",
+        "event": "github:Cynergis/oto#78"
+      }
     }
   ],
   "edges": [
@@ -1132,6 +1155,11 @@
       "from": "transition.epic-c-1",
       "rel": "transition_of",
       "to": "workitem.epic-c"
+    },
+    {
+      "from": "transition.epic-h-1",
+      "rel": "transition_of",
+      "to": "workitem.epic-h"
     }
   ]
 }

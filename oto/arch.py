@@ -6,6 +6,7 @@ and compile on merge (H2).
     oto arch export --calm [--out model.json]
     oto arch map --repo <path> --repository repo.<id> --at YYYY-MM-DD [--name <slug>]
     oto arch compile --at YYYY-MM-DD --by <who> [--note "..."]
+    oto arch impact --decision <id|ADR-nnn> | --orphans | --untraced | --files <paths...> [--format text|markdown]
 
 `map` scans a code repository by a declared convention (`oto.codemap.json` at its root, else every
 directory under `src/` is a module of the component named after it) into a code-map document and a
@@ -764,3 +765,183 @@ def compile_project(project, at, by, note=None):
     if code != 0:
         raise ArchError("applied, but the build failed:\n%s" % out.strip())
     return {"proposals": proposals, "gaps": gaps, "applied": True, "built": True}
+
+
+# ---- impact (H4) ----
+
+def _graph_index(graph):
+    nodes = {n["id"]: n for n in graph.get("nodes") or [] if n.get("id")}
+    out, inc = {}, {}
+    for e in graph.get("edges") or []:
+        out.setdefault((e.get("from"), e.get("rel")), []).append(e.get("to"))
+        inc.setdefault((e.get("to"), e.get("rel")), []).append(e.get("from"))
+    return nodes, out, inc
+
+
+def decision_id(term):
+    """decision.adr-007 as given, or ADR-007 the way a decision record names itself."""
+    from . import adr as _adr
+    term = (term or "").strip()
+    return _adr.node_id(term) if _adr.ID.match(term) else term
+
+
+def impact(graph, decision):
+    """{"id", "label", "status", "superseded_by", "governs": [{"id", "label", "type", "connections", "modules", "proposals"}],
+    "reached": [labels], "modules": [paths], "proposals": [labels]} for a decision."""
+    nodes, out, inc = _graph_index(graph)
+    did = decision_id(decision)
+    d = nodes.get(did)
+    if d is None:
+        raise ArchError("the graph holds no %s" % did)
+    if d.get("type") != "Decision":
+        raise ArchError("%s is a %s, not a Decision" % (did, d.get("type")))
+    report = {"id": did, "label": d.get("label") or did, "status": "superseded" if d.get("status") == "superseded" else (d.get("attributes") or {}).get("status") or d.get("status"),
+              "superseded_by": d.get("superseded_by"), "superseded_by_label": nodes.get(d.get("superseded_by"), {}).get("label") if d.get("superseded_by") else None,
+              "governs": [], "reached": [], "modules": [], "proposals": []}
+    for gid in out.get((did, "governs"), []) + [x for x in out.get((did, "about"), []) if x not in out.get((did, "governs"), [])]:
+        g = nodes.get(gid)
+        if g is None:
+            continue
+        item = {"id": gid, "label": g.get("label") or gid, "type": g.get("type"), "connections": [], "modules": [], "proposals": []}
+        for rid in inc.get((gid, "connects_from"), []) + inc.get((gid, "connects_to"), []):
+            r = nodes.get(rid)
+            if r is None:
+                continue
+            others = [x for x in out.get((rid, "connects_to"), []) + out.get((rid, "connects_from"), []) if x != gid]
+            for other in others or [None]:
+                item["connections"].append({"id": rid, "label": r.get("label") or rid, "kind": (r.get("attributes") or {}).get("kind"),
+                                            "protocol": (r.get("attributes") or {}).get("protocol"),
+                                            "other": nodes.get(other, {}).get("label") if other else None, "other_id": other})
+                if other and nodes.get(other, {}).get("label") not in report["reached"] and other != gid:
+                    report["reached"].append(nodes.get(other, {}).get("label") or other)
+        for mid in out.get((gid, "implemented_by"), []):
+            m = nodes.get(mid)
+            if m and m.get("type") == "CodeModule":
+                path = (m.get("attributes") or {}).get("path") or m.get("label")
+                item["modules"].append(path)
+                if path not in report["modules"]:
+                    report["modules"].append(path)
+        for pid in inc.get((gid, "proposes_change_to"), []):
+            p = nodes.get(pid)
+            if p and ((p.get("attributes") or {}).get("status") or "proposed") == "proposed":
+                item["proposals"].append(p.get("label") or pid)
+                if (p.get("label") or pid) not in report["proposals"]:
+                    report["proposals"].append(p.get("label") or pid)
+        report["governs"].append(item)
+    return report
+
+
+def render_impact(report, fmt="text"):
+    md = fmt == "markdown"
+    head = "## Impact of %s" % report["label"] if md else "Impact of %s" % report["label"]
+    L = [head, ""]
+    status = "Status: %s" % report["status"]
+    if report.get("superseded_by"):
+        status += ", superseded by %s" % (report.get("superseded_by_label") or report["superseded_by"])
+    L.append(status + ".")
+    L.append("")
+    if not report["governs"]:
+        L.append("Governs nothing the graph holds.")
+    else:
+        L.append("Governs %d node(s):" % len(report["governs"]))
+        for g in report["governs"]:
+            bits = ["%d connection(s)" % len(g["connections"])]
+            if g["modules"]:
+                bits.append("module(s) %s" % ", ".join(g["modules"]))
+            if g["proposals"]:
+                bits.append("open proposal(s) %s" % ", ".join(g["proposals"]))
+            L.append("- %s (%s): %s" % (g["label"], g["id"], ", ".join(bits)))
+    if report["reached"]:
+        L.append("")
+        L.append("Reached through their connections: %s." % ", ".join(report["reached"]))
+    if report["modules"]:
+        L.append("")
+        L.append("Modules to check: %s." % ", ".join(report["modules"]))
+    if report["proposals"]:
+        L.append("")
+        L.append("Open change proposals: %s." % ", ".join(report["proposals"]))
+    return "\n".join(L).rstrip() + "\n"
+
+
+ORPHAN_TYPES = ("System", "Component", "DataStore", "Interface")
+
+
+def orphans(graph):
+    """Systems, components, stores and interfaces no relationship reaches: not an end of any
+    Relationship, and for an interface, exposed or consumed by nothing and on no connection."""
+    nodes, out, inc = _graph_index(graph)
+    found = []
+    for n in nodes.values():
+        if n.get("type") not in ORPHAN_TYPES or n.get("status") == "superseded":
+            continue
+        nid = n["id"]
+        if n["type"] == "Interface":
+            reached = inc.get((nid, "exposes"), []) or inc.get((nid, "consumes"), []) or inc.get((nid, "via"), [])
+            why = "exposed by nothing, consumed by nothing, on no connection"
+        else:
+            reached = inc.get((nid, "connects_from"), []) or inc.get((nid, "connects_to"), [])
+            why = "an end of no relationship"
+        if not reached:
+            found.append({"id": nid, "label": n.get("label") or nid, "type": n["type"], "why": why})
+    return sorted(found, key=lambda x: (x["type"], x["label"]))
+
+
+def untraced(graph):
+    """{"modules": [{"id", "path"}], "components": [{"id", "label"}]}: modules nothing implements, components with no module."""
+    nodes, out, inc = _graph_index(graph)
+    modules = [{"id": n["id"], "path": (n.get("attributes") or {}).get("path") or n.get("label")} for n in nodes.values()
+               if n.get("type") == "CodeModule" and n.get("status") != "superseded" and not inc.get((n["id"], "implemented_by"))]
+    components = [{"id": n["id"], "label": n.get("label") or n["id"]} for n in nodes.values()
+                  if n.get("type") == "Component" and n.get("status") != "superseded"
+                  and not any(nodes.get(m, {}).get("type") == "CodeModule" for m in out.get((n["id"], "implemented_by"), []))]
+    return {"modules": sorted(modules, key=lambda m: m["path"]), "components": sorted(components, key=lambda c: c["label"])}
+
+
+def render_orphans(found, fmt="text"):
+    L = ["## Orphans" if fmt == "markdown" else "Orphans: nodes no relationship reaches", ""]
+    if not found:
+        L.append("none: every system, component, store and interface is an end of a relationship.")
+    for o in found:
+        L.append("- %s (%s, %s): %s" % (o["label"], o["id"], o["type"], o["why"]))
+    return "\n".join(L).rstrip() + "\n"
+
+
+def render_untraced(found, fmt="text"):
+    L = ["## Untraced code" if fmt == "markdown" else "Untraced code", ""]
+    L.append("Modules nothing implements (%d):" % len(found["modules"]))
+    L += ["- %s (%s)" % (m["path"], m["id"]) for m in found["modules"]] or ["- none"]
+    L.append("")
+    L.append("Components with no module (%d):" % len(found["components"]))
+    L += ["- %s (%s)" % (c["label"], c["id"]) for c in found["components"]] or ["- none"]
+    return "\n".join(L).rstrip() + "\n"
+
+
+def impact_of_files(project, paths, fmt="markdown"):
+    """The impact of every decision record among `paths`, rendered; "" when none is one. A record
+    whose decision the graph does not hold yet is named, so the reviewer knows."""
+    from . import adr as _adr
+    from .curate import session as _session
+    graph = None
+    out = []
+    for path in paths:
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as f:
+                text = f.read()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if not _adr.is_adr(text):
+            continue
+        record = _adr.parse(text)
+        adr_id = str(record["front"].get("id") or "").strip()
+        did = _adr.node_id(adr_id) if adr_id else None
+        if graph is None:
+            graph = _session.live(project)
+        try:
+            out.append(render_impact(impact(graph, did), fmt))
+        except ArchError:
+            head = "## %s" if fmt == "markdown" else "%s"
+            out.append((head % ("Impact of %s" % (adr_id or os.path.basename(path)))) + "\n\nThe decision is not in the graph yet (%s): its impact is what this pull request adds. "
+                       "Once applied, `oto arch impact --decision %s` reads it.\n" % (did or "no id", adr_id or "<id>"))
+    return "\n".join(out)

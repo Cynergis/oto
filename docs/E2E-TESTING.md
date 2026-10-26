@@ -918,6 +918,31 @@ and the components with no module; `--files` prints a markdown report for a deci
 for a file that is not one, and a note for a record the graph does not hold yet; and the checks
 workflow comments the report on a pull request that changes `docs/adr/`.
 
+Then the factory's domain graph (Epic I): a storming board in, and the analyst's sign-off:
+
+```bash
+oto init --name "The invoice domain" --slug domain --ontology ddd --project domain && oto build --project domain
+oto query --project domain ask DD2 CONTEXT=bc.invoice-approval                 # the sample's context runs as the architecture sample's CALM node
+oto query --project domain ask AR1 NODE=component.invoice-intake               # the same node, the architecture's question
+oto ddd storm --from board.json --at 2026-10-21 --project domain              # the board: build/documents/storm-<context>.md and captures/storm-<context>.json
+oto curate propose --from captures/storm-invoice-approval.json --project domain
+oto curate start --project domain && oto curate add --from proposals/storm-invoice-approval.json --project domain
+oto curate check --project domain && oto curate apply --by "<you>" --note "the storming session" --project domain && oto build --project domain
+oto query --project domain ask DD8 EVENT=domainevent.invoice-submitted         # the command that raises it, the aggregate that emits it
+oto decide boundedcontext.invoice-approval readiness=ready --by "Ana Lyst" --at 2026-10-22 --project domain
+oto build --project domain && oto query --project domain ask DD23              # the ready context whose aggregate is still a draft
+```
+
+Pass when the ddd project answers DD2 and AR1 from one node; the board becomes a document with one
+line per sticky and a capture whose items quote their stickies, with the root entity of each
+aggregate, the trigger of each command (its actor, the policy that issues it, or the external system
+that sends it), the events in board order preceding each other, and every element part of the
+context; `propose` makes the proposal and the gates take it; DD8, DD9, DD12 and DD22 answer; a command
+with no aggregate and a sticky pointing at nothing are said by `storm` before the gates; `decide`
+moves readiness with an assertion by the named person and the chain verifies, refuses a value the
+vocabulary does not take, an attribute that is a fact, a node the graph lacks, a missing name or date,
+and says when nothing changes; and DD23 names the ready context's draft aggregate.
+
 ## 23. The engine's own gates and CI
 
 Exercises: the gate script, the publishability gate with your deny terms, the CI jobs.

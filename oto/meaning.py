@@ -183,9 +183,9 @@ def check(project, path):
 
 def confirm(project, node_id, by, at, description=None, note=None):
     """A named person confirms a description: an assertion by them, the status moved, applied under
-    the gates. Returns {"node", "label", "already", "assertion"?, "description"}."""
-    from . import work as _work
-    from . import audit as _audit
+    the gates (decide.move, for a table's or column's description). Returns {"node", "label",
+    "already", "assertion"?, "description"}."""
+    from . import decide as _decide
     if not (by or "").strip():
         raise MeaningError("--by names the person who confirms: a decision has a name")
     if not at or not ISO_DATE.match(str(at)):
@@ -204,23 +204,13 @@ def confirm(project, node_id, by, at, description=None, note=None):
         raise MeaningError("%s has no description to confirm: an agent drafts one (the data-meaning skill), or state it yourself with --description \"...\""
                            % node_id)
     final = said or current
-    if attributes.get("description_status") == CONFIRMED and final == current:
-        _audit.append(project, "data confirm", by.strip(), [node_id], "unchanged", detail="%s already confirmed" % node_id)
-        return {"node": node_id, "label": node.get("label") or node_id, "already": True, "description": current}
     text = "%s confirmed the description of %s %s (%s): %s" % (by.strip(), node["type"].lower(), node.get("label") or node_id, node_id, final)
     if (note or "").strip():
         text += " [%s]" % note.strip()
-
-    def edit(candidate, source):
-        target = next(n for n in candidate.get("nodes") or [] if n.get("id") == node_id)
-        target.setdefault("attributes", {})["description"] = final
-        target["attributes"]["description_status"] = CONFIRMED
-        target["as_of"] = at
-        for s in source["sources"]:
-            if s not in (target.get("sources") or []):
-                target.setdefault("sources", []).append(s)
-        return {"node": node_id, "label": node.get("label") or node_id, "already": False, "description": final}
     try:
-        return _work._commit(project, text, by.strip(), at, [node_id], edit, action="data confirm")
-    except _work.WorkError as exc:
+        done = _decide.move(project, node_id, "description_status", CONFIRMED, by, at, note=note, also={"description": final},
+                            action="data confirm", text=text)
+    except _decide.DecideError as exc:
         raise MeaningError(str(exc))
+    done["description"] = final
+    return done

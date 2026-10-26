@@ -451,6 +451,44 @@
       "tags": [
         "sample"
       ]
+    },
+    {
+      "id": "bc.invoice-approval",
+      "type": "BoundedContext",
+      "label": "Invoice approval",
+      "summary": "The context that takes a supplier invoice from submission to a scheduled payment; it runs as the invoice intake, a CALM node of the architecture sample.",
+      "attributes": {
+        "readiness": "draft",
+        "architecture_style": [
+          "event-driven"
+        ],
+        "deployment_unit": "service"
+      },
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
+    },
+    {
+      "id": "usecase.submit-invoice",
+      "type": "UseCase",
+      "label": "Submit an invoice for approval",
+      "summary": "A clerk submits a supplier invoice; the context stores it and starts the approval.",
+      "attributes": {},
+      "aliases": [],
+      "tags": [],
+      "as_of": "2026-10-26",
+      "valid_from": "2026-10-26",
+      "source_doc": "sample",
+      "status": "current",
+      "sources": [
+        "sample"
+      ]
     }
   ],
   "edges": [
@@ -738,6 +776,31 @@
       "from": "openquestion.q-evidence",
       "rel": "about",
       "to": "agg.settlement"
+    },
+    {
+      "from": "bc.invoice-approval",
+      "rel": "deployed_as",
+      "to": "component.invoice-intake"
+    },
+    {
+      "from": "bc.invoice-approval",
+      "rel": "owned_by",
+      "to": "team.payments-platform"
+    },
+    {
+      "from": "usecase.submit-invoice",
+      "rel": "part_of",
+      "to": "bc.invoice-approval"
+    },
+    {
+      "from": "usecase.submit-invoice",
+      "rel": "performed_by",
+      "to": "role.ap-clerk"
+    },
+    {
+      "from": "usecase.submit-invoice",
+      "rel": "satisfies",
+      "to": "nfr.req-042"
     }
   ]
 }

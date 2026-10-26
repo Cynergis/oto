@@ -266,7 +266,9 @@
     "UseCase": {
       "readiness": {
         "type": "enum:draft|ready|built",
-        "definition": "Whether the builder may implement this yet."
+        "definition": "Whether the builder may implement this yet. A draft when unsaid; moved to ready by a named person (`oto decide`), the sign-off of the business graph, and to built when the factory has built it.",
+        "default": "draft",
+        "decision": true
       }
     },
     "Subdomain": {
@@ -290,7 +292,9 @@
       },
       "readiness": {
         "type": "enum:draft|ready|built",
-        "definition": "Whether the builder may implement this context yet."
+        "definition": "Whether the builder may implement this context yet. A draft when unsaid; moved to ready by a named person (`oto decide`), the sign-off of the business graph, and to built when the factory has built it.",
+        "default": "draft",
+        "decision": true
       }
     },
     "ContextRelationship": {
@@ -328,7 +332,9 @@
       },
       "readiness": {
         "type": "enum:draft|ready|built",
-        "definition": "Whether the builder may implement this command yet."
+        "definition": "Whether the builder may implement this command yet. A draft when unsaid; moved to ready by a named person (`oto decide`), the sign-off of the business graph, and to built when the factory has built it.",
+        "default": "draft",
+        "decision": true
       }
     },
     "Reaction": {
@@ -346,7 +352,9 @@
     "Aggregate": {
       "readiness": {
         "type": "enum:draft|ready|built",
-        "definition": "Whether the builder may implement this aggregate yet."
+        "definition": "Whether the builder may implement this aggregate yet. A draft when unsaid; moved to ready by a named person (`oto decide`), the sign-off of the business graph, and to built when the factory has built it.",
+        "default": "draft",
+        "decision": true
       },
       "persistence": {
         "type": "enum:repository|none|custom",

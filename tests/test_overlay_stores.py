@@ -120,7 +120,7 @@ class FakeJob:
         elif "KEY_COLUMN_USAGE" in sql:
             columns, rows = ["table_name", "column_name", "constraint_type", "ref_table", "ref_column"], fx["keys"]
         elif "JOBS_BY_PROJECT" in sql:
-            columns, rows = ["creation_time", "query", "total_bytes_processed", "statement_type"], fx["log"]
+            columns, rows = ["creation_time", "user_email", "query", "total_bytes_processed", "statement_type"], fx["log"]
         elif sql in fx["queries"]:
             columns, rows = fx["queries"][sql]["columns"], fx["queries"][sql]["rows"]
         else:
@@ -169,7 +169,7 @@ def test_postgres_introspects_the_ledger_from_information_schema():
     assert all("%s" in q or "information_schema" in q for q in fake.executed if "schema" in q), "the schema is a parameter, never spliced into the SQL"
     assert pg.introspect(s) == schema
     log = pg.query_log(s)
-    assert log[0] == {"sql": "SELECT * FROM postings WHERE account_id = $1", "calls": 1240, "total_ms": 310.5}
+    assert log[0] == {"by": "payment_api", "sql": "SELECT * FROM postings WHERE account_id = $1", "calls": 1240, "total_ms": 310.5}, "with who ran it"
     empty = pg.connect({"connection": FakePostgres(dict(_fixture("postgres-ledger.json"), extension=[])), "schema": "public"})
     assert pg.query_log(empty) == [], "without pg_stat_statements there is no log, and that is not an error"
 
@@ -243,7 +243,8 @@ def test_bigquery_introspects_the_dataset_from_information_schema():
     assert all("`acme.ledger.INFORMATION_SCHEMA." in sql for sql, _d, _b in fake.queries), fake.queries
     assert bq.introspect(s) == schema
     log = bq.query_log(s)
-    assert log[0] == {"at": "2026-10-26T02:10:00+00:00", "sql": "SELECT * FROM `acme.ledger.postings` WHERE account_id = 1", "bytes": 20480, "kind": "SELECT"}
+    assert log[0] == {"at": "2026-10-26T02:10:00+00:00", "by": "api@acme.iam.gserviceaccount.com", "sql": "SELECT * FROM `acme.ledger.postings` WHERE account_id = 1",
+                      "bytes": 20480, "kind": "SELECT"}, "with who ran it"
     assert "`region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT" in fake.queries[-1][0]
 
 

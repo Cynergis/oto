@@ -256,7 +256,7 @@ def test_the_product_vocabulary_knows_a_lineage_document():
     assert "|lineage|" in kinds or kinds.endswith("|lineage"), kinds
     with open(os.path.join(HERE, "..", "oto", "ontologies", "product", "manifest.json"), encoding="utf-8") as f:
         manifest = json.load(f)
-    assert manifest["release"] == 12 and manifest["changelog"][0]["release"] == 12 and "lineage" in manifest["changelog"][0]["note"]
+    assert manifest["release"] >= 12 and any(c["release"] == 12 and "lineage" in c["note"] for c in manifest["changelog"])
 
 
 def test_a_copied_tree_scans_only_sql_files(tmp_path, described):

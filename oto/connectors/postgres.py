@@ -3,7 +3,7 @@
 
 The catalog comes from information_schema (tables and views, columns with type and nullability, the
 primary and foreign keys with the column a foreign key references); the query log from
-pg_stat_statements when the extension is installed, else nothing; a native read runs one SELECT
+pg_stat_statements when the extension is installed, with the role that ran each statement, else nothing; a native read runs one SELECT
 inside `START TRANSACTION READ ONLY` and rolls back, so the store itself refuses a write the words
 let through. The driver is pg8000 (BSD-3-Clause, pure Python), installed by the `postgres` extra;
 the connection is a DSN (`postgresql://user@host:5432/db`) with the password from `PGPASSWORD` or
@@ -35,7 +35,8 @@ KEYS_SQL = ("SELECT tc.table_name, kcu.column_name, tc.constraint_type, ccu.tabl
             "AND ccu.constraint_schema = tc.constraint_schema AND tc.constraint_type = 'FOREIGN KEY' "
             "WHERE tc.table_schema = %s AND tc.constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY') ORDER BY 1, 2")
 EXTENSION_SQL = "SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements'"
-LOG_SQL = "SELECT query, calls, total_exec_time FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT %s"
+LOG_SQL = ("SELECT r.rolname, s.query, s.calls, s.total_exec_time FROM pg_stat_statements s LEFT JOIN pg_roles r ON r.oid = s.userid "
+           "ORDER BY s.total_exec_time DESC LIMIT %s")
 
 
 def connector():
@@ -137,7 +138,7 @@ class PostgresConnector(Connector):
     def query_log(self, session, since=None):
         if not self._rows(session, EXTENSION_SQL):
             return []
-        return [{"sql": sql, "calls": calls, "total_ms": total} for sql, calls, total in self._rows(session, LOG_SQL, (LOG_LIMIT,))]
+        return [{"by": by, "sql": sql, "calls": calls, "total_ms": total} for by, sql, calls, total in self._rows(session, LOG_SQL, (LOG_LIMIT,))]
 
     def native_read(self, session, sql, limit=100):
         text = select_only(sql)

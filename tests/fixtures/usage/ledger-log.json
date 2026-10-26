@@ -1,0 +1,11 @@
+[
+  {"by": "payment_api", "sql": "SELECT posting_id, amount_cents FROM postings WHERE account_id = 42 AND note <> 'secret-token-123'", "calls": 1200},
+  {"by": "payment_api", "sql": "SELECT posting_id, amount_cents FROM postings WHERE account_id = 7 AND note <> 'another-token'", "calls": 300},
+  {"by": "payment_api", "sql": "SELECT * FROM accounts WHERE account_id = $1", "calls": 900},
+  {"by": "compliance", "sql": "SELECT account_id, day, sum(balance_cents) FROM daily_balances GROUP BY 1, 2", "calls": 4},
+  {"by": "compliance", "sql": "SELECT count(*) FROM postings p JOIN accounts a ON a.account_id = p.account_id WHERE a.currency = 'CAD'", "calls": 2},
+  {"by": "etl", "sql": "INSERT INTO postings SELECT * FROM staging_settlements", "calls": 30},
+  {"by": "nobody", "sql": "SELECT 1", "calls": 5},
+  {"by": "ops", "sql": "SELECT * FROM pg_stat_statements", "calls": 1},
+  {"by": "analyst", "sql": "SELECT * FROM postings", "calls": 3}
+]

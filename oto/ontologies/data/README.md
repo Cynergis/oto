@@ -33,7 +33,17 @@ ephemeral model collapses to what it reads, a dbt source is a feed whose kind it
 a SQL file is one job whose INSERT, MERGE, CREATE ... AS, COPY and LOAD say what it writes and whose
 FROM and JOIN say what it reads, with `-- schedule:` and `-- tool:` comments for the rest. A job
 that loads a table the graph lacks is a gap the command reports, never a table it invents: the
-catalog says what exists, lineage says how it is loaded. Query-log readers (C4), `oto data confirm`
+catalog says what exists, lineage says how it is loaded. `oto data usage --log <file> | --connector
+postgres|bigquery [--reader principal=node.id ...] --store datastore.<id> --at <date>` reads the
+store's query log (pg_stat_statements with its role, BigQuery's job history with its user, or a
+file a person exported) into a usage document and a proposal of `Usage` nodes, one per principal
+and table, `use_of` the table and `used_by` the component, team or role the principal is mapped to
+(`--reader`, or `usage.readers` in project.config.json; an unmapped principal is a gap, never a
+reader invented) (C4). The kind is one deterministic rule, weighted by calls: a write or a read by
+key is transactional, an aggregate, grouping, window, DISTINCT, scan or range is analytical, and a
+tie is transactional, the reader you must tell before a change. The statement text is hashed into
+the document and never kept; counts are the document's, not the fact's, so the same log read twice
+is one set of facts and a kind that flipped is a supersession the merge refuses. `oto data confirm`
 (C2) and the data project as a dependency of a concierge (C5) come next.
 
 This is a first draft: edit it. The sample describes the estate sample's ledger; replace it with your

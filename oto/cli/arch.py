@@ -2,7 +2,8 @@
 """`oto arch`: the architecture graph for implementation. import reads a CALM model into a document
 and a proposal in the architecture vocabulary (roadmap H1); export writes the graph's CALM facts back;
 map reads a code repository into a code map; compile runs what the project declares, on every merge (H2);
-impact reports what a decision affects, the orphans and the untraced code (H4)."""
+impact reports what a decision affects, the orphans and the untraced code (H4); measure records a report
+as evidence of a requirement (H6)."""
 import json
 import os
 import sys
@@ -80,6 +81,23 @@ def cmd_arch(args):
             print("  noted: %s" % gap)
         print("  applied by %s on %s%s, and built" % (args.by, args.at, " (%s)" % args.note if args.note else ""))
         return 0
+    if args.arch_command == "measure":
+        from .. import factory as _factory
+        if not args.nfr:
+            print("oto: measure takes --nfr <requirement> and --from <report> or --value \"...\", with --at <date>", file=sys.stderr)
+            return 1
+        try:
+            done = _factory.measure(project, args.nfr, args.at, value=args.value, path=args.from_, source=args.source)
+        except _factory.FactoryError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        rel = lambda p: os.path.relpath(p, project.data)  # noqa: E731
+        print("%s: %s measured %s on %s (%s)" % (done["doc"], args.nfr, done["value"], args.at, done["format"]))
+        print("  document %s (kept in %s)" % (rel(done["document"]), rel(done["archive"])))
+        print("  proposal %s" % rel(done["proposal"]))
+        print("  next: oto curate start (if no candidate is open), oto curate add --from %s, oto curate check, oto curate apply --by <you> --note \"...\"; "
+              "then AR6 and arch_context show the measured value next to the budget" % rel(done["proposal"]))
+        return 0
     if args.arch_command == "impact":
         from ..curate import session as _session
         fmt = args.format or "text"
@@ -107,11 +125,12 @@ def cmd_arch(args):
 
 def register(sub):
     arch = sub.add_parser("arch", help="the architecture graph for implementation: a CALM model in, through the gates, and back out")
-    arch.add_argument("arch_command", choices=["import", "export", "map", "compile", "impact"],
+    arch.add_argument("arch_command", choices=["import", "export", "map", "compile", "impact", "measure"],
                       help="import reads a CALM model (--calm <file>) into a document and a proposal; export writes the graph's CALM facts as a model; "
                            "map reads a code repository (--repo, --repository) into a code-map document and a proposal; "
                            "compile runs what project.config.json declares under `arch` through the gates and builds; "
-                           "impact reports what a decision affects, the orphans, the untraced code, or the decision records among changed files")
+                           "impact reports what a decision affects, the orphans, the untraced code, or the decision records among changed files; "
+                           "measure records a test, coverage or load-test report as evidence of a requirement")
     arch.add_argument("--calm", nargs="?", const=True, default=None, help="for import: the CALM model file; for export: the format (the only one)")
     arch.add_argument("--at", default=None, help="for import: the date the model was read, YYYY-MM-DD; never defaulted")
     arch.add_argument("--name", default=None, help="for import: the document's slug (default: the file's stem)")
@@ -126,5 +145,9 @@ def register(sub):
     arch.add_argument("--untraced", action="store_true", help="for impact: the modules nothing implements and the components with no module")
     arch.add_argument("--files", nargs="*", default=None, help="for impact: files a pull request changed; every decision record among them is reported")
     arch.add_argument("--format", default=None, choices=["text", "markdown"], help="for impact: text (default) or markdown, for a pull request comment")
+    arch.add_argument("--nfr", default=None, help="for measure: the requirement with a budget, nfr.<id>")
+    arch.add_argument("--from", dest="from_", default=None, help="for measure: a JUnit XML, coverage.py XML or k6 summary JSON report")
+    arch.add_argument("--value", default=None, help="for measure: the value stated, when there is no report")
+    arch.add_argument("--source", default=None, help="for measure: where the report can be seen, a URL")
     project_arguments(arch)
     arch.set_defaults(func=cmd_arch)

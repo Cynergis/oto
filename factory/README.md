@@ -39,4 +39,11 @@ snapshot (`run.json` names the run under `"run"`), and `oto factory run sync --r
 factory run promote` proposes a passed build's verdict and commit into the main graph through its
 gates. Run state never enters the main graph.
 
+**Criteria and deviations.** `oto factory criteria --context <id> --out <dir>` draws `criteria.md`, `criteria.json`
+and a pytest skeleton from the graph (the scenarios, rules, policies, budgets and controls of a context, each
+tracing to its nodes) for the evaluator to judge against; `oto factory deviate --run <dir> --component <id>
+--about <node> --observed ... --proposes ... --into <main project>` records what a runner or the evaluator
+found impossible as specified as a change proposal in the main graph, names the siblings reached through the
+contract, and fails the build until a person decides.
+
 What comes next in the roadmap: the spec-context skill (J3), both execution environments (J5), metrics (J6), and the release (J7).

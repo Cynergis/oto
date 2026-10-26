@@ -2,7 +2,8 @@
 """`oto factory`: the factory's inputs read from the graph. spec projects a component's spec,
 schema-checked and hashed (roadmap I3); plan derives the build order from contract dependencies (I5);
 scope writes the run snapshot the factory plugin's hooks enforce (J2); run keeps a run's own graph and
-promotes its results (I8, J4)."""
+promotes its results (I8, J4); criteria draws the acceptance criteria from the graph (I6); deviate records
+a deviation as a change proposal (I7, H5)."""
 import json
 import os
 import sys
@@ -13,7 +14,7 @@ from ._common import project_arguments, resolve as _resolve
 def cmd_factory(args):
     from .. import factory as _factory
     from ..curate import session as _session
-    project = None if args.factory_command == "run" else _resolve(args)
+    project = None if args.factory_command in ("run", "deviate") else _resolve(args)
     if args.factory_command == "spec":
         if args.check:
             if not os.path.isfile(args.check):
@@ -149,18 +150,58 @@ def cmd_factory(args):
             return 1
         print("oto: run takes start, record, sync, status, replay or promote", file=sys.stderr)
         return 1
+    if args.factory_command == "criteria":
+        if not args.context and not args.component_id:
+            print("oto: criteria takes --context <bounded context> or --component <component>, and --out <dir>", file=sys.stderr)
+            return 1
+        import datetime
+        at = args.at or datetime.date.today().isoformat()
+        try:
+            result = _factory.criteria(_session.live(project), context_id=args.context, component_id=args.component_id)
+        except _factory.FactoryError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        written = _factory.write_criteria(result, args.out or "criteria", at)
+        kinds = {}
+        for c in result["criteria"]:
+            kinds[c["kind"]] = kinds.get(c["kind"], 0) + 1
+        print("%s: %d criterion(s) for %s%s" % (args.out or "criteria", len(result["criteria"]), result["label"],
+                                                 " (%s)" % ", ".join("%d %s" % (n, k) for k, n in sorted(kinds.items())) if kinds else ""))
+        print("  %s, %s, %s" % (os.path.basename(written["markdown"]), os.path.basename(written["json"]), os.path.basename(written["tests"])))
+        print("  review them before anything builds on them: every criterion names the nodes it came from, and the skeleton's tests are skipped until implemented")
+        return 0
+    if args.factory_command == "deviate":
+        if not args.into:
+            print("oto: deviate takes --run <dir> --component <id> --about <node> --observed \"...\" --proposes \"...\" --at <date> --into <main project>", file=sys.stderr)
+            return 1
+        from ..project import Project
+        try:
+            done = _factory.deviate(args.run, args.component_id, args.about, args.observed, args.proposes, args.at, Project.standard(args.into))
+        except _factory.FactoryError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        rel = lambda p: os.path.relpath(p, args.into)  # noqa: E731
+        nodes = {n["id"]: n for n in _session.live(Project.standard(args.into)).get("nodes") or [] if n.get("id")}
+        print("deviation %s recorded: %s proposed as %s; the build of %s is failed until a person decides" % (done["id"], args.about, done["cp"], args.component_id))
+        print("  affected siblings: %s" % (", ".join("%s (%s)" % (nodes.get(x, {}).get("label") or x, x) for x in done["siblings"]) or "none"))
+        print("  document %s (kept in %s)" % (rel(done["document"]), rel(done["archive"])))
+        print("  proposal %s" % rel(done["proposal"]))
+        print("  next, in %s: oto curate start (if no candidate is open), oto curate add --from %s, oto curate check, oto curate apply --by <you> --note \"...\"; "
+              "then oto arch impact --decision once a decision settles it" % (args.into, rel(done["proposal"])))
+        return 0
     print("oto: unknown factory command %r" % args.factory_command, file=sys.stderr)
     return 1
 
 
 def register(sub):
     factory = sub.add_parser("factory", help="the factory's inputs, read from the graph: a component's spec, the build plan")
-    factory.add_argument("factory_command", choices=["spec", "plan", "scope", "run"],
+    factory.add_argument("factory_command", choices=["spec", "plan", "scope", "run", "criteria", "deviate"],
                          help="spec projects a component's spec as schema-checked, hashed JSON (--check a file); plan derives the build order from contract dependencies; "
-                              "scope writes the run snapshot the factory plugin's hooks enforce; run keeps a run's own graph (start, record, sync, status, replay, promote)")
+                              "scope writes the run snapshot the factory plugin's hooks enforce; run keeps a run's own graph (start, record, sync, status, replay, promote); "
+                              "criteria writes the acceptance criteria and a test skeleton from the graph; deviate records what was found impossible as specified")
     factory.add_argument("component", nargs="?", default=None, help="for spec and scope: the component, component.<id>; for run: start, record, sync, status, replay or promote")
     factory.add_argument("--check", default=None, metavar="FILE", help="for spec: verify a written spec's shape and hash")
-    factory.add_argument("--out", default=None, help="write the spec or the plan here instead of printing it")
+    factory.add_argument("--out", default=None, help="write the spec or the plan here instead of printing it; for criteria, the directory (default criteria/)")
     factory.add_argument("--at", default=None, help="for spec: the date to record as generated (default: today)")
     factory.add_argument("--all", action="store_true", help="for plan: every CALM component, whatever its context's readiness")
     factory.add_argument("--context", default=None, help="for plan: the components one bounded context runs as")
@@ -178,6 +219,9 @@ def register(sub):
     factory.add_argument("--gap", action="append", default=None, help="for run record: a gap the evaluator named; repeatable")
     factory.add_argument("--events", default=None, help="for run sync: the events file the loop hook wrote (.factory/events.jsonl)")
     factory.add_argument("--commit", default=None, help="for run promote: the sha the passed build is promoted with")
-    factory.add_argument("--into", default=None, help="for run promote: the main project the result is proposed into")
+    factory.add_argument("--into", default=None, help="for run promote and deviate: the main project the result is proposed into")
+    factory.add_argument("--about", default=None, help="for deviate: the node the deviation is about (a contract, an interface, a component)")
+    factory.add_argument("--observed", default=None, help="for deviate: what was found impossible as specified, in a sentence")
+    factory.add_argument("--proposes", default=None, help="for deviate: the change proposed, in a sentence")
     project_arguments(factory)
     factory.set_defaults(func=cmd_factory)

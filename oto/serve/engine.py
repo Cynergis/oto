@@ -1091,6 +1091,173 @@ def docs_text(query=None, limit=200):
 
 
 # ============================ MCP tool registry ============================
+# ============================ federation (roadmap A3, A5) ============================
+# A graph holds descriptors of the graphs it depends on (oto-core's Graph, oto/graphs.py). An agent
+# lists them, reads what each holds, chooses and asks it; the engine ranks deterministically when a
+# question is given and forwards one tool call over HTTP when asked to. It never decides for the
+# agent: two candidates as close as each other are both offered.
+DEPENDS_ON_GRAPH = "depends_on_graph"
+STOP_WORDS = {"the", "a", "an", "and", "or", "of", "to", "in", "on", "for", "is", "are", "was", "were", "what", "which",
+              "who", "whom", "how", "when", "where", "why", "does", "do", "did", "it", "its", "this", "that", "these",
+              "those", "with", "by", "at", "from", "as", "be", "has", "have", "had", "not", "no", "we", "our", "us", "about",
+              "them", "they", "their", "there", "here", "also", "any", "all", "one", "exist", "exists", "list", "show", "tell"}
+
+
+def _graph_rows():
+    """Every current Graph node of the store, as {id, label, attributes}."""
+    out = []
+    for row in STORE.by_type("Graph", limit=1000):
+        n = dict(STORE.node(row["id"]) or row)
+        attrs = n.get("attributes")
+        if isinstance(attrs, str):
+            try:
+                attrs = json.loads(attrs or "{}")
+            except ValueError:
+                attrs = {}
+        n["attributes"] = attrs or {}
+        out.append(n)
+    return out
+
+
+def _own_graph(rows):
+    """This graph's own descriptor: graph.<slug>, else the one whose slug is the project's, else the
+    one nothing depends on."""
+    slug = _pcfg.get("slug")
+    for n in rows:
+        if slug and (n["id"] == "graph.%s" % slug or n["attributes"].get("slug") == slug):
+            return n
+    depended = {e["dst"] for n in rows for e in STORE.edges_out(n["id"], DEPENDS_ON_GRAPH)}
+    roots = [n for n in rows if n["id"] not in depended]
+    return roots[0] if len(roots) == 1 else (rows[0] if rows else None)
+
+
+def _find_graph(rows, term):
+    term_l = (term or "").strip().lower()
+    for n in rows:
+        if n["id"] == term or n["attributes"].get("slug") == term_l or str(n.get("label") or "").lower() == term_l:
+            return n
+    return None
+
+
+def _words(text):
+    return {w for w in re.findall(r"[a-z0-9]+", (text or "").lower()) if len(w) > 2 and w not in STOP_WORDS}
+
+
+def _stem(word):
+    """A crude stem: long words by their first five letters, so 'claims' finds 'claim' and 'adjusts'
+    'adjuster'; short words only as they are."""
+    return word[:5] if len(word) >= 6 else word
+
+
+def _score(descriptor, question):
+    """How many of the question's words the descriptor says. A class name read as words
+    (WorkItem -> work item) counts double: the classes are the sharpest thing a descriptor says."""
+    attrs = descriptor["attributes"]
+    classes = set()
+    for c in attrs.get("classes") or []:
+        classes |= {_stem(w) for w in _words(re.sub(r"([a-z])([A-Z])", r"\1 \2", c))}
+    said = set()
+    for text in (descriptor.get("label"), attrs.get("subject"), attrs.get("slug")):
+        said |= {_stem(w) for w in _words(text)}
+    score = 0
+    for w in _words(question):
+        w = _stem(w)
+        if w in classes:
+            score += 2
+        elif w in said:
+            score += 1
+    return score
+
+
+def _descriptor_lines(n, indent="  "):
+    a = n["attributes"]
+    lines = ["%s%s  %s" % (indent, n["id"], n.get("label") or "")]
+    if a.get("subject"):
+        lines.append("%s  %s" % (indent, a["subject"]))
+    lines.append("%s  reach %s · classes %s" % (indent, a.get("reach") or "?", ", ".join((a.get("classes") or [])[:12]) or "?"))
+    return lines
+
+
+def dependencies_text(graph=None, question=None):
+    rows = _graph_rows()
+    if not rows:
+        return "This graph holds no descriptor of itself or of any other graph (oto-core's Graph): nothing to route to."
+    start = _find_graph(rows, graph) if graph else _own_graph(rows)
+    if start is None:
+        raise ValueError("no graph %r here; this graph knows %s" % (graph, ", ".join(n["id"] for n in rows)))
+    deps = [n for n in rows if any(e["dst"] == n["id"] for e in STORE.edges_out(start["id"], DEPENDS_ON_GRAPH))]
+    L = ["=== %s ===" % start["id"]] + _descriptor_lines(start, "")
+    if not deps:
+        L.append("\n%s depends on no other graph." % start["id"])
+        return "\n".join(L)
+    if question:
+        ranked = sorted(deps, key=lambda n: (-_score(n, question), n["id"]))
+        scores = {n["id"]: _score(n, question) for n in ranked}
+        best = ranked[0]
+        ties = [n for n in ranked if scores[n["id"]] == scores[best["id"]]]
+        L.append("\nDepends on %d graph(s), ranked for: %s" % (len(deps), question))
+        for n in ranked:
+            L.append("  [%d]" % scores[n["id"]])
+            L += _descriptor_lines(n, "    ")
+        if scores[best["id"]] == 0:
+            L.append("\nNo descriptor says a word of the question: ask the person which graph, or every one.")
+        elif len(ties) > 1:
+            L.append("\n%s are as close as each other: ask both (kg_call each), or ask the person which is meant." % " and ".join(n["id"] for n in ties))
+        else:
+            L.append("\nNext: ask %s with kg_call(graph=%r, tool=..., arguments=...)." % (best["id"], best["id"]))
+        return "\n".join(L)
+    L.append("\nDepends on %d graph(s):" % len(deps))
+    for n in sorted(deps, key=lambda n: n["id"]):
+        L += _descriptor_lines(n)
+    L.append("\nGive a question to rank them, then kg_call(graph, tool, arguments) asks one.")
+    return "\n".join(L)
+
+
+FORWARDABLE = {"kg_entity", "kg_neighbors", "kg_search", "kg_by_type", "kg_count", "kg_group_by", "kg_explain", "kg_policy",
+               "kg_overview", "kg_stale", "kg_resolve", "kg_docs", "kg_define", "kg_questions", "kg_ask", "kg_brief", "kg_dependencies"}
+ROUTE_OF = {"kg_entity": "entity", "kg_neighbors": "neighbors", "kg_search": "search", "kg_by_type": "by-type", "kg_count": "count",
+            "kg_group_by": "group", "kg_explain": "explain", "kg_policy": "policy", "kg_overview": "overview", "kg_stale": "stale",
+            "kg_resolve": "resolve", "kg_docs": "docs", "kg_define": "define", "kg_questions": "questions", "kg_ask": "ask",
+            "kg_brief": "brief", "kg_dependencies": "dependencies"}
+
+
+def call_text(graph, tool, arguments=None, timeout=15):
+    """One tool call forwarded to a dependency over HTTP: GET <reach>/api/<route>?<arguments>, the
+    dependency's text back, prefixed with where it came from. One hop: a forwarded call is never
+    itself a kg_call."""
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+    rows = _graph_rows()
+    target = _find_graph(rows, graph)
+    if target is None:
+        raise ValueError("no graph %r among this graph's descriptors; kg_dependencies lists them" % graph)
+    if tool == "kg_call":
+        raise ValueError("a forwarded call is one hop: kg_call cannot forward a kg_call. Ask %s for kg_dependencies instead, then call what it names." % target["id"])
+    if tool not in FORWARDABLE:
+        raise ValueError("%r is not a tool a dependency answers; one of %s" % (tool, ", ".join(sorted(FORWARDABLE))))
+    reach = str(target["attributes"].get("reach") or "")
+    if not reach.lower().startswith(("http://", "https://")):
+        raise ValueError("%s is reached at %r, an MCP server name; this server follows HTTP reaches only. Serve it with "
+                         "`oto serve --http` and record that URL as its reach (oto graph describe --reach)." % (target["id"], reach))
+    query = {}
+    for k, v in (arguments or {}).items():
+        query[k] = json.dumps(v) if isinstance(v, (dict, list)) else str(v)
+    url = reach.rstrip("/") + "/api/" + ROUTE_OF[tool] + ("?" + urllib.parse.urlencode(query) if query else "")
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as r:
+            body = json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        try:
+            detail = json.loads(exc.read().decode("utf-8")).get("error") or ""
+        except Exception:                                      # noqa: BLE001 - the status is the message then
+            detail = ""
+        raise ValueError("%s answered %d to %s%s" % (target["id"], exc.code, tool, (": " + detail) if detail else ""))
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        raise ValueError("%s could not be reached at %s (%s)" % (target["id"], reach, getattr(exc, "reason", exc)))
+    return "from %s (%s), %s:\n%s" % (target.get("label") or target["id"], reach, tool, body.get("text") or "")
+
+
 TOOLS = [
     {"name": "kg_entity",
      "description": "Look up an entity by id/label/alias/lexicon phrase and return its current state, provenance "
@@ -1247,6 +1414,24 @@ TOOLS = [
          "params": {"type": "object", "description": "NAME -> entity, one per declared parameter, e.g. {\"STEP\": \"step.b10_verify\"}"}},
          "required": ["task"]},
      "fn": lambda a: brief_text(a["task"], a.get("params") if "params" in a else {k: v for k, v in a.items() if k != "task"})},
+    {"name": "kg_dependencies",
+     "description": "The graphs this one depends on, each described from outside (subject, main classes, how to reach "
+                    "it): what to ask when the answer is not here. With a question, ranked for it; two candidates as "
+                    "close as each other are both offered, so you choose. With a graph id, that graph's dependencies.",
+     "inputSchema": {"type": "object", "properties": {
+         "graph": {"type": "string", "description": "a graph's id (graph.<slug>), label or slug; default: this graph"},
+         "question": {"type": "string", "description": "the question to route: the dependencies are ranked for it"}}},
+     "fn": lambda a: dependencies_text(a.get("graph"), a.get("question"))},
+    {"name": "kg_call",
+     "description": "Ask a graph this one depends on: one kg_* tool call forwarded over HTTP to the dependency's reach, "
+                    "its answer returned with where it came from. One hop; kg_dependencies says which graph and how.",
+     "inputSchema": {"type": "object", "properties": {
+         "graph": {"type": "string", "description": "the dependency's id (graph.<slug>), label or slug"},
+         "tool": {"type": "string", "description": "the tool to call there, e.g. kg_search, kg_entity, kg_ask"},
+         "arguments": {"type": "object", "description": "that tool's arguments"}},
+         "required": ["graph", "tool"]},
+     "fn": lambda a: call_text(a.get("graph"), a.get("tool"),
+                               a.get("arguments") if "arguments" in a else {k: v for k, v in a.items() if k not in ("graph", "tool")})},
 ]
 TOOL_BY_NAME = {t["name"]: t for t in TOOLS}
 

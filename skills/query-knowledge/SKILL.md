@@ -14,6 +14,15 @@ description: >-
 The graph does the retrieval. Your job is to ask it the right thing, refuse to bluff, and frame
 the answer. This skill changes nothing; a correction goes to the **curate** skill.
 
+## When the answer is in another graph
+
+A graph may depend on others (its descriptors, from `oto graph depend`). When this graph has no
+answer, or the question names something this graph's classes do not hold, call `kg_dependencies`
+with the question: it lists the graphs this one depends on, what each holds and how it is reached,
+ranked. One clear best: call it with `kg_call(graph, tool, arguments)` and answer from what comes
+back, saying which graph it came from. Two as close as each other: ask both, or ask the person which
+is meant. None says a word of the question: say so; never guess a graph.
+
 ## Talking with the person
 
 - **Plain, natural language, in the person's words.** Never say question numbers, ids, class or

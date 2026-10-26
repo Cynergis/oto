@@ -79,6 +79,12 @@ def preflight(project):
 
     if duplicate_ids:
         problems.append("duplicate node ids: %s" % ", ".join(sorted(duplicate_ids)[:8]))
+    if (project.config().get("kind") == "concierge"):
+        stray = sorted(n.get("id") or "(no id)" for n in nodes if n.get("type") != "Graph")
+        if stray:
+            problems.append("a concierge root holds descriptors only (Graph nodes): %s %s not one; a question asked here is "
+                            "routed to the graph that holds the answer, never answered from here"
+                            % (", ".join(stray[:5]), "is" if len(stray) == 1 else "are"))
     if undeclared_types:
         problems.append("node types not declared in ontology.config.json: %s"
                         % ", ".join(sorted(str(t) for t in undeclared_types)[:8]))

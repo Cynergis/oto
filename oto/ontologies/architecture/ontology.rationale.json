@@ -54,6 +54,12 @@
       "why": "A gate failure or a budget overrun is the trigger of a change; recording the proposal as a node links trigger, evidence and decision, which the roadmap asks of H5.",
       "alternatives": "A Decision with status proposed: rejected, a proposal may be rejected and still be worth keeping with what raised it; a decision settles it.",
       "validated_by": ""
+    },
+    "Contract": {
+      "question": "Which contracts does this node consume or expose, at which version, frozen or a draft? (AR10, AR11)",
+      "why": "The factory builds contract-first: a frozen contract is what lets a consumer and its provider build in parallel, and a draft one is what makes the consumer wait. The interface alone does not say which; the version does.",
+      "alternatives": "A version attribute on Interface: rejected, an interface outlives its versions and two versions are live during a migration; a Contract per version, superseding the last, keeps both facts.",
+      "validated_by": ""
     }
   },
   "properties": {
@@ -151,6 +157,18 @@
       "question": "What does this control apply to? (AR2, AR8)",
       "why": "A control's subject is its own relation rather than the estate's `governs` (what a decision shaped), because the gap list, what no control safeguards, is a negation over one relation, and a shared relation would hide an unprotected node behind a decision about it. Named safeguards because the agent pack's guardrails already `protect`.",
       "alternatives": "Widening `governs` to Control: tried and rejected, AR8 could not be asked.",
+      "validated_by": ""
+    },
+    "contract_of": {
+      "question": "Which interface is this contract a version of? (AR10, AR11)",
+      "why": "Exactly one: a contract that spans two interfaces is two contracts.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "supersedes": {
+      "question": "Which version replaced which? (AR10, AR11)",
+      "why": "The estate's supersedes, widened to contracts, so a new version retires the old the engine's way, never by overwriting.",
+      "alternatives": "A new relation replaces_version: rejected, one question, one relation.",
       "validated_by": ""
     }
   }

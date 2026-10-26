@@ -21,6 +21,13 @@ which an edge could carry neither of. A control has its own relation, apart from
 so that what no control safeguards can be asked (AR8). The plain estate edges (`consumes`, `part_of`, `runs_in`,
 `depends_on`) are derived beside it by the importer, so SA1 to SA17 keep answering.
 
+**A contract is a version of an interface.** `Contract` carries a `version`, a `kind` (event, api,
+schema, file) and a `schema_url`; it is `contract_of` one `Interface`, and a new version `supersedes`
+the old. Its `status` is a decision: a draft until a named person freezes it (`oto decide
+contract.<id> status=frozen --by <name> --at <date>`); frozen, nobody changes it without a new
+version, so a consumer and its provider build in parallel against it, which is what `oto factory
+plan` reads (AR10, AR11).
+
 **The implementation trace.** An `NFR` is a `Requirement` with a `metric` and a `budget`; `Evidence`
 (a measurement, a test, a review, a gate's verdict, a log) `measurement_of` it and is `evidence_of` what it
 judged. A `Component` is `implemented_by` its `Repository` and the `CodeModule`s inside it; a `Commit`

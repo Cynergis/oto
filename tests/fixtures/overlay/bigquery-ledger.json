@@ -1,0 +1,147 @@
+{
+ "_about": "Rows as BigQuery's INFORMATION_SCHEMA returns them for the ledger fixture in dataset acme.ledger: TABLES, COLUMNS, the key constraints, JOBS_BY_PROJECT. The fake client in the tests replays them; the kit runs by hand against a sandbox project.",
+ "tables": [
+  [
+   "accounts",
+   "BASE TABLE"
+  ],
+  [
+   "daily_balances",
+   "VIEW"
+  ],
+  [
+   "postings",
+   "BASE TABLE"
+  ]
+ ],
+ "columns": [
+  [
+   "accounts",
+   "account_id",
+   "INT64",
+   "NO",
+   1
+  ],
+  [
+   "accounts",
+   "currency",
+   "STRING",
+   "NO",
+   2
+  ],
+  [
+   "daily_balances",
+   "account_id",
+   "INT64",
+   "YES",
+   1
+  ],
+  [
+   "daily_balances",
+   "day",
+   "DATE",
+   "YES",
+   2
+  ],
+  [
+   "daily_balances",
+   "balance_cents",
+   "INT64",
+   "YES",
+   3
+  ],
+  [
+   "postings",
+   "posting_id",
+   "INT64",
+   "NO",
+   1
+  ],
+  [
+   "postings",
+   "account_id",
+   "INT64",
+   "NO",
+   2
+  ],
+  [
+   "postings",
+   "amount_cents",
+   "INT64",
+   "NO",
+   3
+  ],
+  [
+   "postings",
+   "posted_at",
+   "TIMESTAMP",
+   "YES",
+   4
+  ]
+ ],
+ "keys": [
+  [
+   "accounts",
+   "account_id",
+   "PRIMARY KEY",
+   null,
+   null
+  ],
+  [
+   "postings",
+   "posting_id",
+   "PRIMARY KEY",
+   null,
+   null
+  ],
+  [
+   "postings",
+   "account_id",
+   "FOREIGN KEY",
+   "accounts",
+   "account_id"
+  ]
+ ],
+ "log": [
+  [
+   "2026-10-26T02:10:00+00:00",
+   "SELECT * FROM `acme.ledger.postings` WHERE account_id = 1",
+   20480,
+   "SELECT"
+  ],
+  [
+   "2026-10-26T06:00:00+00:00",
+   "SELECT account_id, SUM(amount_cents) FROM `acme.ledger.postings` GROUP BY 1",
+   1048576,
+   "SELECT"
+  ]
+ ],
+ "queries": {
+  "SELECT 1 AS one": {
+   "columns": [
+    "one"
+   ],
+   "rows": [
+    [
+     1
+    ]
+   ]
+  },
+  "SELECT account_id, SUM(amount_cents) AS total FROM `acme.ledger.postings` GROUP BY 1 ORDER BY 1": {
+   "columns": [
+    "account_id",
+    "total"
+   ],
+   "rows": [
+    [
+     1,
+     1000
+    ],
+    [
+     2,
+     900
+    ]
+   ]
+  }
+ }
+}

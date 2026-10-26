@@ -23,7 +23,7 @@ Questions (DT1–DT6, awaiting confirmation): what a table holds and whether its
 store holds (DT5), what is downstream of a feed (DT6).
 
 **Filling it.** `oto data introspect [--path <store>] --store datastore.<id> --at <date>` reads a
-store's catalog through an overlay connector (SQLite first) into a schema document and a proposal
+store's catalog through an overlay connector (SQLite, Postgres or BigQuery) into a schema document and a proposal
 in this vocabulary, every fact quoting its line, through the gates (C1). The store is a `DataStore`
 the estate declares first. Lineage readers for dbt manifests and SQL files (C3), query-log readers
 (C4), `oto data confirm` (C2) and the data project as a dependency of a concierge (C5) come next.

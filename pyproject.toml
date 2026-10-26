@@ -39,10 +39,15 @@ rdf = ["rdflib>=7"]
 # with the trace id in the audit record. All Apache-2.0. Off without OTO_TRACE or an OTLP endpoint,
 # and a no-op without these packages: the engine stays stdlib-only for whoever does not ask.
 otel = ["opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20", "opentelemetry-exporter-otlp-proto-http>=1.20"]
+# The Postgres overlay (oto/connectors/postgres.py): a schema read in place. pg8000 is BSD-3-Clause,
+# pure Python. The compile path never needs it.
+postgres = ["pg8000>=1.30"]
+# The BigQuery overlay (oto/connectors/bigquery.py): a dataset read in place. Apache-2.0.
+bigquery = ["google-cloud-bigquery>=3.20"]
 # Everything a full installation uses at once: extraction, the production store, the drafter, the
 # benchmark baseline and the ontology reader. Not the test tooling, which is `dev`.
 all = ["python-docx", "python-pptx", "pypdfium2", "pdfplumber", "beautifulsoup4", "lxml", "openpyxl",
-       "neo4j>=5", "anthropic>=0.40", "fastembed", "numpy", "rdflib>=7"]
+       "neo4j>=5", "anthropic>=0.40", "fastembed", "numpy", "rdflib>=7", "pg8000>=1.30", "google-cloud-bigquery>=3.20"]
 
 [project.scripts]
 oto = "oto.cli:main"

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """The data semantic layer's commands (roadmap Epic C). This release: introspection (C1).
 
-    oto data introspect [--connector sqlite] [--path <store>] [--store datastore.<id>] --at YYYY-MM-DD
+    oto data introspect [--connector sqlite|postgres|bigquery] [--path <store>] [--store datastore.<id>] --at YYYY-MM-DD
 
-reads a store's catalog through an overlay connector and writes two things: a schema document
+reads a store's catalog through an overlay connector (`--path` for a SQLite file; Postgres and
+BigQuery read their connection from project.config.json or the environment) and writes two things: a schema document
 (`build/documents/schema-<store>.md`, kept in `archive/` too), one line per table and per column,
 and a proposal (`proposals/schema-<store>.json`) in the data vocabulary: a `Table` per table or view,
 a `Column` per column with its type, nullability and key, `column_of` and `references` edges, the
@@ -121,7 +122,7 @@ def _graph_ids(project):
     return {n.get("id") for n in nodes if n.get("id")}
 
 
-def introspect(project, connector_name="sqlite", path=None, store_id=None, at=None):
+def introspect(project, connector_name="sqlite", path=None, store_id=None, at=None, settings=None):
     """Read the catalog, write the document and the proposal. Returns {"doc", "document", "archive",
     "proposal", "store", "tables", "columns", "read_at"}."""
     from . import connectors as _connectors
@@ -136,11 +137,17 @@ def introspect(project, connector_name="sqlite", path=None, store_id=None, at=No
     if connector is None or "overlay" not in (connector.MANIFEST.get("modes") or []):
         overlays = [n for n in _connectors.available() if "overlay" in _connectors.get(n).MANIFEST.get("modes", [])]
         raise DataError("no overlay connector %r; one of %s" % (connector_name, ", ".join(overlays) or "none"))
-    if path is None:
-        path = project.layout.database
-        if not os.path.exists(path):
-            raise DataError("the project has no built store at %s yet: run `oto build`, or pass --path <store>" % os.path.relpath(path, project.data))
-    session = connector.connect({"path": path})
+    if settings is None:
+        if path is not None:
+            settings = {"path": path}
+        elif connector_name == "sqlite":
+            settings = {"path": project.layout.database}
+            if not os.path.exists(settings["path"]):
+                raise DataError("the project has no built store at %s yet: run `oto build`, or pass --path <store>"
+                                % os.path.relpath(settings["path"], project.data))
+        else:
+            settings = connector.settings(project)
+    session = connector.connect(settings)
     try:
         try:
             schema = connector.introspect(session)

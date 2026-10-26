@@ -14,7 +14,7 @@ Run against a built project and a way to open fresh sessions (`sessions(name)`, 
     retirement      a plan without one node, published, retires that node and its edges
 
 and, for a connector whose manifest declares `overlay`, against a populated store (the one the kit
-just published when the connector materializes too, else the project's own):
+just published when the connector materializes too, else the session `sessions("overlay")` opens):
 
     overlay introspect  the catalog read twice is the same catalog; every table has a name and a kind,
                         every column a name and a type
@@ -49,7 +49,7 @@ def run(connector, project, sessions):
 
     if "materialize" not in modes:
         if "overlay" in modes:
-            own = connector.connect(connector.settings(project))
+            own = sessions("overlay")
             try:
                 _overlay_checks(connector, own, check)
             finally:

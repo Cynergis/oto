@@ -30,7 +30,10 @@ to have a model write a document's first proposal. The compile, curate and serve
 `pip install 'oto-kg[otel]'` adds OpenTelemetry (`opentelemetry-api`, `opentelemetry-sdk`,
 `opentelemetry-exporter-otlp-proto-http`, all Apache-2.0), used only by `oto/tracing.py` when
 `OTO_TRACE` or an OTLP endpoint is set; without them every span is a no-op. The `dev` extra installs the
-SDK so the tests exercise real spans.
+SDK so the tests exercise real spans. `pip install 'oto-kg[postgres]'` adds `pg8000` (BSD-3-Clause, pure
+Python), used only by the Postgres overlay to read a schema in place; `pip install 'oto-kg[bigquery]'`
+adds `google-cloud-bigquery` (Apache-2.0), used only by the BigQuery overlay. Both overlays are tested
+against recorded catalogs without the packages; the live Postgres kit runs in CI's postgres job.
 
 ## PyMuPDF was replaced
 

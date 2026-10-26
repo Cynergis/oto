@@ -1,0 +1,150 @@
+{
+ "_about": "Rows as information_schema returns them for the ledger fixture: tables, columns, key constraints, the pg_stat_statements log. The fake connection in the tests replays them, so the Postgres overlay is tested on every machine; the live kit runs in CI's postgres job.",
+ "tables": [
+  [
+   "accounts",
+   "BASE TABLE"
+  ],
+  [
+   "daily_balances",
+   "VIEW"
+  ],
+  [
+   "postings",
+   "BASE TABLE"
+  ]
+ ],
+ "columns": [
+  [
+   "accounts",
+   "account_id",
+   "integer",
+   "NO",
+   1
+  ],
+  [
+   "accounts",
+   "currency",
+   "character",
+   "NO",
+   2
+  ],
+  [
+   "daily_balances",
+   "account_id",
+   "integer",
+   "YES",
+   1
+  ],
+  [
+   "daily_balances",
+   "day",
+   "date",
+   "YES",
+   2
+  ],
+  [
+   "daily_balances",
+   "balance_cents",
+   "bigint",
+   "YES",
+   3
+  ],
+  [
+   "postings",
+   "posting_id",
+   "integer",
+   "NO",
+   1
+  ],
+  [
+   "postings",
+   "account_id",
+   "integer",
+   "NO",
+   2
+  ],
+  [
+   "postings",
+   "amount_cents",
+   "bigint",
+   "NO",
+   3
+  ],
+  [
+   "postings",
+   "posted_at",
+   "timestamp without time zone",
+   "YES",
+   4
+  ]
+ ],
+ "keys": [
+  [
+   "accounts",
+   "account_id",
+   "PRIMARY KEY",
+   null,
+   null
+  ],
+  [
+   "postings",
+   "posting_id",
+   "PRIMARY KEY",
+   null,
+   null
+  ],
+  [
+   "postings",
+   "account_id",
+   "FOREIGN KEY",
+   "accounts",
+   "account_id"
+  ]
+ ],
+ "extension": [
+  [
+   1
+  ]
+ ],
+ "log": [
+  [
+   "SELECT * FROM postings WHERE account_id = $1",
+   1240,
+   310.5
+  ],
+  [
+   "SELECT account_id, sum(amount_cents) FROM postings GROUP BY 1",
+   12,
+   88.0
+  ]
+ ],
+ "queries": {
+  "SELECT 1 AS one": {
+   "columns": [
+    "one"
+   ],
+   "rows": [
+    [
+     1
+    ]
+   ]
+  },
+  "SELECT account_id, sum(amount_cents) AS total FROM postings GROUP BY 1 ORDER BY 1": {
+   "columns": [
+    "account_id",
+    "total"
+   ],
+   "rows": [
+    [
+     1,
+     1000
+    ],
+    [
+     2,
+     900
+    ]
+   ]
+  }
+ }
+}

@@ -97,13 +97,38 @@ def test_what_shipped_is_deployed_by_the_pull_request_that_merged_it(copy):
 def test_the_repository_s_decisions_govern_the_epics_they_shaped(copy):
     graph = _graph()
     decisions = {n["id"]: n for n in graph["nodes"] if n["type"] == "Decision"}
-    assert set(decisions) >= {"decision.adr-0001", "decision.adr-0002", "decision.adr-0003"}, "the three phase 2 decisions, from docs/adr"
+    assert set(decisions) >= {"decision.adr-0001", "decision.adr-0002", "decision.adr-0003", "decision.adr-0004", "decision.adr-0005"}, \
+        "the three phase 2 decisions, Cedar and the generated system's IAM, from docs/adr"
+    governs = {(e["from"], e["to"]) for e in graph["edges"] if e["rel"] == "governs"}
+    assert ("decision.adr-0005", "workitem.epic-e") in governs, "ADR-0005 shaped Epic E's last item, E7"
     for d in decisions.values():
         assert d["attributes"]["status"] == "accepted" and d.get("evidence"), d["id"]
         assert any(e["from"] == d["id"] and e["rel"] == "governs" for e in graph["edges"]), "%s governs something" % d["id"]
     code, out = _cli("query", "--project", copy, "ask", "PR26", "THING=workitem.epic-m")
     assert code == 0 and "status: answered" in out and out.count("d.status=accepted") >= 3, out
     assert "Chiheb Dkhil" in out, "decided by the owner, a person the plan names"
+
+
+def test_every_phase_is_reached_by_a_person_s_decision():
+    """The milestones of phases 1 to 4 closed before a milestone could be decided; once it could, a
+    named person recorded each as reached, on the day its last epic was deployed."""
+    graph = _graph()
+    milestones = {n["id"]: n for n in graph["nodes"] if n["type"] == "Milestone"}
+    assert sorted(milestones) == ["milestone.phase-%d" % i for i in range(1, 7)]
+    for mid, node in milestones.items():
+        assert node["attributes"]["state"] == "reached", mid
+        assert any(str(s).startswith("assertion:") for s in node["sources"]), "%s was reached by a person's assertion" % mid
+    reached = {}
+    with open(os.path.join(ROADMAP, "assertions.jsonl"), encoding="utf-8") as f:
+        for line in f:
+            record = json.loads(line)
+            for about in record.get("about") or []:
+                if about.startswith("milestone.") and "reached" in record.get("text", ""):
+                    reached[about] = record
+    assert set(reached) == set(milestones)
+    assert all(r["by"] == "Chiheb Dkhil" and "decided state of milestone" in r["text"] for r in reached.values())
+    assert reached["milestone.phase-1"]["at"] == "2026-10-25" and reached["milestone.phase-4"]["at"] == "2026-10-26"
+    assert reached["milestone.phase-5"]["at"] <= reached["milestone.phase-6"]["at"], "in order"
 
 
 def test_the_roadmap_describes_itself(copy):

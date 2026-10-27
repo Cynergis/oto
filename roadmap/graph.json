@@ -33,7 +33,7 @@
       "label": "Phase 1: Foundation",
       "summary": "A deploy needs a target store; L depends on nothing.",
       "attributes": {
-        "state": "planned"
+        "state": "reached"
       },
       "evidence": [
         {
@@ -45,11 +45,12 @@
       "aliases": [],
       "tags": [],
       "status": "current",
-      "as_of": "2026-10-22",
+      "as_of": "2026-10-25",
       "valid_from": "2026-10-22",
       "source_doc": "oto-roadmap-2-0",
       "sources": [
-        "oto-roadmap-2-0"
+        "oto-roadmap-2-0",
+        "assertion:a-0018"
       ]
     },
     {
@@ -58,7 +59,7 @@
       "label": "Phase 2: Packs v1",
       "summary": "Dogfood on this roadmap; status set by command or git events, identity from git; internal use only.",
       "attributes": {
-        "state": "planned"
+        "state": "reached"
       },
       "evidence": [
         {
@@ -70,11 +71,12 @@
       "aliases": [],
       "tags": [],
       "status": "current",
-      "as_of": "2026-10-22",
+      "as_of": "2026-10-25",
       "valid_from": "2026-10-22",
       "source_doc": "oto-roadmap-2-0",
       "sources": [
-        "oto-roadmap-2-0"
+        "oto-roadmap-2-0",
+        "assertion:a-0019"
       ]
     },
     {
@@ -83,7 +85,7 @@
       "label": "Phase 3: Navigation and trust",
       "summary": "Every later epic relies on stable IDs and provenance; F2 and F4 harden M and N (N6 lands here).",
       "attributes": {
-        "state": "planned"
+        "state": "reached"
       },
       "evidence": [
         {
@@ -95,11 +97,12 @@
       "aliases": [],
       "tags": [],
       "status": "current",
-      "as_of": "2026-10-22",
+      "as_of": "2026-10-25",
       "valid_from": "2026-10-22",
       "source_doc": "oto-roadmap-2-0",
       "sources": [
-        "oto-roadmap-2-0"
+        "oto-roadmap-2-0",
+        "assertion:a-0020"
       ]
     },
     {
@@ -108,7 +111,7 @@
       "label": "Phase 4: Data",
       "summary": "Overlay connectors are how OTO reads client data in place.",
       "attributes": {
-        "state": "planned"
+        "state": "reached"
       },
       "evidence": [
         {
@@ -120,11 +123,12 @@
       "aliases": [],
       "tags": [],
       "status": "current",
-      "as_of": "2026-10-22",
+      "as_of": "2026-10-26",
       "valid_from": "2026-10-22",
       "source_doc": "oto-roadmap-2-0",
       "sources": [
-        "oto-roadmap-2-0"
+        "oto-roadmap-2-0",
+        "assertion:a-0021"
       ]
     },
     {
@@ -1139,6 +1143,63 @@
         "environment": "prod",
         "event": "github:Cynergis/oto#96"
       }
+    },
+    {
+      "id": "decision.adr-0005",
+      "type": "Decision",
+      "label": "The generated system's IAM is derived from the policy and never enforced by OTO",
+      "summary": "The platform's IAM bindings are derived from the access policy the graph already holds, written by the build as a design-time output beside the policy bundle, and OTO never enforces them: the platform does.",
+      "attributes": {
+        "status": "accepted",
+        "decided_on": "2026-10-27",
+        "rationale": "The platform's IAM bindings are derived from the access policy the graph already holds, written by the build as a design-time output beside the policy bundle, and OTO never enforces them: the platform does."
+      },
+      "valid_from": "2026-10-27",
+      "evidence": [
+        {
+          "doc": "0005-iam-is-generated-never-enforced",
+          "where": "Decision",
+          "quote": "The platform's IAM bindings are derived from the access policy the graph already holds, written by the build as a design-time output beside the policy bundle, and OTO never enforces them: the platform does."
+        },
+        {
+          "doc": "0005-iam-is-generated-never-enforced",
+          "where": "frontmatter",
+          "quote": "decided_on: 2026-10-27"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-27",
+      "source_doc": "0005-iam-is-generated-never-enforced",
+      "sources": [
+        "0005-iam-is-generated-never-enforced"
+      ]
+    },
+    {
+      "id": "document.0005-iam-is-generated-never-enforced",
+      "type": "Document",
+      "label": "The generated system's IAM is derived from the policy and never enforced by OTO",
+      "summary": "ADR ADR-0005, the record of this decision.",
+      "attributes": {
+        "kind": "adr"
+      },
+      "valid_from": "2026-10-27",
+      "evidence": [
+        {
+          "doc": "0005-iam-is-generated-never-enforced",
+          "where": "title",
+          "quote": "The generated system's IAM is derived from the policy and never enforced by OTO"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-27",
+      "source_doc": "0005-iam-is-generated-never-enforced",
+      "sources": [
+        "0005-iam-is-generated-never-enforced"
+      ]
     }
   ],
   "edges": [
@@ -1346,6 +1407,21 @@
       "from": "transition.epic-e-1",
       "rel": "transition_of",
       "to": "workitem.epic-e"
+    },
+    {
+      "from": "decision.adr-0005",
+      "rel": "documented_in",
+      "to": "document.0005-iam-is-generated-never-enforced"
+    },
+    {
+      "from": "decision.adr-0005",
+      "rel": "governs",
+      "to": "workitem.epic-e"
+    },
+    {
+      "from": "decision.adr-0005",
+      "rel": "decided_by",
+      "to": "person.chiheb-dkhil"
     }
   ]
 }

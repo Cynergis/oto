@@ -1,0 +1,64 @@
+{
+  "source_doc": "0005-iam-is-generated-never-enforced",
+  "as_of": "2026-10-27",
+  "nodes": [
+    {
+      "id": "decision.adr-0005",
+      "type": "Decision",
+      "label": "The generated system's IAM is derived from the policy and never enforced by OTO",
+      "summary": "The platform's IAM bindings are derived from the access policy the graph already holds, written by the build as a design-time output beside the policy bundle, and OTO never enforces them: the platform does.",
+      "attributes": {
+        "status": "accepted",
+        "decided_on": "2026-10-27",
+        "rationale": "The platform's IAM bindings are derived from the access policy the graph already holds, written by the build as a design-time output beside the policy bundle, and OTO never enforces them: the platform does."
+      },
+      "valid_from": "2026-10-27",
+      "evidence": [
+        {
+          "doc": "0005-iam-is-generated-never-enforced",
+          "where": "Decision",
+          "quote": "The platform's IAM bindings are derived from the access policy the graph already holds, written by the build as a design-time output beside the policy bundle, and OTO never enforces them: the platform does."
+        },
+        {
+          "doc": "0005-iam-is-generated-never-enforced",
+          "where": "frontmatter",
+          "quote": "decided_on: 2026-10-27"
+        }
+      ]
+    },
+    {
+      "id": "document.0005-iam-is-generated-never-enforced",
+      "type": "Document",
+      "label": "The generated system's IAM is derived from the policy and never enforced by OTO",
+      "summary": "ADR ADR-0005, the record of this decision.",
+      "attributes": {
+        "kind": "adr"
+      },
+      "valid_from": "2026-10-27",
+      "evidence": [
+        {
+          "doc": "0005-iam-is-generated-never-enforced",
+          "where": "title",
+          "quote": "The generated system's IAM is derived from the policy and never enforced by OTO"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "decision.adr-0005",
+      "rel": "documented_in",
+      "to": "document.0005-iam-is-generated-never-enforced"
+    },
+    {
+      "from": "decision.adr-0005",
+      "rel": "governs",
+      "to": "workitem.epic-e"
+    },
+    {
+      "from": "decision.adr-0005",
+      "rel": "decided_by",
+      "to": "person.chiheb-dkhil"
+    }
+  ]
+}

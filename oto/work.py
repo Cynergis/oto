@@ -149,6 +149,11 @@ def _commit(project, text, by, at, about, edit, action="work"):
     written: a refusal aborts the candidate, and the assertion stands as what was said. Both
     outcomes go to the audit log (audit.py), keyed to the nodes touched."""
     _no_candidate(project)
+    from . import policy as _policy
+    try:
+        under = _policy.enforce(project, action, by)        # the snapshot the session runs under, re-checked (roadmap E6)
+    except _policy.PolicyError as exc:
+        raise WorkError(str(exc))
     vocabulary = _load_vocabulary(project)
     live = _session.live(project)
     entry = _assertions.record(project, text=text, by=by.strip(), at=at, about=about)
@@ -174,7 +179,7 @@ def _commit(project, text, by, at, about, edit, action="work"):
     _ledger.append(project, record)
     done["assertion"] = entry["id"]
     touched = list(about) + list(summary.get("nodes_added") or []) + [nid for nid, _f in summary.get("nodes_changed") or []]
-    _audit.append(project, action, by, touched, "applied", detail=text)
+    _audit.append(project, action, by, touched, "applied", detail=text + ((" [%s]" % under) if under else ""))
     return done
 
 

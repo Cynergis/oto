@@ -1281,3 +1281,47 @@ edited by hand or signed with another key, allow everything with no snapshot, an
 as an event; the factory guard keeps the run's read-only paths and lets the policy be the write
 scope; and `oto policy denials` and `oto factory run sync` record each denial once as an audit record
 that the chain verifies.
+
+## 30. The snapshot's time to live, the re-check before a write, and the served read held to a principal
+
+E6 and E5: a snapshot expires; the gates re-check it before `curate apply`, `decide` and `promote`;
+the served `kg_read` answers only a principal the policy permits.
+
+```bash
+oto init --ontology policy --project ledger && oto build --project ledger
+oto policy snapshot --agent agent.merchant-assistant --principal principal.factory-runner --out code/.factory/policy.json --ttl 2 --project ledger   # expires in two hours
+oto policy verify code/.factory/policy.json --project ledger                                         # ... expires 2026-10-27T18:04:11Z, unsigned
+python3 - <<'PY'                                                                                     # the engine would have written it with this expiry: the hash follows
+import json; from oto import policy; p="code/.factory/policy.json"; s=json.load(open(p)); s["expires_at"]="2026-01-01T00:00:00Z"; s["hash"]=policy.snapshot_hash(s); json.dump(s, open(p,"w"))
+PY
+oto policy verify code/.factory/policy.json --project ledger; echo $?                                # 1: expired
+(cd code && echo '{"tool_name":"Edit","tool_input":{"file_path":"src/x.py"},"cwd":"'$PWD'"}' | python3 -I <plugin>/hooks/policy_guard.py); echo $?   # 2: expired, every write refused
+python3 - <<'PY'
+import json; p="ledger/project.config.json"; c=json.load(open(p)); c["policy"]={"require_snapshot": True}; json.dump(c, open(p,"w"), indent=2)
+PY
+oto decide policyrule.owner-admin status=active --by "<you>" --at 2026-10-27 --project ledger; echo $?   # 1: needs a policy snapshot; an audit record says so
+oto policy snapshot --agent agent.merchant-assistant --principal principal.factory-runner --out code/.factory/policy.json --project ledger
+export OTO_POLICY_SNAPSHOT=code/.factory/policy.json
+oto decide policyrule.owner-admin status=active --by "<you>" --at 2026-10-27 --project ledger        # applied; its audit record says "under snapshot <hash> for ... as ..."
+oto decide policyrule.compliance-reads-ledger status=retired --by "<you>" --at 2026-10-27 --project ledger   # applied: the snapshot held when it was checked
+oto decide policyrule.owner-admin status=retired --by "<you>" --at 2026-10-27 --project ledger; echo $?      # 1: the policy changed since the snapshot was written; write it again
+oto audit --project ledger | grep "policy denied"
+# the served read, held to a principal (an overlay on a SQLite file, native_read on in oto.deploy.json):
+oto serve --project ledger --http 8765 &
+curl -s "localhost:8765/api/read?sql=SELECT+account_id+FROM+postings"                               # error: needs to know who asks: X-Oto-Principal
+curl -s -H "X-Oto-Principal: principal.factory-runner" "localhost:8765/api/read?sql=SELECT+account_id+FROM+postings"   # 2 row(s): compliance reads a table with no personal data
+curl -s -H "X-Oto-Principal: principal.factory-runner" "localhost:8765/api/read?sql=SELECT+email+FROM+customers"       # refused: no rule permits ... (pii, derived from the column)
+curl -s -H "X-Oto-Principal: principal.ops-clerk" "localhost:8765/api/read?sql=SELECT+account_id+FROM+postings"        # refused: the clerk's team exports, never reads
+OTO_PRINCIPAL=principal.factory-runner oto query --project ledger read "SELECT account_id FROM postings"               # stdio and the CLI read the environment
+```
+
+Pass when a snapshot carries `expires_at` from `--ttl`, the project's `ttl_hours` or a day, and
+`--ttl 0` is refused; `verify`, both guards and the gates refuse an expired one; a project that
+requires a snapshot refuses `decide`, `curate apply` and `promote` without one and records the
+refusal; a fresh, intact snapshot whose policy is unchanged lets the write through and the record
+names it; a snapshot edited by hand, expired, unsigned where the project signs, signed with another
+key, or written before the policy changed is refused with the reason; and the served `kg_read`
+refuses an anonymous caller, an unknown principal, a table the graph does not describe and a table
+no permit admits or a forbid covers, answers the permitted ones (the agent's grants intersected when
+named), takes the principal from `X-Oto-Principal` over HTTP and `OTO_PRINCIPAL` on stdio, records a
+refused read and not a permitted one, and reads as before on a graph without the policy pack.

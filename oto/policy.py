@@ -28,6 +28,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 
 from .project import ProjectError
 
@@ -273,17 +274,46 @@ def describe(manifest):
                                         ("signed with %s" % signature["key"]) if signature else "unsigned")
 
 
+def describe_snapshot(snap):
+    signature = snap.get("signature")
+    return "a snapshot for %s running for %s, %d permit(s), %d forbid(s), hash %s, expires %s, %s" % (
+        (snap.get("agent") or {}).get("id"), (snap.get("principal") or {}).get("id"), len(snap.get("permits") or []), len(snap.get("forbids") or []),
+        str(snap.get("hash"))[:12], snap.get("expires_at") or "never", ("signed with %s" % signature["key"]) if signature else "unsigned")
+
+
 # ---- the snapshot (E3) ----
 
 SNAPSHOT_VERSION = 1
 SNAPSHOT_NAME = os.path.join(".factory", "policy.json")
+DEFAULT_TTL_HOURS = 24
+STAMP = "%Y-%m-%dT%H:%M:%SZ"
+
+
+def _utcnow():
+    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
+
+
+def expired(snap, now=None):
+    """True when the snapshot's `expires_at` has passed (an unreadable stamp counts as expired)."""
+    stamp = snap.get("expires_at")
+    if not stamp:
+        return False
+    try:
+        when = datetime.datetime.strptime(str(stamp), STAMP).replace(tzinfo=datetime.timezone.utc)
+    except ValueError:
+        return True
+    return (now or _utcnow()) >= when
 
 
 def _holds(value, condition):
-    """One selector condition against one attribute value; a missing value is not equal to anything."""
+    """One selector condition against one attribute value. An absent boolean reads as false (`pii=false`
+    admits a table nobody marked); an absent value of any other kind is equal to nothing."""
+    wanted = condition["value"]
+    if value is None and isinstance(wanted, bool):
+        value = False
     if condition["op"] == "==":
-        return value is not None and value == condition["value"]
-    return value is None or value != condition["value"]
+        return value is not None and value == wanted
+    return value is None or value != wanted
 
 
 def _admits(selector, node):
@@ -349,8 +379,15 @@ def _paths(graph_index, resource_class, resources, selector):
     return sorted(paths)
 
 
-def snapshot(graph, agent_id, principal_id, at=None, version=None, classes=None):
-    """The intersection of what an agent and a principal may do, with the paths it reaches."""
+def snapshot(graph, agent_id, principal_id, at=None, version=None, classes=None, ttl_hours=None):
+    """The intersection of what an agent and a principal may do, with the paths it reaches. It
+    expires `ttl_hours` after it is written (a day by default): a guard and the gates refuse it then."""
+    try:
+        ttl = float(DEFAULT_TTL_HOURS if ttl_hours is None else ttl_hours)
+    except (TypeError, ValueError):
+        raise PolicyError("--ttl is the snapshot's time to live in hours, a number above 0: not %r" % (ttl_hours,))
+    if ttl <= 0:
+        raise PolicyError("--ttl is the snapshot's time to live in hours, a number above 0: a snapshot that never expires is not one, nor one already expired")
     nodes = [n for n in (graph.get("nodes") or []) if (n.get("status") or "current") == "current"]
     by_id = {n["id"]: n for n in nodes}
     out_edges = {}
@@ -386,7 +423,9 @@ def snapshot(graph, agent_id, principal_id, at=None, version=None, classes=None)
     write = sorted({path for p in permits for path in p["paths"]})
     denied = sorted({path for f in forbids for path in f["paths"]})
     pa = _attrs(principal)
+    now = _utcnow()
     snap = {"snapshot_version": SNAPSHOT_VERSION, "generated_at": at or datetime.date.today().isoformat(), "version": dict(version or {}),
+            "written_at": now.strftime(STAMP), "ttl_hours": ttl if ttl != int(ttl) else int(ttl), "expires_at": (now + datetime.timedelta(hours=ttl)).strftime(STAMP),
             "agent": {"id": agent["id"], "label": agent.get("label") or agent["id"], "roles": agent_roles},
             "principal": {"id": principal["id"], "label": principal.get("label") or principal["id"], "kind": pa.get("kind"), "identity": pa.get("identity"),
                           "roles": principal_roles},
@@ -400,8 +439,8 @@ def snapshot_hash(snap):
     return hashlib.sha256(json.dumps(body, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
-def write_snapshot(graph, agent_id, principal_id, out, at=None, version=None, key_env=None, classes=None):
-    snap = snapshot(graph, agent_id, principal_id, at=at, version=version, classes=classes)
+def write_snapshot(graph, agent_id, principal_id, out, at=None, version=None, key_env=None, classes=None, ttl_hours=None):
+    snap = snapshot(graph, agent_id, principal_id, at=at, version=version, classes=classes, ttl_hours=ttl_hours)
     if key_env:
         snap["signature"] = _sign(snap["hash"], key_env)
     os.makedirs(os.path.dirname(os.path.abspath(out)) or ".", exist_ok=True)
@@ -431,6 +470,8 @@ def verify_snapshot(path, key_env=None):
     problems = []
     if snapshot_hash(snap) != snap.get("hash"):
         problems.append("the snapshot's hash is not its content's: it was edited since `oto policy snapshot` wrote it")
+    if expired(snap):
+        problems.append("the snapshot expired at %s: write it again with `oto policy snapshot`" % snap.get("expires_at"))
     signature = snap.get("signature")
     if signature and key_env:
         if signature.get("key") != key_env:
@@ -486,3 +527,116 @@ def denials(project, events_path):
             seen.add(detail)
             counts["recorded"] += 1
     return counts
+
+
+# ---- one decision, the way the snapshot decides (E5) ----
+
+TABLES_IN = re.compile(r"\b(?:from|join)\s+([A-Za-z_][\w.]*)", re.IGNORECASE)
+
+
+def tables_in(sql):
+    """The table names a SELECT reads: what follows FROM and JOIN, each once, a subquery excluded."""
+    out = []
+    for name in TABLES_IN.findall(sql or ""):
+        if name.lower() not in ("select", "lateral") and name not in out:
+            out.append(name)
+    return out
+
+
+def _covers(entry, node):
+    return _admits(entry["permission"]["selector"], node) if entry["resources"] is None else node["id"] in entry["resources"]
+
+
+def decision(graph, principal_id, action, node, agent_id=None, classes=None):
+    """(allowed, reason, rule): may the principal (and the agent, when named) do `action` to `node`?
+    A permit must cover it on every side named and no forbid may, the way the snapshot decides."""
+    nodes = [n for n in (graph.get("nodes") or []) if (n.get("status") or "current") == "current"]
+    by_id = {n["id"]: n for n in nodes}
+    out_edges = {}
+    for e in graph.get("edges") or []:
+        if (e.get("status") or "current") == "current":
+            out_edges.setdefault((e.get("from"), e.get("rel")), []).append(e.get("to"))
+    sides = []
+    principal, roles = _principal_of(by_id, out_edges, principal_id, "Principal", "holds_role", "a principal, the one who asks")
+    sides.append((principal_id, roles))
+    if agent_id:
+        agent, agent_roles = _principal_of(by_id, out_edges, agent_id, "Agent", "granted_role", "the agent that asks for a principal")
+        sides.append((agent_id, agent_roles))
+    rules = [r for r in compile(graph, classes)["rules"] if r["permission"]["action"] == action]
+    label = "%s (a %s)" % (node.get("label") or node["id"], node.get("type"))
+    for who, held in sides:
+        permits, forbids = _side(rules, set(held))
+        for entry in forbids.values():
+            if _covers(entry, node):
+                return False, "%s may not %s %s: forbidden by %s" % (who, action, label, entry["rule"]), entry["rule"]
+    for who, held in sides:
+        permits, _f = _side(rules, set(held))
+        if not any(_covers(entry, node) for entry in permits.values()):
+            return False, "no rule permits %s to %s %s" % (who, action, label), None
+    return True, None, None
+
+
+# ---- the re-check before a write (E6) ----
+
+def declared_classes(project):
+    """The classes the project's vocabulary declares; the engine asks here so it opens no file of its own."""
+    with open(project.ontology_config_path, encoding="utf-8") as f:
+        return json.load(f).get("classes") or {}
+
+
+def settings(project):
+    cfg = project.config().get("policy") or {}
+    return {"sign_with": cfg.get("sign_with") or None, "require_snapshot": bool(cfg.get("require_snapshot")),
+            "ttl_hours": cfg.get("ttl_hours", DEFAULT_TTL_HOURS)}
+
+
+def snapshot_path():
+    """Where the snapshot a session runs under is: $OTO_POLICY_SNAPSHOT, else .factory/policy.json here."""
+    return os.environ.get("OTO_POLICY_SNAPSHOT") or os.path.join(os.getcwd(), SNAPSHOT_NAME)
+
+
+def _same_policy(snap, fresh):
+    return all(snap.get(k) == fresh.get(k) for k in ("permits", "forbids", "scopes", "agent", "principal"))
+
+
+def enforce(project, action, by):
+    """Before a write: the snapshot the session runs under must be intact, signed when the project
+    signs, not expired, and still what the graph says now for its agent and principal. Returns a note
+    for the audit record, None when no snapshot is in play and none is required; raises PolicyError
+    (after an audit record of the refusal) otherwise."""
+    from . import audit as _audit
+    from .curate import session as _session
+    conf = settings(project)
+    path = snapshot_path()
+    if not os.path.isfile(path):
+        if not conf["require_snapshot"]:
+            return None
+        problem = ("%s needs a policy snapshot: the project requires one (policy.require_snapshot). Write it with "
+                   "`oto policy snapshot --agent <id> --principal <id>` and point OTO_POLICY_SNAPSHOT at it" % action)
+        _audit.append(project, DENIED_ACTION, by, [], "refused", "%s: no snapshot (%s)" % (action, path))
+        raise PolicyError(problem)
+    problems = verify_snapshot(path, key_env=conf["sign_with"])
+    snap = None
+    try:
+        snap = read_snapshot(path)
+    except PolicyError as exc:
+        problems.append(str(exc))
+    if snap is not None and conf["sign_with"] and not snap.get("signature"):
+        problems.append("the project signs its snapshots (policy.sign_with) and this one is unsigned")
+    agent_id = (snap or {}).get("agent", {}).get("id") if snap else None
+    principal_id = (snap or {}).get("principal", {}).get("id") if snap else None
+    if snap is not None and not problems:
+        with open(project.ontology_config_path, encoding="utf-8") as f:
+            classes = json.load(f).get("classes") or {}
+        try:
+            fresh = snapshot(_session.live(project), agent_id, principal_id, classes=classes, ttl_hours=snap.get("ttl_hours") or DEFAULT_TTL_HOURS)
+        except PolicyError as exc:
+            problems.append("the snapshot's agent or principal is no longer in the graph: %s" % exc)
+        else:
+            if not _same_policy(snap, fresh):
+                problems.append("the policy changed since the snapshot was written for %s as %s: write it again with `oto policy snapshot`"
+                                % (agent_id, principal_id))
+    if problems:
+        _audit.append(project, DENIED_ACTION, by, [x for x in (agent_id, principal_id) if x], "refused", "%s: %s" % (action, "; ".join(problems)))
+        raise PolicyError("%s refused under the policy snapshot %s: %s" % (action, path, "; ".join(problems)))
+    return "under snapshot %s for %s as %s, expires %s" % (str(snap.get("hash"))[:12], agent_id, principal_id, snap.get("expires_at"))

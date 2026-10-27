@@ -38,6 +38,13 @@
       "inverse": "replied_by",
       "max": 1,
       "definition": "The message this one answers. The answered message's status follows: replied, or resolved when the reply says so."
+    },
+    "reminder_of": {
+      "domain": "Message",
+      "range": "Message",
+      "inverse": "reminded_by",
+      "max": 1,
+      "definition": "The pending message past its due date this one reminds of. Sent by `oto work remind` (a scheduled job, or a person running it), to the same recipients, about the same item; never a reply, so the original stays pending until someone answers it."
     }
   },
   "attributes": {

@@ -1,0 +1,55 @@
+name: Reminders
+
+# Every weekday morning, the roadmap's pending messages past their due date get one reminder each
+# (roadmap N5): `oto work remind` writes them into the roadmap graph as messages of their own, never
+# replies, and the change comes as a pull request so the record is reviewed before it lands. People
+# who are not in a session see the reminder in their inbox when they next open one.
+
+on:
+  schedule:
+    - cron: "0 8 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  remind:
+    name: remind whom a pending message waits on
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+      - name: Send today's reminders into the roadmap graph
+        id: remind
+        run: |
+          today=$(date -u +%F)
+          oto work remind --at "$today" --by "oto work remind (scheduled)" --project roadmap | tee remind.log
+          oto build --project roadmap > /dev/null
+          if [ -n "$(git status --porcelain roadmap)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "today=$today" >> "$GITHUB_OUTPUT"
+      - name: Open a pull request with the reminders
+        if: steps.remind.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TODAY: ${{ steps.remind.outputs.today }}
+        run: |
+          branch="remind/$TODAY"
+          git config user.name "oto work remind"
+          git config user.email "oto-remind@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add roadmap
+          git commit -s -m "Roadmap: reminders of $TODAY for the pending messages past their due date" -m "$(cat remind.log)"
+          git push -u origin "$branch"
+          gh pr create --title "Roadmap: reminders of $TODAY" --body-file remind.log --base main --head "$branch"

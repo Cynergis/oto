@@ -1325,3 +1325,40 @@ refuses an anonymous caller, an unknown principal, a table the graph does not de
 no permit admits or a forbid covers, answers the permitted ones (the agent's grants intersected when
 named), takes the principal from `X-Oto-Principal` over HTTP and `OTO_PRINCIPAL` on stdio, records a
 refused read and not a permitted one, and reads as before on a graph without the policy pack.
+
+## 31. Phase 6 closes: the inbox under a principal, reminders on a schedule, the milestone reached
+
+N2 and N5 end the phase (Epics D and E, PRs 91 to 100): a user sees only the messages addressed to
+them, an unanswered blocker gets a reminder on its due date and every day after, a scheduled job
+nudges people who are not in a session, and the phase 6 milestone is reached by a named person.
+
+```bash
+oto init --ontology communication --project comms
+OTO_PRINCIPAL="Mina Okafor" oto work inbox --project comms                     # 1 pending for Mina Okafor
+OTO_PRINCIPAL="Mina Okafor" oto work inbox --as "Payments team" --project comms; echo $?   # 1: a user sees only the messages addressed to them
+oto work notify workitem.t-ledger-replica --by "<you>" --at 2026-10-26 --due 2026-10-30 --body "Can you decide the budget this week?" --project comms
+oto work remind --at 2026-10-29 --project comms                                 # nothing overdue
+oto work remind --at 2026-10-30 --dry-run --project comms                       # would send: message.t-ledger-replica-2 -> Mina Okafor
+oto work remind --at 2026-10-30 --project comms                                 # 1 reminder(s) sent: message.t-ledger-replica-3, reminder_of -2, never in_reply_to
+oto work remind --at 2026-10-30 --project comms                                 # 0 sent, 1 already reminded today
+oto build --project comms && oto query --project comms ask CM4 MESSAGE=message.t-ledger-replica-2   # the reminders it had
+oto query --project comms ask CM3                                               # the original is still overdue; the reminders are not
+# the scheduled job: .github/workflows/oto-remind.yml runs `oto work remind` every weekday for the roadmap and opens a pull request with the reminders
+oto decide milestone.phase-6 state=reached --by "<you>" --at 2026-10-27 --project roadmap && oto build --project roadmap && oto audit verify --project roadmap
+oto query --project roadmap ask WK12                                            # Epics D and E deployed by their first pull requests; phase 6 reached
+```
+
+Pass when the inbox under a principal is theirs alone and `--as` someone else is refused (silently
+in the hook); a pending message past its due date gets one reminder a day and none once answered;
+a reminder is a message of its own, `reminder_of` the original, never a reply, so CM3 still lists
+the original and CM4 lists the reminders; a dry run writes nothing; the workflow runs on a schedule
+and opens a pull request; and the phase 6 milestone reads `reached` with the assertion of the
+person who decided it, the audit chain intact.
+
+Phase 6 delivered the ontology explorer (D1 to D6: classes, rules by class, the lexicon in every
+language, dependencies with near-duplicates flagged, cross-artifact navigation, versions and the
+diff against a git ref posted on every pull request) and policy in the graph (E1 to E6: the policy
+pack, the Cedar bundle hashed and signed, the snapshot an agent runs under for a principal with two
+plain-Python guards and denials in the audit log, the snapshot's time to live and re-check before a
+write, the served read held to its principal), then closed the communication pack with the inbox
+under a principal and reminders on a schedule. E7, the generated system's IAM, stays later.

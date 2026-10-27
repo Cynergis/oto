@@ -32,6 +32,11 @@
       "why": "A reply is a message like the one it answers, tied to it by one edge; the answered message's status is derived from its replies, so the thread is facts and nobody edits a message.",
       "alternatives": "A status set by hand on the original: rejected, an edited message is not a record. A Reply class: rejected, `outcome` on the reply says what it did.",
       "validated_by": ""
+    },
+    "reminder_of": {
+      "question": "Which reminders has a message had, and when? (CM4)",
+      "why": "A reminder that were a reply would mark the original replied and silence the overdue finding; a relation of its own keeps the original pending and the reminders countable.",
+      "validated_by": ""
     }
   }
 }

@@ -4,6 +4,112 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.12.0 — 2026-10-27
+
+**The roadmap's six phases, delivered.** Everything since 0.11.31 (pull requests 37 to 100): the
+work, communication, data, architecture, ddd, factory-run and policy packs; the audit log, tracing
+and decisions as nodes; graphs that know each other; the software factory as a second plugin; the
+ontology explorer; policy in the graph with its guards and gates; and the communication pack closed
+with reminders. Phases 5 and 6 in full first, then what phases 1 to 4 brought since the last release.
+
+### Phase 6: the ontology explorer, and policy in the graph (Epics D and E; N2, N5)
+
+- **The ontology as a thing to browse (D1 to D6).** The vocabulary is projected into a navigable
+  model, carried in the graph payload and served at `/api/ontology`: every class with its parents,
+  children, relations with cardinality and inverse, attributes with their values and whether a person
+  decides them, and the count of things of that class. The workbench's Ontology tab walks it by links.
+  Beside it: the rules as a person reads them, looked up by class with inheritance (`/api/rules`); the
+  lexicon in every declared language, searched by any word and landing on the element it names
+  (`/api/lexicon`); the graph descriptors as a page with near-duplicates flagged (`/api/graphs`); from
+  any entity, the rules, terms, graphs, decisions and files that bear on it (`/api/links`, and the
+  entity page's Related section); and versions, `oto ontology diff --from <git ref>` comparing the
+  vocabulary at a ref with the working tree or another ref, served at `/api/ontology/diff`, shown on a
+  Versions page, and posted by the CI workflow as one sticky comment on every pull request that touches
+  an `ontology.config.json`.
+- **The policy pack (E1), compiled (E2).** On the data pack: a `PolicyRule` permits or forbids one
+  `Permission` (an action on a kind of resource, narrowed by a selector) for the roles and teams it
+  names, on every resource the selector admits or only on those it singles out; a `Table` and a
+  `Column` carry a classification and whether they hold personal data, derived up from a column to its
+  table. A rule is a draft until a named person activates it (`oto decide`). `oto policy compile`, and
+  the `policy` build stage, write `build/policy/`: the rules in Cedar (ADR-0004), the same rules as
+  JSON for the engine's own evaluator and the hooks, and a manifest with the version, per-file hashes, a
+  content hash and an HMAC signature when the project names a key; `oto policy verify` checks it;
+  `oto publish` carries it beside the store.
+- **The snapshot an agent runs under (E3, E4).** A `Principal` holds roles; an `Agent` is granted some;
+  `oto policy snapshot --agent --principal` writes the signed intersection of what the two may do,
+  with the paths it reaches through the code map. The engine plugin gains a PreToolUse guard and the
+  factory's guard reads the same file through one plain-Python reader: a write under a denied path is
+  refused naming the rule, a write under no permitted path naming what is permitted, an untrusted
+  snapshot blocks every write, and every refusal is an event that `oto policy denials` and
+  `oto factory run sync` turn into audit records. Two packs that each widen the same base relation
+  now compose to the union.
+- **Freshness and the server (E5, E6).** A snapshot expires (`--ttl`), and before `curate apply`,
+  `decide`, every `oto work` write and `promote` the engine re-checks it: intact, signed when the
+  project signs, not expired, and still what the graph says now; a project may require one. The
+  served `kg_read` is held to the caller's principal (`X-Oto-Principal`, `OTO_PRINCIPAL`), every table
+  the query names admitted by a permit and covered by no forbid, with refused reads in the audit log.
+- **The inbox under a principal, reminders on a schedule (N2, N5).** `oto work inbox` is read under
+  the identity the session runs under and is theirs alone; `oto work remind --at <date>` sends one
+  reminder a day for every pending message past its due date, a message of its own that is never a
+  reply (communication release 3, `reminder_of`, CM4); a scheduled workflow runs it for the roadmap
+  and opens a pull request with the reminders. The phase 6 milestone is reached.
+
+### Phase 5: the architecture graph, the domain, the factory (Epics H, I, J; M4)
+
+- **The architecture pack, aligned with CALM 1.0 (H1 to H6).** The graph agents consult before they
+  change code: CALM nodes, relationships, controls and flows as facts; `oto arch import --calm` reads
+  a model through the gates and `oto arch export --calm` writes it back; `oto arch map` maps a
+  repository's code to components and `oto arch compile` runs on merge through the architecture
+  workflow; `arch_context` is what an agent reads before it edits and `oto arch impact` is what a
+  decision reaches; measurements of a budget are promoted as facts.
+- **The ddd pack (I1 to I8).** Subdomains, bounded contexts, use cases, events, commands, aggregates
+  and rules on the architecture pack; `oto ddd storm` reads an event-storming board in; readiness is
+  a named person's decision (`oto decide`); contracts are versioned nodes, `oto factory spec`
+  projects a component's spec as schema-checked, hashed JSON, `oto factory plan` derives the build
+  order from contract dependencies, `oto factory criteria` draws acceptance criteria from the graph,
+  `oto factory deviate` records what was impossible as specified, and each run gets a graph of its
+  own (factory-run pack) whose results are promoted.
+- **The software factory, a second plugin (J1 to J7).** `oto-factory` in the same marketplace:
+  runner, evaluator and aggregator agents; a PreToolUse guard that holds a run to its write scope and
+  a Stop hook that runs the loop to an iteration cap; the `spec-context` skill a runner loads first;
+  the same hooks in GitHub Actions; `oto factory run metrics` from the run graph; released as 0.2.0,
+  then 0.3.0 with the policy snapshot. A failed or escalated build blocks the work item on a named
+  person (`oto work event verdict`, M4).
+
+### Phases 1 to 4 since 0.11.31 (pull requests 37 to 77)
+
+- **Resolution, survey and the bench (37 to 48).** A name resolves to the current fact; the preview
+  carries questions, briefs and actions; the bench scores right, wrong or abstained and a guess costs;
+  lexicon entries suggested by embeddings and accepted by a named person; the survey's stages with
+  evidence against gold terms and a person's decision per stage; a number, date or code on a fact must
+  be stated by its source; near-duplicate entities shown; `oto capture` and `curate check` tightened.
+- **The workbench and the end-to-end scenarios (49 to 53).** Northwind, and Northwind with mistakes,
+  as scenarios; the workbench, one read-only app over a project snapshot, published beside the static
+  site; ingest runs closed; CI checks the committed UI bundles match `ui-src`.
+- **The selected text and tools (54, 55).** `oto clipboard`, a skill and a prompt hook bring in the
+  selected text (L1); Actions are Tools (L2).
+- **Deploy and connectors (56, 57, 73, 74).** One deploy config, environments, the same build promoted
+  (B1, B4); connectors behind one interface with a manifest, a schema compiler and a conformance kit
+  (K1, K3, K7); overlay connectors and schema introspection; Postgres and BigQuery overlays and
+  `kg_read` behind the deploy config (K2, K5, K8).
+- **The work pack (58 to 61).** Three states from transitions, blocks with context, `oto work set`,
+  the board, the workbench's Work page, `oto work notify`; the inbox at session start, replies that
+  resolve, a merged-PR event; the roadmap itself as a work project in the repository.
+- **Accountability (62 to 66).** The audit log, one hash-chained record per write, verified and keyed
+  to nodes (F2 to F4); tracing with OpenTelemetry spans behind the `otel` extra and the trace id in the
+  audit record (F1); decisions as graph nodes compiled from ADRs with frontmatter (G1 to G3).
+- **Graphs that know each other (67 to 70).** Every graph holds a descriptor of itself and of the
+  graphs it depends on (A1, A2); `kg_dependencies` and `kg_call` over HTTP and the concierge root
+  (A3, A5); near-duplicate descriptors linted (A4).
+- **The data pack (71, 75 to 77).** Schema, lineage, usage and meaning as facts: tables and columns
+  introspected, lineage from a dbt manifest or SQL, usage from the query log with the statement text
+  hashed, meaning drafted by an agent and confirmed by a named person, the data graph under a
+  concierge (C1 to C5).
+
+Every feature above was delivered as a test-first pull request with its section in
+`docs/E2E-TESTING.md` (sections 20 to 31 are new) and its row in `docs/ARCHITECTURE.md`. The
+oto-gcp kit, the plugin manifests and the marketplace pin this version.
+
 ## 0.11.31 — 2026-10-18
 
 **A sandbox loads only its own plugins.** A Claude Desktop SSH session brought the plugins of the

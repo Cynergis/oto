@@ -2,7 +2,7 @@
   "name": "oto",
   "displayName": "OTO, Ontology-To-Operations",
   "description": "From enterprise meaning to running agents. Build, curate, evaluate and serve a temporal knowledge graph from your own documents. The generic skills, the kg_* query tools as an MCP server, a session hook that reports where the project is, and a prompt hook that brings in the selected text when you refer to it. The engine installs itself from the OTO repository through uvx; nothing else is needed.",
-  "version": "0.11.31",
+  "version": "0.12.0",
   "author": {
     "name": "Cynergis AI"
   },

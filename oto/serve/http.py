@@ -33,7 +33,7 @@ import threading
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import lexicon as _lexicon, ontology as _ontology, payload as _payload, rules as _rules
+from . import graphs as _graphs, lexicon as _lexicon, links as _links, ontology as _ontology, payload as _payload, rules as _rules
 from .. import snapshot as _snapshot
 from ..apps import manifest as _apps
 from ..apps import studio as _studio
@@ -320,6 +320,8 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
                 routes.update({"/api/graph": "the whole graph as data", "/api/ontology": "the ontology as a model (?class=<Name> for one class)",
                                "/api/rules": "the rules as a person reads them (?class=<Name> for those that apply to one class)",
                                "/api/lexicon": "every term in every language and the words people use (?q=<words> to search)",
+                               "/api/graphs": "this graph and the graphs it depends on, near-duplicates flagged (?graph=<id> for one)",
+                               "/api/links": "what bears on one entity: rules, terms, graphs, decisions, files (?entity=<id>)",
                                "/api/status": "the server and the project", "/api/changes": "what moved since a token"})
                 return self._json(200, {"tools": [{k: t[k] for k in ("name", "description", "inputSchema")} for t in engine.TOOLS], "routes": routes})
             if path == "/api/status":
@@ -368,6 +370,23 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
                         return self._json(404, {"error": "the ontology declares no class %r" % args["class"], "classes": sorted(m["by_class"])})
                     return self._json(200, one)
                 return self._json(200, m)
+            if path == "/api/graphs":
+                payload = _payload.build(engine.STORE, project_root, identity, passages=False, ledger=0, mode=engine.MODE)
+                m = payload["graphs"]
+                if "graph" in args:
+                    one = _graphs.for_graph(m, str(args["graph"]))
+                    if one is None:
+                        return self._json(404, {"error": "no descriptor %r here" % args["graph"], "graphs": [g["id"] for g in m["graphs"]]})
+                    return self._json(200, one)
+                return self._json(200, m)
+            if path == "/api/links":
+                if "entity" not in args:
+                    return self._json(400, {"error": "say which entity: /api/links?entity=<id>"})
+                payload = _payload.build(engine.STORE, project_root, identity, passages=False, ledger=0, mode=engine.MODE)
+                links = _links.for_entity(payload, str(args["entity"]))
+                if links is None:
+                    return self._json(404, {"error": "no entity %r here" % args["entity"]})
+                return self._json(200, links)
             if path == "/api/lexicon":
                 payload = _payload.build(engine.STORE, project_root, identity, passages=False, ledger=0, mode=engine.MODE)
                 m = payload["terms"]

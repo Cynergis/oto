@@ -59,7 +59,7 @@ export interface Board {
 }
 
 export interface GraphNode {
-  id: string; type: string; label: string; status: string; summary: string;
+  id: string; type: string; label: string; status: string; summary: string; source_doc?: string | null;
   as_of: string | null; valid_from: string | null; valid_to: string | null;
   superseded_by: string | null; supersedes: string | string[] | null;
   attributes: Record<string, unknown>; aliases: string[]; sources: string[];
@@ -69,12 +69,13 @@ export interface GraphEdge { from: string; rel: string; to: string; status: stri
 export interface Payload {
   build_seq: string | number | null; token?: string;
   project: { name: string | null; slug: string | null };
-  vocabulary: { classes: Record<string, { definition?: string }>; properties: Record<string, unknown> };
+  vocabulary: { classes: Record<string, { definition?: string; subclass_of?: string[] | string }>; properties: Record<string, unknown> };
   /* the vocabulary as a navigable model (oto/serve/ontology.py); absent in a payload older than it */
   ontology?: OntologyModel | null;
   /* the rules as a person reads them and the lexicon (oto/serve/rules.py, oto/serve/lexicon.py) */
   rules?: RulesModel | null;
   terms?: LexiconModel | null;
+  graphs?: GraphsModel | null;
   nodes: GraphNode[]; edges: GraphEdge[];
 }
 
@@ -129,4 +130,24 @@ export interface LexiconHit {
 export interface LexiconModel {
   languages: string[]; default_language: string; terms: LexiconTerm[]; phrases: LexiconPhrase[];
   counts: { terms: number; phrases: number; languages: number };
+}
+
+/* The graph descriptors as a person reads them (oto/serve/graphs.py, roadmap D4) */
+export interface GraphNear { other: string; similarity: number; same_reach: boolean; told_apart: { this: string[]; other: string[] }; message: string }
+export interface GraphEntry {
+  id: string; label: string | null; subject: string | null; classes: string[]; reach: string | null; slug: string | null; own: boolean;
+  depends_on: string[]; depended_on_by: string[]; near_duplicates: GraphNear[];
+}
+export interface GraphsModel { own: string | null; counts: { graphs: number; dependencies: number; near_duplicates: number }; graphs: GraphEntry[]; pairs: unknown[] }
+
+/* What bears on one entity (oto/serve/links.py, roadmap D5); ui-src/workbench/links.ts computes the same client-side */
+export interface LinkTarget { section: "ontology" | "rules" | "lexicon" | "dependencies" | "knowledge"; class?: string | null; query?: string; graph?: string; entity?: string }
+export interface EntityLinks {
+  entity: string; type: string;
+  rules: { id: string; kind: string; severity: string | null; via: string | null; target: LinkTarget }[];
+  terms: ({ kind: "class"; name: string; label: string; target: LinkTarget } | { kind: "phrase"; phrase: string; canonical: string; target: LinkTarget })[];
+  graphs: { id: string; label: string | null; own: boolean; reach: string | null; target: LinkTarget }[];
+  decisions: { id: string; label: string | null; rel: string; direction: "in" | "out"; status: unknown; decided_on: unknown; target: LinkTarget }[];
+  files: { id: string | null; label: string | null; kind: string; where: string | null; rel: string | null; target: LinkTarget | null }[];
+  counts: { rules: number; terms: number; graphs: number; decisions: number; files: number };
 }

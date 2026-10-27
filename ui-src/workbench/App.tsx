@@ -1,7 +1,7 @@
 /* The workbench: Overview, Knowledge, Ontology, Project and, when the vocabulary has work items, Work,
  * over one snapshot and one graph. Where the reader is lives in the address (#/overview, #/knowledge/<id>,
  * #/knowledge/kind/<Class>, #/ontology/<Class>, #/ontology/rules/<Class>, #/ontology/lexicon/<words>,
- * #/project/<station>, #/work), so a link to a page can be shared and the browser's back button works. */
+ * #/ontology/dependencies/<graph>, #/project/<station>, #/work), so a link to a page can be shared and the browser's back button works. */
 import * as React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { Badge } from "./components/ui/badge";
@@ -11,18 +11,19 @@ import { Knowledge } from "./views/Knowledge";
 import { Ontology } from "./views/Ontology";
 import { Rules } from "./views/Rules";
 import { Lexicon } from "./views/Lexicon";
+import { Dependencies } from "./views/Dependencies";
 import { Project } from "./views/Project";
 import { Work } from "./views/Work";
-import type { StationId } from "./types";
+import type { LinkTarget, StationId } from "./types";
 import { follow, load, type Loaded } from "./data";
 
-type OntologyView = "classes" | "rules" | "lexicon";
-type Route = { section: "overview" | "knowledge" | "ontology" | "project" | "work"; entity: string | null; kind: string | null; klass: string | null; view: OntologyView; term: string; station: StationId };
+type OntologyView = "classes" | "rules" | "lexicon" | "dependencies";
+type Route = { section: "overview" | "knowledge" | "ontology" | "project" | "work"; entity: string | null; kind: string | null; klass: string | null; view: OntologyView; term: string; graph: string | null; station: StationId };
 const STATIONS: StationId[] = ["sources", "survey", "vocabulary", "curate", "build", "rules", "test", "deploy"];
 
 function parse(hash: string): Route {
   const parts = hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
-  const route: Route = { section: "overview", entity: null, kind: null, klass: null, view: "classes", term: "", station: "vocabulary" };
+  const route: Route = { section: "overview", entity: null, kind: null, klass: null, view: "classes", term: "", graph: null, station: "vocabulary" };
   if (parts[0] === "knowledge") {
     route.section = "knowledge";
     if (parts[1] === "kind") route.kind = parts[2] || null;
@@ -31,6 +32,7 @@ function parse(hash: string): Route {
     route.section = "ontology";
     if (parts[1] === "rules") { route.view = "rules"; route.klass = parts[2] || null; }
     else if (parts[1] === "lexicon") { route.view = "lexicon"; route.term = parts.slice(2).join("/"); }
+    else if (parts[1] === "dependencies") { route.view = "dependencies"; route.graph = parts[2] || null; }
     else route.klass = parts[1] || null;
   } else if (parts[0] === "project") {
     route.section = "project";
@@ -46,6 +48,7 @@ function href(r: Partial<Route> & { section: Route["section"] }) {
   if (r.section === "ontology") {
     if (r.view === "rules") return "#/ontology/rules" + (r.klass ? "/" + encodeURIComponent(r.klass) : "");
     if (r.view === "lexicon") return "#/ontology/lexicon" + (r.term ? "/" + encodeURIComponent(r.term) : "");
+    if (r.view === "dependencies") return "#/ontology/dependencies" + (r.graph ? "/" + encodeURIComponent(r.graph) : "");
     return "#/ontology" + (r.klass ? "/" + encodeURIComponent(r.klass) : "");
   }
   if (r.section === "project") return "#/project/" + (r.station || "vocabulary");
@@ -76,6 +79,13 @@ export function App() {
   }, [data]);
 
   const go = (r: Partial<Route> & { section: Route["section"] }) => { window.location.hash = href(r); };
+  const goTo = (t: LinkTarget) => {
+    if (t.section === "knowledge") go({ section: "knowledge", entity: t.entity || null });
+    else if (t.section === "rules") go({ section: "ontology", view: "rules", klass: t.class || null });
+    else if (t.section === "lexicon") go({ section: "ontology", view: "lexicon", term: t.query || "" });
+    else if (t.section === "dependencies") go({ section: "ontology", view: "dependencies", graph: t.graph || null });
+    else go({ section: "ontology", klass: t.class || null });
+  };
   if (!data) return <p className="p-10 text-muted-foreground">Loading…</p>;
   const s = data.snapshot;
   const name = s?.project.name || data.payload?.project.name || "OTO";
@@ -110,7 +120,7 @@ export function App() {
           </TabsContent>
           <TabsContent value="knowledge" className="mt-0">
             <Knowledge payload={data.payload} selected={route.entity} kind={route.kind}
-              onEntity={id => go({ section: "knowledge", entity: id })} onKind={k => go({ section: "knowledge", kind: k })} />
+              onEntity={id => go({ section: "knowledge", entity: id })} onKind={k => go({ section: "knowledge", kind: k })} onGo={goTo} />
           </TabsContent>
           <TabsContent value="ontology" className="mt-0">
             <Tabs value={route.view} onValueChange={v => go({ section: "ontology", view: v as OntologyView, klass: v === "lexicon" ? null : route.klass })} className="mb-6">
@@ -118,11 +128,15 @@ export function App() {
                 <TabsTrigger value="classes">Classes</TabsTrigger>
                 <TabsTrigger value="rules">Rules</TabsTrigger>
                 <TabsTrigger value="lexicon">Lexicon</TabsTrigger>
+                <TabsTrigger value="dependencies">Dependencies{data.payload?.graphs?.counts.near_duplicates ? <span className="ml-1.5 rounded-full bg-attention/15 px-1.5 text-xs text-attention">{data.payload.graphs.counts.near_duplicates}</span> : null}</TabsTrigger>
               </TabsList>
             </Tabs>
             {route.view === "rules" ? (
               <Rules model={data.payload?.rules || null} ontology={data.payload?.ontology || null} klass={route.klass}
                 onPick={k => go({ section: "ontology", view: "rules", klass: k })} onClass={k => go({ section: "ontology", klass: k })} />
+            ) : route.view === "dependencies" ? (
+              <Dependencies model={data.payload?.graphs || null} ontology={data.payload?.ontology || null} selected={route.graph}
+                onPick={id => go({ section: "ontology", view: "dependencies", graph: id })} onClass={k => go({ section: "ontology", klass: k })} />
             ) : route.view === "lexicon" ? (
               <Lexicon model={data.payload?.terms || null} ontology={data.payload?.ontology || null} query={route.term}
                 onQuery={q => go({ section: "ontology", view: "lexicon", term: q })}

@@ -61,9 +61,26 @@ def _work_command(args, project, _work):
         print("  it carries the item, the block's date and reason, and what you added; citing assertion %s" % done["assertion"])
         print("Run `oto build`; the graph file is the record, commit it.")
         return 0
+    if args.work_command == "remind":
+        try:
+            done = _work.remind(project, args.at, by=args.by, dry_run=args.dry_run)
+        except _work.WorkError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        if not done["overdue"]:
+            print("nothing overdue on %s: 0 reminder(s) sent" % args.at)
+            return 0
+        verb = "would send" if args.dry_run else "sent"
+        print("%d overdue message(s) on %s; %d reminder(s) %s, %d already reminded today" % (
+            len(done["overdue"]), args.at, len(done["sent"]), verb, done["already"]))
+        for entry in done["sent"]:
+            print("  %s -> %s (due %s)%s" % (entry["message"], entry["to_label"], entry["due"], (": reminder %s" % entry["reminder"]) if entry.get("reminder") else ""))
+        if done["sent"] and not args.dry_run:
+            print("Run `oto build`; the graph file is the record, commit it.")
+        return 0
     if args.work_command == "inbox":
         try:
-            found = _work.inbox(project, args.as_)
+            found = _work.inbox(project, args.as_, principal=args.principal)
         except _work.WorkError as exc:
             if args.hook:
                 return 0
@@ -132,14 +149,17 @@ def _work_command(args, project, _work):
 
 def register(sub):
     work = sub.add_parser("work", help="the plan: set an item's state, see the board, tell whom a block waits on")
-    work.add_argument("work_command", choices=["set", "board", "notify", "inbox", "reply", "event"],
+    work.add_argument("work_command", choices=["set", "board", "notify", "inbox", "reply", "event", "remind"],
                       help="set <item> --state open|blocked appends a transition; board shows open, blocked (by whom it waits on) "
                            "and deployed (by environment); notify <item> writes a message from its block to whom it waits on; "
                            "inbox lists what is pending for you; reply <message> answers one (--resolve lifts the block); "
-                           "event merged-pr records what a merged pull request deployed")
+                           "event merged-pr records what a merged pull request deployed; remind --at <date> sends one reminder a day "
+                           "for every pending message past its due date")
     work.add_argument("item", nargs="?", default=None, help="the work item (set, notify), the message (reply), or the event kind (event: merged-pr, verdict)")
     work.add_argument("--as", dest="as_", default=None, help="for inbox: whose inbox (default: the git identity, mapped to a Person)")
     work.add_argument("--hook", action="store_true", help="for inbox: print only when something waits, never fail (the SessionStart hook)")
+    work.add_argument("--principal", default=None, help="for inbox: the identity the session runs under (default: $OTO_PRINCIPAL); the inbox is theirs and --as may only name them")
+    work.add_argument("--dry-run", dest="dry_run", action="store_true", help="for remind: say what would be sent, write nothing")
     work.add_argument("--resolve", action="store_true", help="for reply: the reply settles what was asked, and lifts the block it was about")
     work.add_argument("--repo", default=None, help="for event merged-pr: owner/name")
     work.add_argument("--number", default=None, help="for event merged-pr: the pull request number")

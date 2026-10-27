@@ -167,6 +167,39 @@
         ]
       },
       "gate": "empty"
+    },
+    "CM4": {
+      "who": "whoever waits for an answer",
+      "question": "Which reminders has $MESSAGE had, from whom and when, and is it still pending?",
+      "why": "A message nobody answers is reminded once a day; the reminders say how long it has waited, and a reply ends them.",
+      "validated_by": "",
+      "params": {
+        "MESSAGE": {
+          "type": "Message"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "r",
+              "reminder_of",
+              "$MESSAGE"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "Message"
+          }
+        ],
+        "select": [
+          "r.id",
+          "r.from",
+          "r.sent",
+          "$MESSAGE.status"
+        ]
+      },
+      "gate": "any"
     }
   }
 }

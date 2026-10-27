@@ -182,7 +182,8 @@ def test_the_plugin_is_released_and_a_milestone_is_a_person_s_decision():
     with open(os.path.join(ROOT, "roadmap", "graph.json"), encoding="utf-8") as f:
         milestones = {n["id"]: n for n in json.load(f)["nodes"] if n["type"] == "Milestone"}
     assert milestones["milestone.phase-5"]["attributes"]["state"] == "reached" and any(str(s).startswith("assertion:") for s in milestones["milestone.phase-5"]["sources"])
-    assert milestones["milestone.phase-6"]["attributes"]["state"] == "planned"
+    assert milestones["milestone.phase-6"]["attributes"]["state"] == "reached" and any(str(s).startswith("assertion:") for s in milestones["milestone.phase-6"]["sources"]), \
+        "phase 6 closed the same way: a named person decided it (roadmap PR 8 of phase 6)"
     with open(os.path.join(ROOT, "docs", "ARCHITECTURE.md"), encoding="utf-8") as f:
         text = f.read()
     assert "spec-context" in text and "oto factory run metrics" in text and "workflows/oto-factory.yml" in text

@@ -36,6 +36,7 @@ STATES = ("open", "blocked", "deployed")
 BY_EVENT = ("deployed",)
 TRANSITION_OF, WAITING_ON = "transition_of", "waiting_on"
 MESSAGE, SENT_TO, SENT_BY, REGARDING, IN_REPLY_TO = "Message", "sent_to", "sent_by", "regarding", "in_reply_to"
+REMINDER_OF, REMINDER_SENDER = "reminder_of", "oto work remind"
 PERSON = "Person"
 
 
@@ -451,22 +452,47 @@ def _message_rows(project, vocabulary, graph):
                     "item": {"id": item["id"], "label": item.get("label") or item["id"]} if item else None,
                     "block": {"since": held.get("at"), "reason": held.get("reason"),
                               "lifted": block.get("status", "current") != "current"} if block else None,
-                    "in_reply_to": next((e["to"] for e in edges if e.get("from") == nid and e.get("rel") == IN_REPLY_TO), None)})
+                    "in_reply_to": next((e["to"] for e in edges if e.get("from") == nid and e.get("rel") == IN_REPLY_TO), None),
+                    "reminder_of": next((e["to"] for e in edges if e.get("from") == nid and e.get("rel") == REMINDER_OF), None)})
     return out
 
 
-def inbox(project, as_=None):
+def principal_person(graph, principal):
+    """The Person a principal is (roadmap N2): a Principal node of the policy pack, read through its
+    `identity`, else the identity itself ("Name <email>", an email, a name). None when nobody matches."""
+    text = (principal or "").strip()
+    if not text:
+        return None
+    node = next((n for n in graph.get("nodes") or [] if n.get("id") == text and n.get("status", "current") == "current"), None)
+    if node is not None and node.get("type") == "Principal":
+        text = str((node.get("attributes") or {}).get("identity") or node.get("label") or text)
+    return person_for(graph, text)
+
+
+def inbox(project, as_=None, principal=None):
     """What waits for a person: {"person": {id, label}, "pending": [message rows]}, pending messages
-    sent to them, oldest first. `as_` names them (id, label, alias, or "Name <email>"); without it,
-    the git identity. None when the vocabulary has no Message; raises when nobody matches."""
+    sent to them, oldest first. `principal` (else $OTO_PRINCIPAL) is the identity the session runs
+    under (N2): the inbox is theirs, and `as_` may only name them. Without a principal, `as_` names
+    whose inbox (id, label, alias, or "Name <email>"), and without that, the git identity. None when
+    the vocabulary has no Message; raises when nobody matches."""
     vocabulary = _load_vocabulary(project)
     if MESSAGE not in (vocabulary.get("classes") or {}):
         return None
     live = _session.live(project)
-    if as_:
-        recipients = set()
-        for kind in _union((vocabulary.get("properties") or {}).get(SENT_TO, {}).get("range")):
-            recipients |= _kinds(vocabulary, kind)
+    principal = (principal or os.environ.get("OTO_PRINCIPAL") or "").strip()
+    recipients = set()
+    for kind in _union((vocabulary.get("properties") or {}).get(SENT_TO, {}).get("range")):
+        recipients |= _kinds(vocabulary, kind)
+    if principal:
+        who = principal_person(live, principal)
+        if who is None:
+            raise WorkError("the principal %r maps to no Person of this project: record their email on their Person, or name the Person as the principal" % principal)
+        if as_:
+            asked = person_for(live, as_) or resolve(live, as_, recipients)
+            if asked["id"] != who["id"]:
+                raise WorkError("a user sees only the messages addressed to them: this session runs as %s (%s), not as %s"
+                                % (who.get("label") or who["id"], principal, asked.get("label") or asked["id"]))
+    elif as_:
         who = person_for(live, as_) or resolve(live, as_, recipients)
     else:
         me = identity(project)
@@ -488,6 +514,8 @@ def inbox_text(found, name=None):
     lines = [head]
     for m in rows:
         where = (" · re %s" % m["item"]["label"]) if m["item"] else ""
+        if m.get("reminder_of"):
+            where += " · reminder of %s" % m["reminder_of"]
         if m["block"] and not m["block"]["lifted"]:
             where += " (blocked since %s)" % (m["block"]["since"] or "?")
         lines.append("  ● %s · from %s%s%s" % (m["id"], m["from"] or "?", where, (" · due %s" % m["due"]) if m["due"] else ""))
@@ -495,6 +523,57 @@ def inbox_text(found, name=None):
             lines.append("    %s" % line)
         lines.append("    reply:  oto work reply %s --body \"...\"%s" % (m["id"], "   # --resolve lifts the block" if m["block"] and not m["block"]["lifted"] else ""))
     return "\n".join(lines)
+
+
+def remind(project, at, by=None, dry_run=False):
+    """A reminder for every pending message past its due date, once a day (roadmap N5): a Message of
+    its own from `by` (else "oto work remind"), to the same recipients, about the same item,
+    `reminder_of` the original and never a reply, so the original stays pending. A reminder is never
+    reminded. Returns {"overdue": [ids], "sent": [{message, reminder, to, to_label, due}], "already": n}."""
+    if not (at or "").strip() or not ISO_DATE.match(at.strip()):
+        raise WorkError("--at is the day the reminders go out, as YYYY-MM-DD; never defaulted")
+    at = at.strip()
+    by = (by or "").strip() or REMINDER_SENDER
+    vocabulary = _load_vocabulary(project)
+    if MESSAGE not in (vocabulary.get("classes") or {}):
+        raise WorkError("the vocabulary declares no Message: a reminder needs the communication ontology (oto init --ontology communication)")
+    if REMINDER_OF not in (vocabulary.get("properties") or {}):
+        raise WorkError("the vocabulary declares no %s: the communication ontology's release 3 does (oto ontology update communication)" % REMINDER_OF)
+    _no_candidate(project)
+    live = _session.live(project)
+    rows = _message_rows(project, vocabulary, live)
+    reminded_on = {}
+    for m in rows:
+        if m.get("reminder_of"):
+            reminded_on.setdefault(m["reminder_of"], set()).add(m.get("sent"))
+    overdue = [m for m in rows if m["status"] == "pending" and not m.get("reminder_of") and m.get("due") and m["due"] <= at]
+    due_now = [m for m in overdue if at not in reminded_on.get(m["id"], set())]
+    out = {"overdue": [m["id"] for m in overdue], "sent": [], "already": len(overdue) - len(due_now)}
+    by_id = {n["id"]: n for n in live.get("nodes") or []}
+    for m in due_now:
+        to_labels = [by_id[t].get("label") or t for t in m["to"] if t in by_id]
+        out["sent"].append({"message": m["id"], "to": m["to"], "to_label": ", ".join(to_labels) or "?", "due": m["due"], "reminder": None})
+    if dry_run or not due_now:
+        return out
+    for entry, m in zip(out["sent"], due_now):
+        item_id = (m["item"] or {}).get("id")
+        text = "Reminder: %s was due %s and is still pending since %s. %s" % (m["id"], m["due"], m["sent"] or "?", (m["body"] or "").strip())
+
+        def edit(candidate, source, m=m, entry=entry, text=text, item_id=item_id):
+            new_id = _next_id(candidate, "message", item_id or m["id"])
+            candidate["nodes"].append(dict(source, id=new_id, type=MESSAGE, label="Reminder to %s about %s" % (entry["to_label"], (m["item"] or {}).get("label") or m["id"]),
+                                           summary=text[:160], attributes={"from": by, "body": text, "sent": at}))
+            for t in m["to"]:
+                candidate["edges"].append({"from": new_id, "rel": SENT_TO, "to": t})
+            candidate["edges"].append({"from": new_id, "rel": REMINDER_OF, "to": m["id"]})
+            if item_id:
+                candidate["edges"].append({"from": new_id, "rel": REGARDING, "to": item_id})
+            return {"reminder": new_id}
+        done = _commit(project, "reminder of %s to %s: still pending, was due %s" % (m["id"], entry["to_label"], m["due"]), by, at,
+                       [m["id"]] + ([item_id] if item_id else []), edit, action="work remind")
+        entry["reminder"] = done["reminder"]
+        entry["assertion"] = done.get("assertion")
+    return out
 
 
 def reply(project, term, body, by, at, resolve_it=False, to=None):

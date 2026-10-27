@@ -22,7 +22,8 @@ happened, and the build says where things are.
 | "X is unblocked", "we can go on" | `oto work set <X> --state open --at <date>` |
 | "what's blocked, and on whom", "where are we" | `oto work board` |
 | "tell Y about X", "ask Y" | `oto work notify <X> --at <date> [--due <date>] [--body "..."]` (`--to` for someone else) |
-| "what's waiting for me" | `oto work inbox` (a new session opens with it) |
+| "what's waiting for me" | `oto work inbox` (a new session opens with it; under `OTO_PRINCIPAL` it is yours alone) |
+| "remind them", "nudge whoever hasn't answered" | `oto work remind --at <date>` (`--dry-run` to see first): one reminder a day per pending message past its due date, never a reply |
 | "reply: ...", "answer that" | `oto work reply <message> --body "..." --at <date>` |
 | "that settles it", "unblocked, answer them" | `oto work reply <message> --resolve --body "..." --at <date>`: the reply also lifts the block |
 | "PR 60 merged X" | `oto work event merged-pr --repo <owner/name> --number <N> --item <X> --environment <qa\|preprod\|prod> --at <date>` |

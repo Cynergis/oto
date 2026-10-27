@@ -19,3 +19,11 @@ resolution and the session-start inbox come next (N3, N4).
 
 This is a first draft: edit it. Keep `regarding` pointing at the block as well as the item, because that
 is where the reason lives.
+
+**Reminders (release 3, roadmap N5).** `oto work remind --at <date>` sends, for every pending message
+past its due date, one reminder a day: a `Message` of its own from `oto work remind` (or whoever runs
+it), to the same recipients, about the same item, `reminder_of` the original and never `in_reply_to`
+it, so the original stays pending and CM3 still lists it as overdue; CM4 lists the reminders a message
+had. A scheduled workflow runs it for people who are not in a session. The inbox is read under the
+principal's identity when one is established (`OTO_PRINCIPAL`, or `--principal`; roadmap N2): a user
+sees only the messages addressed to them, and `--as` someone else is refused.

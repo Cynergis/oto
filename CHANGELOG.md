@@ -4,6 +4,58 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.13.0 — 2026-10-27
+
+**The generated system's IAM, and the roadmap closed.** Everything since 0.12.0 (pull requests 102
+and 103): E7, the one item the roadmap had marked "later" and left for after the release, and the
+roadmap graph brought to a consistent end.
+
+### E7: the generated system's IAM, derived from the policy, shipped with the system (ADR-0005)
+
+- **The model, in two packs.** The policy pack (release 3) composes on the architecture pack too: a
+  `Component` or a `System` `runs_as` a `Principal`, the service account it runs under; a
+  `Permission` names the platform role it maps to (`cloud_role`), a fact the organisation states and
+  never a catalogue in the engine; a `Table` says where it is on the platform (`resource_uri`);
+  `safeguards` is widened to `Table` and `Column`; a generated `Control` `derives_from` the rules it
+  came from. The architecture pack (release 4) lets a `System`, a `Component`, a `DataStore` and an
+  `Interface` carry `resource_uri` and marks a `Control` a command derived with `generated_by`. PL8
+  asks what runs as a principal and which generated controls bind it; AR12 lists the generated
+  controls with what each safeguards and where that is on the platform.
+- **The derivation.** Read through the roles each principal holds, the same active rules that compile
+  to Cedar give the platform's bindings: a member (`serviceAccount:` for a service, `user:` for a
+  person), a role, a resource. A forbid withholds the binding a permit would have made for the same
+  member, resource and action, so the bindings and the Cedar never disagree. A permission without a
+  platform role, a resource without a place and a principal without an identity are named and not
+  bound, never guessed. The built graph is read with its derived attributes, so a table whose column
+  is personal data stays out of a `pii=false` selector.
+- **The output, beside the policy bundle.** The `iam` build stage and `oto policy iam` write
+  `build/iam/`: `bindings.json`, `gcp.json` (one policy per resource in the shape `set-iam-policy`
+  takes; GCP first, another provider is a second shape over the same derivation, `policy.provider`),
+  `controls.proposal.json`, `iam-bindings.md` and a manifest hashed and signed with `policy.sign_with`;
+  `oto policy verify build/iam` checks it and `oto publish` carries it with its hash.
+- **The controls.** One generated `Control` per resource, in the architecture vocabulary, that
+  safeguards the resource and the components running as its members and derives from the rules;
+  they enter the graph only through the gates (`oto policy iam --apply --by <who>`, the loop
+  `oto arch compile` uses, now shared as `arch.apply_proposals`) and come out in `oto arch export
+  --calm` under the component's controls. OTO never enforces the bindings: they ship with the
+  system and the platform enforces them, while the hooks, the snapshot and the served engine keep
+  enforcing the policy on OTO's own actions.
+- **Also.** The policy sample's invoice intake service runs as its own account and writes the
+  invoices table, so the ledger sample compiles four active rules, not three; the cross-pack
+  collision test admits a widening from a pack that extends `architecture` and still refuses a
+  second meaning; E2E section 32.
+
+### The roadmap
+
+- **ADR-0005 in the graph**, proposed from `docs/adr` through curate as the four before it, governing
+  Epic E, decided by a named person, its record ingested into the corpus and the archive.
+- **Phases 1 to 4 reached.** Their milestones closed before a milestone could be decided and still read
+  `planned` while every epic in them was deployed; each is now recorded as reached by a named
+  person on the day its last epic deployed, so all six phases read reached by a person's assertion,
+  the audit chain intact. The roadmap as written is complete: fourteen epics deployed, six phases
+  reached, five decisions governing the epics they shaped. H7, authoring in the graph and compiling
+  to CALM, stays gated on its decision.
+
 ## 0.12.0 — 2026-10-27
 
 **The roadmap's six phases, delivered.** Everything since 0.11.31 (pull requests 37 to 100): the

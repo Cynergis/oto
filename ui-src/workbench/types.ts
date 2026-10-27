@@ -72,6 +72,9 @@ export interface Payload {
   vocabulary: { classes: Record<string, { definition?: string }>; properties: Record<string, unknown> };
   /* the vocabulary as a navigable model (oto/serve/ontology.py); absent in a payload older than it */
   ontology?: OntologyModel | null;
+  /* the rules as a person reads them and the lexicon (oto/serve/rules.py, oto/serve/lexicon.py) */
+  rules?: RulesModel | null;
+  terms?: LexiconModel | null;
   nodes: GraphNode[]; edges: GraphEdge[];
 }
 
@@ -94,4 +97,36 @@ export interface OntologyModel {
   version: number | string | null; derived_from_data: boolean;
   counts: { classes: number; relations: number; attributes: number; things: number | null };
   classes: OntologyClass[]; relations: OntologyRelation[];
+}
+
+/* The rules as a person reads them (oto/serve/rules.py, roadmap D2) */
+export interface RuleEntry {
+  id: string; kind: string; severity: string | null; why: string | null; validated_by: string | null; answers: string | null;
+  when: string[]; then: string;
+  scope: Record<string, { classes: string[]; how: "declared" | "implied" }>;
+  classes: string[]; relations: string[]; attributes: string[]; every_node: boolean;
+}
+export interface RulesModel {
+  counts: { rules: number; derive: number; policy: number; confirmed: number };
+  rules: RuleEntry[];
+  /* every declared class -> the ids of the rules that apply to it, directly, through an ancestor or to every node */
+  by_class: Record<string, string[]>;
+  lineage: Record<string, string[]>;
+}
+
+/* The lexicon: every term in every language, and the words people use (oto/serve/lexicon.py, roadmap D3) */
+export interface LexiconTarget { section: "ontology" | "knowledge"; class?: string | null; relation?: string; attribute?: string | null; scheme?: string; entity?: string }
+export interface LexiconTerm {
+  kind: "class" | "relation" | "attribute" | "temporal" | "scheme" | "concept"; name: string; owner: string | null;
+  labels: Record<string, string>; alt_labels: Record<string, string[]>; definition: Record<string, string>; target: LexiconTarget;
+}
+export interface LexiconPhrase { phrase: string; canonical: string; status: string; note: string; target: string | null; label: string | null; type: string | null }
+export interface LexiconHit {
+  kind: LexiconTerm["kind"] | "phrase"; name: string; owner: string | null; label: string | null; labels: Record<string, string>;
+  target: LexiconTarget | null; match: { language: string | null; text: string; how: string };
+  canonical?: string; type?: string | null; status?: string; note?: string;
+}
+export interface LexiconModel {
+  languages: string[]; default_language: string; terms: LexiconTerm[]; phrases: LexiconPhrase[];
+  counts: { terms: number; phrases: number; languages: number };
 }

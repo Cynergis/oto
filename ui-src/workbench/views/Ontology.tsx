@@ -8,12 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Empty } from "../components/common";
-import type { OntologyClass, OntologyModel } from "../types";
+import type { OntologyClass, OntologyModel, RulesModel } from "../types";
 import { cn } from "../lib/utils";
 
-type Props = { model: OntologyModel | null; selected: string | null; onClass: (name: string | null) => void; onKind: (name: string) => void };
+type Props = { model: OntologyModel | null; selected: string | null; rules?: RulesModel | null; onClass: (name: string | null) => void; onKind: (name: string) => void; onRules?: (name: string) => void };
 
-export function Ontology({ model, selected, onClass, onKind }: Props) {
+export function Ontology({ model, selected, rules, onClass, onKind, onRules }: Props) {
   const [query, setQuery] = React.useState("");
   if (!model) return <Empty>No ontology to read: build the project first, then serve or export it.</Empty>;
   const by: Record<string, OntologyClass> = {};
@@ -66,6 +66,8 @@ export function Ontology({ model, selected, onClass, onKind }: Props) {
                 <span className="font-mono text-xs text-muted-foreground">{current.name}</span>
                 {current.things ? <button type="button" onClick={() => onKind(current.name)} className="text-xs text-primary underline-offset-4 hover:underline">{current.things} current {current.things === 1 ? "thing" : "things"} in the knowledge base</button>
                   : <span className="text-xs text-muted-foreground">nothing of exactly this class yet</span>}
+                {rules && onRules ? <button type="button" onClick={() => onRules(current.name)} className="text-xs text-primary underline-offset-4 hover:underline">
+                  {(rules.by_class[current.name] || []).length} {(rules.by_class[current.name] || []).length === 1 ? "rule applies" : "rules apply"}</button> : null}
               </div>
               <CardTitle className="text-2xl first-letter:uppercase">{current.label}</CardTitle>
               {current.definition ? <CardDescription className="text-base">{current.definition}</CardDescription> : null}

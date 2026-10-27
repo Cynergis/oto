@@ -12,7 +12,7 @@ site stage, so live and static never disagree.
 import json
 import os
 
-from . import ontology as _ontology
+from . import lexicon as _lexicon, ontology as _ontology, rules as _rules
 
 PAYLOAD_VERSION = 1
 
@@ -52,6 +52,7 @@ def vocabulary_for(project_root):
         config = json.load(f)
     return {"classes": config.get("classes") or {}, "properties": config.get("properties") or {},
             "attributes": config.get("attributes") or {}, "temporal": config.get("temporal") or {},
+            "schemes": config.get("schemes") or {}, "languages": list(config.get("languages") or []),
             "ontology_version": config.get("ontology_version")}
 
 
@@ -62,8 +63,8 @@ def derived_vocabulary(nodes, edges):
         classes.setdefault(n["type"], {"definition": ""})
     for e in edges:
         properties.setdefault(e["rel"], {"definition": ""})
-    return {"classes": classes, "properties": properties, "attributes": {}, "temporal": {}, "ontology_version": None,
-            "derived_from_data": True}
+    return {"classes": classes, "properties": properties, "attributes": {}, "temporal": {}, "schemes": {}, "languages": [],
+            "ontology_version": None, "derived_from_data": True}
 
 
 def stations(project_root):
@@ -127,6 +128,8 @@ def build(store, project_root=None, identity=None, passages=True, ledger=50, mod
         "vocabulary": vocabulary_for(project_root) or derived_vocabulary(nodes, edges),
         "counts": counts,
         "ontology": None,
+        "rules": None,
+        "terms": None,
         "frontier": store.frontier(),
         "nodes": nodes,
         "edges": edges,
@@ -142,6 +145,8 @@ def build(store, project_root=None, identity=None, passages=True, ledger=50, mod
         "mode": dict(mode or {"regime": "live"}),
     }
     payload["ontology"] = _ontology.model(payload["vocabulary"], counts)
+    payload["rules"] = _rules.model(_rules.load(project_root), payload["vocabulary"])
+    payload["terms"] = _lexicon.model(payload["vocabulary"], lexicon, nodes)
     payload["token"] = change_token(payload["build_seq"], payload["mode"])
     if passages:
         payload["passages"] = [dict(r) for r in store.passages()]

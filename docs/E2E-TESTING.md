@@ -1113,3 +1113,31 @@ decides it; an unknown class is a 404 that names the classes; the payload and th
 the same model; and the workbench's Ontology tab walks from any class to its parents, children and
 relationships by links alone.
 
+## 25. Rules by class and the lexicon in every language
+
+The second cut of the ontology explorer (D2, D3): the rules read by the class they apply to, and the
+vocabulary searched by any word in any declared language, each hit landing on the element it names.
+
+```bash
+oto init --ontology architecture --project arch && oto build --project arch
+oto serve --project arch --http 8765 --view workbench &
+curl -s localhost:8765/api/rules | python3 -c "import json,sys; m=json.load(sys.stdin); print(m['counts'], m['by_class']['Component'])"
+curl -s "localhost:8765/api/rules?class=Component" | python3 -c "import json,sys; [print(r['id'], r['via'], r['when'], '->', r['then']) for r in json.load(sys.stdin)['rules']]"
+curl -s "localhost:8765/api/rules?class=Nothing"                                                # 404, the classes it does declare
+curl -s localhost:8765/api/lexicon | python3 -c "import json,sys; m=json.load(sys.stdin); print(m['languages'], m['counts'])"
+curl -s "localhost:8765/api/lexicon?q=NFR" | python3 -c "import json,sys; [print(h['kind'], h['name'], h['match'], h['target']) for h in json.load(sys.stdin)['hits']]"
+# a project that declares "languages": ["en", "fr"] and writes {"en": "component", "fr": "composant"} as a label:
+curl -s "localhost:8765/api/lexicon?q=composant"                                                # the class Component, matched on its fr label
+# in the browser: http://localhost:8765/#/ontology/rules/Component  -> the rules that apply, "through Asset" when inherited;
+#   http://localhost:8765/#/ontology/lexicon/NFR -> the class and the phrase, a click lands on the class page or the entity
+oto build --project arch --view workbench                                                        # the exported data.json carries both
+```
+
+Pass when `/api/rules` lists every rule once in declaration order with its `when` lines in words, its
+`then`, the classes it names or implies and who confirmed it; `?class=` returns the rules that apply to
+that class including those declared on an ancestor, each saying through which one; an unknown class
+is a 404; `/api/lexicon` lists every term with its labels in every declared language and the words
+people use with the entity each one means; `?q=` ranks an exact label first, then a prefix, then a
+substring, in any language, and every hit says where it lands; the payload and the exported site carry
+both; and on the workbench a class page says how many rules apply to it, the Rules page reads them by
+class, and the Lexicon page's search lands on the element by a click.

@@ -80,6 +80,7 @@ def compose(name, parts, loader):
     Returns a dict with the same keys as a part plus `report`, or raises OntologyError.
     """
     classes, properties, attributes, temporal, schemes = {}, {}, {}, None, {}
+    origin = {}                                   # a relation's domain and range as first declared: what later parts widen
     temporal_from = None
     rationale = {"classes": {}, "properties": {}}
     rules, rule_owner = {}, {}
@@ -115,6 +116,7 @@ def compose(name, parts, loader):
                 old = properties[relation]
                 for label in ("domain", "range"):
                     before, after = set(_declared(old.get(label))), set(_declared(spec.get(label)))
+                    first = origin.get((relation, label), before)
                     if after == before:
                         continue
                     if after > before:
@@ -123,11 +125,18 @@ def compose(name, parts, loader):
                         raise OntologyError("ontology %r narrows the %s of %r from %s to %s; an ontology may widen "
                                             "what it extends, never narrow it"
                                             % (part, label, relation, "|".join(sorted(before)), "|".join(sorted(after))))
+                    elif after >= first and before >= first:
+                        # two parts each widened the base's relation on their own: composed, it is both widenings
+                        report["widened"].append((relation, label, part, sorted(after - before)))
+                        spec[label] = "|".join(sorted(before | after))
                     else:
                         raise OntologyError("ontology %r changes the %s of %r from %s to %s; declare a new relation "
                                             "instead" % (part, label, relation, "|".join(sorted(before)), "|".join(sorted(after))))
                 if (old.get("inverse") or None) != (spec.get("inverse") or None):
                     report["inverse_changed"].append((relation, part, old.get("inverse"), spec.get("inverse")))
+            else:
+                for label in ("domain", "range"):
+                    origin[(relation, label)] = set(_declared(spec.get(label)))
             properties[relation] = spec
 
         if config.get("temporal") and temporal is None:

@@ -1,11 +1,12 @@
 {
   "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
   "name": "policy",
-  "release": 1,
+  "release": 2,
   "domain": "security",
-  "summary": "Access policy as facts on the data layer: a rule permits or forbids a permission (an action on a kind of resource, narrowed by a selector) for a role or a team, a table or a column carries its classification and whether it holds personal data, and the active rules compile into a Cedar bundle the deploy pipeline carries.",
+  "summary": "Access policy as facts on the data layer: a rule permits or forbids a permission (an action on a kind of resource, narrowed by a selector) for a role or a team, a table or a column carries its classification and whether it holds personal data, a principal holds roles and an agent is granted some, the active rules compile into a Cedar bundle the deploy pipeline carries, and an agent running for a principal gets the signed intersection of what the two may do.",
   "extends": [
-    "data"
+    "data",
+    "agent"
   ],
   "namespace": "https://cynergis.ai/ont/policy#",
   "engine": ">=0.11",
@@ -19,6 +20,11 @@
   ],
   "maintainer": "OTO",
   "changelog": [
+    {
+      "release": 2,
+      "at": "2026-10-27",
+      "note": "Principal (a person's or a service's identity that holds a session) with holds_role, and granted_role for the agent pack's Agent, so `oto policy snapshot --agent --principal` writes the signed intersection of what the two may do (roadmap E3); on data and agent. PL6, PL7."
+    },
     {
       "release": 1,
       "at": "2026-10-27",

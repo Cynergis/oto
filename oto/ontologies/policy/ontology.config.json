@@ -1,6 +1,6 @@
 {
-  "_about": "Access policy as facts (roadmap Epic E). A PolicyRule permits or forbids one Permission for the roles and teams it names; a Permission is an action on a kind of resource, narrowed by a selector over the resource's attributes; a rule may single out the resources it covers. A table or a column says how it is classified and whether it holds personal data, so a selector can say `pii=false`. Only an active rule compiles (`oto policy compile`, ADR-0004); a rule is a draft until a named person activates it. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
-  "_summary": "Access policy as facts on the data layer: rules that permit or forbid a permission for a role or a team, permissions as an action on a kind of resource narrowed by a selector, classification and personal data on tables and columns, and the active rules compiled into a Cedar bundle.",
+  "_about": "Access policy as facts (roadmap Epic E). A PolicyRule permits or forbids one Permission for the roles and teams it names; a Permission is an action on a kind of resource, narrowed by a selector over the resource's attributes; a rule may single out the resources it covers. A table or a column says how it is classified and whether it holds personal data, so a selector can say `pii=false`. A Principal is an identity that holds a session, a person's account or a service's, and holds roles; an Agent (the agent pack's) is granted roles of its own, and what it may do for a principal is the intersection of the two (`oto policy snapshot`). Only an active rule compiles (`oto policy compile`, ADR-0004); a rule is a draft until a named person activates it. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
+  "_summary": "Access policy as facts on the data layer: rules that permit or forbid a permission for a role or a team, permissions as an action on a kind of resource narrowed by a selector, classification and personal data on tables and columns, and the active rules compiled into a Cedar bundle. A principal holds roles, an agent is granted some, and the snapshot an agent runs under is the intersection.",
   "name": "Policy",
   "ontology_version": 1,
   "strict_domains": false,
@@ -17,6 +17,10 @@
     },
     "Permission": {
       "definition": "An action on a kind of resource: read, write, export, delete or admin, on a class of the vocabulary (Table, Column, DataStore, Component, Interface), narrowed by a selector over the resource's attributes (`pii=false`, `classification!=restricted`). A permission is what rules grant or refuse; it holds no roles itself."
+    },
+    "Principal": {
+      "definition": "An identity that holds a session: a person's account or a service account, the one on whose behalf an agent acts. It holds roles; what it may do is what the active rules say about those roles, and what an agent may do for it is the intersection of the agent's own grants with its.",
+      "scope_note": "Not a Person of the work pack and not a Role: a person has one or more accounts, and an account holds roles. A service account is a principal with no person behind it."
     }
   },
   "properties": {
@@ -40,6 +44,19 @@
       "range": "Table|Column|DataStore|Component|Interface",
       "inverse": "singled_out_by",
       "definition": "The resources the rule singles out. Without any, the rule covers every resource of the permission's class that its selector admits."
+    },
+    "holds_role": {
+      "domain": "Principal",
+      "range": "Role|Team",
+      "inverse": "held_by",
+      "min": 1,
+      "definition": "The roles and teams the principal holds, as the identity provider or the organisation says. A principal holds at least one; with none it may do nothing."
+    },
+    "granted_role": {
+      "domain": "Agent",
+      "range": "Role|Team",
+      "inverse": "granted_to",
+      "definition": "The roles an agent may exercise on its own account, granted by whoever owns it. What it actually does for a principal is bounded by the principal's roles too: the snapshot is the intersection."
     }
   },
   "attributes": {
@@ -99,6 +116,17 @@
       "pii": {
         "type": "boolean",
         "definition": "Whether the column holds personal data: a name, an address, an email, an identifier of a person."
+      }
+    },
+    "Principal": {
+      "kind": {
+        "type": "enum:person|service",
+        "definition": "A person's account, or a service account with no person behind it.",
+        "required": true
+      },
+      "identity": {
+        "type": "string",
+        "definition": "The account as the identity provider names it: an email, a service account name, a workload identity."
       }
     }
   }

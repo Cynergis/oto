@@ -1243,3 +1243,41 @@ data reads `pii=True` derived; `verify` refuses an edited file, a wrong key and 
 is not the manifest's, and reports an unchecked signature when no key is given; a project that says
 it signs cannot build without the key; a project without the pack says so and writes no bundle; and
 the publication carries the bundle with its hash.
+
+## 29. The policy snapshot: what an agent may do for a principal, and the guards that hold it to that
+
+E3: a `Principal` holds roles, an `Agent` is granted some, and the snapshot an agent runs under is the
+signed intersection; two plain-Python guards read it; every refusal becomes an audit record.
+
+```bash
+oto init --ontology policy --project ledger && oto build --project ledger
+oto query --project ledger ask PL6 PRINCIPAL=principal.factory-runner           # what the runner's service account may do through its roles
+oto query --project ledger ask PL7 AGENT=agent.merchant-assistant               # the roles the agent was granted and the rules they bring
+mkdir -p code && oto policy snapshot --agent agent.merchant-assistant --principal principal.factory-runner --out code/.factory/policy.json --at 2026-10-27 --project ledger
+#   code/.factory/policy.json: agent.merchant-assistant running for principal.factory-runner: 2 permit(s), 1 forbid(s), writes under nothing, denied nothing, unsigned
+oto policy verify code/.factory/policy.json --project ledger                     # holds: a snapshot for ... hash ..., unsigned
+# on an architecture project with a code map, a permitted write on a component reaches its modules' paths:
+#   {"scopes": {"write": ["src/intake", "tests/intake"], "denied": ["src/legacy"]}, ...}
+cd code && echo '{"tool_name":"Edit","tool_input":{"file_path":"src/legacy/old.py"},"cwd":"'$PWD'"}' | python3 -I <plugin>/hooks/policy_guard.py; echo $?
+#   policy guard: src/legacy/old.py is denied to agent.merchant-assistant running for principal.factory-runner: forbidden by policyrule....   -> 2
+cat .factory/events.jsonl                                                        # {"event": "denied", "tool": "Edit", "path": "src/legacy/old.py", "rule": "...", "agent": ..., "principal": ..., "snapshot": "<hash>", "at": ...}
+oto policy denials --events .factory/events.jsonl --project ../ledger           # 1 denial(s) recorded as audit records, 0 already there
+oto policy denials --events .factory/events.jsonl --project ../ledger           # 0 recorded, 1 already there: each once
+oto audit verify --project ../ledger && oto audit --project ../ledger | grep "policy denied"
+export OTO_POLICY_KEY=change-me && oto policy snapshot ... --sign-with OTO_POLICY_KEY   # signed; a guard with the wrong key in OTO_POLICY_KEY refuses every write
+python3 - <<'PY'                                                                  # edit the snapshot by hand: the guard refuses every write ("hash")
+import json; p=".factory/policy.json"; s=json.load(open(p)); s["scopes"]["write"].append("anything"); json.dump(s, open(p,"w"))
+PY
+```
+
+Pass when the pack composes on `data` and `agent` and passes its self-check; PL6 and PL7 answer from
+the sample; the snapshot holds only what both the agent's and the principal's roles are permitted and
+nothing either is forbidden, narrows resources to what both reach, lists each forbid with its rule,
+and reaches the code map's paths; an agent that is not an Agent or a principal that is not a
+Principal is refused by name; both guards allow a write under a permitted path, refuse one under a
+denied path naming the rule, refuse one under no permitted path naming what is permitted, refuse a
+shell command that writes under a denied path, let reads through, block every write on a snapshot
+edited by hand or signed with another key, allow everything with no snapshot, and record each refusal
+as an event; the factory guard keeps the run's read-only paths and lets the policy be the write
+scope; and `oto policy denials` and `oto factory run sync` record each denial once as an audit record
+that the chain verifies.

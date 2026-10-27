@@ -1,5 +1,5 @@
 {
- "_about": "A worked example on the ledger the data sample describes: a customers table with an email column that is personal data, three active rules (compliance reads what holds no personal data, reports exports the daily balances, reports never writes postings) and a draft rule nobody activated. The roles, teams, tables and the store come from the ontologies this one extends.",
+ "_about": "A worked example on the ledger the data sample describes: a customers table with an email column that is personal data, three active rules (compliance reads what holds no personal data, reports exports the daily balances, reports never writes postings) and a draft rule nobody activated. The roles, teams, tables and the store come from the ontologies this one extends. Release 2 adds two principals, a clerk's account and the factory runner's service account, and grants the agent pack's merchant assistant the reports team's and compliance's roles, so a snapshot for it under the runner's account intersects the two.",
  "nodes": [
   {
    "id": "table.ledger-customers",
@@ -232,6 +232,44 @@
    ],
    "aliases": [],
    "tags": []
+  },
+  {
+   "id": "principal.ops-clerk",
+   "type": "Principal",
+   "label": "The reports clerk's account",
+   "summary": "A person's account on the reports team.",
+   "attributes": {
+    "kind": "person",
+    "identity": "clerk@acme.example"
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  },
+  {
+   "id": "principal.factory-runner",
+   "type": "Principal",
+   "label": "The factory runner's service account",
+   "summary": "The service account the factory's runner works under: compliance reads and the reports team's exports, nothing of its own.",
+   "attributes": {
+    "kind": "service",
+    "identity": "factory-runner@acme.iam"
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
   }
  ],
  "edges": [
@@ -311,6 +349,36 @@
    "from": "policyrule.owner-admin",
    "rel": "of_permission",
    "to": "permission.admin-ledger",
+   "status": "current"
+  },
+  {
+   "from": "principal.ops-clerk",
+   "rel": "holds_role",
+   "to": "team.reports",
+   "status": "current"
+  },
+  {
+   "from": "principal.factory-runner",
+   "rel": "holds_role",
+   "to": "team.reports",
+   "status": "current"
+  },
+  {
+   "from": "principal.factory-runner",
+   "rel": "holds_role",
+   "to": "role.r-compliance",
+   "status": "current"
+  },
+  {
+   "from": "agent.merchant-assistant",
+   "rel": "granted_role",
+   "to": "team.reports",
+   "status": "current"
+  },
+  {
+   "from": "agent.merchant-assistant",
+   "rel": "granted_role",
+   "to": "role.r-compliance",
    "status": "current"
   }
  ]

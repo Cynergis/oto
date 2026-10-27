@@ -17,8 +17,7 @@ from ..project import ProjectError
 
 
 def settings(project):
-    cfg = project.config().get("policy") or {}
-    return {"sign_with": cfg.get("sign_with") or None}
+    return _policy.settings(project)
 
 
 def run(project):

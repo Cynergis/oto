@@ -5,8 +5,8 @@ same file in the engine plugin (hooks/) and the factory plugin (factory/hooks/),
 `oto policy snapshot --agent <id> --principal <id>` writes `.factory/policy.json`: the intersection of
 what an agent and the principal it runs for may do, the write paths it reaches and the paths it is
 denied, a hash over the content and, when the project signs, an HMAC-SHA256 signature naming the
-environment variable that holds the key. A guard loads it, checks the hash (and the signature when
-that variable is set here), and decides one tool call: a write under a denied path is refused naming
+environment variable that holds the key. A guard loads it, checks the hash, that it has not
+expired (`expires_at`) and the signature when that variable is set here, and decides one tool call: a write under a denied path is refused naming
 the rule, a write under no permitted path is refused naming what is permitted, a shell command that
 writes under a denied path is refused; everything else passes. A refusal is appended to
 `events.jsonl` beside the snapshot, for `oto policy denials` and `oto factory run sync` to turn into
@@ -52,6 +52,14 @@ def check(snap):
     checked when the variable it names is set here; without it, the hash alone."""
     if content_hash(snap) != snap.get("hash"):
         return "the snapshot's hash is not its content's: it was edited since `oto policy snapshot` wrote it, so nothing in it is trusted"
+    stamp = snap.get("expires_at")
+    if stamp:
+        try:
+            when = datetime.datetime.strptime(str(stamp), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
+        except ValueError:
+            when = None
+        if when is None or datetime.datetime.now(datetime.timezone.utc) >= when:
+            return "the snapshot expired at %s: nothing in it is trusted any more; write it again with `oto policy snapshot`" % stamp
     signature = snap.get("signature")
     if isinstance(signature, dict) and signature.get("key"):
         key = os.environ.get(signature["key"] or "")

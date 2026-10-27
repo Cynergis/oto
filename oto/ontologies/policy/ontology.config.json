@@ -95,7 +95,7 @@
       },
       "selector": {
         "type": "list",
-        "definition": "Conditions over the resource's attributes that must all hold, each `key=value` or `key!=value` (`pii=false`, `classification!=restricted`); a value reads as true, false, a number or text. Empty, the permission covers every resource of its class."
+        "definition": "Conditions over the resource's attributes that must all hold, each `key=value` or `key!=value` (`pii=false`, `classification!=restricted`); a value reads as true, false, a number or text. A boolean nobody set reads as false, so `pii=false` admits a table nobody marked; any other absent value is equal to nothing. Empty, the permission covers every resource of its class."
       }
     },
     "Table": {

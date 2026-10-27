@@ -20,7 +20,9 @@ Beyond one machine: the server binds to 127.0.0.1 unless told otherwise, and bin
 requires a token in the environment, OTO_SERVE_TOKEN, or it refuses to start. With a token every
 request must carry it, as `Authorization: Bearer <token>` or, for a browser that opened the app,
 the cookie the server sets when the page is first opened as `/?oto_token=<token>`. The token is
-never written to a file or a log. Cross-origin calls are refused unless `--cors <origin>` names
+never written to a file or a log. Who asks, for the tools the policy holds to a principal (`kg_read`
+on a graph whose vocabulary declares PolicyRule, roadmap E5), comes from `X-Oto-Principal:
+principal.<id>` and, for an agent, `X-Oto-Agent: agent.<id>`; stdio reads OTO_PRINCIPAL and OTO_AGENT. Cross-origin calls are refused unless `--cors <origin>` names
 the origin (or `*`), for a hosted app calling a separate server.
 """
 import hmac
@@ -147,10 +149,19 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
             self.send_response(204 if allow else 403)
             if allow:
                 self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-                self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+                self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Oto-Principal, X-Oto-Agent")
                 self.send_header("Access-Control-Max-Age", "600")
             self.send_header("Content-Length", "0")
             self.end_headers()
+
+        def _caller(self):
+            """Who asks, from X-Oto-Principal and X-Oto-Agent (roadmap E5); empty when the headers are absent."""
+            out = {}
+            for key, header in (("principal", "X-Oto-Principal"), ("agent", "X-Oto-Agent")):
+                value = (self.headers.get(header) or "").strip()
+                if value:
+                    out[key] = value
+            return out
 
         def _presented_token(self):
             auth = self.headers.get("Authorization") or ""
@@ -242,11 +253,12 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
                 req = json.loads(raw.decode("utf-8") or "{}")
             except ValueError:
                 return self._json(400, {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "parse error"}})
+            caller = self._caller()
             with _STORE_LOCK:
                 if isinstance(req, list):
-                    answers = [m for m in (engine.respond(r) for r in req) if m is not None]
+                    answers = [m for m in (engine.respond(r, caller=caller) for r in req) if m is not None]
                     return self._json(200, answers)
-                msg = engine.respond(req)
+                msg = engine.respond(req, caller=caller)
             if msg is None:
                 return self._json(204, {})
             return self._json(200, msg)
@@ -413,7 +425,7 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
                 return self._json(404, {"error": "no such route", "routes": sorted("/api/%s" % r for r in ROUTES)})
             if tool == "kg_by_type" and "type_" in args:
                 args["type"] = args.pop("type_")
-            msg = engine.respond({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": tool, "arguments": args}})
+            msg = engine.respond({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": tool, "arguments": args}}, caller=self._caller())
             result = msg.get("result") or {}
             text = "".join(c.get("text", "") for c in result.get("content") or [])
             if result.get("isError"):

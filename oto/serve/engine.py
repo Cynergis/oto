@@ -1204,6 +1204,63 @@ def dependencies_text(graph=None, question=None):
     return "\n".join(L)
 
 
+def _policy_graph():
+    """The current graph as the policy reads it: the store's nodes with the derived attributes folded in."""
+    nodes = []
+    for row in STORE.all_nodes():
+        try:
+            attributes = json.loads(row.get("attributes") or "{}") if isinstance(row.get("attributes"), str) else dict(row.get("attributes") or {})
+        except ValueError:
+            attributes = {}
+        nodes.append({"id": row["id"], "type": row.get("type"), "label": row.get("label"), "status": row.get("status") or "current", "attributes": attributes})
+    by_id = {n["id"]: n for n in nodes}
+    for d in STORE.all_derived_attributes():
+        n = by_id.get(d.get("node_id"))
+        if n is not None:
+            value = d.get("value")
+            try:
+                value = json.loads(value) if isinstance(value, str) else value
+            except ValueError:
+                pass
+            n["attributes"][d["name"]] = value
+    edges = [{"from": e["src"], "rel": e["rel"], "to": e["dst"], "status": e.get("status") or "current"} for e in STORE.all_edges()]
+    return {"nodes": nodes, "edges": edges}
+
+
+def _police_read(project, sql):
+    """Hold a native read to the caller's policy (roadmap E5): when the vocabulary declares PolicyRule,
+    the caller names a principal the policy permits to read every table the query names (and an
+    agent, when named, whose grants are intersected); a refusal is an audit record."""
+    from .. import audit as _audit, policy as _policy
+    classes = _policy.declared_classes(project)
+    if _policy.CLASS not in classes:
+        return
+    principal = (CALLER or {}).get("principal")
+    agent = (CALLER or {}).get("agent")
+    if not principal:
+        raise ValueError("kg_read on a policed graph needs to know who asks: send X-Oto-Principal: principal.<id> (and X-Oto-Agent: agent.<id> "
+                         "for an agent) over HTTP, or set OTO_PRINCIPAL (and OTO_AGENT) for stdio")
+    graph = _policy_graph()
+    tables = {}
+    for n in graph["nodes"]:
+        if n.get("type") == "Table" and n.get("status") == "current":
+            tables[n["id"]] = n
+    for name in _policy.tables_in(sql):
+        short = name.split(".")[-1].lower()
+        found = [n for n in tables.values() if (n.get("label") or "").lower() in (name.lower(), short) or (n.get("label") or "").lower().endswith("." + short)]
+        if not found:
+            raise ValueError("kg_read: the graph knows no table %r; the policy cannot speak about what the graph does not describe" % name)
+        for node in found:
+            try:
+                allowed, reason, _rule = _policy.decision(graph, principal, "read", node, agent_id=agent, classes=classes)
+            except _policy.PolicyError as exc:
+                raise ValueError("kg_read: %s" % exc)
+            if not allowed:
+                _audit.append(project, _policy.DENIED_ACTION, principal, [x for x in (agent, principal, node["id"]) if x], "refused",
+                              "kg_read %s: %s" % (name, reason))
+                raise ValueError("kg_read refused: %s" % reason)
+
+
 def read_text(sql, limit=50):
     """One read-only query against the store the deploy config's overlay names: off unless
     `oto.deploy.json` says `overlay.native_read: true`. The passthrough of roadmap K5: OTO's own tools
@@ -1221,6 +1278,7 @@ def read_text(sql, limit=50):
         raise ValueError("kg_read is off: %s" % exc)
     if not _deploy.native_read_allowed(config):
         raise ValueError("kg_read is off: oto.deploy.json does not allow a native read; set overlay.native_read to true to turn it on")
+    _police_read(project, sql)
     overlay = config["overlay"]
     name = overlay.get("connector") or "sqlite"
     connector = _connectors.get(name)
@@ -1616,9 +1674,21 @@ TOOL_BY_NAME = {t["name"]: t for t in TOOLS}
 
 
 # ============================ JSON-RPC plumbing ============================
-def respond(req):
+#: Who asks, for the tools the policy holds to a principal (roadmap E5): {"principal", "agent"},
+#: from the HTTP headers X-Oto-Principal and X-Oto-Agent, else OTO_PRINCIPAL and OTO_AGENT.
+CALLER = {}
+
+
+def caller_from_env():
+    return {k: v for k, v in (("principal", os.environ.get("OTO_PRINCIPAL")), ("agent", os.environ.get("OTO_AGENT"))) if v}
+
+
+def respond(req, caller=None):
     """The JSON-RPC response to one request, or None for a notification. Transport-free: stdio
-    writes it to stdout, HTTP writes it to the response body, so the two cannot disagree."""
+    writes it to stdout, HTTP writes it to the response body, so the two cannot disagree. `caller`
+    says who asks, for the tools the policy holds to a principal; without it, the environment."""
+    global CALLER
+    CALLER = dict(caller) if caller else caller_from_env()
     method = req.get("method")
     mid = req.get("id")
     params = req.get("params") or {}

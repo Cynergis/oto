@@ -365,17 +365,22 @@ def cmd_curate(args):
         from ..curate import ledger as _ledger
         from ..intake import pipeline as _pipeline
 
+        from .. import audit as _audit, policy as _policy, work as _work
+        try:
+            under = _policy.enforce(project, "curate apply", args.by or _work.identity(project))   # roadmap E6
+        except _policy.PolicyError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
         retired = _ledger.retirements(live, proposed)
         record = _ledger.entry(summary, retired, by=args.by, note=args.note,
                                runs=[m["run_id"] for m in _pipeline.open_runs(project)],
                                sources=_ledger.new_sources(live, proposed))
         result = _session.apply(project)
         _ledger.append(project, record)
-        from .. import audit as _audit, work as _work
         _audit.append(project, "curate apply", args.by or _work.identity(project),
                       list(summary["nodes_added"]) + [nid for nid, _f in summary["nodes_changed"]] + list(summary["nodes_removed"]),
-                      "applied", detail=args.note or "%d added, %d changed, %d removed" % (
-                          len(summary["nodes_added"]), len(summary["nodes_changed"]), len(summary["nodes_removed"])))
+                      "applied", detail=(args.note or "%d added, %d changed, %d removed" % (
+                          len(summary["nodes_added"]), len(summary["nodes_changed"]), len(summary["nodes_removed"]))) + ((" [%s]" % under) if under else ""))
         print("\napplied. Previous graph kept at %s; `oto curate undo` restores it."
               % os.path.basename(result["previous"]))
         print("ledger: %s (%d retired). `oto curate log` reads it." % (_ledger.NAME, len(retired)))

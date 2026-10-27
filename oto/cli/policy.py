@@ -55,14 +55,16 @@ def cmd_policy(args):
         except Exception:
             seq = 0
         version = {"build_seq": seq, "graph": _audit.graph_version(project), "ontology": vocabulary.get("ontology_version")}
+        ttl = args.ttl if args.ttl is not None else _policy.settings(project)["ttl_hours"]
         try:
-            snap = _policy.write_snapshot(_session.live(project), args.agent, args.principal, out, at=args.at, version=version, key_env=key_env, classes=classes)
+            snap = _policy.write_snapshot(_session.live(project), args.agent, args.principal, out, at=args.at, version=version, key_env=key_env,
+                                          classes=classes, ttl_hours=ttl)
         except _policy.PolicyError as exc:
             print("oto: %s" % exc, file=sys.stderr)
             return 1
-        print("%s: %s running for %s: %d permit(s), %d forbid(s), writes under %s, denied %s, %s" % (
+        print("%s: %s running for %s: %d permit(s), %d forbid(s), writes under %s, denied %s, expires %s, %s" % (
             out, snap["agent"]["id"], snap["principal"]["id"], len(snap["permits"]), len(snap["forbids"]),
-            ", ".join(snap["scopes"]["write"]) or "nothing", ", ".join(snap["scopes"]["denied"]) or "nothing",
+            ", ".join(snap["scopes"]["write"]) or "nothing", ", ".join(snap["scopes"]["denied"]) or "nothing", snap["expires_at"],
             ("signed with %s" % key_env) if key_env else "unsigned"))
         return 0
     if args.policy_command == "denials":
@@ -87,10 +89,8 @@ def cmd_policy(args):
             return 1
         snap = _policy.read_snapshot(args.bundle)
         signature = snap.get("signature")
-        print("%s holds: a snapshot for %s running for %s, %d permit(s), %d forbid(s), hash %s, %s%s" % (
-            args.bundle, snap["agent"]["id"], snap["principal"]["id"], len(snap.get("permits") or []), len(snap.get("forbids") or []),
-            str(snap.get("hash"))[:12], ("signed with %s" % signature["key"]) if signature else "unsigned",
-            ("; the signature is not checked without the key (--sign-with %s)" % signature["key"]) if signature and not key_env else ""))
+        print("%s holds: %s%s" % (args.bundle, _policy.describe_snapshot(snap),
+                                  ("; the signature is not checked without the key (--sign-with %s)" % signature["key"]) if signature and not key_env else ""))
         return 0
     if args.policy_command == "verify":
         where = args.bundle or project.layout.policy
@@ -153,6 +153,7 @@ def register(sub):
     policy.add_argument("--events", default=None, help="for denials: the events file a guard writes (.factory/events.jsonl)")
     policy.add_argument("--out", default=None, help="for compile: where to write the bundle (default build/policy); for snapshot: the file (default .factory/policy.json)")
     policy.add_argument("--at", default=None, help="for compile and snapshot: the date to record as generated (default: today)")
+    policy.add_argument("--ttl", type=float, default=None, help="for snapshot: hours until it expires (default: project.config.json policy.ttl_hours, else 24)")
     policy.add_argument("--sign-with", dest="sign_with", default=None, metavar="ENV",
                         help="the environment variable holding the signing key (default: project.config.json policy.sign_with)")
     project_arguments(policy)

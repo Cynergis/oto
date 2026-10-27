@@ -48,7 +48,7 @@ def _enum(spec):
 
 def test_the_pack_sits_on_software_architecture_and_pins_calm():
     manifest = ontologies.manifest_for("architecture")
-    assert manifest["extends"] == ["software-architecture"] and manifest["release"] == 3 and manifest["domain"] == "software"
+    assert manifest["extends"] == ["software-architecture"] and manifest["release"] == 4 and manifest["domain"] == "software"
     assert manifest["engine"] == ">=0.11" and CALM in manifest["summary"], "the CALM release is pinned where the pack says what it is"
     assert ontologies.self_check("architecture") == [], ontologies.self_check("architecture")
     config, _sample, readme = ontologies.load("architecture")
@@ -139,6 +139,17 @@ def test_no_relation_or_inverse_name_collides_with_another_pack():
         with open(path, encoding="utf-8") as f:
             other = json.load(f)
         taken = set(other.get("properties") or {}) | {s["inverse"] for s in (other.get("properties") or {}).values() if s.get("inverse")}
+        for rel in sorted(r for r in names & taken if r in own["properties"]):
+            # a pack that extends this one may widen a relation, never give it a second meaning: the same
+            # domain and inverse, a range that only grows (the policy pack widens safeguards to the data layer)
+            spec, theirs = own["properties"].get(rel), (other.get("properties") or {}).get(rel)
+            with open(os.path.join(os.path.dirname(path), "manifest.json"), encoding="utf-8") as f:
+                extends = json.load(f).get("extends") or []
+            assert spec and theirs and "architecture" in extends, (pack, rel)
+            assert theirs["domain"] == spec["domain"] and theirs.get("inverse") == spec.get("inverse"), (pack, rel)
+            assert set(spec["range"].split("|")) < set(theirs["range"].split("|")), (pack, rel, "a widening, not a redefinition")
+            taken.discard(rel)
+            taken.discard(spec.get("inverse"))
         assert not names & taken, (pack, names & taken)
         assert not set(own["classes"]) & set(other.get("classes") or {}) or pack in ("software-architecture", "product", "portfolio"), (pack, set(own["classes"]) & set(other["classes"]))
 
@@ -148,7 +159,7 @@ def test_no_relation_or_inverse_name_collides_with_another_pack():
 def test_the_questions_say_what_the_graph_is_for():
     questions = ontologies.questions_for("architecture")
     ids = [q for q in questions if q.startswith("AR")]
-    assert ids == ["AR%d" % i for i in range(1, 12)], ids
+    assert ids == ["AR%d" % i for i in range(1, 13)], ids
     asks = {q: questions[q]["question"].lower() for q in ids}
     assert "NODE" in questions["AR1"]["params"] and "protocol" in asks["AR1"], "AR1: what a node connects to"
     assert "NODE" in questions["AR2"]["params"] and "control" in asks["AR2"], "AR2: what safeguards it"

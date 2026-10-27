@@ -1,5 +1,5 @@
 {
- "_about": "A worked example on the ledger the data sample describes: a customers table with an email column that is personal data, three active rules (compliance reads what holds no personal data, reports exports the daily balances, reports never writes postings) and a draft rule nobody activated. The roles, teams, tables and the store come from the ontologies this one extends. Release 2 adds two principals, a clerk's account and the factory runner's service account, and grants the agent pack's merchant assistant the reports team's and compliance's roles, so a snapshot for it under the runner's account intersects the two.",
+ "_about": "A worked example on the ledger the data sample describes: a customers table with an email column that is personal data, three active rules (compliance reads what holds no personal data, reports exports the daily balances, reports never writes postings) and a draft rule nobody activated. The roles, teams, tables and the store come from the ontologies this one extends. Release 2 adds two principals, a clerk's account and the factory runner's service account, and grants the agent pack's merchant assistant the reports team's and compliance's roles, so a snapshot for it under the runner's account intersects the two. Release 3 adds the generated system: the invoice intake component runs as its own service account, which holds the invoice writer role permitted to write the invoices table; the permissions name their platform roles and the tables their place on the platform, and the control `oto policy iam` derives on the invoices table is in the sample as the generator writes it.",
  "nodes": [
   {
    "id": "table.ledger-customers",
@@ -81,7 +81,8 @@
     "resource_class": "Table",
     "selector": [
      "pii=false"
-    ]
+    ],
+    "cloud_role": "roles/bigquery.dataViewer"
    },
    "as_of": "2026-10-27",
    "valid_from": "2026-10-27",
@@ -100,7 +101,8 @@
    "summary": "Export a table as a file.",
    "attributes": {
     "action": "export",
-    "resource_class": "Table"
+    "resource_class": "Table",
+    "cloud_role": "roles/bigquery.dataViewer"
    },
    "as_of": "2026-10-27",
    "valid_from": "2026-10-27",
@@ -119,7 +121,8 @@
    "summary": "Insert, update or delete rows of a ledger table.",
    "attributes": {
     "action": "write",
-    "resource_class": "Table"
+    "resource_class": "Table",
+    "cloud_role": "roles/bigquery.dataEditor"
    },
    "as_of": "2026-10-27",
    "valid_from": "2026-10-27",
@@ -138,7 +141,8 @@
    "summary": "Change the store itself: its schema, its roles.",
    "attributes": {
     "action": "admin",
-    "resource_class": "DataStore"
+    "resource_class": "DataStore",
+    "cloud_role": "roles/bigquery.admin"
    },
    "as_of": "2026-10-27",
    "valid_from": "2026-10-27",
@@ -270,6 +274,234 @@
    ],
    "aliases": [],
    "tags": []
+  },
+  {
+   "id": "table.ledger-postings",
+   "type": "Table",
+   "label": "ledger.postings",
+   "summary": "One row per posting: a captured or settled amount against an account.",
+   "attributes": {
+    "kind": "table",
+    "description": "One row per posting: a captured or settled amount against an account, in cents, at the time it was posted.",
+    "description_status": "confirmed",
+    "resource_uri": "//bigquery.googleapis.com/projects/acme-ledger/datasets/ledger/tables/postings"
+   },
+   "as_of": "2026-10-26",
+   "valid_from": "2026-10-26",
+   "source_doc": "ledger-schema",
+   "status": "current",
+   "sources": [
+    "ledger-schema"
+   ],
+   "aliases": [
+    "postings"
+   ],
+   "tags": []
+  },
+  {
+   "id": "table.ledger-daily-balances",
+   "type": "Table",
+   "label": "ledger.daily_balances",
+   "summary": "Each account's balance at the end of each day, rolled up from the postings.",
+   "attributes": {
+    "kind": "view",
+    "description": "One row per account per day: the balance at the end of the day, rolled up from the postings.",
+    "resource_uri": "//bigquery.googleapis.com/projects/acme-ledger/datasets/ledger/tables/daily_balances"
+   },
+   "as_of": "2026-10-26",
+   "valid_from": "2026-10-26",
+   "source_doc": "ledger-schema",
+   "status": "current",
+   "sources": [
+    "ledger-schema"
+   ],
+   "aliases": [
+    "daily balances"
+   ],
+   "tags": []
+  },
+  {
+   "id": "table.invoices",
+   "type": "Table",
+   "label": "invoices.invoices",
+   "summary": "One row per invoice the intake service received: who sent it, for what, and its state.",
+   "attributes": {
+    "kind": "table",
+    "classification": "internal",
+    "pii": false,
+    "description": "One row per invoice received by the intake service: the supplier, the amount, the state; no personal data, the supplier is a company.",
+    "description_status": "confirmed",
+    "resource_uri": "//bigquery.googleapis.com/projects/acme-invoices/datasets/invoices/tables/invoices"
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [
+    "invoices"
+   ],
+   "tags": []
+  },
+  {
+   "id": "role.r-invoice-writer",
+   "type": "Role",
+   "label": "Invoice writer",
+   "summary": "The role that records invoices as they arrive.",
+   "attributes": {
+    "kind": "contributor",
+    "holder": "the invoice intake service",
+    "mandate": "Record every invoice received, and nothing else."
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  },
+  {
+   "id": "permission.write-invoice-tables",
+   "type": "Permission",
+   "label": "Write invoice tables",
+   "summary": "Write to a table of the invoice platform.",
+   "attributes": {
+    "action": "write",
+    "resource_class": "Table",
+    "cloud_role": "roles/bigquery.dataEditor"
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  },
+  {
+   "id": "policyrule.intake-writes-invoices",
+   "type": "PolicyRule",
+   "label": "Intake writes the invoices table",
+   "summary": "The invoice writer role may write the invoices table, and only it.",
+   "attributes": {
+    "effect": "permit",
+    "priority": 30,
+    "status": "active",
+    "rationale": "The intake service records each invoice as it arrives; it writes one table and nothing else, so its account holds one role."
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  },
+  {
+   "id": "principal.invoice-intake",
+   "type": "Principal",
+   "label": "The invoice intake service's account",
+   "summary": "The service account the intake component runs as.",
+   "attributes": {
+    "kind": "service",
+    "identity": "invoice-intake@acme.iam"
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  },
+  {
+   "id": "control.iam-table-invoices",
+   "type": "Control",
+   "label": "IAM bindings on invoices.invoices",
+   "summary": "What the platform lets serviceAccount:factory-runner@acme.iam, serviceAccount:invoice-intake@acme.iam do on invoices.invoices, derived from the access policy by oto policy iam; the platform enforces it, OTO does not.",
+   "attributes": {
+    "calm_id": "iam-table-invoices",
+    "requirement_url": "https://cynergis.ai/calm/controls/iam-bindings.requirement.json",
+    "generated_by": "oto policy iam",
+    "config": "{\"requirements\":[{\"config\":{\"bindings\":[{\"members\":[\"serviceAccount:invoice-intake@acme.iam\"],\"role\":\"roles/bigquery.dataEditor\"},{\"members\":[\"serviceAccount:factory-runner@acme.iam\"],\"role\":\"roles/bigquery.dataViewer\"}],\"provider\":\"gcp\",\"resource\":\"//bigquery.googleapis.com/projects/acme-invoices/datasets/invoices/tables/invoices\",\"withheld\":[]},\"requirement-url\":\"https://cynergis.ai/calm/controls/iam-bindings.requirement.json\"}]}"
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": [],
+   "evidence": [
+    {
+     "doc": "iam-bindings",
+     "where": "bindings",
+     "quote": "table.invoices: roles/bigquery.dataEditor for serviceAccount:invoice-intake@acme.iam (policyrule.intake-writes-invoices)"
+    },
+    {
+     "doc": "iam-bindings",
+     "where": "bindings",
+     "quote": "table.invoices: roles/bigquery.dataViewer for serviceAccount:factory-runner@acme.iam (policyrule.compliance-reads-ledger)"
+    }
+   ]
+  },
+  {
+   "id": "column.invoices-invoice-id",
+   "type": "Column",
+   "label": "invoice_id",
+   "summary": "The invoice's identifier, the key.",
+   "attributes": {
+    "type": "integer",
+    "nullable": false,
+    "key": "primary",
+    "pii": false,
+    "classification": "internal",
+    "description": "The identifier the intake service gives an invoice; the primary key."
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  },
+  {
+   "id": "column.invoices-supplier",
+   "type": "Column",
+   "label": "supplier",
+   "summary": "The company that sent the invoice.",
+   "attributes": {
+    "type": "text",
+    "nullable": false,
+    "pii": false,
+    "classification": "internal",
+    "description": "The supplier's registered name; a company, not a person."
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
   }
  ],
  "edges": [
@@ -379,6 +611,78 @@
    "from": "agent.merchant-assistant",
    "rel": "granted_role",
    "to": "role.r-compliance",
+   "status": "current"
+  },
+  {
+   "from": "table.invoices",
+   "rel": "part_of",
+   "to": "datastore.invoice-db",
+   "status": "current"
+  },
+  {
+   "from": "policyrule.intake-writes-invoices",
+   "rel": "for_role",
+   "to": "role.r-invoice-writer",
+   "status": "current"
+  },
+  {
+   "from": "policyrule.intake-writes-invoices",
+   "rel": "of_permission",
+   "to": "permission.write-invoice-tables",
+   "status": "current"
+  },
+  {
+   "from": "policyrule.intake-writes-invoices",
+   "rel": "singles_out",
+   "to": "table.invoices",
+   "status": "current"
+  },
+  {
+   "from": "principal.invoice-intake",
+   "rel": "holds_role",
+   "to": "role.r-invoice-writer",
+   "status": "current"
+  },
+  {
+   "from": "component.invoice-intake",
+   "rel": "runs_as",
+   "to": "principal.invoice-intake",
+   "status": "current"
+  },
+  {
+   "from": "control.iam-table-invoices",
+   "rel": "safeguards",
+   "to": "table.invoices",
+   "status": "current"
+  },
+  {
+   "from": "control.iam-table-invoices",
+   "rel": "safeguards",
+   "to": "component.invoice-intake",
+   "status": "current"
+  },
+  {
+   "from": "control.iam-table-invoices",
+   "rel": "derives_from",
+   "to": "policyrule.compliance-reads-ledger",
+   "status": "current"
+  },
+  {
+   "from": "control.iam-table-invoices",
+   "rel": "derives_from",
+   "to": "policyrule.intake-writes-invoices",
+   "status": "current"
+  },
+  {
+   "from": "column.invoices-invoice-id",
+   "rel": "column_of",
+   "to": "table.invoices",
+   "status": "current"
+  },
+  {
+   "from": "column.invoices-supplier",
+   "rel": "column_of",
+   "to": "table.invoices",
    "status": "current"
   }
  ]

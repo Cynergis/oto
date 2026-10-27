@@ -245,7 +245,8 @@ def verify(out_dir, key_env=None):
             problems.append("%s is missing" % name)
         elif _file_hash(path) != expected:
             problems.append("%s is not the file the manifest names: it was edited since the bundle was written" % name)
-    path = os.path.join(out_dir, "policies.json")
+    content = manifest.get("content") or "policies.json"        # the bindings bundle (oto/iam.py) hashes bindings.json
+    path = os.path.join(out_dir, content)
     if os.path.exists(path):
         try:
             with open(path, encoding="utf-8") as f:
@@ -253,7 +254,7 @@ def verify(out_dir, key_env=None):
         except ValueError:
             policies = None
         if policies is not None and content_hash(policies) != manifest.get("hash"):
-            problems.append("policies.json: the content hash is not the manifest's")
+            problems.append("%s: the content hash is not the manifest's" % content)
     signature = manifest.get("signature")
     if signature and key_env:
         if signature.get("key") != key_env:

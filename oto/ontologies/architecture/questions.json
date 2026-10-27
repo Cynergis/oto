@@ -520,6 +520,47 @@
       },
       "gate": "any",
       "terms": []
+    },
+    "AR12": {
+      "who": "a security reviewer before the system is deployed",
+      "question": "Which controls were generated rather than declared, by what, and what do they safeguard, where on the platform?",
+      "why": "A generated control (the IAM bindings `oto policy iam` derives from the access policy) is what the platform will enforce; a reviewer reads it beside the controls people declared, and sees the node it safeguards with its place on the platform, so nothing generated goes unread.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "k",
+            "type": "Control",
+            "where": {
+              "generated_by": {
+                "exists": true
+              }
+            }
+          },
+          {
+            "edge": [
+              "k",
+              "safeguards",
+              "x"
+            ]
+          }
+        ],
+        "select": [
+          "k.id",
+          "k.label",
+          "k.generated_by",
+          "x.id",
+          "x.resource_uri"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "Control.generated_by",
+        "Component.resource_uri",
+        "DataStore.resource_uri",
+        "System.resource_uri",
+        "Interface.resource_uri"
+      ]
     }
   }
 }

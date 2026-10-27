@@ -177,6 +177,10 @@
       "calm_details": {
         "type": "string",
         "definition": "The CALM node's details (a detailed architecture, a required pattern), carried as the JSON the model gave."
+      },
+      "resource_uri": {
+        "type": "string",
+        "definition": "The system as the platform addresses it (a GCP project, `projects/<id>`), when the generated system's IAM is derived: a binding needs a place on the platform."
       }
     },
     "Component": {
@@ -195,6 +199,10 @@
       "calm_details": {
         "type": "string",
         "definition": "The CALM node's details (a detailed architecture, a required pattern), carried as the JSON the model gave."
+      },
+      "resource_uri": {
+        "type": "string",
+        "definition": "The component as the platform addresses it (`//run.googleapis.com/projects/<p>/locations/<l>/services/<name>`), when the generated system's IAM is derived; a component with none is bound to nothing, and the generator says so."
       }
     },
     "DataStore": {
@@ -213,6 +221,10 @@
       "calm_details": {
         "type": "string",
         "definition": "The CALM node's details (a detailed architecture, a required pattern), carried as the JSON the model gave."
+      },
+      "resource_uri": {
+        "type": "string",
+        "definition": "The store as the platform addresses it (`//bigquery.googleapis.com/projects/<p>/datasets/<d>`), when the generated system's IAM is derived; the tables it holds carry their own."
       }
     },
     "Environment": {
@@ -263,6 +275,10 @@
       "config": {
         "type": "string",
         "definition": "The interface configuration as the model gave it, JSON, conforming to definition_url; or the typed interface's own fields."
+      },
+      "resource_uri": {
+        "type": "string",
+        "definition": "The interface as the platform addresses it (an API gateway's resource name), when the generated system's IAM is derived."
       }
     },
     "Relationship": {
@@ -303,6 +319,10 @@
       "config": {
         "type": "string",
         "definition": "The inline configuration meeting the requirement, as the JSON the model gave."
+      },
+      "generated_by": {
+        "type": "string",
+        "definition": "The command that derived the control from other facts of the graph (`oto policy iam` derives the IAM bindings from the access policy); absent, a person declared it. A generated control is rewritten on the next generation and never edited by hand: edit what it was derived from."
       }
     },
     "Flow": {

@@ -709,7 +709,6 @@ def compile_project(project, at, by, note=None):
     """What project.config.json declares under `arch`, imported and mapped, through the gates, applied
     and built. Returns {"proposals": [...], "gaps": [...], "applied": True, "built": True}. Refused
     at the gate, it aborts the candidate and raises with the findings."""
-    from .cli import main as _main
     from .curate import session as _session
     if not at or not ISO_DATE.match(str(at)):
         raise ArchError("--at YYYY-MM-DD is required: the date of the merge is never defaulted")
@@ -734,7 +733,19 @@ def compile_project(project, at, by, note=None):
         done = map_repo(project, os.path.join(project.data, codemap.get("repo") or "."), codemap["repository"], at)
         proposals.append(done["proposal"])
         gaps += done["gaps"]
+    apply_proposals(project, proposals, by, note or "compiled by oto arch compile")
+    return {"proposals": proposals, "gaps": gaps, "applied": True, "built": True}
+
+
+def apply_proposals(project, proposals, by, note):
+    """Open a candidate, add each proposal, check, apply with `by` and `note`, build. Refused at the
+    gate, it aborts the candidate and raises with the findings; the graph is unchanged. A command
+    that generates facts a person never typed (a CALM import, the IAM bindings) lands them this way,
+    through the same gates as everything else, never by writing the graph."""
+    from .cli import main as _main
     root = project.data
+    if not (by or "").strip():
+        raise ArchError("--by names who applies: the workflow, or a person")
 
     def run(*args):
         out = io.StringIO()
@@ -755,7 +766,7 @@ def compile_project(project, at, by, note=None):
             findings = out.split("gap (")[0] if "blocking (" in out.split("gap (")[0] else out
             findings = findings[findings.index("blocking ("):] if "blocking (" in findings else findings
             raise ArchError("refused at the gate; the graph is unchanged:\n%s" % findings.strip())
-        code, out = run("curate", "apply", "--by", by.strip(), "--note", (note or "compiled by oto arch compile").strip())
+        code, out = run("curate", "apply", "--by", by.strip(), "--note", note.strip())
         if code != 0:
             raise ArchError("could not apply:\n%s" % out.strip())
     except ArchError:
@@ -764,7 +775,6 @@ def compile_project(project, at, by, note=None):
     code, out = run("build")
     if code != 0:
         raise ArchError("applied, but the build failed:\n%s" % out.strip())
-    return {"proposals": proposals, "gaps": gaps, "applied": True, "built": True}
 
 
 # ---- impact (H4) ----

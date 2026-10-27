@@ -1,6 +1,6 @@
 {
-  "_about": "Access policy as facts (roadmap Epic E). A PolicyRule permits or forbids one Permission for the roles and teams it names; a Permission is an action on a kind of resource, narrowed by a selector over the resource's attributes; a rule may single out the resources it covers. A table or a column says how it is classified and whether it holds personal data, so a selector can say `pii=false`. A Principal is an identity that holds a session, a person's account or a service's, and holds roles; an Agent (the agent pack's) is granted roles of its own, and what it may do for a principal is the intersection of the two (`oto policy snapshot`). Only an active rule compiles (`oto policy compile`, ADR-0004); a rule is a draft until a named person activates it. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
-  "_summary": "Access policy as facts on the data layer: rules that permit or forbid a permission for a role or a team, permissions as an action on a kind of resource narrowed by a selector, classification and personal data on tables and columns, and the active rules compiled into a Cedar bundle. A principal holds roles, an agent is granted some, and the snapshot an agent runs under is the intersection.",
+  "_about": "Access policy as facts (roadmap Epic E). A PolicyRule permits or forbids one Permission for the roles and teams it names; a Permission is an action on a kind of resource, narrowed by a selector over the resource's attributes; a rule may single out the resources it covers. A table or a column says how it is classified and whether it holds personal data, so a selector can say `pii=false`. A Principal is an identity that holds a session, a person's account or a service's, and holds roles; an Agent (the agent pack's) is granted roles of its own, and what it may do for a principal is the intersection of the two (`oto policy snapshot`). Only an active rule compiles (`oto policy compile`, ADR-0004); a rule is a draft until a named person activates it. The generated system runs as principals: a Component runs_as a service account, a Permission names the platform role it maps to (cloud_role), a resource says where it is on the platform (resource_uri), and `oto policy iam` derives the platform's bindings and writes them back as generated Controls that derive from the rules (ADR-0005): a design-time output OTO never enforces. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
+  "_summary": "Access policy as facts on the data layer: rules that permit or forbid a permission for a role or a team, permissions as an action on a kind of resource narrowed by a selector, classification and personal data on tables and columns, and the active rules compiled into a Cedar bundle. A principal holds roles, an agent is granted some, and the snapshot an agent runs under is the intersection. The generated system's IAM: components running as principals, permissions mapped to platform roles, resources placed on the platform, and the bindings derived from the rules as generated controls, a design-time output.",
   "name": "Policy",
   "ontology_version": 1,
   "strict_domains": false,
@@ -57,6 +57,25 @@
       "range": "Role|Team",
       "inverse": "granted_to",
       "definition": "The roles an agent may exercise on its own account, granted by whoever owns it. What it actually does for a principal is bounded by the principal's roles too: the snapshot is the intersection."
+    },
+    "runs_as": {
+      "domain": "Component|System",
+      "range": "Principal",
+      "inverse": "identity_of",
+      "max": 1,
+      "definition": "The identity the component runs under in the generated system: a service account. What the component may do on the platform is what the active rules say about the roles its principal holds; `oto policy iam` turns that into the platform's bindings, and the generated control on each resource safeguards the component too."
+    },
+    "derives_from": {
+      "domain": "Control",
+      "range": "PolicyRule",
+      "inverse": "derived_into",
+      "definition": "The rules a generated control was derived from: the permits that made its bindings and the forbids that withheld one. A control a person declared derives from nothing."
+    },
+    "safeguards": {
+      "domain": "Control",
+      "range": "System|Component|Interface|DataStore|Environment|Relationship|Flow|Table|Column",
+      "inverse": "safeguarded_by",
+      "definition": "What the control applies to. The architecture's relation, widened to the data layer: a generated IAM control safeguards the table or the column the bindings are on."
     }
   },
   "attributes": {
@@ -96,6 +115,10 @@
       "selector": {
         "type": "list",
         "definition": "Conditions over the resource's attributes that must all hold, each `key=value` or `key!=value` (`pii=false`, `classification!=restricted`); a value reads as true, false, a number or text. A boolean nobody set reads as false, so `pii=false` admits a table nobody marked; any other absent value is equal to nothing. Empty, the permission covers every resource of its class."
+      },
+      "cloud_role": {
+        "type": "string",
+        "definition": "The platform role that grants the action on the resource's kind, when the generated system's IAM is derived (`roles/bigquery.dataViewer` for a read on a table, `roles/bigquery.dataEditor` for a write). A fact of the permission, not a catalogue in the engine: the organisation says what its platform calls the right. A permission without one binds nothing, and the generator says so."
       }
     },
     "Table": {
@@ -106,6 +129,10 @@
       "pii": {
         "type": "boolean",
         "definition": "Whether the table holds personal data. Derived true when one of its columns does; a person may also say so."
+      },
+      "resource_uri": {
+        "type": "string",
+        "definition": "The table as the platform addresses it (`//bigquery.googleapis.com/projects/<p>/datasets/<d>/tables/<t>`), when the generated system's IAM is derived; a table with none is bound to nothing, and the generator says so."
       }
     },
     "Column": {

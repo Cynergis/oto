@@ -141,6 +141,14 @@ def publish(project, repo=None, source=None, branch="main", token=None, engine=N
             shutil.copytree(project.layout.policy, target)
             with open(os.path.join(target, "manifest.json"), encoding="utf-8") as f:
                 policy_manifest = json.load(f)
+        iam_manifest = None
+        if os.path.isdir(project.layout.iam):
+            target = os.path.join(work, "iam")
+            if os.path.isdir(target):
+                shutil.rmtree(target)
+            shutil.copytree(project.layout.iam, target)
+            with open(os.path.join(target, "manifest.json"), encoding="utf-8") as f:
+                iam_manifest = json.load(f)
         with open(os.path.join(work, CONFIG_NAME), "w", encoding="utf-8") as f:
             out = {k: cfg[k] for k in IDENTITY_KEYS if cfg.get(k)}
             out.update({"slug": identity["slug"], "name": identity["name"], "db_name": identity["db_name"],
@@ -155,6 +163,9 @@ def publish(project, repo=None, source=None, branch="main", token=None, engine=N
         if policy_manifest is not None:
             manifest["policy"] = {"rules": policy_manifest.get("rules"), "hash": policy_manifest.get("hash"),
                                   "signed": bool(policy_manifest.get("signature"))}
+        if iam_manifest is not None:
+            manifest["iam"] = {"provider": iam_manifest.get("provider"), "bindings": iam_manifest.get("bindings"), "controls": iam_manifest.get("controls"),
+                               "hash": iam_manifest.get("hash"), "signed": bool(iam_manifest.get("signature"))}
         if environment:
             manifest["environment"] = environment
         previous = read_manifest(work)

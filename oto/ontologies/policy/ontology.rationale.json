@@ -1,5 +1,5 @@
 {
-  "_about": "Why each term exists: the policy pack of roadmap Epic E, release 1, as E1 and E2 need it; awaiting confirmation.",
+  "_about": "Why each term exists: the policy pack of roadmap Epic E, releases 1 to 3, as E1 to E7 need it; awaiting confirmation.",
   "classes": {
     "PolicyRule": {
       "question": "What may a role do, and what does one rule say in full? (PL1, PL4)",
@@ -41,6 +41,21 @@
     "granted_role": {
       "question": "Which roles was an agent granted? (PL7)",
       "why": "An agent's own grants bound what any principal can make it do; the agent pack's works_for says whom it serves, not what it may touch.",
+      "validated_by": ""
+    },
+    "runs_as": {
+      "question": "What runs as this principal, and what does the platform let it do? (PL8)",
+      "why": "The generated system's identities are service accounts its components run under; without the edge, the bindings the platform needs could not be traced to the component they serve, and the generated control could not safeguard it.",
+      "validated_by": ""
+    },
+    "derives_from": {
+      "question": "Which rules made this generated control? (PL8)",
+      "why": "A generated control is a projection of rules; when a rule changes, the controls it shaped are one walk away, and a reviewer reads why a binding exists or was withheld.",
+      "validated_by": ""
+    },
+    "safeguards": {
+      "question": "Which table does this generated control bind? (PL8, AR12)",
+      "why": "Widened from the architecture's nodes to the data layer's, because IAM on a platform is granted on tables and columns as much as on stores and services.",
       "validated_by": ""
     }
   }

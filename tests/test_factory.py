@@ -47,7 +47,7 @@ def domain(tmp_path):
 
 def test_a_contract_is_a_version_of_an_interface_and_frozen_is_a_decision():
     manifest = ontologies.manifest_for("architecture")
-    assert manifest["release"] == 3 and "Contract" in manifest["changelog"][0]["note"]
+    assert manifest["release"] >= 3 and any("Contract" in entry["note"] and entry["release"] == 3 for entry in manifest["changelog"])
     assert ontologies.self_check("architecture") == [], ontologies.self_check("architecture")
     with open(os.path.join(ROOT, "oto", "ontologies", "architecture", "ontology.config.json"), encoding="utf-8") as f:
         own = json.load(f)

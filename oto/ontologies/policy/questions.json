@@ -389,6 +389,83 @@
         ],
         "say": "the agent is granted no role: it may do nothing for anyone"
       }
+    },
+    "PL8": {
+      "who": "a security reviewer before the system is deployed",
+      "question": "What runs as $PRINCIPAL, and which generated controls bind it on the platform, from which rules, with which platform role?",
+      "why": "The generated system's effective IAM, component by component: the service account a component runs as, the controls `oto policy iam` derived on the resources it reaches, the rules each came from and the platform role each permission maps to. A principal nothing runs as is a person's account, or a component whose identity nobody recorded.",
+      "validated_by": "",
+      "params": {
+        "PRINCIPAL": {
+          "type": "Principal"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "c",
+              "runs_as",
+              "$PRINCIPAL"
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "k",
+                  "safeguards",
+                  "c"
+                ]
+              },
+              {
+                "node": "k",
+                "type": "Control"
+              },
+              {
+                "edge": [
+                  "k",
+                  "derives_from",
+                  "r"
+                ]
+              },
+              {
+                "edge": [
+                  "r",
+                  "of_permission",
+                  "p"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "c.id",
+          "c.label",
+          "k.id",
+          "r.id",
+          "p.cloud_role"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "runs_as",
+              "$PRINCIPAL"
+            ]
+          }
+        ],
+        "say": "nothing runs as this principal: a person's account, or a component whose identity is not recorded (runs_as)"
+      },
+      "terms": [
+        "runs_as",
+        "derives_from",
+        "Permission.cloud_role",
+        "Table.resource_uri"
+      ]
     }
   }
 }

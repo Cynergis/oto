@@ -51,4 +51,27 @@ The sample is on the ledger the data sample describes: a customers table whose e
 personal data, compliance reading everything but that, the reports team exporting the daily balances
 and refused every write on the postings, and an owner-administers-the-store rule still a draft.
 
-This is a first draft of the vocabulary; edit it. Release 2 awaits confirmation of its terms.
+**The generated system's IAM (release 3, roadmap E7, ADR-0005).** The system OTO helps build has
+access control of its own, on the platform it runs on, and the same rules give it. The pack now
+composes on `architecture` too: a `Component` (or a `System`) `runs_as` a `Principal`, the service
+account it runs under; a `Permission` names the platform role it maps to (`cloud_role`,
+`roles/bigquery.dataViewer`), a fact the organisation states rather than a catalogue in the engine;
+a `Table` (and the architecture's nodes) says where it is on the platform (`resource_uri`). Read
+through the roles each principal holds, the active rules give the bindings: a member
+(`serviceAccount:<identity>`, `user:<identity>`), a role, a resource. A forbid withholds the binding
+a permit would have made for the same member, resource and action; what cannot bind (no platform
+role, no place on the platform, no identity) is named and left out. `oto policy iam` and the `iam`
+build stage write `build/iam/`: `bindings.json`, `gcp.json` (one policy per resource, in the shape
+`set-iam-policy` takes), `controls.proposal.json`, `iam-bindings.md` and a manifest hashed and
+signed like the policy bundle, verified by `oto policy verify build/iam` and carried by
+`oto publish`. The controls are the bindings written back into the graph: one generated `Control`
+per resource, carrying `generated_by`, that `safeguards` the resource and the components running
+as its members and `derives_from` the rules it came from; `oto policy iam --apply --by <who>` takes
+them through the gates, and `oto arch export --calm` then carries them. OTO never enforces these
+bindings: they ship with the system and the platform enforces them; the hooks, the snapshot and
+the served engine keep enforcing the policy on OTO's own actions. PL8 asks what runs as a
+principal and which generated controls bind it, from which rules. The sample's invoice intake
+service runs as its own account, which holds the invoice writer role permitted to write the
+invoices table; the control the generator derives on that table is in the sample as it writes it.
+
+This is a first draft of the vocabulary; edit it. Release 3 awaits confirmation of its terms.

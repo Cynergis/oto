@@ -40,7 +40,7 @@ def _own():
 
 def test_the_pack_sits_on_data_and_passes_its_own_check():
     manifest = ontologies.manifest_for("policy")
-    assert manifest["extends"] == ["data", "agent"] and manifest["release"] == 2 and manifest["domain"] == "security"
+    assert manifest["extends"] == ["data", "agent", "architecture"] and manifest["release"] == 3 and manifest["domain"] == "security"
     assert ontologies.self_check("policy") == [], ontologies.self_check("policy")
     config, _sample, readme = ontologies.load("policy")
     assert {"PolicyRule", "Permission"} <= set(config["classes"])
@@ -80,7 +80,7 @@ def test_a_table_and_a_column_carry_a_classification_and_whether_they_hold_perso
 def test_the_questions_say_what_the_pack_is_for():
     questions = ontologies.questions_for("policy")
     ids = [q for q in questions if q.startswith("PL")]
-    assert ids == ["PL1", "PL2", "PL3", "PL4", "PL5", "PL6", "PL7"], ids
+    assert ids == ["PL1", "PL2", "PL3", "PL4", "PL5", "PL6", "PL7", "PL8"], ids
     assert "ROLE" in questions["PL1"]["params"] and questions["PL1"]["gate"] == "any", "PL1: what a role may do; a role no rule names may do nothing, an answer too"
     assert questions["PL2"]["gate"] == "any" and "personal" in questions["PL2"]["question"].lower(), "PL2: where the personal and restricted data is"
     assert questions["PL3"]["gate"] == "any" and "draft" in questions["PL3"]["question"].lower(), "PL3: what is not active"
@@ -152,7 +152,7 @@ def test_the_bundle_is_hashed_signed_and_verifiable(tmp_path, monkeypatch):
     manifest = _policy.bundle(_sample(), out, version={"build_seq": 7, "graph": "abc123", "ontology": 1}, at="2026-10-27")
     assert sorted(os.listdir(out)) == ["manifest.json", "policies.cedar", "policies.json"]
     assert manifest["bundle_version"] == _policy.BUNDLE_VERSION and manifest["version"] == {"build_seq": 7, "graph": "abc123", "ontology": 1}
-    assert manifest["generated_at"] == "2026-10-27" and manifest["rules"] == 3 and manifest["signature"] is None
+    assert manifest["generated_at"] == "2026-10-27" and manifest["rules"] == 4 and manifest["signature"] is None
     with open(os.path.join(out, "policies.json"), "rb") as f:
         body = f.read()
     assert manifest["files"]["policies.json"] == hashlib.sha256(body).hexdigest() and manifest["hash"] == _policy.content_hash(json.loads(body))
@@ -186,7 +186,7 @@ def ledger(tmp_path):
 def test_the_build_writes_the_bundle_and_the_command_compiles_lists_and_verifies_it(ledger, monkeypatch):
     monkeypatch.delenv(KEY_ENV, raising=False)
     code, out = _cli("build", "--project", ledger)
-    assert code == 0 and "policy: 3 rule(s)" in out and "unsigned" in out, out
+    assert code == 0 and "policy: 4 rule(s)" in out and "unsigned" in out, out
     project = Project.standard(ledger)
     bundle = project.layout.policy
     assert sorted(os.listdir(bundle)) == ["manifest.json", "policies.cedar", "policies.json"]
@@ -203,7 +203,7 @@ def test_the_build_writes_the_bundle_and_the_command_compiles_lists_and_verifies
     assert code == 0 and "status: answered" in out and "read" in out, out
     other = str(os.path.join(ledger, "elsewhere"))
     code, out = _cli("policy", "compile", "--project", ledger, "--out", other, "--at", "2026-10-27")
-    assert code == 0 and os.path.exists(os.path.join(other, "policies.cedar")) and "3 rule(s)" in out, out
+    assert code == 0 and os.path.exists(os.path.join(other, "policies.cedar")) and "4 rule(s)" in out, out
     code, out = _cli("policy", "verify", other, "--project", ledger)
     assert code == 0, out
     with open(os.path.join(other, "policies.cedar"), "a", encoding="utf-8") as f:
@@ -222,10 +222,10 @@ def test_activating_a_draft_rule_is_a_decision_that_changes_the_next_bundle(ledg
     code, out = _cli("decide", "policyrule.owner-admin", "status=active", "--by", "Ada", "--at", "2026-10-27", "--project", ledger)
     assert code == 0, out
     code, out = _cli("build", "--project", ledger)
-    assert code == 0 and "policy: 4 rule(s)" in out and "signed with %s" % KEY_ENV in out, out
+    assert code == 0 and "policy: 5 rule(s)" in out and "signed with %s" % KEY_ENV in out, out
     with open(os.path.join(Project.standard(ledger).layout.policy, "manifest.json"), encoding="utf-8") as f:
         manifest = json.load(f)
-    assert manifest["rules"] == 4 and manifest["signature"]["key"] == KEY_ENV
+    assert manifest["rules"] == 5 and manifest["signature"]["key"] == KEY_ENV
     code, out = _cli("policy", "verify", "--project", ledger)
     assert code == 0 and "signed" in out, out
     monkeypatch.setenv(KEY_ENV, "another")

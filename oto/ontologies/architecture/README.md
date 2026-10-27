@@ -48,5 +48,12 @@ the `oto architecture` workflow does so on every merge; `arch_context` serves a 
 requirements with their budgets and measurements, decisions, controls, connections, modules and open
 proposals, and `oto arch impact` reads what a decision affects, the orphans and the untraced code.
 
+**On the platform (release 4).** A `System`, a `Component`, a `DataStore` and an `Interface` may
+say where they are on the platform (`resource_uri`, `//run.googleapis.com/projects/<p>/locations/
+<l>/services/<name>`), which the generated system's IAM needs (the policy pack's `oto policy iam`,
+roadmap E7). A `Control` a command derived rather than a person declared carries `generated_by`
+(`oto policy iam`): it is rewritten on the next generation and never edited by hand, and AR12 lists
+the generated controls with what each safeguards and where that is on the platform.
+
 This is a first draft: edit it. The sample is the roadmap's invoice-approval example; replace it with
 your CALM model as soon as you have imported one.

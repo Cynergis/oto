@@ -1361,4 +1361,43 @@ diff against a git ref posted on every pull request) and policy in the graph (E1
 pack, the Cedar bundle hashed and signed, the snapshot an agent runs under for a principal with two
 plain-Python guards and denials in the audit log, the snapshot's time to live and re-check before a
 write, the served read held to its principal), then closed the communication pack with the inbox
-under a principal and reminders on a schedule. E7, the generated system's IAM, stays later.
+under a principal and reminders on a schedule. E7, the generated system's IAM, came after the release.
+
+## 32. The generated system's IAM: bindings derived from the policy, shipped with the system, never enforced by OTO
+
+E7 (after 0.12.0, ADR-0005): a component runs as a service account, a permission names the platform
+role it maps to, a table says where it is on the platform, and the same active rules that compile
+to Cedar give the platform's bindings, written beside the policy bundle and back into the graph as
+generated controls.
+
+```bash
+oto init --ontology policy --project ledger && oto build --project ledger      # "policy: 4 rule(s) ..." then "iam: 4 binding(s) on 3 resource(s) for 3 member(s) into build/iam (gcp), 3 control(s) proposed, unsigned"
+#                                                                               #   not bound: table.ledger-accounts has no resource_uri: no binding on it (policyrule.compliance-reads-ledger)
+ls ledger/build/iam                                                             # bindings.json controls.proposal.json gcp.json iam-bindings.md manifest.json
+cat ledger/build/iam/gcp.json                                                   # one policy per resource: {"resource": "//bigquery.googleapis.com/.../tables/invoices", "policy": {"bindings": [{"role": "roles/bigquery.dataEditor", "members": ["serviceAccount:invoice-intake@acme.iam"]}, ...]}}
+oto policy verify ledger/build/iam --project ledger                             # holds: 4 binding(s) on 3 resource(s) for 3 member(s), 3 control(s), 0 withheld, hash ..., unsigned
+oto query --project ledger ask PL8 PRINCIPAL=principal.invoice-intake           # component.invoice-intake runs as it; control.iam-table-invoices derives from policyrule.intake-writes-invoices, roles/bigquery.dataEditor
+oto query --project ledger ask PL8 PRINCIPAL=principal.ops-clerk                # nothing runs as this principal: a person's account
+oto policy iam --project ledger --out /tmp/iam --at 2026-10-27                  # anywhere, the same bundle; the document lands in build/documents/iam-bindings.md; next: curate add --from ..., or --apply
+oto policy iam --project ledger --apply --by "<you>" --at 2026-10-27            # applied by <you>: 3 control(s) in the graph, built
+oto query --project ledger ask AR12                                             # the three generated controls, what each safeguards and where that is on the platform
+oto arch export --calm --out /tmp/ledger.calm.json --project ledger && python3 -c "import json; n=[n for n in json.load(open('/tmp/ledger.calm.json'))['nodes'] if n['unique-id']=='invoice-intake'][0]; print(list(n['controls']))"   # ['iam-table-invoices']
+oto policy iam --project ledger --apply --at 2026-10-27; echo $?               # 1: --apply takes --by
+python3 - <<'PY'
+import json; p="ledger/project.config.json"; c=json.load(open(p)); c["policy"]={"provider":"aws"}; json.dump(c, open(p,"w"), indent=2)
+PY
+oto build --project ledger; echo $?                                             # 1: provider 'aws': this release writes gcp
+oto publish --project ledger --repo <query repository>                          # iam/ lands beside policy/; MANIFEST.json says provider, bindings, controls, hash, signed
+```
+
+Pass when the build writes the five files and names the counts, the provider and whether it
+signed; the accounts table, admitted by the selector and placed nowhere, is named and not bound,
+and the customers table, whose column is personal data, is kept out by the derived `pii`; the
+clerk's account and the runner's are GCP members (`user:`, `serviceAccount:`); a forbid on a
+member's write withholds the editor binding and keeps the viewer one (the unit test holds it with a
+graph of its own); `verify` reads the bindings bundle as it reads the policy bundle; the controls
+are proposed with the architecture's `calm_id`, `requirement_url` and `generated_by`, enter the
+graph only through `--apply` with a named `--by`, safeguard the table and the component that runs
+as the member, derive from the rules, and come out in the CALM export under the component's
+controls; PL8 and AR12 answer; a provider this release does not write is refused by name; and the
+publication carries the bindings with their hash.

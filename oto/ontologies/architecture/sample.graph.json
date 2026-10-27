@@ -96,7 +96,8 @@
       "summary": "Accepts a submitted invoice, stores it and emits InvoiceSubmitted.",
       "attributes": {
         "calm_id": "invoice-intake",
-        "calm_type": "service"
+        "calm_type": "service",
+        "resource_uri": "//run.googleapis.com/projects/acme-invoices/locations/europe-west1/services/invoice-intake"
       },
       "aliases": [],
       "tags": [],
@@ -153,7 +154,8 @@
       "summary": "Where submitted invoices and their approval state live.",
       "attributes": {
         "calm_id": "invoice-db",
-        "calm_type": "database"
+        "calm_type": "database",
+        "resource_uri": "//bigquery.googleapis.com/projects/acme-invoices/datasets/invoices"
       },
       "aliases": [],
       "tags": [],

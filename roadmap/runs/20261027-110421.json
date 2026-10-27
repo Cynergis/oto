@@ -1,0 +1,25 @@
+{
+  "completed": true,
+  "completed_at": "2026-10-27T11:04:57",
+  "copied": false,
+  "files": [
+    {
+      "file": "0004-cedar-for-policy.md",
+      "outcome": "extracted",
+      "sha256": "897a388e44c01fd346423582c261e624cdf7603a812ae1695e8aae0edbad32a1",
+      "size": 2163,
+      "slug": "0004-cedar-for-policy"
+    }
+  ],
+  "finished": "2026-10-27T11:04:21",
+  "inbox": "/Users/chihebdkhil/oto-doc/oto/roadmap/inbox",
+  "run_id": "20261027-110421",
+  "started": "2026-10-27T11:04:21",
+  "summary": {
+    "blocked": 0,
+    "extracted": 1,
+    "extraction-failed": 0,
+    "missing-parser": 0,
+    "unsupported": 0
+  }
+}

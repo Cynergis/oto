@@ -1,0 +1,317 @@
+{
+ "_about": "A worked example on the ledger the data sample describes: a customers table with an email column that is personal data, three active rules (compliance reads what holds no personal data, reports exports the daily balances, reports never writes postings) and a draft rule nobody activated. The roles, teams, tables and the store come from the ontologies this one extends.",
+ "nodes": [
+  {
+   "id": "table.ledger-customers",
+   "type": "Table",
+   "label": "ledger.customers",
+   "summary": "One row per customer the ledger settles for: who they are and how to reach them.",
+   "attributes": {
+    "kind": "table",
+    "classification": "restricted",
+    "description": "One row per customer: the identifier the ledger uses and the contact details the settlement notices go to.",
+    "description_status": "confirmed"
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [
+    "customers"
+   ],
+   "tags": []
+  },
+  {
+   "id": "column.ledger-customers-customer-id",
+   "type": "Column",
+   "label": "customer_id",
+   "summary": "The customer's identifier.",
+   "attributes": {
+    "type": "integer",
+    "nullable": false,
+    "key": "primary",
+    "pii": false,
+    "classification": "internal",
+    "description": "The ledger's own identifier of the customer.",
+    "description_status": "confirmed"
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  },
+  {
+   "id": "column.ledger-customers-email",
+   "type": "Column",
+   "label": "email",
+   "summary": "Where the settlement notices go: personal data.",
+   "attributes": {
+    "type": "text",
+    "nullable": true,
+    "pii": true,
+    "classification": "restricted",
+    "description": "The address the settlement notices go to; personal data.",
+    "description_status": "confirmed"
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  },
+  {
+   "id": "permission.read-ledger-tables",
+   "type": "Permission",
+   "label": "Read ledger tables without personal data",
+   "summary": "Read any table of the ledger that holds no personal data.",
+   "attributes": {
+    "action": "read",
+    "resource_class": "Table",
+    "selector": [
+     "pii=false"
+    ]
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  },
+  {
+   "id": "permission.export-balances",
+   "type": "Permission",
+   "label": "Export balances",
+   "summary": "Export a table as a file.",
+   "attributes": {
+    "action": "export",
+    "resource_class": "Table"
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  },
+  {
+   "id": "permission.write-ledger-tables",
+   "type": "Permission",
+   "label": "Write ledger tables",
+   "summary": "Insert, update or delete rows of a ledger table.",
+   "attributes": {
+    "action": "write",
+    "resource_class": "Table"
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  },
+  {
+   "id": "permission.admin-ledger",
+   "type": "Permission",
+   "label": "Administer the ledger store",
+   "summary": "Change the store itself: its schema, its roles.",
+   "attributes": {
+    "action": "admin",
+    "resource_class": "DataStore"
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  },
+  {
+   "id": "policyrule.compliance-reads-ledger",
+   "type": "PolicyRule",
+   "label": "Compliance reads the ledger, personal data aside",
+   "summary": "Compliance may read every ledger table that holds no personal data.",
+   "attributes": {
+    "effect": "permit",
+    "priority": 10,
+    "status": "active",
+    "rationale": "Compliance reconciles balances and postings; it never needs who a customer is."
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  },
+  {
+   "id": "policyrule.reports-export-balances",
+   "type": "PolicyRule",
+   "label": "Reports exports the daily balances",
+   "summary": "The reports team may export the daily balances, and nothing else.",
+   "attributes": {
+    "effect": "permit",
+    "priority": 20,
+    "status": "active",
+    "rationale": "The month-end pack is built from the daily balances alone."
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  },
+  {
+   "id": "policyrule.reports-never-write-postings",
+   "type": "PolicyRule",
+   "label": "Reports never writes postings",
+   "summary": "The reports team is refused every write on the postings, whatever else permits it.",
+   "attributes": {
+    "effect": "forbid",
+    "priority": 100,
+    "status": "active",
+    "rationale": "Only the payment API writes postings; a report that could write would be a second writer."
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  },
+  {
+   "id": "policyrule.owner-admin",
+   "type": "PolicyRule",
+   "label": "The owner administers the ledger",
+   "summary": "The ledger's owner may administer the store; proposed, not yet activated.",
+   "attributes": {
+    "effect": "permit",
+    "priority": 1,
+    "rationale": "Someone must own the schema; who, and whether a role rather than a person, is still being decided."
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  }
+ ],
+ "edges": [
+  {
+   "from": "table.ledger-customers",
+   "rel": "part_of",
+   "to": "datastore.ledger",
+   "status": "current"
+  },
+  {
+   "from": "column.ledger-customers-customer-id",
+   "rel": "column_of",
+   "to": "table.ledger-customers",
+   "status": "current"
+  },
+  {
+   "from": "column.ledger-customers-email",
+   "rel": "column_of",
+   "to": "table.ledger-customers",
+   "status": "current"
+  },
+  {
+   "from": "policyrule.compliance-reads-ledger",
+   "rel": "for_role",
+   "to": "role.r-compliance",
+   "status": "current"
+  },
+  {
+   "from": "policyrule.compliance-reads-ledger",
+   "rel": "of_permission",
+   "to": "permission.read-ledger-tables",
+   "status": "current"
+  },
+  {
+   "from": "policyrule.reports-export-balances",
+   "rel": "for_role",
+   "to": "team.reports",
+   "status": "current"
+  },
+  {
+   "from": "policyrule.reports-export-balances",
+   "rel": "of_permission",
+   "to": "permission.export-balances",
+   "status": "current"
+  },
+  {
+   "from": "policyrule.reports-export-balances",
+   "rel": "singles_out",
+   "to": "table.ledger-daily-balances",
+   "status": "current"
+  },
+  {
+   "from": "policyrule.reports-never-write-postings",
+   "rel": "for_role",
+   "to": "team.reports",
+   "status": "current"
+  },
+  {
+   "from": "policyrule.reports-never-write-postings",
+   "rel": "of_permission",
+   "to": "permission.write-ledger-tables",
+   "status": "current"
+  },
+  {
+   "from": "policyrule.reports-never-write-postings",
+   "rel": "singles_out",
+   "to": "table.ledger-postings",
+   "status": "current"
+  },
+  {
+   "from": "policyrule.owner-admin",
+   "rel": "for_role",
+   "to": "role.r-owner",
+   "status": "current"
+  },
+  {
+   "from": "policyrule.owner-admin",
+   "rel": "of_permission",
+   "to": "permission.admin-ledger",
+   "status": "current"
+  }
+ ]
+}

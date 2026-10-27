@@ -37,7 +37,7 @@ def generated_paths(project, only=None):
     layout = project.layout
     graph_files = [os.path.join(layout.graph, name) for name in GRAPH_FILES]
     owns = {"knowledge": [layout.entities] + graph_files, "rules": graph_files, "ontology": [layout.ontology],
-            "semantic": [layout.cards], "sqlite": [layout.database], "neo4j": [], "site": [layout.site]}
+            "semantic": [layout.cards], "sqlite": [layout.database], "neo4j": [], "policy": [layout.policy], "site": [layout.site]}
     out = []
     for name, _path in STAGES:
         if only and name not in only:
@@ -55,6 +55,7 @@ STAGES = (
     ("semantic", "oto.compile.semantic"),
     ("sqlite", "oto.targets.sqlite"),
     ("neo4j", "oto.targets.neo4j"),          # optional: skipped unless the project configures it
+    ("policy", "oto.targets.policy"),        # optional: skipped unless the vocabulary declares PolicyRule
     ("site", "oto.targets.site"),            # optional: the static site, when targeted
 )
 

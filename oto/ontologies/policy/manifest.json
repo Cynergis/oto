@@ -1,0 +1,28 @@
+{
+  "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
+  "name": "policy",
+  "release": 1,
+  "domain": "security",
+  "summary": "Access policy as facts on the data layer: a rule permits or forbids a permission (an action on a kind of resource, narrowed by a selector) for a role or a team, a table or a column carries its classification and whether it holds personal data, and the active rules compile into a Cedar bundle the deploy pipeline carries.",
+  "extends": [
+    "data"
+  ],
+  "namespace": "https://cynergis.ai/ont/policy#",
+  "engine": ">=0.11",
+  "carries": [
+    "vocabulary",
+    "rationale",
+    "rules",
+    "questions",
+    "sample",
+    "readme"
+  ],
+  "maintainer": "OTO",
+  "changelog": [
+    {
+      "release": 1,
+      "at": "2026-10-27",
+      "note": "First release (roadmap Epic E, E1): PolicyRule and Permission on data, a rule for a role or a team with one permission and optional resources, classification and pii on Table and Column, a table holding personal data when a column does, PL1-PL5, awaiting confirmation. ADR-0004 chooses Cedar as what the rules compile to."
+    }
+  ]
+}

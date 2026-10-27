@@ -184,7 +184,11 @@ jobs:
             if [ -f "$path" ]; then
               echo "<details open><summary><code>$path</code></summary>" >> ontology-diff.md
               echo >> ontology-diff.md
-              oto ontology diff --from "$BASE" --file "$path" --format markdown >> ontology-diff.md || echo "_oto ontology diff failed for $path (a file new in this pull request has nothing to compare from)_" >> ontology-diff.md
+              if git cat-file -e "$BASE:$path" 2>/dev/null; then
+                oto ontology diff --from "$BASE" --file "$path" --format markdown >> ontology-diff.md || echo "_oto ontology diff failed for $path_" >> ontology-diff.md
+              else
+                python3 -c "import json,sys; c=json.load(open(sys.argv[1])); print('### Ontology: new in this pull request, nothing to compare from: version %s, %d classes, %d relations, %d attributes' % (c.get('ontology_version'), len(c.get('classes') or {}), len(c.get('properties') or {}), sum(len(v or {}) for v in (c.get('attributes') or {}).values())))" "$path" >> ontology-diff.md
+              fi
               echo >> ontology-diff.md
               echo "</details>" >> ontology-diff.md
               echo >> ontology-diff.md

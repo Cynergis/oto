@@ -1,0 +1,105 @@
+{
+  "_about": "Access policy as facts (roadmap Epic E). A PolicyRule permits or forbids one Permission for the roles and teams it names; a Permission is an action on a kind of resource, narrowed by a selector over the resource's attributes; a rule may single out the resources it covers. A table or a column says how it is classified and whether it holds personal data, so a selector can say `pii=false`. Only an active rule compiles (`oto policy compile`, ADR-0004); a rule is a draft until a named person activates it. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
+  "_summary": "Access policy as facts on the data layer: rules that permit or forbid a permission for a role or a team, permissions as an action on a kind of resource narrowed by a selector, classification and personal data on tables and columns, and the active rules compiled into a Cedar bundle.",
+  "name": "Policy",
+  "ontology_version": 1,
+  "strict_domains": false,
+  "languages": [
+    "en"
+  ],
+  "classes": {
+    "PolicyRule": {
+      "subclass_of": [
+        "Policy"
+      ],
+      "definition": "One rule of the access policy: it permits or forbids one permission for the roles and teams it names, on every resource the permission's selector admits or only on the resources it singles out. A draft until a named person activates it; a retired one stays as history. Active rules compile into the policy bundle, most urgent (highest priority) first; a forbid outranks a permit.",
+      "scope_note": "A kind of the estate's Policy, so what governs it (a Decision) and what documents it are the estate's own relations. Why the rule exists is its rationale; what it says is its effect, permission, roles and resources."
+    },
+    "Permission": {
+      "definition": "An action on a kind of resource: read, write, export, delete or admin, on a class of the vocabulary (Table, Column, DataStore, Component, Interface), narrowed by a selector over the resource's attributes (`pii=false`, `classification!=restricted`). A permission is what rules grant or refuse; it holds no roles itself."
+    }
+  },
+  "properties": {
+    "for_role": {
+      "domain": "PolicyRule",
+      "range": "Role|Team",
+      "inverse": "subject_of_rule",
+      "min": 1,
+      "definition": "The roles and teams the rule speaks about. A rule names at least one; in the bundle, each becomes the principal of one policy."
+    },
+    "of_permission": {
+      "domain": "PolicyRule",
+      "range": "Permission",
+      "inverse": "granted_by",
+      "min": 1,
+      "max": 1,
+      "definition": "The one permission the rule permits or forbids."
+    },
+    "singles_out": {
+      "domain": "PolicyRule",
+      "range": "Table|Column|DataStore|Component|Interface",
+      "inverse": "singled_out_by",
+      "definition": "The resources the rule singles out. Without any, the rule covers every resource of the permission's class that its selector admits."
+    }
+  },
+  "attributes": {
+    "PolicyRule": {
+      "effect": {
+        "type": "enum:permit|forbid",
+        "definition": "Whether the rule grants the permission or refuses it. A forbid outranks every permit in Cedar's own semantics.",
+        "required": true
+      },
+      "priority": {
+        "type": "integer",
+        "definition": "The order rules are listed in the bundle, highest first; it carries no meaning to Cedar, where forbid always wins, and it helps a reader find the rule that matters.",
+        "default": 0
+      },
+      "status": {
+        "type": "enum:draft|active|retired",
+        "definition": "A rule is a draft until a named person activates it (`oto decide <rule> status=active`), and retired when it no longer applies. Only an active rule compiles.",
+        "default": "draft",
+        "decision": true
+      },
+      "rationale": {
+        "type": "string",
+        "definition": "Why the rule exists, in a sentence, carried into the bundle as a comment so the policy file explains itself."
+      }
+    },
+    "Permission": {
+      "action": {
+        "type": "enum:read|write|export|delete|admin",
+        "definition": "What the permission allows to be done.",
+        "required": true
+      },
+      "resource_class": {
+        "type": "string",
+        "definition": "The class of resource the permission is about, as the vocabulary names it: Table, Column, DataStore, Component or Interface.",
+        "required": true
+      },
+      "selector": {
+        "type": "list",
+        "definition": "Conditions over the resource's attributes that must all hold, each `key=value` or `key!=value` (`pii=false`, `classification!=restricted`); a value reads as true, false, a number or text. Empty, the permission covers every resource of its class."
+      }
+    },
+    "Table": {
+      "classification": {
+        "type": "enum:public|internal|confidential|restricted",
+        "definition": "How the table's data is classified, as the organisation's scheme says it; a selector can read it."
+      },
+      "pii": {
+        "type": "boolean",
+        "definition": "Whether the table holds personal data. Derived true when one of its columns does; a person may also say so."
+      }
+    },
+    "Column": {
+      "classification": {
+        "type": "enum:public|internal|confidential|restricted",
+        "definition": "How the column's data is classified."
+      },
+      "pii": {
+        "type": "boolean",
+        "definition": "Whether the column holds personal data: a name, an address, an email, an identifier of a person."
+      }
+    }
+  }
+}

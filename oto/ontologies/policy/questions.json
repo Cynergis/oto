@@ -1,0 +1,279 @@
+{
+  "_about": "The questions this ontology exists to answer, about the access policy as facts. Each is a query over the graph with a gate: `non_empty` must answer, `empty` must not match, `any` informs. `gaps` say in words what is missing.",
+  "questions": {
+    "PL1": {
+      "who": "a security reviewer",
+      "question": "What may $ROLE do: which active rules permit or forbid it which permission, on which resources?",
+      "why": "The first question about a role: what it can touch. Every active rule that names the role, with the permission's action, class and selector, and the resources the rule singles out when it does. A role no rule names may do nothing the policy says, which is an answer too.",
+      "validated_by": "",
+      "params": {
+        "ROLE": {
+          "type": "Role|Team"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "r",
+              "for_role",
+              "$ROLE"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "PolicyRule",
+            "where": {
+              "status": "active"
+            }
+          },
+          {
+            "edge": [
+              "r",
+              "of_permission",
+              "p"
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "r",
+                  "singles_out",
+                  "x"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "r",
+          "r.effect",
+          "r.priority",
+          "p.label",
+          "p.action",
+          "p.resource_class",
+          "p.selector",
+          "x"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "for_role",
+              "$ROLE"
+            ]
+          }
+        ],
+        "say": "no rule names this role or team: it may do nothing the policy says"
+      },
+      "terms": [
+        "Permission",
+        "PolicyRule.effect",
+        "PolicyRule.priority",
+        "Permission.action",
+        "Permission.resource_class",
+        "Permission.selector"
+      ]
+    },
+    "PL2": {
+      "who": "a data protection officer",
+      "question": "Which tables and columns hold personal data, and how is each classified?",
+      "why": "Where the personal data is, table by table and column by column, with the classification each carries; a table holds personal data when one of its columns does, derived, so nothing is missed by hand.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "t",
+            "type": "Table|Column",
+            "where": {
+              "pii": true
+            }
+          }
+        ],
+        "select": [
+          "t",
+          "t.label",
+          "t.type",
+          "t.pii",
+          "t.classification"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "Table.classification",
+        "Column.classification",
+        "Table.pii",
+        "Column.pii"
+      ]
+    },
+    "PL3": {
+      "who": "a security reviewer",
+      "question": "Which rules are still drafts or were retired, and so do not compile?",
+      "why": "What the bundle leaves out and why: a draft nobody activated yet, a rule retired on purpose. The default reads as the value, so a rule with no status at all is a draft, never active by silence.",
+      "validated_by": "",
+      "ask": {
+        "when": [
+          {
+            "node": "r",
+            "type": "PolicyRule",
+            "where": {
+              "status": {
+                "in": [
+                  "draft",
+                  "retired"
+                ]
+              }
+            }
+          }
+        ],
+        "select": [
+          "r",
+          "r.label",
+          "r.status",
+          "r.effect",
+          "r.rationale"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "PolicyRule.status",
+        "PolicyRule.rationale"
+      ]
+    },
+    "PL4": {
+      "who": "an engineer reading the bundle",
+      "question": "What does $RULE say in full: its effect, priority, status, the roles it names, its permission, the resources it singles out, and why?",
+      "why": "One rule, the way the bundle will carry it, before it is activated: everything a reviewer needs to say yes.",
+      "validated_by": "",
+      "params": {
+        "RULE": {
+          "type": "PolicyRule"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$RULE",
+              "of_permission",
+              "p"
+            ]
+          },
+          {
+            "edge": [
+              "$RULE",
+              "for_role",
+              "who"
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$RULE",
+                  "singles_out",
+                  "x"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "$RULE.effect",
+          "$RULE.priority",
+          "$RULE.status",
+          "$RULE.rationale",
+          "who",
+          "p.action",
+          "p.resource_class",
+          "p.selector",
+          "x"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": [
+        {
+          "when": [
+            {
+              "not_edge": [
+                "$RULE",
+                "of_permission",
+                "*"
+              ]
+            }
+          ],
+          "say": "the rule names no permission"
+        },
+        {
+          "when": [
+            {
+              "not_edge": [
+                "$RULE",
+                "for_role",
+                "*"
+              ]
+            }
+          ],
+          "say": "the rule names no role or team"
+        }
+      ]
+    },
+    "PL5": {
+      "who": "a data steward",
+      "question": "Who may do what on $TABLE: the active rules that single it out, and the roles they name?",
+      "why": "The table's own list, from the rules that name it; a table no rule singles out is governed by the selectors alone, which PL1 reads role by role.",
+      "validated_by": "",
+      "params": {
+        "TABLE": {
+          "type": "Table"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "r",
+              "singles_out",
+              "$TABLE"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "PolicyRule",
+            "where": {
+              "status": "active"
+            }
+          },
+          {
+            "edge": [
+              "r",
+              "for_role",
+              "who"
+            ]
+          },
+          {
+            "edge": [
+              "r",
+              "of_permission",
+              "p"
+            ]
+          }
+        ],
+        "select": [
+          "r",
+          "r.effect",
+          "who",
+          "p.action"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "singles_out"
+      ]
+    }
+  }
+}

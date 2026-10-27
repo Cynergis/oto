@@ -33,7 +33,7 @@ import threading
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import ontology as _ontology, payload as _payload
+from . import lexicon as _lexicon, ontology as _ontology, payload as _payload, rules as _rules
 from .. import snapshot as _snapshot
 from ..apps import manifest as _apps
 from ..apps import studio as _studio
@@ -318,6 +318,8 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
             if path == "/api/tools":
                 routes = {"/api/%s" % r: t for r, t in sorted(ROUTES.items())}
                 routes.update({"/api/graph": "the whole graph as data", "/api/ontology": "the ontology as a model (?class=<Name> for one class)",
+                               "/api/rules": "the rules as a person reads them (?class=<Name> for those that apply to one class)",
+                               "/api/lexicon": "every term in every language and the words people use (?q=<words> to search)",
                                "/api/status": "the server and the project", "/api/changes": "what moved since a token"})
                 return self._json(200, {"tools": [{k: t[k] for k in ("name", "description", "inputSchema")} for t in engine.TOOLS], "routes": routes})
             if path == "/api/status":
@@ -356,6 +358,21 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
                     if one is None:
                         return self._json(404, {"error": "the ontology declares no class %r" % args["class"], "classes": [c["name"] for c in m["classes"]]})
                     return self._json(200, one)
+                return self._json(200, m)
+            if path == "/api/rules":
+                payload = _payload.build(engine.STORE, project_root, identity, passages=False, ledger=0, mode=engine.MODE)
+                m = payload["rules"]
+                if "class" in args:
+                    one = _rules.for_class(m, str(args["class"]))
+                    if one is None:
+                        return self._json(404, {"error": "the ontology declares no class %r" % args["class"], "classes": sorted(m["by_class"])})
+                    return self._json(200, one)
+                return self._json(200, m)
+            if path == "/api/lexicon":
+                payload = _payload.build(engine.STORE, project_root, identity, passages=False, ledger=0, mode=engine.MODE)
+                m = payload["terms"]
+                if "q" in args:
+                    return self._json(200, {"query": str(args["q"]), "hits": _lexicon.search(m, str(args["q"]))})
                 return self._json(200, m)
             route = path[len("/api/"):]
             tool = ROUTES.get(route)

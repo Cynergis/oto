@@ -12,8 +12,37 @@ from . import catalog as _catalog
 from ._common import project_arguments, resolve as _resolve
 
 
+def _diff_against_ref(args):
+    """`oto ontology diff --from <ref> [--to <ref>] [--file <path>] [--format text|markdown|json]`: the
+    vocabulary at a git ref against the working tree or another ref, with the impact on the graph."""
+    import json as _json
+    from ..project import ProjectError
+    from ..serve import versions as _versions
+    nodes, edges = [], []
+    if args.file:
+        path = os.path.abspath(args.file)
+        cwd, name = os.path.dirname(path) or ".", os.path.basename(path)
+    else:
+        project = _resolve(args)
+        cwd, name = os.path.dirname(project.ontology_config_path), os.path.basename(project.ontology_config_path)
+        if os.path.exists(project.graph_path):
+            with open(project.graph_path, encoding="utf-8") as f:
+                graph = _json.load(f)
+            nodes, edges = graph.get("nodes") or [], graph.get("edges") or []
+    try:
+        result = _versions.diff_refs(args.from_name, getattr(args, "to", None), cwd=cwd, name=name, nodes=nodes, edges=edges)
+    except (ProjectError, OSError, ValueError) as exc:
+        print("oto: %s" % exc, file=sys.stderr)
+        return 1
+    print(_versions.render(result, args.format))
+    return 1 if args.strict and result["bump_needed"] else 0
+
+
 def cmd_ontology(args):
     import json as _json
+
+    if args.ontology_command == "diff" and args.from_name:
+        return _diff_against_ref(args)
 
     if args.ontology_command in _catalog.VERBS:
         return _catalog.run(args)
@@ -443,16 +472,21 @@ def register(sub):
                                "recorded reason and who confirmed it; widen proposes what the data uses; import "
                                "merges a file or a named ontology into it. On the catalog: list, show <name>, "
                                "export --name, add <name|name@release|url>, update [<name>], diff against what "
-                               "this project started from, publish --to <registry>")
+                               "this project started from (diff --from <git ref> [--to <ref>]: against the vocabulary "
+                               "as it was at a ref), publish --to <registry>")
     project_arguments(ontology)
     ontology.add_argument("--show", type=int, default=8, help="how many mismatch patterns to list")
     ontology.add_argument("--product-types", dest="product_types", action="store_true",
                           help="for list: the kinds of product the ontologies and packs specify (manifest `product_type`)")
     ontology.add_argument("--file", default=None,
-                          help="for import: an ontology (.ttl, .rdf, .owl, .jsonld, .nt; any OWL/RDFS/SKOS, with the rdf extra), or a .csv or .json vocabulary")
+                          help="for import: an ontology (.ttl, .rdf, .owl, .jsonld, .nt; any OWL/RDFS/SKOS, with the rdf extra), or a .csv or .json vocabulary; "
+                               "for diff --from: an ontology.config.json in a git repository, instead of the project's")
     ontology.add_argument("--from", dest="from_name", default=None,
                           help="for import: an ontology name, or several comma-separated to merge; for publish: "
-                               "publish this ontology from this machine instead of exporting the project")
+                               "publish this ontology from this machine instead of exporting the project; for diff: "
+                               "a git ref (HEAD, main, a tag, a commit) to compare the vocabulary from")
+    ontology.add_argument("--format", dest="format", default="text", choices=["text", "markdown", "json"],
+                          help="for diff --from: how to print the changes (default text)")
     ontology.add_argument("--replace", action="store_true",
                           help="for import: overwrite classes and relations already declared")
     ontology.add_argument("--strict", action="store_true",

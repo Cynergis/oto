@@ -154,6 +154,60 @@ jobs:
           fi
           echo "committed bundles match ui-src/"
 
+  ontology-diff:
+    name: ontology diff on the pull request
+    runs-on: ubuntu-latest
+    # A vocabulary change is a contract change: the diff of every ontology.config.json the pull request
+    # touches is posted as one sticky comment (roadmap D6), the same text `oto ontology diff --from`
+    # prints. A fork's token cannot comment, so only branches of this repository post.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+      - name: Diff every vocabulary the pull request touches
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          : > ontology-diff.md
+          for path in $(git diff --name-only "$BASE"...HEAD -- '*ontology.config.json' 'ontology.config.json'); do
+            if [ -f "$path" ]; then
+              echo "<details open><summary><code>$path</code></summary>" >> ontology-diff.md
+              echo >> ontology-diff.md
+              oto ontology diff --from "$BASE" --file "$path" --format markdown >> ontology-diff.md || echo "_oto ontology diff failed for $path (a file new in this pull request has nothing to compare from)_" >> ontology-diff.md
+              echo >> ontology-diff.md
+              echo "</details>" >> ontology-diff.md
+              echo >> ontology-diff.md
+            fi
+          done
+          if [ -s ontology-diff.md ]; then
+            { echo "<!-- oto-ontology-diff -->"; echo "## Ontology changes"; echo; cat ontology-diff.md; } > comment.md
+          fi
+      - name: Post or refresh the sticky comment
+        if: hashFiles('comment.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate --jq '.[] | select(.body | startswith("<!-- oto-ontology-diff -->")) | .id' | head -n 1)
+          if [ -n "$existing" ]; then
+            gh api --method PATCH "repos/${{ github.repository }}/issues/comments/$existing" -F body=@comment.md > /dev/null
+            echo "refreshed the ontology diff comment"
+          else
+            gh pr comment "$PR" --body-file comment.md
+            echo "posted the ontology diff comment"
+          fi
+
   syntax:
     name: every module compiles
     runs-on: ubuntu-24.04                # 3.9 is not on ubuntu-latest (26.04); see the test job

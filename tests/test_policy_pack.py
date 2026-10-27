@@ -40,7 +40,7 @@ def _own():
 
 def test_the_pack_sits_on_data_and_passes_its_own_check():
     manifest = ontologies.manifest_for("policy")
-    assert manifest["extends"] == ["data"] and manifest["release"] == 1 and manifest["domain"] == "security"
+    assert manifest["extends"] == ["data", "agent"] and manifest["release"] == 2 and manifest["domain"] == "security"
     assert ontologies.self_check("policy") == [], ontologies.self_check("policy")
     config, _sample, readme = ontologies.load("policy")
     assert {"PolicyRule", "Permission"} <= set(config["classes"])
@@ -80,7 +80,7 @@ def test_a_table_and_a_column_carry_a_classification_and_whether_they_hold_perso
 def test_the_questions_say_what_the_pack_is_for():
     questions = ontologies.questions_for("policy")
     ids = [q for q in questions if q.startswith("PL")]
-    assert ids == ["PL1", "PL2", "PL3", "PL4", "PL5"], ids
+    assert ids == ["PL1", "PL2", "PL3", "PL4", "PL5", "PL6", "PL7"], ids
     assert "ROLE" in questions["PL1"]["params"] and questions["PL1"]["gate"] == "any", "PL1: what a role may do; a role no rule names may do nothing, an answer too"
     assert questions["PL2"]["gate"] == "any" and "personal" in questions["PL2"]["question"].lower(), "PL2: where the personal and restricted data is"
     assert questions["PL3"]["gate"] == "any" and "draft" in questions["PL3"]["question"].lower(), "PL3: what is not active"

@@ -16,7 +16,7 @@
     {
       "name": "oto-factory",
       "source": "./factory",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "description": "The software factory on an OTO architecture graph: runner, evaluator and aggregator agents, the spec-context skill, a guard hook for the write scope and a Stop hook for the loop to an iteration cap, and a GitHub Actions workflow that runs the same hooks. Depends on the oto plugin."
     }
   ]

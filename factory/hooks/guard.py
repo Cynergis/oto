@@ -9,12 +9,20 @@ snapshot). No snapshot: not a factory run, the guard allows everything. A snapsh
 read blocks every write: the scope is unknown, so nothing is in it. Exit 2 refuses the tool and the
 reason on stderr reaches the agent; exit 0 allows it. Plain Python, no engine needed on the runner's
 machine.
+
+With a policy snapshot beside it (`.factory/policy.json`, `oto policy snapshot --agent --principal`,
+roadmap E3), the policy is the write scope: what the snapshot permits may be written, what it denies
+may not, whatever run.json says; run.json still says what is read-only, the cap and the iteration.
+The reader is `policy_snapshot.py` beside this file, the same file the engine plugin carries.
 """
 import fnmatch
 import json
 import os
 import re
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import policy_snapshot  # noqa: E402
 
 WRITE_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
 WRITE_MARKERS = re.compile(r"(^|[\s;|&(])(rm|mv|cp|tee|touch|truncate|chmod|chown|sed\s+-i|perl\s+-i|dd|install)\b|>>?|git\s+(checkout|restore|rm|mv)\b")
@@ -32,16 +40,19 @@ def main():
         payload = {}
     cwd = payload.get("cwd") or os.getcwd()
     snapshot = os.environ.get("FACTORY_RUN") or os.path.join(cwd, ".factory", "run.json")
-    if not os.path.isfile(snapshot):
+    policed = os.path.isfile(policy_snapshot.where(cwd))
+    if not os.path.isfile(snapshot) and not policed:
         return 0
-    try:
-        with open(snapshot, encoding="utf-8") as f:
-            run = json.load(f)
-    except (OSError, ValueError) as exc:
-        refuse("%s cannot be read (%s): the run's scope is unknown, so no write is in it. Fix the snapshot or end the run" % (snapshot, exc))
-    if not isinstance(run, dict) or not isinstance(run.get("write_scope"), list):
-        refuse("%s is not a run snapshot: it names no write_scope. Write it with `oto factory scope <component>`" % snapshot)
-    scope = [str(s).strip().strip("/") for s in run["write_scope"] if str(s).strip()]
+    run = {}
+    if os.path.isfile(snapshot):
+        try:
+            with open(snapshot, encoding="utf-8") as f:
+                run = json.load(f)
+        except (OSError, ValueError) as exc:
+            refuse("%s cannot be read (%s): the run's scope is unknown, so no write is in it. Fix the snapshot or end the run" % (snapshot, exc))
+        if not isinstance(run, dict) or (not policed and not isinstance(run.get("write_scope"), list)):
+            refuse("%s is not a run snapshot: it names no write_scope. Write it with `oto factory scope <component>`" % snapshot)
+    scope = [str(s).strip().strip("/") for s in run.get("write_scope") or [] if str(s).strip()]
     read_only = [str(s).strip().strip("/") for s in run.get("read_only") or [] if str(s).strip()]
     label = run.get("label") or run.get("component") or "the run"
     tool = payload.get("tool_name") or ""
@@ -72,6 +83,9 @@ def main():
         rel = relative(path)
         if within(rel, read_only):
             refuse("%s is read-only in this run: the contracts are frozen; a change to one is a new version through the graph (oto decide, a new Contract), never an edit here" % rel)
+        if policed:
+            policy_snapshot.guard(payload, refuse)             # the policy is the write scope
+            return 0
         if rel.startswith("../") or not within(rel, scope):
             refuse("%s is outside the write scope of %s: %s. The runner edits only what the spec's code map names; ask for the scope to be widened (oto factory scope --allow)"
                    % (rel, label, ", ".join(scope) or "nothing"))
@@ -82,6 +96,8 @@ def main():
             for p in read_only:
                 if re.search(r"(^|[\s'\"=/])%s(/|\b)" % re.escape(p), command):
                     refuse("the command touches %s, read-only in this run, with a verb that writes; the contracts are frozen" % p)
+        if policed:
+            policy_snapshot.guard(payload, refuse)
         return 0
     return 0
 

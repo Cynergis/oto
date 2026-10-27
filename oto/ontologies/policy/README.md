@@ -26,16 +26,29 @@ outranking `permit`, which is the shape these rules already have; the JSON form 
 a runner's machine can evaluate a snapshot with the standard library alone, and so a reader can diff
 the bundle without parsing Cedar.
 
+**Principals, agents and the snapshot (release 2).** A `Principal` is an identity that holds a
+session, a person's account or a service account, and `holds_role` the roles and teams the identity
+provider says. The agent pack's `Agent` is `granted_role` the roles it may exercise on its own
+account. `oto policy snapshot --agent <id> --principal <id>` writes `.factory/policy.json`: the
+intersection of what the two may do (a permission is in it when an active rule permits it to a role
+of each, and no rule forbids it to either; the resources a rule singles out narrow it), the write
+paths it reaches through the code map (a permitted `write` on a `Component` reaches its
+`CodeModule`s' paths; a forbidden one marks them denied), hashed and signed like the bundle. The
+engine plugin's PreToolUse guard (`hooks/policy_guard.py`) and the factory's guard read it in plain
+Python, refuse what it does not permit, and append every refusal to `.factory/events.jsonl`;
+`oto policy denials --events <file>` (and `oto factory run sync`) turn those into audit records,
+each once, so "who tried what, and was it allowed" is in the chain.
+
 **The derivation.** A table holds personal data when one of its columns does (`pii` derived true), so
 a selector `pii=false` never admits a table whose column is an email. A column of personal data in a
 table classified public is flagged (warn), since a public classification lets every reader in.
 
-Questions (PL1–PL5, awaiting confirmation): what a role may do, where the personal data is and how it
-is classified, which rules are drafts or retired and so do not compile, one rule in full, and who may
-do what on a table.
+Questions (PL1–PL7, awaiting confirmation): what a role may do, where the personal data is and how it
+is classified, which rules are drafts or retired and so do not compile, one rule in full, who may
+do what on a table, what a principal may do through its roles, and which roles an agent was granted.
 
 The sample is on the ledger the data sample describes: a customers table whose email column is
 personal data, compliance reading everything but that, the reports team exporting the daily balances
 and refused every write on the postings, and an owner-administers-the-store rule still a draft.
 
-This is a first draft of the vocabulary; edit it. Release 1 awaits confirmation of its terms.
+This is a first draft of the vocabulary; edit it. Release 2 awaits confirmation of its terms.

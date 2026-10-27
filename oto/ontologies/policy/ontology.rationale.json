@@ -10,6 +10,11 @@
       "question": "Which permission does a rule grant or refuse? (PL1, PL4)",
       "why": "An action on a kind of resource, narrowed by a selector, as a node of its own rather than attributes of the rule: several rules permit or forbid the same permission for different roles, and a reviewer reads the permission once.",
       "validated_by": ""
+    },
+    "Principal": {
+      "question": "What may a principal do through the roles it holds? (PL6)",
+      "why": "The snapshot an agent runs under is for one agent and one principal; without a node for the identity that holds the session, the intersection has nothing to intersect with. An account rather than a person, since a person has several and a service has none.",
+      "validated_by": ""
     }
   },
   "properties": {
@@ -27,6 +32,16 @@
       "why": "A rule that singles out resources compiles to `resource in [...]`; one that does not covers its permission's class through the selector.",
       "validated_by": "",
       "question": "Who may do what on a table? (PL4, PL5)"
+    },
+    "holds_role": {
+      "question": "What may a principal do? (PL6)",
+      "why": "Roles are what the rules speak about; a principal reaches the rules through them.",
+      "validated_by": ""
+    },
+    "granted_role": {
+      "question": "Which roles was an agent granted? (PL7)",
+      "why": "An agent's own grants bound what any principal can make it do; the agent pack's works_for says whom it serves, not what it may touch.",
+      "validated_by": ""
     }
   }
 }

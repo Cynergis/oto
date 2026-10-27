@@ -520,7 +520,9 @@ def run_sync(run_dir, events_path):
         raise FactoryError("no such events file: %s (the loop hook writes .factory/events.jsonl beside run.json)" % events_path)
     project = _run_project(run_dir)
     run_id = _run_node(_session.live(project))["id"].split(".", 1)[1]
-    counts = {"events": 0, "new": 0, "iterations": 0, "passed": 0, "escalated": 0, "skipped": 0}
+    counts = {"events": 0, "new": 0, "iterations": 0, "passed": 0, "escalated": 0, "skipped": 0, "denied": 0}
+    from . import audit as _audit, policy as _policy
+    seen_denials = {r.get("detail") for r in _audit.read(project) if r.get("action") == _policy.DENIED_ACTION}
     with open(events_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
@@ -532,11 +534,20 @@ def run_sync(run_dir, events_path):
                 counts["skipped"] += 1
                 continue
             counts["events"] += 1
+            kind = e.get("event")
+            if kind == "denied":
+                detail = _policy.denial_detail(e)
+                if detail not in seen_denials:
+                    nodes = [e.get("agent"), e.get("principal")] + ([e["rule"]] if e.get("rule") else [])
+                    _audit.append(project, _policy.DENIED_ACTION, e.get("principal"), nodes, "refused", detail)
+                    seen_denials.add(detail)
+                    counts["new"] += 1
+                    counts["denied"] += 1
+                continue
             if e.get("run") and e["run"] != run_id:
                 counts["skipped"] += 1
                 continue
             component = e.get("component")
-            kind = e.get("event")
             graph = _session.live(project)
             try:
                 build = _build_for(graph, run_id, component or "")

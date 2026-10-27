@@ -5,7 +5,7 @@ projects, the criteria `oto factory criteria` draws, the context's own questions
 never loose files. The GitHub Actions path runs the same plugin, so the same hooks, as local
 Claude Code, and keeps the run graph as a CI artifact. Metrics are queries over the run graph:
 iterations to pass, escalation rate, evaluator-versus-tests disagreement; cost is not the hooks'
-to know. The plugin is released as 0.2.0 in the marketplace beside the engine, and the work pack
+to know. The plugin is released as 0.3.0 in the marketplace beside the engine, and the work pack
 lets a named person decide a milestone reached, which is how phase 5 is recorded on the roadmap."""
 import contextlib
 import io
@@ -171,10 +171,10 @@ def test_the_plugin_is_released_and_a_milestone_is_a_person_s_decision():
         plugin = json.load(f)
     with open(os.path.join(ROOT, ".claude-plugin", "marketplace.json"), encoding="utf-8") as f:
         listed = {p["name"]: p for p in json.load(f)["plugins"]}
-    assert plugin["version"] == "0.2.0" and listed["oto-factory"]["version"] == "0.2.0"
+    assert plugin["version"] == "0.3.0" and listed["oto-factory"]["version"] == "0.3.0"
     with open(os.path.join(PLUGIN, "README.md"), encoding="utf-8") as f:
         readme = f.read()
-    assert "## Releases" in readme and "0.2.0" in readme
+    assert "## Releases" in readme and "0.3.0" in readme and "0.2.0" in readme
     config, _sample, _readme = ontologies.load("work")
     state = config["attributes"]["Milestone"]["state"]
     assert state.get("decision") is True and state["default"] == "planned", "a milestone reached is a person's call, recorded as their assertion"

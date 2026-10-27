@@ -274,6 +274,121 @@
       "terms": [
         "singles_out"
       ]
+    },
+    "PL6": {
+      "who": "a security reviewer",
+      "question": "What may $PRINCIPAL do through the roles it holds: which active rules permit or forbid it which permission?",
+      "why": "An account's effective policy, role by role, before an agent runs under it; a principal that holds no role with an active rule may do nothing the policy says.",
+      "validated_by": "",
+      "params": {
+        "PRINCIPAL": {
+          "type": "Principal"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$PRINCIPAL",
+              "holds_role",
+              "x"
+            ]
+          },
+          {
+            "edge": [
+              "r",
+              "for_role",
+              "x"
+            ]
+          },
+          {
+            "node": "r",
+            "type": "PolicyRule",
+            "where": {
+              "status": "active"
+            }
+          },
+          {
+            "edge": [
+              "r",
+              "of_permission",
+              "p"
+            ]
+          }
+        ],
+        "select": [
+          "x",
+          "r",
+          "r.effect",
+          "p.action",
+          "p.resource_class",
+          "p.selector"
+        ]
+      },
+      "gate": "any",
+      "terms": [
+        "Principal",
+        "Principal.kind",
+        "Principal.identity"
+      ]
+    },
+    "PL7": {
+      "who": "whoever owns an agent",
+      "question": "Which roles was $AGENT granted, and which active rules do they bring it?",
+      "why": "What the agent may do on its own account, the upper bound of every snapshot it runs under.",
+      "validated_by": "",
+      "params": {
+        "AGENT": {
+          "type": "Agent"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "$AGENT",
+              "granted_role",
+              "x"
+            ]
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "r",
+                  "for_role",
+                  "x"
+                ]
+              },
+              {
+                "node": "r",
+                "type": "PolicyRule",
+                "where": {
+                  "status": "active"
+                }
+              }
+            ]
+          }
+        ],
+        "select": [
+          "x",
+          "r",
+          "r.effect"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "$AGENT",
+              "granted_role",
+              "*"
+            ]
+          }
+        ],
+        "say": "the agent is granted no role: it may do nothing for anyone"
+      }
     }
   }
 }

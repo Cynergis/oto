@@ -69,8 +69,24 @@ rate over the builds that ended, and the iterations where the evaluator and the 
 evaluator writes in `verdict.json` and the loop hook carries into the events. Cost is not recorded
 by the hooks and the metrics say so; the traces of Epic F hold it.
 
+## The policy snapshot (roadmap E3)
+
+Beside `run.json`, a run may carry `.factory/policy.json`, written by `oto policy snapshot --agent <id>
+--principal <id>` from the policy pack's facts: the signed intersection of what the runner (an `Agent`
+granted roles) and the identity it runs under (a `Principal` holding roles) may do, with the write
+paths it reaches through the code map and the paths it is denied. When the file is there, the guard
+reads it through `hooks/policy_snapshot.py` (the same reader the engine plugin carries, byte for
+byte) and the policy is the write scope: a write under a denied path is refused naming the rule, a
+write under no permitted path is refused naming what is permitted, a snapshot that cannot be read or
+trusted blocks every write; `run.json` still says what is read-only, the cap and the iteration. Every
+refusal is appended to `.factory/events.jsonl` as `{"event": "denied", ...}`, and `oto factory run
+sync` records each one once in the run's audit log (`policy denied`, `refused`).
+
 ## Releases
 
+- **0.3.0** (2026-10-27): the policy snapshot (roadmap E3): the guard reads `.factory/policy.json` through
+  `hooks/policy_snapshot.py`, the same reader the engine plugin carries, and the policy is the write
+  scope; every refusal is an event, and `oto factory run sync` records each once in the run's audit log.
 - **0.2.0** (2026-10-26): the spec-context skill; `workflows/oto-factory.yml`, the same hooks in
   GitHub Actions; `verdict.json` carries `tests`, the loop hook carries it into the events, and
   `oto factory run metrics` reads iterations to pass, escalation rate and the disagreements of FR4

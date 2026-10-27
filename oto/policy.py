@@ -271,3 +271,218 @@ def describe(manifest):
     signature = manifest.get("signature")
     return "%d rule(s), hash %s, %s" % (manifest.get("rules", 0), str(manifest.get("hash"))[:12],
                                         ("signed with %s" % signature["key"]) if signature else "unsigned")
+
+
+# ---- the snapshot (E3) ----
+
+SNAPSHOT_VERSION = 1
+SNAPSHOT_NAME = os.path.join(".factory", "policy.json")
+
+
+def _holds(value, condition):
+    """One selector condition against one attribute value; a missing value is not equal to anything."""
+    if condition["op"] == "==":
+        return value is not None and value == condition["value"]
+    return value is None or value != condition["value"]
+
+
+def _admits(selector, node):
+    a = _attrs(node)
+    return all(_holds(a.get(c["key"]), c) for c in selector or [])
+
+
+def _principal_of(by_id, out_edges, node_id, wanted, relation, what):
+    n = by_id.get(node_id)
+    if n is None:
+        raise PolicyError("the graph holds no %s" % node_id)
+    if n.get("type") != wanted:
+        raise PolicyError("%s is a %s, not a %s: a snapshot is for %s" % (node_id, n.get("type"), wanted, what))
+    roles = sorted(t for t in out_edges.get((node_id, relation), []) if t in by_id)
+    return n, roles
+
+
+def _side(rules, roles):
+    """What one set of roles may do: {permission: {rule, resources}} for permits and for forbids.
+    Resources are None when any rule covers every resource its selector admits, else the union."""
+    permits, forbids = {}, {}
+    for rule in rules:
+        if not any(r["id"] in roles for r in rule["roles"]):
+            continue
+        table = permits if rule["effect"] == "permit" else forbids
+        pid = rule["permission"]["id"]
+        entry = table.setdefault(pid, {"rule": rule["id"], "permission": rule["permission"], "resources": set(), "all": False})
+        if rule["resources"]:
+            entry["resources"] |= {r["id"] for r in rule["resources"]}
+        else:
+            entry["all"] = True
+    for table in (permits, forbids):
+        for entry in table.values():
+            entry["resources"] = None if entry["all"] else sorted(entry["resources"])
+    return permits, forbids
+
+
+def _meet(a, b):
+    """The resources two sides share: None (every one) when both say so, else the narrower."""
+    if a is None:
+        return b
+    if b is None:
+        return a
+    return sorted(set(a) & set(b))
+
+
+def _paths(graph_index, resource_class, resources, selector):
+    """The CodeModule paths reached by a permission on components: the resources named, else every
+    current Component the selector admits."""
+    by_id, out_edges, nodes = graph_index
+    if resource_class != "Component":
+        return []
+    if resources is None:
+        components = [n["id"] for n in nodes if n.get("type") == "Component" and _admits(selector, n)]
+    else:
+        components = list(resources)
+    paths = set()
+    for cid in components:
+        for mid in out_edges.get((cid, "implemented_by"), []):
+            m = by_id.get(mid)
+            if m is not None and m.get("type") == "CodeModule" and _attrs(m).get("path"):
+                paths.add(str(_attrs(m)["path"]).strip("/"))
+    return sorted(paths)
+
+
+def snapshot(graph, agent_id, principal_id, at=None, version=None, classes=None):
+    """The intersection of what an agent and a principal may do, with the paths it reaches."""
+    nodes = [n for n in (graph.get("nodes") or []) if (n.get("status") or "current") == "current"]
+    by_id = {n["id"]: n for n in nodes}
+    out_edges = {}
+    for e in graph.get("edges") or []:
+        if (e.get("status") or "current") == "current":
+            out_edges.setdefault((e.get("from"), e.get("rel")), []).append(e.get("to"))
+    agent, agent_roles = _principal_of(by_id, out_edges, agent_id, "Agent", "granted_role", "an agent (--agent) running for a principal (--principal)")
+    principal, principal_roles = _principal_of(by_id, out_edges, principal_id, "Principal", "holds_role", "an agent (--agent) running for a principal (--principal)")
+    rules = compile(graph, classes)["rules"]
+    a_permits, a_forbids = _side(rules, set(agent_roles))
+    p_permits, p_forbids = _side(rules, set(principal_roles))
+    index = (by_id, out_edges, nodes)
+    forbids = []
+    for pid in sorted(set(a_forbids) | set(p_forbids)):
+        a, p = a_forbids.get(pid), p_forbids.get(pid)
+        permission = (a or p)["permission"]
+        resources = None if (a and a["resources"] is None) or (p and p["resources"] is None) else sorted(set((a or {}).get("resources") or []) | set((p or {}).get("resources") or []))
+        forbids.append({"permission": pid, "action": permission["action"], "resource_class": permission["resource_class"], "selector": permission["selector"],
+                        "resources": resources, "via": {"agent": a["rule"] if a else None, "principal": p["rule"] if p else None},
+                        "paths": _paths(index, permission["resource_class"], resources, permission["selector"]) if permission["action"] == "write" else []})
+    permits = []
+    for pid in sorted(set(a_permits) & set(p_permits)):
+        if any(f["permission"] == pid and f["resources"] is None for f in forbids):
+            continue
+        a, p = a_permits[pid], p_permits[pid]
+        resources = _meet(a["resources"], p["resources"])
+        if resources == []:
+            continue
+        permission = a["permission"]
+        permits.append({"permission": pid, "action": permission["action"], "resource_class": permission["resource_class"], "selector": permission["selector"],
+                        "resources": resources, "via": {"agent": a["rule"], "principal": p["rule"]},
+                        "paths": _paths(index, permission["resource_class"], resources, permission["selector"]) if permission["action"] == "write" else []})
+    write = sorted({path for p in permits for path in p["paths"]})
+    denied = sorted({path for f in forbids for path in f["paths"]})
+    pa = _attrs(principal)
+    snap = {"snapshot_version": SNAPSHOT_VERSION, "generated_at": at or datetime.date.today().isoformat(), "version": dict(version or {}),
+            "agent": {"id": agent["id"], "label": agent.get("label") or agent["id"], "roles": agent_roles},
+            "principal": {"id": principal["id"], "label": principal.get("label") or principal["id"], "kind": pa.get("kind"), "identity": pa.get("identity"),
+                          "roles": principal_roles},
+            "permits": permits, "forbids": forbids, "scopes": {"write": write, "denied": denied}, "hash": None, "signature": None}
+    snap["hash"] = snapshot_hash(snap)
+    return snap
+
+
+def snapshot_hash(snap):
+    body = {k: v for k, v in snap.items() if k not in ("hash", "signature")}
+    return hashlib.sha256(json.dumps(body, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def write_snapshot(graph, agent_id, principal_id, out, at=None, version=None, key_env=None, classes=None):
+    snap = snapshot(graph, agent_id, principal_id, at=at, version=version, classes=classes)
+    if key_env:
+        snap["signature"] = _sign(snap["hash"], key_env)
+    os.makedirs(os.path.dirname(os.path.abspath(out)) or ".", exist_ok=True)
+    with open(out, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(snap, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    return snap
+
+
+def read_snapshot(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            snap = json.load(f)
+    except (OSError, ValueError) as exc:
+        raise PolicyError("%s cannot be read as a snapshot: %s" % (path, exc))
+    if not isinstance(snap, dict) or "scopes" not in snap or "hash" not in snap:
+        raise PolicyError("%s is not a policy snapshot (no scopes, no hash)" % path)
+    return snap
+
+
+def verify_snapshot(path, key_env=None):
+    """[] when the snapshot is the one the engine wrote and, with a key, the signature verifies."""
+    try:
+        snap = read_snapshot(path)
+    except PolicyError as exc:
+        return [str(exc)]
+    problems = []
+    if snapshot_hash(snap) != snap.get("hash"):
+        problems.append("the snapshot's hash is not its content's: it was edited since `oto policy snapshot` wrote it")
+    signature = snap.get("signature")
+    if signature and key_env:
+        if signature.get("key") != key_env:
+            problems.append("the signature was made with the key in %s, not %s" % (signature.get("key"), key_env))
+        else:
+            key = os.environ.get(key_env or "")
+            if not key:
+                problems.append("the signature names the key in %s, which is not set" % key_env)
+            elif hmac.new(key.encode("utf-8"), str(snap.get("hash")).encode("utf-8"), hashlib.sha256).hexdigest() != signature.get("value"):
+                problems.append("the signature does not verify with the key in %s" % key_env)
+    return problems
+
+
+# ---- denials as audit records ----
+
+DENIED_ACTION = "policy denied"
+
+
+def denial_detail(event):
+    rule = event.get("rule")
+    return "%s %s %s at %s: %s" % (event.get("tool") or "?", event.get("action") or "write", event.get("path") or "?", event.get("at") or "?",
+                                   ("forbidden by %s" % rule) if rule else "no rule permits it")
+
+
+def denials(project, events_path):
+    """Every `denied` event of the file as an audit record of the project, each once.
+    Returns {"events", "recorded", "already", "skipped"}."""
+    from . import audit as _audit
+    if not os.path.isfile(events_path):
+        raise PolicyError("no such events file: %s (a guard writes .factory/events.jsonl beside the snapshot)" % events_path)
+    seen = {r.get("detail") for r in _audit.read(project) if r.get("action") == DENIED_ACTION}
+    counts = {"events": 0, "recorded": 0, "already": 0, "skipped": 0}
+    with open(events_path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                e = json.loads(line)
+            except ValueError:
+                counts["skipped"] += 1
+                continue
+            counts["events"] += 1
+            if not isinstance(e, dict) or e.get("event") != "denied":
+                counts["skipped"] += 1
+                continue
+            detail = denial_detail(e)
+            if detail in seen:
+                counts["already"] += 1
+                continue
+            nodes = [e.get("agent"), e.get("principal")] + ([e["rule"]] if e.get("rule") else [])
+            _audit.append(project, DENIED_ACTION, e.get("principal"), nodes, "refused", detail)
+            seen.add(detail)
+            counts["recorded"] += 1
+    return counts

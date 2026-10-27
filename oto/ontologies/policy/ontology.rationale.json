@@ -1,0 +1,32 @@
+{
+  "_about": "Why each term exists: the policy pack of roadmap Epic E, release 1, as E1 and E2 need it; awaiting confirmation.",
+  "classes": {
+    "PolicyRule": {
+      "question": "What may a role do, and what does one rule say in full? (PL1, PL4)",
+      "why": "The unit a reviewer approves and the bundle carries. A kind of the estate's Policy so a Decision governs it and a Document records it with the relations the estate already has. A draft until a named person activates it, since an access rule nobody signed must not compile.",
+      "validated_by": ""
+    },
+    "Permission": {
+      "question": "Which permission does a rule grant or refuse? (PL1, PL4)",
+      "why": "An action on a kind of resource, narrowed by a selector, as a node of its own rather than attributes of the rule: several rules permit or forbid the same permission for different roles, and a reviewer reads the permission once.",
+      "validated_by": ""
+    }
+  },
+  "properties": {
+    "for_role": {
+      "why": "A rule speaks about roles and teams, the estate's own; in Cedar each is the principal of one policy.",
+      "validated_by": "",
+      "question": "What may a role do? (PL1, PL4, PL5)"
+    },
+    "of_permission": {
+      "why": "One permission per rule keeps a rule readable and a Cedar policy one action; a rule for two permissions is two rules.",
+      "validated_by": "",
+      "question": "Which permission does a rule grant or refuse? (PL1, PL4)"
+    },
+    "singles_out": {
+      "why": "A rule that singles out resources compiles to `resource in [...]`; one that does not covers its permission's class through the selector.",
+      "validated_by": "",
+      "question": "Who may do what on a table? (PL4, PL5)"
+    }
+  }
+}

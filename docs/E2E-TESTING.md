@@ -1207,3 +1207,39 @@ answers the same JSON and refuses a missing `from` or an unknown ref with a 400;
 current and accepted versions and what changed since; the workbench's Versions page shows them and
 compares a ref when served live; and the pull request carries one sticky comment with the markdown
 table, refreshed rather than repeated.
+
+## 28. The policy pack: rules as facts, compiled into a signed Cedar bundle
+
+Epic E opens (E1, E2): access policy as facts on the data layer, and the active rules compiled into
+a bundle the deploy pipeline carries. ADR-0004 records the choice of Cedar.
+
+```bash
+oto init --ontology policy --project ledger && oto build --project ledger      # "policy: 3 rule(s) compiled into build/policy (cedar + json), unsigned"
+ls ledger/build/policy                                                          # manifest.json policies.cedar policies.json
+oto policy list --project ledger                                                # every rule: status, effect, priority, who may do what on which resources, why
+oto query --project ledger ask PL1 ROLE=role.r-compliance                       # what compliance may do: read Table where pii=false
+oto query --project ledger ask PL2                                              # where the personal data is: ledger.customers (derived from its email column), the column itself
+oto query --project ledger ask PL3                                              # the drafts: the owner-administers-the-ledger rule
+sed -n 1,12p ledger/build/policy/policies.cedar                                 # @id("policyrule.reports-never-write-postings") forbid ( principal in Team::"team.reports", action == Action::"write", resource in [Table::"table.ledger-postings"] );
+oto policy verify --project ledger                                              # build/policy holds: 3 rule(s), hash ..., unsigned
+oto decide policyrule.owner-admin status=active --by "<you>" --at 2026-10-27 --project ledger
+export OTO_POLICY_KEY=change-me && python3 - <<'PY'
+import json; p="ledger/project.config.json"; c=json.load(open(p)); c["policy"]={"sign_with":"OTO_POLICY_KEY"}; json.dump(c, open(p,"w"), indent=2)
+PY
+oto build --project ledger                                                      # "policy: 4 rule(s) ... signed with OTO_POLICY_KEY"
+oto policy verify --project ledger                                              # signed with OTO_POLICY_KEY
+OTO_POLICY_KEY=wrong oto policy verify --project ledger; echo $?                # 1: the signature does not verify
+echo "// edited" >> ledger/build/policy/policies.cedar && oto policy verify --project ledger; echo $?   # 1: policies.cedar is not the file the manifest names
+unset OTO_POLICY_KEY && oto build --project ledger; echo $?                    # 1: the key the project names is not set
+oto policy compile --project ledger --out /tmp/bundle --at 2026-10-27 --sign-with OTO_POLICY_KEY   # anywhere, the same bundle
+oto publish --project ledger --repo <query repository>                          # policy/ lands beside the store; MANIFEST.json says rules, hash, signed
+```
+
+Pass when the pack passes its self-check on `data`; the build writes the three files and names the
+count and whether it signed; a draft rule and a retired one do not compile and PL3 lists them; the
+forbid on the postings is one Cedar policy with `resource in [...]` and no `when`, the compliance
+read is `resource is Table` with `when { resource.pii == false }`; a table whose column is personal
+data reads `pii=True` derived; `verify` refuses an edited file, a wrong key and a content hash that
+is not the manifest's, and reports an unchecked signature when no key is given; a project that says
+it signs cannot build without the key; a project without the pack says so and writes no bundle; and
+the publication carries the bundle with its hash.

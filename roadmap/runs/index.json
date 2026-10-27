@@ -17,6 +17,12 @@
     "sha256": "e3396cf7435b6cd33477cac159705e52f8f5cb55eb1f7de67dc1ea5009951384",
     "slug": "0003-deployed-only-by-events"
   },
+  "0004-cedar-for-policy.md": {
+    "archived_at": "2026-10-27T11:04:57",
+    "run_id": "20261027-110421",
+    "sha256": "897a388e44c01fd346423582c261e624cdf7603a812ae1695e8aae0edbad32a1",
+    "slug": "0004-cedar-for-policy"
+  },
   "OTO Roadmap 2.0.md": {
     "archived_at": "2026-10-25T16:56:01",
     "run_id": "20261025-165359",

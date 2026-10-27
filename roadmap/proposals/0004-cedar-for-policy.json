@@ -1,0 +1,64 @@
+{
+  "source_doc": "0004-cedar-for-policy",
+  "as_of": "2026-10-27",
+  "nodes": [
+    {
+      "id": "decision.adr-0004",
+      "type": "Decision",
+      "label": "Cedar is what the access policy compiles to",
+      "summary": "The active policy rules of the graph compile to Cedar, the open policy language with a verified evaluator, and the bundle carries a JSON form of the same rules beside the Cedar text, so the engine's evaluator and the hooks stay plain Python over the standard library and never need a Cedar engine on the machine that runs them.",
+      "attributes": {
+        "status": "accepted",
+        "decided_on": "2026-10-27",
+        "rationale": "The active policy rules of the graph compile to Cedar, the open policy language with a verified evaluator, and the bundle carries a JSON form of the same rules beside the Cedar text, so the engine's evaluator and the hooks stay plain Python over the standard library and never need a Cedar engine on the machine that runs them."
+      },
+      "valid_from": "2026-10-27",
+      "evidence": [
+        {
+          "doc": "0004-cedar-for-policy",
+          "where": "Decision",
+          "quote": "The active policy rules of the graph compile to Cedar, the open policy language with a verified evaluator, and the bundle carries a JSON form of the same rules beside the Cedar text, so the engine's evaluator and the hooks stay plain Python over the standard library and never need a Cedar engine on the machine that runs them."
+        },
+        {
+          "doc": "0004-cedar-for-policy",
+          "where": "frontmatter",
+          "quote": "decided_on: 2026-10-27"
+        }
+      ]
+    },
+    {
+      "id": "document.0004-cedar-for-policy",
+      "type": "Document",
+      "label": "Cedar is what the access policy compiles to",
+      "summary": "ADR ADR-0004, the record of this decision.",
+      "attributes": {
+        "kind": "adr"
+      },
+      "valid_from": "2026-10-27",
+      "evidence": [
+        {
+          "doc": "0004-cedar-for-policy",
+          "where": "title",
+          "quote": "Cedar is what the access policy compiles to"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "decision.adr-0004",
+      "rel": "documented_in",
+      "to": "document.0004-cedar-for-policy"
+    },
+    {
+      "from": "decision.adr-0004",
+      "rel": "governs",
+      "to": "workitem.epic-e"
+    },
+    {
+      "from": "decision.adr-0004",
+      "rel": "decided_by",
+      "to": "person.chiheb-dkhil"
+    }
+  ]
+}

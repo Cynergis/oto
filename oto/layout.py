@@ -23,6 +23,7 @@ The standard layout separates them, so `build/` is entirely generated and deleti
         cards/      retrieval cards
         graph/      graph JSON, CSV, N-Triples, search index
         site/       the static site: the graph payload and a view, when targeted
+        policy/     the policy bundle: cedar, json, manifest, when the vocabulary declares PolicyRule
         <slug>.db
 
 This is the only layout. The pre-OTO one, which kept authored and generated files together, was
@@ -58,6 +59,7 @@ class Layout:
         self.graph = os.path.join(build, "graph")
         self.database = os.path.join(build, db_name)
         self.site = os.path.join(build, "site")
+        self.policy = os.path.join(build, "policy")
         self.indexed = [self.corpus, self.notes, self.entities, self.cards]
 
     def label(self, path):

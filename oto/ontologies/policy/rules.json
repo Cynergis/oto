@@ -1,0 +1,68 @@
+{
+  "_about": "Rules over the policy. `derive` adds facts marked as derived, with the rule and the premises; `policy` flags what the data layer leaves exposed, naming the question it protects.",
+  "rules": [
+    {
+      "id": "table-holds-personal-data-when-a-column-does",
+      "kind": "derive",
+      "when": [
+        {
+          "node": "c",
+          "type": "Column",
+          "where": {
+            "pii": true
+          }
+        },
+        {
+          "edge": [
+            "c",
+            "column_of",
+            "t"
+          ]
+        }
+      ],
+      "then": {
+        "attribute": [
+          "t",
+          "pii",
+          true
+        ]
+      },
+      "why": "A selector that says `pii=false` on a table must not admit a table whose column is personal data; the table inherits what its columns hold, and nobody should have to mark it by hand.",
+      "validated_by": ""
+    },
+    {
+      "id": "personal-data-in-a-public-table",
+      "kind": "policy",
+      "severity": "warn",
+      "when": [
+        {
+          "node": "c",
+          "type": "Column",
+          "where": {
+            "pii": true
+          }
+        },
+        {
+          "edge": [
+            "c",
+            "column_of",
+            "t"
+          ]
+        },
+        {
+          "node": "t",
+          "type": "Table",
+          "where": {
+            "classification": "public"
+          }
+        }
+      ],
+      "then": {
+        "flag": "a column of personal data sits in a table classified public: reclassify the table or move the column"
+      },
+      "why": "A public classification lets every reader in; personal data inside it is a breach waiting for a selector that trusts the classification.",
+      "validated_by": "",
+      "answers": "PL2"
+    }
+  ]
+}

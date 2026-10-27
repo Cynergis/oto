@@ -98,6 +98,8 @@ export interface OntologyModel {
   version: number | string | null; derived_from_data: boolean;
   counts: { classes: number; relations: number; attributes: number; things: number | null };
   classes: OntologyClass[]; relations: OntologyRelation[];
+  /* current and accepted versions and what changed since; absent in a payload older than it */
+  versions?: OntologyVersions | null;
 }
 
 /* The rules as a person reads them (oto/serve/rules.py, roadmap D2) */
@@ -151,3 +153,13 @@ export interface EntityLinks {
   files: { id: string | null; label: string | null; kind: string; where: string | null; rel: string | null; target: LinkTarget | null }[];
   counts: { rules: number; terms: number; graphs: number; decisions: number; files: number };
 }
+
+/* The vocabulary's versions and a diff between two of them (oto/serve/versions.py, roadmap D6) */
+export interface VersionChange { kind: string; severity: "breaking" | "additive" | "cosmetic"; subject: string; detail: string; affected: number }
+export interface VersionDiff {
+  from: { version: number; classes: number; relations: number; attributes: number };
+  to: { version: number; classes: number; relations: number; attributes: number };
+  labels: [string, string] | null; changes: VersionChange[];
+  counts: { changes: number; breaking: number; additive: number; cosmetic: number }; bump_needed: boolean;
+}
+export interface OntologyVersions { current: number; accepted: number | null; since_accepted: VersionDiff | null; git: boolean }

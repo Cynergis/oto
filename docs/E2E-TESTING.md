@@ -1176,3 +1176,34 @@ whose descriptor covers a Component, the decision that governs it with its statu
 repository (with its URL), code module and document behind it, plus the document its evidence
 cites; a superseded decision or edge is history and not listed; and on the workbench the Dependencies
 page flags the pair and the entity page's Related section lands on each artifact by a click.
+
+## 27. Versions: the vocabulary at a git ref against the working tree
+
+The fourth cut of the ontology explorer (D6): what changed between two versions of the vocabulary,
+from the command line, from the served route, on the workbench, and on every pull request.
+
+```bash
+oto init --ontology software-architecture --project estate && (cd estate && git init -q -b main && git add -A && git commit -q -m first)
+oto build --project estate
+# edit estate/ontology.config.json: remove the class Runbook, add a relation, reword a definition
+oto ontology diff --from HEAD --project estate                   # 3 change(s) from HEAD to the working tree: [breaking ] class removed Runbook ...
+oto ontology diff --from HEAD --project estate --format markdown  # the table the workflow posts
+oto ontology diff --from HEAD --project estate --strict; echo $?  # 1: a breaking change with no version bump
+oto ontology diff --from HEAD --to HEAD --project estate          # no change from HEAD to HEAD
+(cd estate && oto ontology diff --from HEAD --file ontology.config.json)   # any ontology.config.json in a repository, no project needed
+oto serve --project estate --http 8765 --view workbench &
+curl -s "localhost:8765/api/ontology/diff?from=HEAD" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['labels'], d['counts'], d['bump_needed'])"
+curl -s "localhost:8765/api/ontology/diff?from=nowhere"          # 400, git's own words
+curl -s "localhost:8765/api/graph?passages=0" | python3 -c "import json,sys; print(json.load(sys.stdin)['ontology']['versions'])"
+# in the browser: http://localhost:8765/#/ontology/versions -> current and accepted versions, what changed since acceptance,
+#   and the form "Compare with a git ref": HEAD against the working tree lists the three changes with the breaking one first
+# on GitHub: open a pull request that touches an ontology.config.json; the ontology-diff job posts "## Ontology changes" once and refreshes it on every push
+```
+
+Pass when the command prints every change most severe first with how many things a breaking one
+touches, says when a breaking change has no version bump (and fails `--strict` then), compares two
+refs or a file outside a project, and names the ref in git's words when it does not exist; the route
+answers the same JSON and refuses a missing `from` or an unknown ref with a 400; the payload says the
+current and accepted versions and what changed since; the workbench's Versions page shows them and
+compares a ref when served live; and the pull request carries one sticky comment with the markdown
+table, refreshed rather than repeated.

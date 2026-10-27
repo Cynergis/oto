@@ -12,7 +12,7 @@ site stage, so live and static never disagree.
 import json
 import os
 
-from . import graphs as _graphs, lexicon as _lexicon, ontology as _ontology, rules as _rules
+from . import graphs as _graphs, lexicon as _lexicon, ontology as _ontology, rules as _rules, versions as _versions
 
 PAYLOAD_VERSION = 1
 
@@ -146,6 +146,7 @@ def build(store, project_root=None, identity=None, passages=True, ledger=50, mod
         "mode": dict(mode or {"regime": "live"}),
     }
     payload["ontology"] = _ontology.model(payload["vocabulary"], counts)
+    payload["ontology"]["versions"] = _versions.model(payload["vocabulary"], project_root, nodes, edges)
     payload["rules"] = _rules.model(_rules.load(project_root), payload["vocabulary"])
     payload["terms"] = _lexicon.model(payload["vocabulary"], lexicon, nodes)
     payload["graphs"] = _graphs.model(nodes, edges, payload["project"]["slug"])

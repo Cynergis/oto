@@ -33,7 +33,8 @@ import threading
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import graphs as _graphs, lexicon as _lexicon, links as _links, ontology as _ontology, payload as _payload, rules as _rules
+from ..project import ProjectError
+from . import graphs as _graphs, lexicon as _lexicon, links as _links, ontology as _ontology, payload as _payload, rules as _rules, versions as _versions
 from .. import snapshot as _snapshot
 from ..apps import manifest as _apps
 from ..apps import studio as _studio
@@ -318,6 +319,7 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
             if path == "/api/tools":
                 routes = {"/api/%s" % r: t for r, t in sorted(ROUTES.items())}
                 routes.update({"/api/graph": "the whole graph as data", "/api/ontology": "the ontology as a model (?class=<Name> for one class)",
+                               "/api/ontology/diff": "the vocabulary at a git ref against the working tree or another ref (?from=<ref>&to=<ref>)",
                                "/api/rules": "the rules as a person reads them (?class=<Name> for those that apply to one class)",
                                "/api/lexicon": "every term in every language and the words people use (?q=<words> to search)",
                                "/api/graphs": "this graph and the graphs it depends on, near-duplicates flagged (?graph=<id> for one)",
@@ -352,6 +354,18 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
             if path in ("/api/graph", "/data.json"):
                 passages = str(args.get("passages", "1")).lower() not in ("0", "false", "no")
                 return self._json(200, _payload.build(engine.STORE, project_root, identity, passages=passages, mode=engine.MODE))
+            if path == "/api/ontology/diff":
+                if "from" not in args:
+                    return self._json(400, {"error": "say which ref to compare from: /api/ontology/diff?from=<ref>[&to=<ref>]"})
+                if not project_root:
+                    return self._json(400, {"error": "no project beside this store: a ref needs the project's git repository"})
+                payload = _payload.build(engine.STORE, project_root, identity, passages=False, ledger=0, mode=engine.MODE)
+                try:
+                    result = _versions.diff_refs(str(args["from"]), str(args["to"]) if args.get("to") else None, cwd=project_root,
+                                                 nodes=payload["nodes"], edges=payload["edges"])
+                except (ProjectError, OSError, ValueError) as exc:
+                    return self._json(400, {"error": str(exc)})
+                return self._json(200, result)
             if path == "/api/ontology":
                 payload = _payload.build(engine.STORE, project_root, identity, passages=False, ledger=0, mode=engine.MODE)
                 m = payload["ontology"]

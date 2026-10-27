@@ -1141,3 +1141,38 @@ people use with the entity each one means; `?q=` ranks an exact label first, the
 substring, in any language, and every hit says where it lands; the payload and the exported site carry
 both; and on the workbench a class page says how many rules apply to it, the Rules page reads them by
 class, and the Lexicon page's search lands on the element by a click.
+
+## 26. Dependencies read from the descriptors, and from a thing to everything that bears on it
+
+The third cut of the ontology explorer (D4, D5): the graph descriptors as a page, near-duplicates
+flagged, and cross-artifact navigation from any entity.
+
+```bash
+oto init --ontology architecture --project arch && oto build --project arch
+oto init --name "Claims policy" --slug policy --ontology auto-claims --project policy
+oto init --name "Claims policy, the copy" --slug policy-2 --ontology auto-claims --project policy-2
+oto graph describe --reach https://kg.example.org/policy --project policy > policy.descriptor.json
+oto graph describe --reach https://kg.example.org/policy-2 --project policy-2 > policy-2.descriptor.json
+oto graph depend --on policy.descriptor.json --by "<you>" --at 2026-10-27 --project arch
+oto graph depend --on policy-2.descriptor.json --by "<you>" --at 2026-10-27 --project arch       # warns: a near-duplicate
+oto build --project arch && oto serve --project arch --http 8765 --view workbench &
+curl -s localhost:8765/api/graphs | python3 -c "import json,sys; m=json.load(sys.stdin); print(m['own'], m['counts'], [(g['id'], g['depends_on'], [n['other'] for n in g['near_duplicates']]) for g in m['graphs']])"
+curl -s "localhost:8765/api/graphs?graph=graph.policy" | python3 -c "import json,sys; g=json.load(sys.stdin); print(g['near_duplicates'][0]['told_apart'])"
+curl -s "localhost:8765/api/links?entity=component.invoice-intake" | python3 -c "import json,sys; l=json.load(sys.stdin); print(l['counts']); [print(k, [x.get('id') or x.get('phrase') or x.get('name') for x in l[k]]) for k in ('rules','terms','graphs','decisions','files')]"
+curl -s "localhost:8765/api/links?entity=nothing"                                               # 404
+# in the browser: http://localhost:8765/#/ontology/dependencies -> this graph first, the two policies flagged "hard to tell apart",
+#   told apart only by (nothing) / copy; http://localhost:8765/#/knowledge/component.invoice-intake -> Related: the rules that apply,
+#   the class term and the words people use, the graph that covers a Component, the decision that governs it, the repository and the
+#   code module behind it; every one a click away
+oto build --project arch --view workbench                                                        # the exported data.json carries the descriptors; the site computes the links itself
+```
+
+Pass when `/api/graphs` names this graph as `own` and lists it first, each dependency with its
+subject, reach and classes and who depends on whom; the two policies carry each other as a
+near-duplicate with the words that tell them apart (nothing on one side, "copy" on the other); an
+unknown graph is a 404; `/api/links` for a component lists the rules that apply to it (the one
+declared on Asset saying "through Asset"), the class term and any phrase that names it, the graphs
+whose descriptor covers a Component, the decision that governs it with its status, and the
+repository (with its URL), code module and document behind it, plus the document its evidence
+cites; a superseded decision or edge is history and not listed; and on the workbench the Dependencies
+page flags the pair and the entity page's Related section lands on each artifact by a click.

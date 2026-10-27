@@ -6,13 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Empty } from "../components/common";
-import type { GraphEdge, GraphNode, Payload } from "../types";
+import type { EntityLinks, GraphEdge, GraphNode, LinkTarget, Payload } from "../types";
+import { linksOf } from "../links";
 import { cn } from "../lib/utils";
 import { Explorer } from "../../explorer/explorer.jsx";
 import adapter from "../../explorer/adapter.js";
 import defaults from "../../explorer/defaults.js";
 
-type Props = { payload: Payload | null; selected: string | null; kind: string | null; onEntity: (id: string | null) => void; onKind: (k: string | null) => void };
+type Props = { payload: Payload | null; selected: string | null; kind: string | null; onEntity: (id: string | null) => void; onKind: (k: string | null) => void; onGo?: (target: LinkTarget) => void };
 
 function words(name: string) {
   return name.replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2").replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").toLowerCase();
@@ -24,7 +25,7 @@ function fmt(v: unknown): string {
   return String(v);
 }
 
-export function Knowledge({ payload, selected, kind, onEntity, onKind }: Props) {
+export function Knowledge({ payload, selected, kind, onEntity, onKind, onGo }: Props) {
   const [query, setQuery] = React.useState("");
   const index = React.useMemo(() => {
     const byId: Record<string, GraphNode> = {};
@@ -75,7 +76,7 @@ export function Knowledge({ payload, selected, kind, onEntity, onKind }: Props) 
           </Card>
 
           <div className="min-w-0 flex-[3_1_420px]">
-            {node ? <Entity node={node} index={index} onEntity={onEntity} /> : <Empty>Choose a thing to read what is known about it, where it came from, and how it changed.</Empty>}
+            {node ? <Entity node={node} index={index} onEntity={onEntity} links={linksOf(payload, node.id)} onGo={onGo} /> : <Empty>Choose a thing to read what is known about it, where it came from, and how it changed.</Empty>}
           </div>
         </div>
       </TabsContent>
@@ -97,7 +98,7 @@ function KindButton({ active, onClick, label, n }: { active: boolean; onClick: (
   );
 }
 
-function Entity({ node, index, onEntity }: { node: GraphNode; index: { byId: Record<string, GraphNode>; out: Record<string, GraphEdge[]>; inn: Record<string, GraphEdge[]> }; onEntity: (id: string) => void }) {
+function Entity({ node, index, onEntity, links, onGo }: { node: GraphNode; index: { byId: Record<string, GraphNode>; out: Record<string, GraphEdge[]>; inn: Record<string, GraphEdge[]> }; onEntity: (id: string) => void; links: EntityLinks | null; onGo?: (target: LinkTarget) => void }) {
   const link = (id: string | null) => id && index.byId[id]
     ? <button type="button" onClick={() => onEntity(id)} className="text-primary underline-offset-4 hover:underline">{index.byId[id].label}</button>
     : <span className="font-mono">{id || "—"}</span>;
@@ -132,6 +133,7 @@ function Entity({ node, index, onEntity }: { node: GraphNode; index: { byId: Rec
             {inn.map((e, i) => <p key={"i" + i}>{link(e.from)} → {words(e.rel)} this{e.derived_by ? <Badge variant="muted" className="ml-2">derived</Badge> : null}</p>)}
           </div>
         ) : null}
+        {links && onGo ? <Related links={links} onGo={onGo} /> : null}
         <div className="flex flex-col gap-2">
           <h4 className="font-semibold">Where it came from</h4>
           {(node.evidence || []).length === 0 ? <p className="text-attention">No evidence quoted: a fact nobody can locate is not checkable.</p> : node.evidence.map((ev, i) => (
@@ -144,5 +146,42 @@ function Entity({ node, index, onEntity }: { node: GraphNode; index: { byId: Rec
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/* Cross-artifact navigation (roadmap D5): the rules that apply to this thing's class, the terms and
+ * words that name it, the graphs whose descriptor covers it, the decisions about it, the files behind it. */
+function Related({ links, onGo }: { links: EntityLinks; onGo: (target: LinkTarget) => void }) {
+  const go = (target: LinkTarget | null, text: React.ReactNode, key: string) => target
+    ? <button key={key} type="button" onClick={() => onGo(target)} className="text-primary underline-offset-4 hover:underline">{text}</button>
+    : <span key={key}>{text}</span>;
+  const row = (label: string, items: React.ReactNode[], empty: string) => (
+    <React.Fragment key={label}>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="flex flex-wrap items-center gap-x-2 gap-y-1">{items.length ? items : <span className="text-muted-foreground">{empty}</span>}</dd>
+    </React.Fragment>
+  );
+  return (
+    <div className="flex flex-col gap-2">
+      <h4 className="font-semibold">Related</h4>
+      <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,3fr)] gap-x-4 gap-y-1.5">
+        {row("Rules", links.rules.map(r => go(r.target, <span><span className="font-mono text-xs">{r.id}</span>{r.via ? <span className="text-xs text-muted-foreground"> through {words(r.via)}</span> : null}</span>, "r:" + r.id)),
+          "no rule applies to a " + words(links.type))}
+        {row("Terms", links.terms.map(t => t.kind === "class"
+          ? go(t.target, <span>class <span className="first-letter:uppercase">{t.label}</span></span>, "t:class")
+          : go(t.target, <span>people say “{t.phrase}”</span>, "t:" + t.phrase)), "")}
+        {row("Graphs", links.graphs.map(g => go(g.target, <span>{g.label || g.id}{g.own ? <span className="text-xs text-muted-foreground"> (this graph)</span> : null}</span>, "g:" + g.id)),
+          "no descriptor says it holds a " + words(links.type))}
+        {row("Decisions", links.decisions.map(d => go(d.target, <span>{d.label || d.id}<span className="text-xs text-muted-foreground"> {d.direction === "in" ? words(d.rel) + " this" : "this " + words(d.rel) + " it"}{d.status ? " · " + String(d.status) : ""}</span></span>, "d:" + d.id)),
+          "no decision is about it")}
+        {row("Files", links.files.map((f, i) => (
+          <span key={"f:" + i} className="inline-flex flex-wrap items-center gap-1">
+            <Badge variant="outline">{f.kind}</Badge>
+            {go(f.target, f.label || f.where || f.id, "fl:" + i)}
+            {f.where && /^https?:\/\//.test(f.where) ? <a href={f.where} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-muted-foreground underline-offset-4 hover:underline">{f.where}</a>
+              : f.where && f.where !== f.label ? <span className="font-mono text-xs text-muted-foreground">{f.where}</span> : null}
+          </span>)), "no repository, code, commit or document behind it")}
+      </dl>
+    </div>
   );
 }

@@ -5,6 +5,7 @@
     GET  /api/tools               the tool list
     GET  /api/<tool>?<args>       one tool: its text, and the rows behind it where the store has them
     GET  /api/graph               the whole graph as data (serve/payload.py), what an app projects from
+    GET  /api/ontology            the ontology as a navigable model (serve/ontology.py); ?class=<Name> for one class
     GET  /api/status              build sequence, backend, freshness, the project's stations, and the
                                   workbench snapshot (oto/snapshot.py) under `snapshot`
     GET  /api/changes?since=T     whether anything changed since token T (a build sequence, or the
@@ -32,7 +33,7 @@ import threading
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import payload as _payload
+from . import ontology as _ontology, payload as _payload
 from .. import snapshot as _snapshot
 from ..apps import manifest as _apps
 from ..apps import studio as _studio
@@ -315,8 +316,10 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
         def _api(self, path, args):
             engine.ensure_fresh()
             if path == "/api/tools":
-                return self._json(200, {"tools": [{k: t[k] for k in ("name", "description", "inputSchema")} for t in engine.TOOLS],
-                                        "routes": {"/api/%s" % r: t for r, t in sorted(ROUTES.items())}})
+                routes = {"/api/%s" % r: t for r, t in sorted(ROUTES.items())}
+                routes.update({"/api/graph": "the whole graph as data", "/api/ontology": "the ontology as a model (?class=<Name> for one class)",
+                               "/api/status": "the server and the project", "/api/changes": "what moved since a token"})
+                return self._json(200, {"tools": [{k: t[k] for k in ("name", "description", "inputSchema")} for t in engine.TOOLS], "routes": routes})
             if path == "/api/status":
                 store = engine.STORE
                 status = {"server": engine.SERVER_NAME, "backend": engine.BACKEND, "serving": store is not None,
@@ -345,6 +348,15 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
             if path in ("/api/graph", "/data.json"):
                 passages = str(args.get("passages", "1")).lower() not in ("0", "false", "no")
                 return self._json(200, _payload.build(engine.STORE, project_root, identity, passages=passages, mode=engine.MODE))
+            if path == "/api/ontology":
+                payload = _payload.build(engine.STORE, project_root, identity, passages=False, ledger=0, mode=engine.MODE)
+                m = payload["ontology"]
+                if "class" in args:
+                    one = _ontology.for_class(m, str(args["class"]))
+                    if one is None:
+                        return self._json(404, {"error": "the ontology declares no class %r" % args["class"], "classes": [c["name"] for c in m["classes"]]})
+                    return self._json(200, one)
+                return self._json(200, m)
             route = path[len("/api/"):]
             tool = ROUTES.get(route)
             if not tool:

@@ -63,9 +63,9 @@ def test_a_decision_attribute_and_a_required_one_are_marked():
     by = {c["name"]: c for c in m["classes"]}
     readiness = next(a for a in by["BoundedContext"]["attributes"] if a["name"] == "readiness")
     assert readiness["decision"] is True and readiness["default"] == "draft"
-    m = _ontology.model(_vocabulary("factory-run"))
-    number = next(a for a in {c["name"]: c for c in m["classes"]}["Iteration"]["attributes"] if a["name"] == "number")
-    assert number["required"] is True and number["type"] == "integer"
+    m = _ontology.model(_vocabulary("work"))
+    at = next(a for a in {c["name"]: c for c in m["classes"]}["Transition"]["attributes"] if a["name"] == "at")
+    assert at["required"] is True and at["type"] == "date"
 
 
 def test_one_class_or_an_unknown_one():

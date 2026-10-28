@@ -2,8 +2,8 @@
 `Principal` (an identity that holds a session) and the roles an `Agent` is granted; `oto policy
 snapshot --agent --principal` writes the intersection of what the two may do, with the paths it
 reaches through the code map, hashed and signed, to `.factory/policy.json`; the engine plugin's
-PreToolUse guard and the factory guard read it in plain Python and refuse what it does not permit;
-every refusal is an event, and `oto policy denials` (and `oto factory run sync`) turn the events
+PreToolUse guard (and any guard of a run, the factory's in its own repository) reads it in plain
+Python and refuses what it does not permit; every refusal is an event, and `oto policy denials` turns the events
 into audit records."""
 import contextlib
 import hashlib
@@ -26,7 +26,6 @@ from oto.scaffold import init
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PACK = os.path.join(ROOT, "oto", "ontologies", "policy")
 ENGINE_GUARD = os.path.join(ROOT, "hooks", "policy_guard.py")
-FACTORY_GUARD = os.path.join(ROOT, "factory", "hooks", "guard.py")
 KEY_ENV = "OTO_POLICY_KEY"
 
 
@@ -197,12 +196,10 @@ def _events(cwd):
         return [json.loads(line) for line in f if line.strip()]
 
 
-def test_the_two_guards_share_one_reader_that_stays_plain_python():
+def test_the_reader_any_guard_copies_stays_plain_python():
     with open(os.path.join(ROOT, "hooks", "policy_snapshot.py"), encoding="utf-8") as f:
         engine = f.read()
-    with open(os.path.join(ROOT, "factory", "hooks", "policy_snapshot.py"), encoding="utf-8") as f:
-        factory = f.read()
-    assert engine == factory, "one reader, copied into both plugins byte for byte"
+    assert "byte for byte" in engine, "the reader says it is copied whole into any plugin whose guard reads the snapshot"
     assert "import oto" not in engine and "from oto" not in engine, "no engine on the runner's machine"
     with open(os.path.join(ROOT, "hooks", "hooks.json"), encoding="utf-8") as f:
         hooks = json.load(f)["hooks"]
@@ -211,7 +208,7 @@ def test_the_two_guards_share_one_reader_that_stays_plain_python():
     assert "Edit" in hooks["PreToolUse"][0]["matcher"] and "Bash" in hooks["PreToolUse"][0]["matcher"]
 
 
-@pytest.mark.parametrize("script", [ENGINE_GUARD, FACTORY_GUARD])
+@pytest.mark.parametrize("script", [ENGINE_GUARD])
 def test_a_guard_refuses_what_the_snapshot_does_not_permit_and_records_the_denial(script, tmp_path):
     cwd = str(tmp_path)
     snap = _policy.snapshot(_graph(), "agent.runner", "principal.ada", at="2026-10-27")
@@ -237,7 +234,7 @@ def test_a_guard_refuses_what_the_snapshot_does_not_permit_and_records_the_denia
     assert events[1]["rule"] is None and events[1]["path"] == "docs/notes.md", "no rule forbids it; none permits it either"
 
 
-@pytest.mark.parametrize("script", [ENGINE_GUARD, FACTORY_GUARD])
+@pytest.mark.parametrize("script", [ENGINE_GUARD])
 def test_a_guard_blocks_every_write_on_a_snapshot_it_cannot_trust_and_allows_everything_without_one(script, tmp_path, monkeypatch):
     cwd = str(tmp_path)
     base = {"session_id": "s", "cwd": cwd, "hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "src/intake/app.py"}}
@@ -261,21 +258,6 @@ def test_a_guard_blocks_every_write_on_a_snapshot_it_cannot_trust_and_allows_eve
     code, _out, err = _hook(script, base, cwd)
     assert code == 2 and "cannot be read" in err
     assert signed["signature"]["key"] == KEY_ENV
-
-
-def test_the_factory_guard_keeps_the_run_s_read_only_paths_beside_the_snapshot(tmp_path):
-    cwd = str(tmp_path)
-    os.makedirs(os.path.join(cwd, ".factory"))
-    with open(os.path.join(cwd, ".factory", "run.json"), "w", encoding="utf-8") as f:
-        json.dump({"component": "component.intake", "label": "Invoice intake", "write_scope": ["src/intake", "docs"], "read_only": ["contracts"], "cap": 3, "iteration": 0}, f)
-    _write(cwd, _policy.snapshot(_graph(), "agent.runner", "principal.ada", at="2026-10-27"))
-    base = {"session_id": "s", "cwd": cwd, "hook_event_name": "PreToolUse"}
-    code, _out, err = _hook(FACTORY_GUARD, dict(base, tool_name="Edit", tool_input={"file_path": "contracts/intake.yaml"}), cwd)
-    assert code == 2 and "read-only" in err
-    code, _out, err = _hook(FACTORY_GUARD, dict(base, tool_name="Edit", tool_input={"file_path": "docs/notes.md"}), cwd)
-    assert code == 2 and "docs/notes.md" in err, "in the run's write scope, but the policy snapshot permits no write there: the policy wins"
-    code, _out, err = _hook(FACTORY_GUARD, dict(base, tool_name="Edit", tool_input={"file_path": "src/scheduler/job.py"}), cwd)
-    assert code == 0, "permitted by the policy though the run's own scope is narrower: the snapshot is the scope"
 
 
 # ---- installed: the command, the denials as audit records ----
@@ -332,6 +314,6 @@ def test_the_docs_know_the_snapshot_and_the_guards():
     with open(os.path.join(ROOT, "docs", "E2E-TESTING.md"), encoding="utf-8") as f:
         e2e = f.read()
     assert "## 29." in e2e and "oto policy snapshot" in e2e
-    with open(os.path.join(ROOT, "factory", "README.md"), encoding="utf-8") as f:
+    with open(os.path.join(ROOT, "oto", "ontologies", "policy", "README.md"), encoding="utf-8") as f:
         readme = f.read()
     assert "policy.json" in readme and "oto policy snapshot" in readme

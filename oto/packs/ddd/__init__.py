@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""The factory's domain graph (roadmap Epic I). This release: an event-storming board in (I2).
+"""The product's domain graph (roadmap Epic I). This release: an event-storming board in (I2).
 
     oto ddd storm --from board.json --at YYYY-MM-DD [--name <slug>] [--context <node id>]
 

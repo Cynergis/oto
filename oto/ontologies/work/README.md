@@ -35,5 +35,5 @@ assert a state keep it, and that asserted value wins over any transition: remove
 recording transitions. There are no sprints; `estimate` stays optional and nothing runs on it.
 
 This is a first draft of a delivery plan's vocabulary: edit it. The one thing to keep is the rule
-that state comes from transitions, because the events of Epic B and the factory set it the same way
+that state comes from transitions, because the events of Epic B and a factory's verdict set it the same way
 a person does.

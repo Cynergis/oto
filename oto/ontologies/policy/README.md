@@ -34,9 +34,10 @@ intersection of what the two may do (a permission is in it when an active rule p
 of each, and no rule forbids it to either; the resources a rule singles out narrow it), the write
 paths it reaches through the code map (a permitted `write` on a `Component` reaches its
 `CodeModule`s' paths; a forbidden one marks them denied), hashed and signed like the bundle. The
-engine plugin's PreToolUse guard (`hooks/policy_guard.py`) and the factory's guard read it in plain
-Python, refuse what it does not permit, and append every refusal to `.factory/events.jsonl`;
-`oto policy denials --events <file>` (and `oto factory run sync`) turn those into audit records,
+engine plugin's PreToolUse guard (`hooks/policy_guard.py`), and the guard of any run that copies the
+same reader (the factory's, in Cynergis/oto-factory), read it in plain Python, refuse what it does
+not permit, and append every refusal to `.factory/events.jsonl`; `oto policy denials --events <file>`
+turns those into audit records,
 each once, so "who tried what, and was it allowed" is in the chain.
 
 **The derivation.** A table holds personal data when one of its columns does (`pii` derived true), so

@@ -78,7 +78,7 @@ def test_the_ddd_pack_sits_on_the_architecture_pack_and_readiness_is_a_decision(
     assert manifest["extends"] == ["architecture"] and manifest["release"] == 2
     assert ontologies.self_check("ddd") == [], ontologies.self_check("ddd")
     config, sample, _readme = ontologies.load("ddd")
-    assert {"Relationship", "Control", "Flow", "CodeModule", "BoundedContext", "DomainEvent", "Table"} - {"Table"} <= set(config["classes"]), "the factory's and the architecture's classes compose"
+    assert {"Relationship", "Control", "Flow", "CodeModule", "BoundedContext", "DomainEvent", "Table"} - {"Table"} <= set(config["classes"]), "the domain's and the architecture's classes compose"
     assert config["attributes"]["Component"]["external_id"]["type"] == "string", "a context's deployed component is a CALM node"
     for kind in ("UseCase", "BoundedContext", "Command", "Aggregate"):
         spec = config["attributes"][kind]["readiness"]
@@ -90,7 +90,7 @@ def test_the_ddd_pack_sits_on_the_architecture_pack_and_readiness_is_a_decision(
     edges = {(e["from"], e["rel"], e["to"]) for e in sample["edges"]}
     assert ("bc.invoice-approval", "deployed_as", "component.invoice-intake") in edges, "the sample's new context runs as the architecture sample's CALM node"
     intake = next(n for n in sample["nodes"] if n["id"] == "component.invoice-intake")
-    assert intake["attributes"]["external_id"] == "invoice-intake", "one node per component across factory and CALM"
+    assert intake["attributes"]["external_id"] == "invoice-intake", "one node per component across the domain and CALM"
 
 
 def test_a_ddd_project_answers_the_context_and_the_calm_facts_from_one_node(ddd):

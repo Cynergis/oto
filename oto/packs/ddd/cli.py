@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""`oto ddd`: the factory's domain graph. storm reads an event-storming board into a document and a
+"""`oto ddd`: the product's domain graph. storm reads an event-storming board into a document and a
 capture against the ddd vocabulary (roadmap I2)."""
 import os
 import sys
@@ -36,7 +36,7 @@ def cmd_ddd(args):
 
 
 def register(sub):
-    ddd = sub.add_parser("ddd", help="the factory's domain graph: an event-storming board in, through the capture form and the gates")
+    ddd = sub.add_parser("ddd", help="the product's domain graph: an event-storming board in, through the capture form and the gates")
     ddd.add_argument("ddd_command", choices=["storm"], help="storm reads an event-storming board (--from) into a document and a capture")
     ddd.add_argument("--from", dest="from_", default=None, help="the board: JSON, stickies by kind and text")
     ddd.add_argument("--at", default=None, help="the date the board was read, YYYY-MM-DD; never defaulted")

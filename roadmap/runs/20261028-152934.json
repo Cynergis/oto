@@ -1,0 +1,25 @@
+{
+  "completed": true,
+  "completed_at": "2026-10-28T15:30:15",
+  "copied": false,
+  "files": [
+    {
+      "file": "0007-a-use-case-lives-outside-the-engine.md",
+      "outcome": "extracted",
+      "sha256": "287f834076f7341f50417dbbc59a5392a44cd2ab3eba8cb375d98990316e3549",
+      "size": 4164,
+      "slug": "0007-a-use-case-lives-outside-the-engine"
+    }
+  ],
+  "finished": "2026-10-28T15:29:34",
+  "inbox": "/Users/chihebdkhil/oto-doc/oto/roadmap/inbox",
+  "run_id": "20261028-152934",
+  "started": "2026-10-28T15:29:34",
+  "summary": {
+    "blocked": 0,
+    "extracted": 1,
+    "extraction-failed": 0,
+    "missing-parser": 0,
+    "unsupported": 0
+  }
+}

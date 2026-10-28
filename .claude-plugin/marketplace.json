@@ -4,7 +4,7 @@
     "name": "Cynergis"
   },
   "metadata": {
-    "description": "The OTO engine plugin from its own repository: the kg_* query tools as an MCP server, the generic skills, the session hook. Packs come from the Cynergis/oto-registry marketplace."
+    "description": "The OTO engine plugin from its own repository: the kg_* query tools as an MCP server, the generic skills, the session hook. Packs, and the use cases built on the graph (the factory), come from the Cynergis/oto-registry marketplace."
   },
   "plugins": [
     {
@@ -12,12 +12,6 @@
       "source": "./",
       "version": "0.14.1",
       "description": "The OTO engine: the kg_* query tools as an MCP server, the generic skills, and the session hook. Every pack depends on it."
-    },
-    {
-      "name": "oto-factory",
-      "source": "./factory",
-      "version": "0.3.0",
-      "description": "The software factory on an OTO architecture graph: runner, evaluator and aggregator agents, the spec-context skill, a guard hook for the write scope and a Stop hook for the loop to an iteration cap, and a GitHub Actions workflow that runs the same hooks. Depends on the oto plugin."
     }
   ]
 }

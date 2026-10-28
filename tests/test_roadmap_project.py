@@ -98,10 +98,11 @@ def test_what_shipped_is_deployed_by_the_pull_request_that_merged_it(copy):
 def test_the_repository_s_decisions_govern_the_epics_they_shaped(copy):
     graph = _graph()
     decisions = {n["id"]: n for n in graph["nodes"] if n["type"] == "Decision"}
-    assert set(decisions) >= {"decision.adr-0001", "decision.adr-0002", "decision.adr-0003", "decision.adr-0004", "decision.adr-0005", "decision.adr-0006"}, \
-        "the three phase 2 decisions, Cedar, the generated system's IAM and the core-and-packs line, from docs/adr"
+    assert set(decisions) >= {"decision.adr-0001", "decision.adr-0002", "decision.adr-0003", "decision.adr-0004", "decision.adr-0005", "decision.adr-0006", "decision.adr-0007"}, \
+        "the three phase 2 decisions, Cedar, the generated system's IAM, the core-and-packs line and the use case outside the engine, from docs/adr"
     governs = {(e["from"], e["to"]) for e in graph["edges"] if e["rel"] == "governs"}
     assert ("decision.adr-0005", "workitem.epic-e") in governs, "ADR-0005 shaped Epic E's last item, E7"
+    assert ("decision.adr-0007", "workitem.epic-j") in governs, "ADR-0007 took Epic J, the factory, out of the engine"
     for d in decisions.values():
         assert d["attributes"]["status"] == "accepted" and d.get("evidence"), d["id"]
         assert any(e["from"] == d["id"] and e["rel"] == "governs" for e in graph["edges"]), "%s governs something" % d["id"]

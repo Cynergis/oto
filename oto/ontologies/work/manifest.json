@@ -54,9 +54,12 @@
     "commands": [
       {
         "name": "work",
-        "module": "oto.cli.work",
+        "module": "oto.packs.work.cli",
         "label": "work and communication"
       }
+    ],
+    "status": [
+      "oto.packs.work:status"
     ]
   }
 }

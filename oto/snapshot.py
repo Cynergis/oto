@@ -336,8 +336,9 @@ def build(project):
                    "valid": bool(deploy_config is not None and not _deploy.problems(deploy_config)),
                    "connector": (deploy_config or {}).get("connector"),
                    "environments": _deploy.chain(deploy_config) if deploy_config else []}
-    from . import work as _work
-    s["work"] = _work.board(project)
+    from . import extensions as _extensions
+    for hook in _extensions.status_hooks(project):                   # a composed pack's part of the status (provides.status): the work pack's board
+        s.update(hook(project) or {})
     captured = len([d for d in s["sources"]["documents"] if _captured(project, d["slug"])])
     s["overview"] = {"facts": len(current), "documents": len(s["sources"]["documents"]) - captured,
                      "conversations": captured + s["curate"]["assertions"],

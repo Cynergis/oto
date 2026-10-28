@@ -49,16 +49,17 @@ def test_the_shipped_packs_declare_what_they_provide_and_the_core_names_none_of_
     assert "adapters" not in architecture and architecture["commands"] == [{"name": "arch", "module": "oto.cli.arch", "label": "architecture"}]
     calm = ontologies.manifest_for("calm")["provides"]
     assert calm["adapters"] == [{"framework": "calm", "module": "oto.packs.calm", "import": "read_model", "export": "write_model", "migrate": "migrate"}]
-    for pack, command, label in (("work", "work", "work and communication"), ("data", "data", "data"), ("ddd", "ddd", "ddd"), ("factory-run", "factory", "factory")):
+    for pack, command, module, label in (("work", "work", "oto.packs.work.cli", "work and communication"), ("data", "data", "oto.cli.data", "data"),
+                                         ("ddd", "ddd", "oto.cli.ddd", "ddd"), ("factory-run", "factory", "oto.cli.factory", "factory")):
         provides = ontologies.manifest_for(pack)["provides"]
-        assert provides["commands"] == [{"name": command, "module": "oto.cli.%s" % command, "label": label}], pack
+        assert provides["commands"] == [{"name": command, "module": module, "label": label}], pack
     assert [n for n, _p in builder.STAGES] == CORE_STAGES, "the core's stage list names no pack"
     with open(os.path.join(ROOT, "oto", "cli", "__init__.py"), encoding="utf-8") as f:
         cli = f.read()
     for name in ("policy", "work", "data", "ddd", "factory", "arch"):
         assert "from . import %s" % name not in cli and ", %s," % name not in cli.split("CORE_COMMANDS")[1].split(")")[0], \
             "the CLI imports no pack command by name: %s" % name
-    for path in ("oto/work.py", "oto/cli/curate.py", "oto/deploy.py"):
+    for path in ("oto/assertion.py", "oto/cli/curate.py", "oto/deploy.py"):
         with open(os.path.join(ROOT, path), encoding="utf-8") as f:
             source = f.read()
         assert "policy.enforce" not in source and "_policy.enforce" not in source and "before_write" in source, path

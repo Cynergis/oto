@@ -7,11 +7,11 @@ from ._common import project_arguments, resolve as _resolve
 
 
 def cmd_graph(args):
-    from .. import graphs as _graphs, work as _work
+    from .. import assertion as _assertion, graphs as _graphs
     project = _resolve(args)
     if args.graph_command == "describe":
         if args.record:
-            by = args.by or _work.identity(project)
+            by = args.by or _assertion.identity(project)
             if not (by or "").strip() or not args.at:
                 print("oto: --record needs --by (or a git identity) and --at YYYY-MM-DD: the descriptor is a declared fact", file=sys.stderr)
                 return 1
@@ -37,7 +37,7 @@ def cmd_graph(args):
         except (OSError, ValueError) as exc:
             print("oto: %s: %s" % (args.on, exc), file=sys.stderr)
             return 1
-        by = args.by or _work.identity(project)
+        by = args.by or _assertion.identity(project)
         if not (by or "").strip() or not args.at:
             print("oto: depend needs --by (or a git identity) and --at YYYY-MM-DD: a dependency is a declared fact", file=sys.stderr)
             return 1

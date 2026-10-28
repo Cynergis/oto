@@ -20,7 +20,7 @@ from oto.scaffold import init
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GONE = ("oto/policy.py", "oto/iam.py", "oto/targets/policy.py", "oto/targets/iam.py", "oto/cli/policy.py")
-ENGINE = ("oto/serve/engine.py", "oto/builder.py", "oto/cli/__init__.py", "oto/publish.py", "oto/work.py", "oto/cli/curate.py", "oto/deploy.py", "oto/extensions.py")
+ENGINE = ("oto/serve/engine.py", "oto/builder.py", "oto/cli/__init__.py", "oto/publish.py", "oto/assertion.py", "oto/cli/curate.py", "oto/deploy.py", "oto/extensions.py")
 
 
 def _cli(*args):

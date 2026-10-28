@@ -34,7 +34,7 @@ def parse_assignment(text):
 def move(project, node_id, attribute, value, by, at, note=None, also=None, action="decide", text=None):
     """Record the decision and apply it. Returns {"node", "label", "already", "attribute", "value", "assertion"?}.
     `also` are attribute values set in the same assertion (what the decision is about, stated)."""
-    from . import audit as _audit, work as _work
+    from . import assertion as _assertion, audit as _audit
     if not (by or "").strip():
         raise DecideError("--by names the person who decides: a decision has a name")
     if not at or not ISO_DATE.match(str(at)):
@@ -77,6 +77,6 @@ def move(project, node_id, attribute, value, by, at, note=None, also=None, actio
                 target.setdefault("sources", []).append(s)
         return {"node": node_id, "label": node.get("label") or node_id, "already": False, "attribute": attribute, "value": value}
     try:
-        return _work._commit(project, text, by.strip(), at, [node_id], edit, action=action)
-    except _work.WorkError as exc:
+        return _assertion.commit(project, text, by.strip(), at, [node_id], edit, action=action)
+    except _assertion.WriteError as exc:
         raise DecideError(str(exc))

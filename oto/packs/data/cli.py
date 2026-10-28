@@ -5,7 +5,7 @@ a dbt manifest or the ETL's SQL into a lineage document and a proposal of jobs a
 import os
 import sys
 
-from ._common import project_arguments, resolve as _resolve
+from ...cli._common import project_arguments, resolve as _resolve
 
 
 def cmd_data(args):
@@ -29,7 +29,7 @@ def cmd_data(args):
               % rel(done["proposal"]))
         return 0
     if args.data_command == "lineage":
-        from .. import lineage as _lineage
+        from . import lineage as _lineage
         try:
             done = _lineage.lineage(project, dbt=args.dbt, sql=args.sql, store_id=args.store, at=args.at, tool=args.tool)
         except _data.DataError as exc:
@@ -47,7 +47,7 @@ def cmd_data(args):
               % rel(done["proposal"]))
         return 0
     if args.data_command == "usage":
-        from .. import usage as _usage
+        from . import usage as _usage
         try:
             readers = _usage.parse_readers(args.reader)
             done = _usage.usage(project, connector_name=args.connector if args.connector_given else None, path=args.path, log=args.log,
@@ -71,7 +71,7 @@ def cmd_data(args):
               % rel(done["proposal"]))
         return 0
     if args.data_command == "meaning":
-        from .. import meaning as _meaning
+        from . import meaning as _meaning
         rel = lambda p: os.path.relpath(p, project.data)  # noqa: E731
         try:
             if args.check:
@@ -95,7 +95,7 @@ def cmd_data(args):
               % rel(done["proposal"]))
         return 0
     if args.data_command == "confirm":
-        from .. import meaning as _meaning
+        from . import meaning as _meaning
         if not args.node:
             print("oto: confirm takes the table or column: oto data confirm table.<store>-<table> --by <name> --at <date>", file=sys.stderr)
             return 1

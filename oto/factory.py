@@ -344,7 +344,7 @@ COST_NOTE = "not recorded by the hooks; the traces of Epic F hold it"
 
 
 def _slug_of(component_id):
-    from .data import _slug
+    from .naming import slug as _slug
     return _slug(component_id.split(".", 1)[1] if "." in component_id else component_id)
 
 
@@ -752,7 +752,7 @@ def run_promote(run_dir, component, commit, at, into_project):
 # ---- criteria (I6) ----
 
 def _slug_text(text, words=5):
-    from .data import _slug
+    from .naming import slug as _slug
     return _slug(" ".join(str(text).split()[:words]))
 
 
@@ -880,7 +880,7 @@ def render_criteria_tests(result, at):
 
 
 def write_criteria(result, out_dir, at):
-    from .data import _slug
+    from .naming import slug as _slug
     os.makedirs(out_dir, exist_ok=True)
     slug = _slug(result["label"])
     md = os.path.join(out_dir, "criteria.md")
@@ -1041,7 +1041,7 @@ def measure_from(path):
 def measure(project, nfr_id, at, value=None, path=None, source=None):
     """A measurement as Evidence of the requirement, cited to a document. Returns {"doc", "document", "archive", "proposal", "value", "format"}."""
     from .curate import session as _session
-    from .data import _slug
+    from .naming import slug as _slug
     if not at or not ISO_DATE.match(str(at)):
         raise FactoryError("--at YYYY-MM-DD is required: the date of the measurement is never defaulted")
     if not (value or "").strip() and not path:

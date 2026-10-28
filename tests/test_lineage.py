@@ -18,7 +18,7 @@ import sqlite3
 
 import pytest
 
-from oto import lineage
+from oto.packs.data import lineage
 from oto.cli import main
 from oto.curate import session
 from oto.project import Project

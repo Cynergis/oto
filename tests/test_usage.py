@@ -18,7 +18,8 @@ import sqlite3
 
 import pytest
 
-from oto import connectors, usage
+from oto import connectors
+from oto.packs.data import usage
 from oto.cli import main
 from oto.curate import session
 from oto.project import Project

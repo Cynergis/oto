@@ -49,7 +49,7 @@ def test_the_shipped_packs_declare_what_they_provide_and_the_core_names_none_of_
     assert "adapters" not in architecture and architecture["commands"] == [{"name": "arch", "module": "oto.cli.arch", "label": "architecture"}]
     calm = ontologies.manifest_for("calm")["provides"]
     assert calm["adapters"] == [{"framework": "calm", "module": "oto.packs.calm", "import": "read_model", "export": "write_model", "migrate": "migrate"}]
-    for pack, command, module, label in (("work", "work", "oto.packs.work.cli", "work and communication"), ("data", "data", "oto.cli.data", "data"),
+    for pack, command, module, label in (("work", "work", "oto.packs.work.cli", "work and communication"), ("data", "data", "oto.packs.data.cli", "data"),
                                          ("ddd", "ddd", "oto.cli.ddd", "ddd"), ("factory-run", "factory", "oto.cli.factory", "factory")):
         provides = ontologies.manifest_for(pack)["provides"]
         assert provides["commands"] == [{"name": command, "module": module, "label": label}], pack

@@ -39,7 +39,7 @@ import os
 import re
 import subprocess
 
-from .data import _slug
+from .naming import slug as _slug
 from .project import ProjectError
 
 PREFIX = {"System": "system", "Component": "component", "DataStore": "datastore", "Environment": "environment", "Role": "role"}
@@ -207,7 +207,7 @@ def map_repo(project, repo_path, repository_id, at, name=None):
         raise ArchError("the vocabulary declares no CodeModule and Commit: the architecture ontology does (oto init --ontology architecture, or compose it)")
     if not os.path.isdir(repo_path):
         raise ArchError("no such repository: %s" % repo_path)
-    from .data import _graph_ids
+    from .naming import graph_ids as _graph_ids
     graph_ids = _graph_ids(project)
     if repository_id not in graph_ids:
         raise ArchError("the graph holds no %s. The estate declares the repository (a Repository node, SA14) before the code map describes it" % repository_id)

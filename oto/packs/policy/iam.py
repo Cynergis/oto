@@ -33,7 +33,7 @@ import json
 import os
 
 from .. import policy as _policy
-from ...data import _slug
+from ...naming import slug as _slug
 from ...project import ProjectError
 
 BUNDLE_VERSION = 1

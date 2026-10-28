@@ -16,7 +16,7 @@ from oto.scaffold import init
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GONE = ("oto/data.py", "oto/lineage.py", "oto/usage.py", "oto/meaning.py", "oto/cli/data.py")
-ENGINE = ("oto/arch.py", "oto/packs/ddd/__init__.py", "oto/factory.py", "oto/cli/__init__.py", "oto/builder.py", "oto/serve/engine.py", "oto/packs/calm.py",
+ENGINE = ("oto/arch.py", "oto/packs/ddd/__init__.py", "oto/packs/factory/__init__.py", "oto/cli/__init__.py", "oto/builder.py", "oto/serve/engine.py", "oto/packs/calm.py",
           "oto/packs/policy/iam.py", "oto/naming.py")
 
 

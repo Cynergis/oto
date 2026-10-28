@@ -490,3 +490,121 @@ def impact_of_files(project, paths, fmt="markdown"):
             out.append((head % ("Impact of %s" % (adr_id or os.path.basename(path)))) + "\n\nThe decision is not in the graph yet (%s): its impact is what this pull request adds. "
                        "Once applied, `oto arch impact --decision %s` reads it.\n" % (did or "no id", adr_id or "<id>"))
     return "\n".join(out)
+
+
+def _a(n):
+    return (n or {}).get("attributes") or {}
+
+
+def _index(graph):
+    nodes = {n["id"]: n for n in graph.get("nodes") or [] if n.get("id")}
+    out, inc = {}, {}
+    for e in graph.get("edges") or []:
+        out.setdefault((e.get("from"), e.get("rel")), []).append(e.get("to"))
+        inc.setdefault((e.get("to"), e.get("rel")), []).append(e.get("from"))
+    return nodes, out, inc
+
+
+# ---- measurements (H6): a report or a stated value becomes evidence of a requirement ----
+
+def measure_from(path):
+    """(format, value) read from a JUnit XML report, a coverage.py XML report or a k6 summary JSON."""
+    import xml.etree.ElementTree as ET
+    if not os.path.isfile(path):
+        raise ArchError("no such report: %s" % path)
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
+    stripped = text.lstrip()
+    if stripped.startswith("<"):
+        try:
+            root = ET.fromstring(text)
+        except ET.ParseError as exc:
+            raise ArchError("%s is not XML: %s" % (path, exc))
+        suites = [root] if root.tag == "testsuite" else list(root.iter("testsuite"))
+        if suites:
+            def num(el, key):
+                try:
+                    return int(el.get(key) or 0)
+                except ValueError:
+                    return 0
+            tests = sum(num(s, "tests") for s in suites)
+            failures = sum(num(s, "failures") for s in suites)
+            errors = sum(num(s, "errors") for s in suites)
+            skipped = sum(num(s, "skipped") for s in suites)
+            passed = max(tests - failures - errors - skipped, 0)
+            detail = ", ".join(x for x in ("%d failed" % failures if failures else "", "%d error(s)" % errors if errors else "", "%d skipped" % skipped if skipped else "") if x)
+            return "junit", "%d of %d tests passed%s" % (passed, tests, " (%s)" % detail if detail else "")
+        if root.tag == "coverage" and root.get("line-rate") is not None:
+            try:
+                rate = float(root.get("line-rate"))
+            except ValueError:
+                raise ArchError("%s: line-rate is not a number" % path)
+            covered, valid = root.get("lines-covered"), root.get("lines-valid")
+            detail = " (%s of %s)" % (covered, valid) if covered and valid else ""
+            return "coverage", "%d %% of lines covered%s" % (round(rate * 100), detail)
+        raise ArchError("%s is XML, but neither a JUnit report (testsuite) nor a coverage.py report (coverage line-rate); the formats read are junit, coverage and k6" % path)
+    try:
+        data = json.loads(text)
+    except ValueError:
+        raise ArchError("%s is neither XML nor JSON; the formats read are junit (XML), coverage (XML) and k6 (JSON summary)" % path)
+    metrics = (data or {}).get("metrics") if isinstance(data, dict) else None
+    duration = (metrics or {}).get("http_req_duration") if isinstance(metrics, dict) else None
+    values = (duration or {}).get("values") if isinstance(duration, dict) else None
+    if isinstance(values, dict) and values.get("p(95)") is not None:
+        count = ((metrics.get("http_reqs") or {}).get("values") or {}).get("count")
+        return "k6", "p95 %d ms%s" % (round(float(values["p(95)"])), " over %d requests" % int(count) if count else "")
+    raise ArchError("%s is JSON, but not a k6 summary (metrics.http_req_duration.values.p(95)); the formats read are junit, coverage and k6" % path)
+
+
+def measure(project, nfr_id, at, value=None, path=None, source=None):
+    """A measurement as Evidence of the requirement, cited to a document. Returns {"doc", "document", "archive", "proposal", "value", "format"}."""
+    from .curate import session as _session
+    if not at or not ISO_DATE.match(str(at)):
+        raise ArchError("--at YYYY-MM-DD is required: the date of the measurement is never defaulted")
+    if not (value or "").strip() and not path:
+        raise ArchError("a measurement comes from a report (--from <junit.xml|coverage.xml|k6-summary.json>) or is stated (--value \"...\")")
+    graph = _session.live(project)
+    nodes, out, inc = _index(graph)
+    nfr = nodes.get(nfr_id)
+    if nfr is None:
+        raise ArchError("the graph holds no %s" % nfr_id)
+    if nfr.get("type") != "NFR":
+        raise ArchError("%s is a %s, not an NFR (a Requirement with a metric and a budget): only a requirement with a budget is measured" % (nfr_id, nfr.get("type")))
+    fmt = "stated"
+    if path:
+        fmt, value = measure_from(path)
+    value = value.strip()
+    slug = _slug(nfr_id.split(".", 1)[1] if "." in nfr_id else nfr_id)
+    doc = "measure-%s-%s" % (slug, at)
+    a = _a(nfr)
+    lines = ["# Measurement of %s" % (nfr.get("label") or nfr_id), "",
+             "Recorded by `oto arch measure` on %s, %s. The measured value next to the budget, so what the requirement asks and what was observed are one line."
+             % (at, "from a %s report, %s" % (fmt, os.path.basename(path)) if path else "a value stated at the prompt"), "", "## Measured", "",
+             "- %s: %s, budget %s (%s)" % (nfr.get("label") or nfr_id, value, a.get("budget") or "none set", a.get("metric") or "no metric")]
+    text = "\n".join(lines) + "\n"
+    corpus = os.path.join(project.layout.corpus, doc + ".md")
+    archive = os.path.join(project.layout.archive, doc + ".md")
+    for target in (corpus, archive):
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+    evidence_id = "evidence.%s" % doc
+    attributes = {"kind": "measurement", "value": value, "observed_on": at}
+    if source or path:
+        attributes["source_url"] = source or os.path.basename(path)
+    proposal = {"source_doc": doc, "as_of": at, "nodes": [
+        {"id": "document.%s" % doc, "type": "Document", "label": "Measurement of %s" % (nfr.get("label") or nfr_id), "summary": "A measurement of %s as recorded; the date is the fact's own." % nfr_id,
+         "attributes": {"kind": "run"}, "valid_from": at, "evidence": [{"doc": doc, "where": "title", "quote": "Measurement of %s" % (nfr.get("label") or nfr_id)}]},
+        {"id": evidence_id, "type": "Evidence", "label": "%s measured on %s" % (nfr.get("label") or nfr_id, at), "summary": "%s: %s on %s." % (a.get("metric") or nfr_id, value, at),
+         "attributes": attributes, "valid_from": at, "evidence": [{"doc": doc, "where": "measured", "quote": value}]}],
+        "edges": [{"from": evidence_id, "rel": "measurement_of", "to": nfr_id}]}
+    for comp in inc.get((nfr_id, "satisfies"), []):
+        if nodes.get(comp, {}).get("type") in ("Component", "System", "Interface"):
+            proposal["edges"].append({"from": evidence_id, "rel": "evidence_of", "to": comp})
+    out_dir = os.path.join(project.data, "proposals")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, doc + ".json")
+    with open(out_path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(proposal, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    return {"doc": doc, "document": corpus, "archive": archive, "proposal": out_path, "value": value, "format": fmt}

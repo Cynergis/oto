@@ -17,7 +17,7 @@ import os
 
 import pytest
 
-from oto import factory
+from oto.packs import factory
 from oto.cli import main
 from oto.model import ontologies
 from oto.scaffold import init

@@ -33,7 +33,7 @@
     "commands": [
       {
         "name": "factory",
-        "module": "oto.cli.factory",
+        "module": "oto.packs.factory.cli",
         "label": "factory"
       }
     ]

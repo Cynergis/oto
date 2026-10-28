@@ -8,12 +8,12 @@ import json
 import os
 import sys
 
-from ._common import project_arguments, resolve as _resolve
+from ...cli._common import project_arguments, resolve as _resolve
 
 
 def cmd_factory(args):
     from .. import factory as _factory
-    from ..curate import session as _session
+    from ...curate import session as _session
     project = None if args.factory_command in ("run", "deviate") else _resolve(args)
     if args.factory_command == "spec":
         if args.check:
@@ -146,7 +146,7 @@ def cmd_factory(args):
                 if not args.into:
                     print("oto: run promote takes --into <main project>, where the result is proposed", file=sys.stderr)
                     return 1
-                from ..project import Project
+                from ...project import Project
                 done = _factory.run_promote(args.run, args.component_id, args.commit, args.at, Project.standard(args.into))
                 rel = lambda p: os.path.relpath(p, args.into)  # noqa: E731
                 print("run %s: %s passed after %d iteration(s), promoted with commit %s" % (done["run"], args.component_id, done["iterations"], args.commit))
@@ -184,7 +184,7 @@ def cmd_factory(args):
         if not args.into:
             print("oto: deviate takes --run <dir> --component <id> --about <node> --observed \"...\" --proposes \"...\" --at <date> --into <main project>", file=sys.stderr)
             return 1
-        from ..project import Project
+        from ...project import Project
         try:
             done = _factory.deviate(args.run, args.component_id, args.about, args.observed, args.proposes, args.at, Project.standard(args.into))
         except _factory.FactoryError as exc:

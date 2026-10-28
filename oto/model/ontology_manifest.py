@@ -56,6 +56,7 @@ CARRIES = {
     "tools": "tools",
     "actions": "actions",                       # the name before Actions became Tools (2026-10)
     "gold": os.path.join("gold", "patterns.jsonl"),
+    "code": "code",                             # the pack's own Python, for what `provides` names (oto/extensions.py)
 }
 FIELDS = ("name", "release", "domain", "product_type", "summary", "extends", "namespace", "engine", "carries", "maintainer", "changelog", "provides")
 #: The domains the engine has seen: the category an ontology or a pack belongs to. A new one is

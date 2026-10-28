@@ -10,6 +10,7 @@ Each ontology is a directory holding a vocabulary and what goes with it:
     manifest.json             manifest: name, release, what it extends, what it carries (optional)
                               and what it provides beyond its vocabulary: build stages, commands, endpoints,
                               write hooks, framework adapters (`provides`, read by oto/extensions.py)
+    code/                     the pack's own Python for what `provides` names, put on the import path when the pack loads (optional)
     ontology.config.json      the vocabulary
     ontology.rationale.json   why each class exists
     README.md                 why these classes exist, what to change, what to have validated

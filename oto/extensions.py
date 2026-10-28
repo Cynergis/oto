@@ -26,6 +26,11 @@ graph's shape (`import`: `fn(project, path, at, **options)`) and writes the grap
 framework (`export`: `fn(project)`), and may migrate a graph written with the framework's former attribute
 names (`migrate`: `fn(project, by)`); `oto arch import --framework <name>` chooses it.
 
+A pack from outside the engine carries its modules in its own `code/` folder (`carries: ["code", ...]`):
+the engine puts that folder on the import path, once, when it loads anything the pack provides, so
+nothing has to be installed on the machine for a pack to plug in. The engine's own packs carry no
+`code/`; their modules import from the engine under `oto.packs.<pack>`.
+
 Stages, endpoints and write hooks are loaded only for the packs composed in the project: a pack is
 composed when every class it declares itself is in the project's vocabulary, which is the same gate
 the stages used before the seam. Commands and adapters are discovered from every pack the machine has
@@ -34,6 +39,8 @@ project is named. The core names no pack: this module reads manifests and loads 
 """
 import importlib
 import json
+import os
+import sys
 
 from .model import ontologies as _ontologies
 from .project import ProjectError
@@ -77,7 +84,27 @@ def composed(project):
     return out
 
 
+def code_dir(pack):
+    """The pack's own code: `code/` inside the pack's directory, when it has one. The engine's own packs
+    carry none; their modules import from the engine."""
+    base = _ontologies.dir_for(pack)
+    if not base:
+        return None
+    path = os.path.join(base, "code")
+    return path if os.path.isdir(path) else None
+
+
+def _on_path(pack):
+    """Put the pack's code/ first on the import path, once, so what its manifest names imports from
+    the pack itself: nothing has to be installed on the machine's Python path for a pack to plug in."""
+    path = code_dir(pack)
+    if path and path not in sys.path:
+        sys.path.insert(0, path)
+    return path
+
+
 def _load(dotted, pack):
+    _on_path(pack)
     try:
         return importlib.import_module(dotted)
     except ImportError as exc:

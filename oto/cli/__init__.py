@@ -57,12 +57,13 @@ def pack_commands():
 
 
 def _pack_modules(found):
+    from .. import extensions
     modules = []
     for command in found:
         try:
-            modules.append(importlib.import_module(command["module"]))
-        except ImportError as exc:
-            print("oto: pack %s provides the command %s, which does not import: %s" % (command["pack"], command["name"], exc), file=sys.stderr)
+            modules.append(extensions._load(command["module"], command["pack"]))
+        except extensions.ExtensionError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
     return modules
 
 

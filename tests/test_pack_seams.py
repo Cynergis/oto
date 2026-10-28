@@ -150,18 +150,18 @@ def toy(tmp_path, monkeypatch):
     (pack / "README.md").write_text("# Toy\n\nA toy pack: one class, one relation, one of each contribution. First draft; edit it.\n")
     (pack / "manifest.json").write_text(json.dumps({"name": "toy", "release": 1, "domain": "play", "summary": "A toy pack.", "extends": [],
                                                     "namespace": "https://toy.example/ont#", "engine": ">=0.11",
-                                                    "carries": ["vocabulary", "rationale", "questions", "sample", "readme"], "provides": {
+                                                    "carries": ["vocabulary", "rationale", "questions", "sample", "readme", "code"], "provides": {
         "stages": [{"name": "toy", "module": "toy_ext", "owns": []}],
         "commands": [{"name": "toy", "module": "toy_ext", "label": "toys"}],
         "endpoints": ["toy_ext"],
         "write_hooks": ["toy_ext:before_write"],
         "adapters": [{"framework": "toy", "module": "toy_ext", "import": "read_model", "export": "write_model"}]}}))
-    code = tmp_path / "code"
+    code = pack / "code"                                   # a pack carries its own code: the engine puts code/ on the path when it loads the pack
     code.mkdir()
     (code / "toy_ext.py").write_text(textwrap.dedent(TOY_EXT))
-    monkeypatch.syspath_prepend(str(code))
     monkeypatch.setenv(ontologies.USER_DIR_ENV, str(packs))
     sys.modules.pop("toy_ext", None)
+    monkeypatch.setattr(sys, "path", [p for p in sys.path if not p.endswith(os.path.join("toy", "code"))])
     return str(pack)
 
 
@@ -170,6 +170,24 @@ def _project(tmp_path, ontology, slug):
     with contextlib.redirect_stdout(io.StringIO()):
         init(root, slug=slug, name=slug.title(), ontology=ontology)
     return root
+
+
+def test_a_pack_carries_its_own_code_and_the_engine_puts_it_on_the_path_when_it_loads_the_pack(toy, tmp_path):
+    """A pack from outside the engine (the user's directory, an installed plugin) brings its modules in
+    its own code/ folder; nothing has to be installed on the machine's Python path for it to plug in."""
+    assert extensions.code_dir("toy") == os.path.join(toy, "code")
+    assert extensions.code_dir("policy") is None, "the engine's own packs import from the engine; they carry no code/"
+    assert "code" in ontologies.manifest_for("toy")["carries"] and ontology_manifest.problems(toy) == []
+    before = list(sys.path)
+    assert os.path.join(toy, "code") not in before
+    found = {c["name"]: c for c in extensions.commands()}
+    assert found["toy"]["module"] == "toy_ext"
+    code, out = _cli("toy", "--project", "anywhere")
+    assert code == 0 and "toy says hello from anywhere" in out, out
+    assert sys.path[0] == os.path.join(toy, "code"), "the pack's code/ is on the path once the pack is loaded"
+    adapter = extensions.adapter("toy")
+    assert adapter["module"].__file__.startswith(os.path.join(toy, "code")), "the module came from the pack, not from the machine"
+    assert sys.path.count(os.path.join(toy, "code")) == 1, "added once, however many times the pack is loaded"
 
 
 def test_a_pack_is_composed_when_its_own_classes_are_in_the_vocabulary(toy, tmp_path):
@@ -215,7 +233,7 @@ def test_a_pack_s_command_is_discovered_and_the_help_groups_it_under_its_pack(to
 def test_a_composed_pack_s_write_hook_runs_before_apply_decide_and_promote(toy, tmp_path):
     toys = _project(tmp_path, "toy", "toys")
     project = Project.standard(toys)
-    ext = importlib.import_module("toy_ext")
+    ext = extensions._load("toy_ext", "toy")                 # the engine puts the pack's code/ on the path; the test does not
     ext.CALLS.clear()
     note = extensions.before_write(project, "curate apply", "Ada")
     assert note == "toy saw curate apply by Ada" and ext.CALLS == [("curate apply", "Ada")]

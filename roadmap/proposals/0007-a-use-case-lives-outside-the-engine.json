@@ -1,0 +1,64 @@
+{
+  "source_doc": "0007-a-use-case-lives-outside-the-engine",
+  "as_of": "2026-10-28",
+  "nodes": [
+    {
+      "id": "decision.adr-0007",
+      "type": "Decision",
+      "label": "A use case of the graph lives outside the engine; the factory is the first",
+      "summary": "A use case of the graph lives in a repository of its own, as a pack that carries its vocabulary, its code and its plugin, reaches the engine only through the pack seams, and is listed in the registry; the factory is the first, and the engine's repository forgets it.",
+      "attributes": {
+        "status": "accepted",
+        "decided_on": "2026-10-28",
+        "rationale": "A use case of the graph lives in a repository of its own, as a pack that carries its vocabulary, its code and its plugin, reaches the engine only through the pack seams, and is listed in the registry; the factory is the first, and the engine's repository forgets it."
+      },
+      "valid_from": "2026-10-28",
+      "evidence": [
+        {
+          "doc": "0007-a-use-case-lives-outside-the-engine",
+          "where": "Decision",
+          "quote": "A use case of the graph lives in a repository of its own, as a pack that carries its vocabulary, its code and its plugin, reaches the engine only through the pack seams, and is listed in the registry; the factory is the first, and the engine's repository forgets it."
+        },
+        {
+          "doc": "0007-a-use-case-lives-outside-the-engine",
+          "where": "frontmatter",
+          "quote": "decided_on: 2026-10-28"
+        }
+      ]
+    },
+    {
+      "id": "document.0007-a-use-case-lives-outside-the-engine",
+      "type": "Document",
+      "label": "A use case of the graph lives outside the engine; the factory is the first",
+      "summary": "ADR ADR-0007, the record of this decision.",
+      "attributes": {
+        "kind": "adr"
+      },
+      "valid_from": "2026-10-28",
+      "evidence": [
+        {
+          "doc": "0007-a-use-case-lives-outside-the-engine",
+          "where": "title",
+          "quote": "A use case of the graph lives outside the engine; the factory is the first"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "decision.adr-0007",
+      "rel": "documented_in",
+      "to": "document.0007-a-use-case-lives-outside-the-engine"
+    },
+    {
+      "from": "decision.adr-0007",
+      "rel": "governs",
+      "to": "workitem.epic-j"
+    },
+    {
+      "from": "decision.adr-0007",
+      "rel": "decided_by",
+      "to": "person.chiheb-dkhil"
+    }
+  ]
+}

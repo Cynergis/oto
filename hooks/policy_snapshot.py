@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """The policy snapshot as a guard reads it (roadmap E3): plain Python over the standard library, the
-same file in the engine plugin (hooks/) and the factory plugin (factory/hooks/), byte for byte.
+same file in the engine plugin (hooks/) and in any plugin whose guard reads the snapshot (the
+factory's, in Cynergis/oto-factory), byte for byte.
 
 `oto policy snapshot --agent <id> --principal <id>` writes `.factory/policy.json`: the intersection of
 what an agent and the principal it runs for may do, the write paths it reaches and the paths it is
@@ -9,7 +10,7 @@ environment variable that holds the key. A guard loads it, checks the hash, that
 expired (`expires_at`) and the signature when that variable is set here, and decides one tool call: a write under a denied path is refused naming
 the rule, a write under no permitted path is refused naming what is permitted, a shell command that
 writes under a denied path is refused; everything else passes. A refusal is appended to
-`events.jsonl` beside the snapshot, for `oto policy denials` and `oto factory run sync` to turn into
+`events.jsonl` beside the snapshot, for `oto policy denials` (or a run's own sync) to turn into
 audit records.
 """
 import datetime

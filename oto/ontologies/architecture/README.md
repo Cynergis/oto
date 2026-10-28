@@ -29,8 +29,8 @@ so that what no control safeguards can be asked (AR8). The plain estate edges (`
 schema, file) and a `schema_url`; it is `contract_of` one `Interface`, and a new version `supersedes`
 the old. Its `status` is a decision: a draft until a named person freezes it (`oto decide
 contract.<id> status=frozen --by <name> --at <date>`); frozen, nobody changes it without a new
-version, so a consumer and its provider build in parallel against it, which is what `oto factory
-plan` reads (AR10, AR11).
+version, so a consumer and its provider build in parallel against it, which is what a factory's build
+plan reads (AR10, AR11).
 
 **The implementation trace.** An `NFR` is a `Requirement` with a `metric` and a `budget`; `Evidence`
 (a measurement, a test, a review, a gate's verdict, a log) `measurement_of` it and is `evidence_of` what it

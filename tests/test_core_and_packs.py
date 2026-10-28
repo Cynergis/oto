@@ -1,7 +1,7 @@
 """The core and the packs (ADR-0006). OTO's core is the knowledge graph's lifecycle with its tools,
 the estate and the reified model it is described in, and the deploy of the graph. An architecture
 framework (CALM today, C4 tomorrow) is a pack plus an adapter; a domain feature (work, data, policy,
-the factory) is a pack plus its tools. The first step records the decision and draws the line in the
+the domain model) is a pack plus its tools; what is built on the graph lives outside the engine (ADR-0007). The first step records the decision and draws the line in the
 documents and the command line, before any code moves."""
 import os
 import re
@@ -15,7 +15,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CORE_COMMANDS = {"init", "status", "lock", "sandbox", "ingest", "capture", "clipboard", "ontology", "lexicon", "pack", "registry", "rules", "tools",
                  "curate", "decide", "deploy", "connectors", "draft", "vet", "build", "preview", "query", "publish", "publishable", "bench",
                  "feedback", "audit", "graph", "version"}
-PACK_COMMANDS = {"work": "work and communication", "data": "data", "arch": "architecture", "ddd": "ddd", "factory": "factory", "policy": "policy"}
+PACK_COMMANDS = {"work": "work and communication", "data": "data", "arch": "architecture", "ddd": "ddd", "policy": "policy"}
 
 
 def _read(*parts):
@@ -57,7 +57,7 @@ def test_the_architecture_document_draws_the_line_between_the_engine_and_the_pac
     core_table, packs_table = text[core_at:packs_at], text[packs_at:text.index("## ", packs_at + 5)]
     for row in ("| Create |", "| Ingest |", "| Author |", "| Build |", "| Serve |", "| Decisions |", "| Audit |", "| Graphs |"):
         assert row in core_table and row not in packs_table, row
-    for row in ("| Work |", "| Data |", "| Policy |", "| Architecture |", "| Domain (ddd) |", "| Factory plugin |"):
+    for row in ("| Work |", "| Data |", "| Policy |", "| Architecture |", "| Domain (ddd) |", "| Use cases of the graph |"):
         assert row in packs_table and row not in core_table, row
     intro = text[text.index("## The core and the packs"):core_at]
     assert "deploy" in intro.lower() and "C4" in intro, "deploying the graph is core; a framework is swappable"

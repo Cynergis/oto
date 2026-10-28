@@ -21,8 +21,10 @@ The core is the knowledge graph's lifecycle with its tools, the estate and the r
 described in, and the deploy of the graph, because what is deployed is the graph. Everything else
 is a pack: an ontology with the tools that work on it, loaded only when a project composes it. An
 architecture framework is a pack plus an adapter, CALM today and C4 when someone needs it, so a
-framework is swapped by changing a pack, never the engine. Work, data, policy and the factory are
-packs the same way. [ADR-0006](docs/adr/0006-the-core-and-the-packs.md) records the line;
+framework is swapped by changing a pack, never the engine. Work, data, policy and the domain model are
+packs the same way; what someone builds on the graph, the software factory first, is a use case
+and lives in a repository of its own ([ADR-0007](docs/adr/0007-a-use-case-lives-outside-the-engine.md),
+[Cynergis/oto-factory](https://github.com/Cynergis/oto-factory)). [ADR-0006](docs/adr/0006-the-core-and-the-packs.md) records the line;
 `oto --help` prints it.
 
 ## What makes it different

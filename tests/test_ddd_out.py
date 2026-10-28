@@ -11,7 +11,7 @@ from oto.packs import ddd as _ddd
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GONE = ("oto/ddd.py", "oto/cli/ddd.py")
-ENGINE = ("oto/arch.py", "oto/packs/factory/__init__.py", "oto/cli/__init__.py", "oto/builder.py", "oto/serve/engine.py", "oto/naming.py")
+ENGINE = ("oto/arch.py", "oto/cli/__init__.py", "oto/builder.py", "oto/serve/engine.py", "oto/naming.py")
 
 
 def _cli(*args):

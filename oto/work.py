@@ -151,8 +151,9 @@ def _commit(project, text, by, at, about, edit, action="work"):
     outcomes go to the audit log (audit.py), keyed to the nodes touched."""
     _no_candidate(project)
     from . import policy as _policy
+    from . import extensions as _extensions
     try:
-        under = _policy.enforce(project, action, by)        # the snapshot the session runs under, re-checked (roadmap E6)
+        under = _extensions.before_write(project, action, by)        # the snapshot the session runs under, re-checked (roadmap E6)
     except _policy.PolicyError as exc:
         raise WorkError(str(exc))
     vocabulary = _load_vocabulary(project)

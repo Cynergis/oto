@@ -18,10 +18,10 @@ alias oto='uvx --from "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/ot
 
 The sections follow the order the features were built, and [ADR-0006](adr/0006-the-core-and-the-packs.md)
 draws one line through them. The **core**, the knowledge graph with its tools and its deploy, is
-sections 1 to 17, 19, 20 and 23 to 27: install, a project, documents in, the vocabulary, rules,
+sections 1 to 17, 19, 20, 23 to 27 and 33: install, a project, documents in, the vocabulary, rules,
 authoring under the gates, time, query and serve, evaluation, Neo4j, repository mode, the query
 repository, specs and decisions, an ontology of your own, tools, deploy, audit and tracing, graphs
-that know each other, the engine's own CI, and the ontology explorer. Drive these first: they are
+that know each other, the engine's own CI, the ontology explorer, and the pack seams. Drive these first: they are
 the product, and they need no pack. The **packs**, each an ontology with the tools that work on it,
 are sections 18 (work and communication), 21 (data), 22 (architecture, with CALM as the first
 framework adapter), 28 to 30 and 32 (policy, the snapshot and guards, the generated IAM) and 31
@@ -1415,3 +1415,28 @@ graph only through `--apply` with a named `--by`, safeguard the table and the co
 as the member, derive from the rules, and come out in the CALM export under the component's
 controls; PL8 and AR12 answer; a provider this release does not write is refused by name; and the
 publication carries the bindings with their hash.
+
+## 33. The pack seams: what a pack provides, loaded only where it is composed
+
+ADR-0006, step 2: a pack's manifest declares what it provides beyond its vocabulary, and the engine
+loads it only for a project that composes the pack. The core names no pack.
+
+```bash
+python3 -c "import json; print(json.dumps(json.load(open('oto/ontologies/policy/manifest.json'))['provides'], indent=1))"   # stages policy and iam, the command, the write hook
+oto --help                                                                      # core commands, then each pack command under its pack, from the manifests
+oto init --ontology data --project plain && oto build --project plain           # no "policy:" or "iam:" line: the stages belong to a pack the project does not compose
+oto init --ontology policy --project ledger && oto build --project ledger       # "policy: 4 rule(s) ..." then "iam: 4 binding(s) ...": the pack's stages, before the site
+oto arch export --framework calm --project <an architecture project>            # the adapter the architecture pack provides; --calm still works as shorthand
+oto arch export --framework c4 --project <an architecture project>; echo $?     # 1: no adapter for framework 'c4': the packs on this machine provide calm
+# a pack of your own: a directory under $OTO_ONTOLOGIES with a manifest whose `provides` names your modules
+#   {"provides": {"stages": [{"name": "mine", "module": "mine_ext", "owns": []}], "commands": [{"name": "mine", "module": "mine_ext", "label": "mine"}],
+#                 "endpoints": ["mine_ext"], "write_hooks": ["mine_ext:before_write"], "adapters": [{"framework": "mine", "module": "mine_ext", "import": "read_model", "export": "write_model"}]}}
+oto ontology check --project <a project on it>                                  # the manifest checker holds the shapes of `provides`
+```
+
+Pass when a project without a pack never runs its stages, sees its routes or calls its write hook;
+a project with the pack runs its stages after the core's targets and before the site, with their
+outputs stashed by a partial build; the pack's command is in `oto --help` under its pack; an
+endpoint the pack provides answers under `/api/` and is listed by `/api/tools`; the write hook's note
+lands in the audit record of `curate apply`; an unknown framework is refused by name with the known
+ones listed; and a manifest whose `provides` is the wrong shape is named by the checker.

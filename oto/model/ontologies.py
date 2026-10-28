@@ -8,6 +8,8 @@ something concrete instead of facing an empty file.
 Each ontology is a directory holding a vocabulary and what goes with it:
 
     manifest.json             manifest: name, release, what it extends, what it carries (optional)
+                              and what it provides beyond its vocabulary: build stages, commands, endpoints,
+                              write hooks, framework adapters (`provides`, read by oto/extensions.py)
     ontology.config.json      the vocabulary
     ontology.rationale.json   why each class exists
     README.md                 why these classes exist, what to change, what to have validated

@@ -723,8 +723,10 @@ def compile_project(project, at, by, note=None):
     if _session.exists(project):
         raise ArchError("a candidate is open: apply or abort it before compiling (oto curate apply / abort)")
     proposals, gaps = [], []
+    from . import extensions as _extensions
+    read = _extensions.adapter("calm")["read"]                     # the config names CALM models; a `models` list with a framework each is step 3
     for relative in calm_paths:
-        done = import_calm(project, os.path.join(project.data, relative), at, environment=arch_cfg.get("environment"))
+        done = read(project, os.path.join(project.data, relative), at, environment=arch_cfg.get("environment"))
         proposals.append(done["proposal"])
         gaps += done["gaps"]
     if codemap:

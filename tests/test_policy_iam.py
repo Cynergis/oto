@@ -365,7 +365,7 @@ def test_a_project_without_the_pack_writes_no_bindings(tmp_path):
     with contextlib.redirect_stdout(io.StringIO()):
         init(root, slug="plain", name="Plain", ontology="data")
     code, out = _cli("build", "--project", root)
-    assert code == 0 and "iam: the vocabulary declares no PolicyRule" in out, out
+    assert code == 0 and "iam:" not in out and "policy:" not in out, "a project without the pack never runs its stages: " + out
     assert not os.path.isdir(Project.standard(root).layout.iam)
 
 

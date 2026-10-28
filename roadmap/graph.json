@@ -1200,6 +1200,63 @@
       "sources": [
         "0005-iam-is-generated-never-enforced"
       ]
+    },
+    {
+      "id": "decision.adr-0006",
+      "type": "Decision",
+      "label": "The core is the knowledge graph, its tools and its deploy; frameworks and domains are packs",
+      "summary": "OTO's core is the knowledge graph's lifecycle with its tools, the estate and the reified model it is described in, and the deploy of the graph; an architecture framework is a pack plus an adapter, and a domain feature is a pack plus its tools, loaded only when the pack is composed in the project.",
+      "attributes": {
+        "status": "accepted",
+        "decided_on": "2026-10-28",
+        "rationale": "OTO's core is the knowledge graph's lifecycle with its tools, the estate and the reified model it is described in, and the deploy of the graph; an architecture framework is a pack plus an adapter, and a domain feature is a pack plus its tools, loaded only when the pack is composed in the project."
+      },
+      "valid_from": "2026-10-28",
+      "evidence": [
+        {
+          "doc": "0006-the-core-and-the-packs",
+          "where": "Decision",
+          "quote": "OTO's core is the knowledge graph's lifecycle with its tools, the estate and the reified model it is described in, and the deploy of the graph; an architecture framework is a pack plus an adapter, and a domain feature is a pack plus its tools, loaded only when the pack is composed in the project."
+        },
+        {
+          "doc": "0006-the-core-and-the-packs",
+          "where": "frontmatter",
+          "quote": "decided_on: 2026-10-28"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-28",
+      "source_doc": "0006-the-core-and-the-packs",
+      "sources": [
+        "0006-the-core-and-the-packs"
+      ]
+    },
+    {
+      "id": "document.0006-the-core-and-the-packs",
+      "type": "Document",
+      "label": "The core is the knowledge graph, its tools and its deploy; frameworks and domains are packs",
+      "summary": "ADR ADR-0006, the record of this decision.",
+      "attributes": {
+        "kind": "adr"
+      },
+      "valid_from": "2026-10-28",
+      "evidence": [
+        {
+          "doc": "0006-the-core-and-the-packs",
+          "where": "title",
+          "quote": "The core is the knowledge graph, its tools and its deploy; frameworks and domains are packs"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-28",
+      "source_doc": "0006-the-core-and-the-packs",
+      "sources": [
+        "0006-the-core-and-the-packs"
+      ]
     }
   ],
   "edges": [
@@ -1420,6 +1477,51 @@
     },
     {
       "from": "decision.adr-0005",
+      "rel": "decided_by",
+      "to": "person.chiheb-dkhil"
+    },
+    {
+      "from": "decision.adr-0006",
+      "rel": "documented_in",
+      "to": "document.0006-the-core-and-the-packs"
+    },
+    {
+      "from": "decision.adr-0006",
+      "rel": "governs",
+      "to": "workitem.epic-c"
+    },
+    {
+      "from": "decision.adr-0006",
+      "rel": "governs",
+      "to": "workitem.epic-e"
+    },
+    {
+      "from": "decision.adr-0006",
+      "rel": "governs",
+      "to": "workitem.epic-h"
+    },
+    {
+      "from": "decision.adr-0006",
+      "rel": "governs",
+      "to": "workitem.epic-i"
+    },
+    {
+      "from": "decision.adr-0006",
+      "rel": "governs",
+      "to": "workitem.epic-j"
+    },
+    {
+      "from": "decision.adr-0006",
+      "rel": "governs",
+      "to": "workitem.epic-m"
+    },
+    {
+      "from": "decision.adr-0006",
+      "rel": "governs",
+      "to": "workitem.epic-n"
+    },
+    {
+      "from": "decision.adr-0006",
       "rel": "decided_by",
       "to": "person.chiheb-dkhil"
     }

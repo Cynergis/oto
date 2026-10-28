@@ -109,12 +109,26 @@ def _mount(prefix, app_dir, project_root):
 _STORE_LOCK = threading.RLock()
 
 
+def _pack_routes(project_root):
+    """The routes the packs composed in the served project provide; none without a project to read."""
+    if not project_root:
+        return {}
+    try:
+        from .. import extensions
+        from ..project import Project
+        return extensions.routes(Project.standard(project_root))
+    except Exception as exc:                                          # noqa: BLE001 - a store-only checkout has no project to read
+        print("oto serve: no pack routes (%s)" % exc, file=sys.stderr)
+        return {}
+
+
 def make_handler(engine, app_dir=None, project_root=None, identity=None, token=None, cors=(), mounts=None, catalog=None):
     """`app_dir` is served at /; each of `mounts`, [(name, directory)], at /<name>/ with its own data
     files, so a project's views sit side by side under one home page; `catalog` is served as
     /views.json for that page. A view's relative addresses (data.json, api/...) resolve under its prefix."""
     mounted = ([_mount("", app_dir, project_root)] if app_dir else []) + \
         [_mount(name, directory, project_root) for name, directory in (mounts or [])]
+    extra_routes = _pack_routes(project_root)                      # a composed pack's endpoints (provides.endpoints, oto/extensions.py)
     by_prefix = {m["prefix"]: m for m in mounted}
     studio_views = list(mounts or [])
     origins = tuple(o.strip().rstrip("/") for o in (cors or ()) if o and o.strip())
@@ -328,8 +342,12 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
 
         def _api(self, path, args):
             engine.ensure_fresh()
+            if path in extra_routes:
+                status, obj = extra_routes[path](args)
+                return self._json(status, obj)
             if path == "/api/tools":
                 routes = {"/api/%s" % r: t for r, t in sorted(ROUTES.items())}
+                routes.update({p: "provided by a pack" for p in sorted(extra_routes)})
                 routes.update({"/api/graph": "the whole graph as data", "/api/ontology": "the ontology as a model (?class=<Name> for one class)",
                                "/api/ontology/diff": "the vocabulary at a git ref against the working tree or another ref (?from=<ref>&to=<ref>)",
                                "/api/rules": "the rules as a person reads them (?class=<Name> for those that apply to one class)",

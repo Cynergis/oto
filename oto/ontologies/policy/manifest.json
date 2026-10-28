@@ -36,5 +36,33 @@
       "at": "2026-10-27",
       "note": "First release (roadmap Epic E, E1): PolicyRule and Permission on data, a rule for a role or a team with one permission and optional resources, classification and pii on Table and Column, a table holding personal data when a column does, PL1-PL5, awaiting confirmation. ADR-0004 chooses Cedar as what the rules compile to."
     }
-  ]
+  ],
+  "provides": {
+    "stages": [
+      {
+        "name": "policy",
+        "module": "oto.targets.policy",
+        "owns": [
+          "policy"
+        ]
+      },
+      {
+        "name": "iam",
+        "module": "oto.targets.iam",
+        "owns": [
+          "iam"
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "name": "policy",
+        "module": "oto.cli.policy",
+        "label": "policy"
+      }
+    ],
+    "write_hooks": [
+      "oto.policy:enforce"
+    ]
+  }
 }

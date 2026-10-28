@@ -241,7 +241,7 @@ def test_a_project_without_the_pack_writes_no_bundle(tmp_path):
     with contextlib.redirect_stdout(io.StringIO()):
         init(root, slug="acme", name="Acme", ontology="software-architecture")
     code, out = _cli("build", "--project", root)
-    assert code == 0 and "policy: the vocabulary declares no PolicyRule" in out, out
+    assert code == 0 and "policy:" not in out, "a project without the pack never runs its stage (ADR-0006): " + out
     assert not os.path.exists(Project.standard(root).layout.policy)
     code, out = _cli("policy", "compile", "--project", root)
     assert code == 1 and "PolicyRule" in out

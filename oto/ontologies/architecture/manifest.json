@@ -38,5 +38,22 @@
       "at": "2026-10-26",
       "note": "First release (roadmap Epic H, H1): CALM 1.0 nodes, relationships, controls and flows on software-architecture; NFR, Evidence, CodeModule, Commit, ChangeProposal; AR1-AR9, awaiting confirmation."
     }
-  ]
+  ],
+  "provides": {
+    "commands": [
+      {
+        "name": "arch",
+        "module": "oto.cli.arch",
+        "label": "architecture (CALM)"
+      }
+    ],
+    "adapters": [
+      {
+        "framework": "calm",
+        "module": "oto.arch",
+        "import": "import_calm",
+        "export": "export_calm"
+      }
+    ]
+  }
 }

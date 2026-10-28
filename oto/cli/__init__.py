@@ -35,35 +35,59 @@ Each exposes `register(sub)` to add its parsers, and a `cmd_*` handler per comma
 import what they need lazily, so `oto --help` and `oto version` start without loading the engine.
 """
 import argparse
+import importlib
 import sys
 
 from .. import __version__
 from ..project import ProjectError
-from . import arch, audit, bench, build, capture, clipboard, connectors, curate, data, ddd, decide, deploy, draft, factory, feedback, graphs, ingest, init, lexicon, lock, ontology, pack, policy, preview, publish, publishable, query, registry, rules, sandbox, status, tools, vet, work
-
-COMMANDS = (init, status, lock, sandbox, ingest, capture, clipboard, ontology, lexicon, pack, registry, rules, tools, curate, data, deploy, connectors, draft, vet, build, preview, query, publish, publishable, bench, feedback, work, audit, graphs, arch, ddd, decide, factory, policy)
+from . import audit, bench, build, capture, clipboard, connectors, curate, decide, deploy, draft, feedback, graphs, ingest, init, lexicon, lock, ontology, pack, preview, publish, publishable, query, registry, rules, sandbox, status, tools, vet
 
 # The core and the packs (ADR-0006). The core is the knowledge graph's lifecycle with its tools and
-# its deploy; a pack command works only on a project whose vocabulary composes its pack, and says
-# so otherwise. The grouping is what `oto --help` prints; the packs' code still ships in the engine
-# until it moves behind the pack seams.
+# its deploy; these are its commands. A pack's command comes from the pack's manifest
+# (`provides.commands`, oto/extensions.py), is discovered from every pack the machine has, works only
+# on a project whose vocabulary composes its pack, and says so otherwise. `oto --help` draws the line.
+CORE_COMMANDS = (init, status, lock, sandbox, ingest, capture, clipboard, ontology, lexicon, pack, registry, rules, tools, curate, deploy,
+                 connectors, draft, vet, build, preview, query, publish, publishable, bench, feedback, audit, graphs, decide)
+
+
+def pack_commands():
+    """[{name, module, label, pack}] the packs on this machine provide, from their manifests."""
+    from .. import extensions
+    return extensions.commands()
+
+
+def _pack_modules(found):
+    modules = []
+    for command in found:
+        try:
+            modules.append(importlib.import_module(command["module"]))
+        except ImportError as exc:
+            print("oto: pack %s provides the command %s, which does not import: %s" % (command["pack"], command["name"], exc), file=sys.stderr)
+    return modules
+
+
+_FOUND = pack_commands()
+COMMANDS = CORE_COMMANDS + tuple(_pack_modules(_FOUND))
+
 GROUPS = {
     "core": ("init", "status", "lock", "sandbox", "ingest", "capture", "clipboard", "ontology", "lexicon", "pack", "registry", "rules", "tools",
              "curate", "decide", "deploy", "connectors", "draft", "vet", "build", "preview", "query", "publish", "publishable", "bench",
              "feedback", "audit", "graph", "version"),
-    "packs": (("work", "work and communication"), ("data", "data"), ("arch", "architecture (CALM)"), ("ddd", "ddd"),
-              ("factory", "factory"), ("policy", "policy")),
+    "packs": tuple((c["name"], c["label"]) for c in _FOUND),
 }
 
 
-def _epilog():
+def _epilog(found):
     lines = ["core: the knowledge graph, its tools and its deploy",
              "  " + ", ".join(GROUPS["core"]),
              "",
              "packs: each works on a project whose vocabulary composes its pack (ADR-0006)"]
-    width = max(len(name) for name, _pack in GROUPS["packs"])
-    for name, pack in GROUPS["packs"]:
-        lines.append("  %-*s  %s" % (width, name, pack))
+    if found:
+        width = max(len(c["name"]) for c in found)
+        for c in found:
+            lines.append("  %-*s  %s" % (width, c["name"], c["label"]))
+    else:
+        lines.append("  none on this machine")
     return "\n".join(lines)
 
 
@@ -73,10 +97,11 @@ def cmd_version(args):
 
 
 def main(argv=None):
+    found = pack_commands()
     parser = argparse.ArgumentParser(prog="oto", description="OTO: a temporal knowledge graph built from your documents, served to agents, deployed like code.",
-                                     epilog=_epilog(), formatter_class=argparse.RawDescriptionHelpFormatter)
+                                     epilog=_epilog(found), formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command")
-    for command in COMMANDS:
+    for command in CORE_COMMANDS + tuple(_pack_modules(found)):
         command.register(sub)
     sub.add_parser("version", help="print the version").set_defaults(func=cmd_version)
 

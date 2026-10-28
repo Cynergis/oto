@@ -1,0 +1,25 @@
+{
+  "completed": true,
+  "completed_at": "2026-10-28T09:14:03",
+  "copied": false,
+  "files": [
+    {
+      "file": "0006-the-core-and-the-packs.md",
+      "outcome": "extracted",
+      "sha256": "973ca8c8c9c75511390ba1a30f675f20f0f373f46110f31e6f5e714227dc841e",
+      "size": 5146,
+      "slug": "0006-the-core-and-the-packs"
+    }
+  ],
+  "finished": "2026-10-28T09:14:02",
+  "inbox": "/Users/chihebdkhil/oto-doc/oto/roadmap/inbox",
+  "run_id": "20261028-091402",
+  "started": "2026-10-28T09:14:02",
+  "summary": {
+    "blocked": 0,
+    "extracted": 1,
+    "extraction-failed": 0,
+    "missing-parser": 0,
+    "unsupported": 0
+  }
+}

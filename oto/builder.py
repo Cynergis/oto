@@ -34,20 +34,26 @@ def generated_paths(project, only=None):
     The corpus is absent: it is produced by ingest from the inbox, not by the compile stages, and a
     test asserts that.
     """
+    from . import extensions
     layout = project.layout
     graph_files = [os.path.join(layout.graph, name) for name in GRAPH_FILES]
     owns = {"knowledge": [layout.entities] + graph_files, "rules": graph_files, "ontology": [layout.ontology],
-            "semantic": [layout.cards], "sqlite": [layout.database], "neo4j": [], "policy": [layout.policy], "iam": [layout.iam], "site": [layout.site]}
+            "semantic": [layout.cards], "sqlite": [layout.database], "neo4j": [], "site": [layout.site]}
+    for stage in extensions.contributed_stages(project):             # a pack's stage owns the layout paths its manifest names
+        owns[stage["name"]] = [getattr(layout, attr) for attr in stage["owns"] if hasattr(layout, attr)]
     out = []
-    for name, _path in STAGES:
+    for name, _path in extensions.stages(project):
         if only and name not in only:
             continue
-        for path in owns[name]:
+        for path in owns.get(name) or []:
             if path not in out:
                 out.append(path)
     return out
 
 
+# The core's stages. A composed pack's stages (its manifest's `provides.stages`, oto/extensions.py)
+# run after these targets and before the site: the policy bundle and the IAM bindings come from the
+# policy pack, not from here.
 STAGES = (
     ("knowledge", "oto.compile.knowledge"),
     ("rules", "oto.compile.rules"),
@@ -55,8 +61,6 @@ STAGES = (
     ("semantic", "oto.compile.semantic"),
     ("sqlite", "oto.targets.sqlite"),
     ("neo4j", "oto.targets.neo4j"),          # optional: skipped unless the project configures it
-    ("policy", "oto.targets.policy"),        # optional: skipped unless the vocabulary declares PolicyRule
-    ("iam", "oto.targets.iam"),              # optional: the generated system's bindings, beside the policy bundle (E7)
     ("site", "oto.targets.site"),            # optional: the static site, when targeted
 )
 
@@ -99,8 +103,8 @@ def _discard(project):
 
 def build(project, only=None, transactional=True):
     """Run the stages. Returns the list of stage names that ran."""
-    stages = [(name, path) for name, path in STAGES if not only or name in only]
-    from . import tracing
+    from . import extensions, tracing
+    stages = [(name, path) for name, path in extensions.stages(project) if not only or name in only]
 
     def stage(name, path):
         print("--- %s" % name)

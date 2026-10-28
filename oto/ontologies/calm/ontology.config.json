@@ -1,0 +1,12 @@
+{
+  "_about": "The CALM pack adds no term: a CALM model maps onto the architecture pack's reified model (estate nodes with external_id, external_type and external_payload; Relationship, Control, Flow and FlowStep as nodes). What the pack brings is the adapter (oto/packs/calm.py) its manifest provides, and this file exists so the pack composes like any other.",
+  "name": "CALM",
+  "ontology_version": 1,
+  "strict_domains": false,
+  "languages": [
+    "en"
+  ],
+  "classes": {},
+  "properties": {},
+  "attributes": {}
+}

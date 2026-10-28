@@ -88,7 +88,7 @@ def test_the_spec_is_projected_from_the_graph_schema_checked_and_hashed(domain):
     assert code == 0, out
     spec = json.loads(out)
     assert factory.check_spec(spec) == [], factory.check_spec(spec)
-    assert spec["schema_version"] == 1 and spec["component"] == {"id": "component.invoice-intake", "label": "Invoice intake", "calm_id": "invoice-intake", "calm_type": "service",
+    assert spec["schema_version"] == 1 and spec["component"] == {"id": "component.invoice-intake", "label": "Invoice intake", "external_id": "invoice-intake", "external_type": "service",
                                                                 "summary": "Accepts a submitted invoice, stores it and emits InvoiceSubmitted."}
     assert spec["context"]["id"] == "bc.invoice-approval" and spec["context"]["readiness"] == "draft" and spec["context"]["label"] == "Invoice approval"
     assert [u["label"] for u in spec["use_cases"]] == ["Submit an invoice for approval"]
@@ -192,8 +192,8 @@ def test_the_plan_follows_the_contexts_a_person_signed_off(domain, tmp_path):
 
 def test_a_cycle_of_draft_contracts_is_named_not_looped():
     graph = {"nodes": [
-        {"id": "component.a", "type": "Component", "label": "A", "attributes": {"calm_id": "a"}, "status": "current"},
-        {"id": "component.b", "type": "Component", "label": "B", "attributes": {"calm_id": "b"}, "status": "current"},
+        {"id": "component.a", "type": "Component", "label": "A", "attributes": {"external_id": "a"}, "status": "current"},
+        {"id": "component.b", "type": "Component", "label": "B", "attributes": {"external_id": "b"}, "status": "current"},
         {"id": "interface.ia", "type": "Interface", "label": "IA", "attributes": {}, "status": "current"},
         {"id": "interface.ib", "type": "Interface", "label": "IB", "attributes": {}, "status": "current"}],
         "edges": [{"from": "component.a", "rel": "exposes", "to": "interface.ia"}, {"from": "component.b", "rel": "consumes", "to": "interface.ia"},

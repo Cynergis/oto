@@ -1,7 +1,7 @@
 """The architecture pack (roadmap Epic H, H1): the architecture graph for implementation, aligned
 with CALM 1.0 (the FINOS Common Architecture Language Model), on software-architecture.
 
-    calm_id, calm_type       a CALM node is an estate node: system, service, database, network, actor, ...
+    external_id, external_type       a CALM node is an estate node: system, service, database, network, actor, ...
     Relationship             a CALM relationship as a node: interacts, connects, deployed-in, composed-of, options; its protocol
     Control, Flow, FlowStep  what governs a node or a connection; an ordered walk over relationships
     NFR, Evidence            a requirement with a metric and a budget, and what measured it
@@ -46,10 +46,14 @@ def _enum(spec):
 
 # ---- the vocabulary ----
 
-def test_the_pack_sits_on_software_architecture_and_pins_calm():
+def test_the_pack_sits_on_software_architecture_and_the_calm_pack_pins_calm():
     manifest = ontologies.manifest_for("architecture")
-    assert manifest["extends"] == ["software-architecture"] and manifest["release"] == 4 and manifest["domain"] == "software"
-    assert manifest["engine"] == ">=0.11" and CALM in manifest["summary"], "the CALM release is pinned where the pack says what it is"
+    assert manifest["extends"] == ["software-architecture"] and manifest["release"] == 5 and manifest["domain"] == "software"
+    assert manifest["engine"] == ">=0.11" and "framework-neutral" in manifest["summary"], "the pack names no framework; CALM is the calm pack's"
+    calm_pack = ontologies.manifest_for("calm")
+    assert calm_pack["extends"] == ["architecture"] and ontologies.self_check("calm") == [], ontologies.self_check("calm")
+    _config, _sample, calm_readme = ontologies.load("calm")
+    assert CALM in calm_readme, "the CALM release is pinned where the adapter's pack says what it is"
     assert ontologies.self_check("architecture") == [], ontologies.self_check("architecture")
     config, _sample, readme = ontologies.load("architecture")
     assert {"Relationship", "Control", "Flow", "FlowStep", "NFR", "Evidence", "CodeModule", "Commit", "ChangeProposal"} <= set(config["classes"])
@@ -57,20 +61,22 @@ def test_the_pack_sits_on_software_architecture_and_pins_calm():
         "composed on the estate: nothing is declared twice"
     assert set(_own()["classes"]) == {"Relationship", "Control", "Flow", "FlowStep", "NFR", "Evidence", "CodeModule", "Commit", "ChangeProposal", "Contract"}, \
         "a CALM node is an estate node, not a class of its own"
-    assert CALM in readme and ("first draft" in readme.lower() or "edit it" in readme.lower())
+    assert "calm_id" not in readme and "a calm node is an estate node" not in readme.lower(), "the README speaks of a framework's node; CALM is the calm pack's"
+    assert "first draft" in readme.lower() or "edit it" in readme.lower()
 
 
 def test_a_calm_node_is_an_estate_node_with_its_id_and_type():
     own = _own()
     for kind in ("System", "Component", "DataStore", "Environment", "Role"):
-        assert own["attributes"][kind]["calm_id"]["type"] == "string", kind
-        assert own["attributes"][kind]["calm_type"]["type"] == "string" and all(t in own["attributes"][kind]["calm_type"]["definition"] for t in NODE_TYPES), \
-            "CALM's nine node types are named, and any other string is kept as given (CALM allows one)"
-        assert own["attributes"][kind]["calm_metadata"]["type"] == "string", "metadata carried as given, never read"
-        assert own["attributes"][kind]["calm_details"]["type"] == "string", "a node's details, carried as given"
-    assert own["attributes"]["Decision"]["calm_option"]["type"] == "string", "an options relationship's decision, carried as given"
-    assert own["attributes"]["Document"]["calm_header"]["type"] == "string", "the model's own header: schema, id, name, metadata, adrs"
-    assert own["attributes"]["Interface"]["calm_id"]["type"] == "string"
+        assert own["attributes"][kind]["external_id"]["type"] == "string", kind
+        assert own["attributes"][kind]["external_type"]["type"] == "string" and "as the framework names it" in own["attributes"][kind]["external_type"]["definition"], \
+            "the type is the framework's, kept as given; which types map to which class is the adapter's call"
+        assert own["attributes"][kind]["external_payload"]["type"] == "string", "what the framework carries beyond these facts, as given, never read"
+        assert "external_id" in own["attributes"][kind] and "calm_id" not in own["attributes"][kind]
+    assert own["attributes"]["Decision"]["external_payload"]["type"] == "string", "an options relationship's decision, carried as given"
+    assert own["attributes"]["Document"]["external_payload"]["type"] == "string" and own["attributes"]["Document"]["framework"]["type"] == "string", \
+        "the model's own header, and the framework it was read with"
+    assert own["attributes"]["Interface"]["external_id"]["type"] == "string"
     assert own["attributes"]["Interface"]["definition_url"]["type"] == "string" and own["attributes"]["Interface"]["config"]["type"] == "string", \
         "an interface definition: the schema it conforms to and its configuration, as given"
     config, _sample, _readme = ontologies.load("architecture")
@@ -82,7 +88,7 @@ def test_a_relationship_is_a_node_with_its_ends_its_kind_and_its_protocol():
     rel = own["attributes"]["Relationship"]
     assert _enum(rel["kind"]) == RELATIONSHIP_KINDS and rel["kind"]["required"] is True
     assert _enum(rel["protocol"]) == PROTOCOLS
-    assert rel["calm_id"]["required"] is True and rel["calm_metadata"]["type"] == "string"
+    assert rel["external_id"]["required"] is True and rel["external_payload"]["type"] == "string"
     props = own["properties"]
     assert props["connects_from"]["domain"] == "Relationship" and set(props["connects_from"]["range"].split("|")) == {"System", "Component", "DataStore", "Environment", "Role"}
     assert props["connects_to"]["domain"] == "Relationship" and set(props["connects_to"]["range"].split("|")) == {"System", "Component", "DataStore", "Environment"}
@@ -91,7 +97,7 @@ def test_a_relationship_is_a_node_with_its_ends_its_kind_and_its_protocol():
     assert props["safeguards"]["domain"] == "Control" and {"Relationship", "Flow", "Component", "DataStore"} <= set(props["safeguards"]["range"].split("|"))
     assert "governs" not in props, "a decision's `governs` stays the decision's: a control has its own relation, so what no control safeguards can be asked"
     control = own["attributes"]["Control"]
-    assert control["calm_id"]["required"] is True and control["requirement_url"]["required"] is True
+    assert control["external_id"]["required"] is True and control["requirement_url"]["required"] is True
     assert control["config_url"]["type"] == "string" and control["config"]["type"] == "string"
 
 
@@ -102,7 +108,7 @@ def test_a_flow_is_ordered_steps_over_relationships():
     assert _enum(step["direction"]) == ["source-to-destination", "destination-to-source"] and step["direction"]["default"] == "source-to-destination"
     assert own["properties"]["step_of"] == dict(own["properties"]["step_of"], domain="FlowStep", range="Flow", min=1, max=1)
     assert own["properties"]["over"] == dict(own["properties"]["over"], domain="FlowStep", range="Relationship", min=1, max=1)
-    assert own["attributes"]["Flow"]["calm_id"]["required"] is True and own["attributes"]["Flow"]["requirement_url"]["type"] == "string"
+    assert own["attributes"]["Flow"]["external_id"]["required"] is True and own["attributes"]["Flow"]["requirement_url"]["type"] == "string"
 
 
 def test_implementation_traces_from_a_requirement_through_evidence_code_and_commits():
@@ -181,13 +187,13 @@ def test_the_sample_is_the_invoice_approval_example():
     assert {"Relationship", "Control", "Flow", "FlowStep", "NFR", "Evidence", "CodeModule", "Commit", "ChangeProposal", "System", "Component", "DataStore", "Environment", "Role", "Interface", "Decision", "Repository"} <= kinds
     relationships = [n for n in own.values() if n["type"] == "Relationship"]
     assert {n["attributes"]["kind"] for n in relationships} == set(RELATIONSHIP_KINDS), "one of each CALM shape"
-    assert all(n["attributes"].get("calm_id") for n in relationships)
+    assert all(n["attributes"].get("external_id") for n in relationships)
     assert {n["attributes"].get("protocol") for n in relationships if n["attributes"]["kind"] == "connects"} <= set(PROTOCOLS)
     components = [n for n in own.values() if n["type"] == "Component"]
-    assert all(n["attributes"]["calm_type"] == "service" and n["attributes"]["calm_id"] for n in components)
-    assert any(n["type"] == "DataStore" and n["attributes"]["calm_type"] == "database" for n in own.values())
-    assert any(n["type"] == "Environment" and n["attributes"]["calm_type"] == "network" for n in own.values())
-    assert any(n["type"] == "Role" and n["attributes"].get("calm_id") for n in own.values()), "the clerk is the actor"
+    assert all(n["attributes"]["external_type"] == "service" and n["attributes"]["external_id"] for n in components)
+    assert any(n["type"] == "DataStore" and n["attributes"]["external_type"] == "database" for n in own.values())
+    assert any(n["type"] == "Environment" and n["attributes"]["external_type"] == "network" for n in own.values())
+    assert any(n["type"] == "Role" and n["attributes"].get("external_id") for n in own.values()), "the clerk is the actor"
     steps = sorted((n["attributes"]["sequence"] for n in own.values() if n["type"] == "FlowStep"))
     assert steps == [1, 2, 3]
     edges = {(e["from"], e["rel"], e["to"]) for e in sample["edges"]}

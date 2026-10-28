@@ -1356,8 +1356,8 @@ def arch_context_text(path=None, node_term=None):
     L = ["=== %s  [%s]  (%s) ===" % (n["label"], n["type"], nid)]
     if n["summary"]:
         L.append(n["summary"])
-    if a.get("calm_type"):
-        L.append("calm: %s (%s)" % (a.get("calm_id") or "-", a["calm_type"]))
+    if a.get("external_type") or a.get("external_id"):
+        L.append("framework node: %s (%s)" % (a.get("external_id") or "-", a.get("external_type") or "-"))
     if module:
         L.append("from %s (%s)" % (path, label(module)))
     reqs = [e["dst"] for e in STORE.edges_out(nid, "satisfies") if node(e["dst"])]

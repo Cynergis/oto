@@ -6,9 +6,9 @@
       "label": "Invoice platform",
       "summary": "The invoice approval platform: intake, approval policy and payment scheduling, one CALM architecture.",
       "attributes": {
-        "calm_id": "invoice-platform",
-        "calm_type": "system",
-        "calm_metadata": "{\"owner\": \"payments-platform\", \"tier\": \"2\"}"
+        "external_id": "invoice-platform",
+        "external_type": "system",
+        "external_payload": "{\"metadata\": {\"owner\": \"payments-platform\", \"tier\": \"2\"}}"
       },
       "aliases": [],
       "tags": [],
@@ -58,8 +58,8 @@
       "label": "Payments network",
       "summary": "The network segment the invoice services are deployed in.",
       "attributes": {
-        "calm_id": "payments-network",
-        "calm_type": "network"
+        "external_id": "payments-network",
+        "external_type": "network"
       },
       "aliases": [],
       "tags": [],
@@ -77,7 +77,7 @@
       "label": "Accounts payable clerk",
       "summary": "The person who submits a supplier invoice for approval.",
       "attributes": {
-        "calm_id": "ap-clerk"
+        "external_id": "ap-clerk"
       },
       "aliases": [],
       "tags": [],
@@ -95,9 +95,9 @@
       "label": "Invoice intake",
       "summary": "Accepts a submitted invoice, stores it and emits InvoiceSubmitted.",
       "attributes": {
-        "calm_id": "invoice-intake",
-        "calm_type": "service",
-        "resource_uri": "//run.googleapis.com/projects/acme-invoices/locations/europe-west1/services/invoice-intake"
+        "resource_uri": "//run.googleapis.com/projects/acme-invoices/locations/europe-west1/services/invoice-intake",
+        "external_id": "invoice-intake",
+        "external_type": "service"
       },
       "aliases": [],
       "tags": [],
@@ -115,8 +115,8 @@
       "label": "Approval policy",
       "summary": "Applies the approval rules to a submitted invoice and emits InvoiceApproved.",
       "attributes": {
-        "calm_id": "approval-policy",
-        "calm_type": "service"
+        "external_id": "approval-policy",
+        "external_type": "service"
       },
       "aliases": [],
       "tags": [],
@@ -134,8 +134,8 @@
       "label": "Payment scheduler",
       "summary": "Schedules the payment of an approved invoice.",
       "attributes": {
-        "calm_id": "payment-scheduler",
-        "calm_type": "service"
+        "external_id": "payment-scheduler",
+        "external_type": "service"
       },
       "aliases": [],
       "tags": [],
@@ -153,9 +153,9 @@
       "label": "Invoice database",
       "summary": "Where submitted invoices and their approval state live.",
       "attributes": {
-        "calm_id": "invoice-db",
-        "calm_type": "database",
-        "resource_uri": "//bigquery.googleapis.com/projects/acme-invoices/datasets/invoices"
+        "resource_uri": "//bigquery.googleapis.com/projects/acme-invoices/datasets/invoices",
+        "external_id": "invoice-db",
+        "external_type": "database"
       },
       "aliases": [],
       "tags": [],
@@ -174,9 +174,9 @@
       "summary": "The HTTPS API an invoice is submitted through.",
       "attributes": {
         "url": "https://invoice.example/api/v1/invoices",
-        "calm_id": "invoice-api",
         "definition_url": "https://invoice.example/calm/interfaces/https-url.json",
-        "config": "{\"url\": \"https://invoice.example/api/v1/invoices\"}"
+        "config": "{\"url\": \"https://invoice.example/api/v1/invoices\"}",
+        "external_id": "invoice-api"
       },
       "aliases": [],
       "tags": [],
@@ -194,9 +194,9 @@
       "label": "Invoice events",
       "summary": "The AMQP exchange invoice events are published on.",
       "attributes": {
-        "calm_id": "invoice-events",
         "definition_url": "https://invoice.example/calm/interfaces/amqp-exchange.json",
-        "config": "{\"exchange\": \"invoices\", \"routing-key\": \"invoice.*\"}"
+        "config": "{\"exchange\": \"invoices\", \"routing-key\": \"invoice.*\"}",
+        "external_id": "invoice-events"
       },
       "aliases": [],
       "tags": [],
@@ -235,8 +235,8 @@
       "label": "Clerk submits an invoice",
       "summary": "The accounts payable clerk interacts with the invoice intake.",
       "attributes": {
-        "calm_id": "clerk-submits",
-        "kind": "interacts"
+        "kind": "interacts",
+        "external_id": "clerk-submits"
       },
       "aliases": [],
       "tags": [],
@@ -254,10 +254,10 @@
       "label": "Intake stores the invoice",
       "summary": "The intake writes the invoice to the database over JDBC.",
       "attributes": {
-        "calm_id": "intake-stores",
         "kind": "connects",
         "protocol": "JDBC",
-        "calm_metadata": "{\"pii\": true}"
+        "external_id": "intake-stores",
+        "external_payload": "{\"metadata\": {\"pii\": true}}"
       },
       "aliases": [],
       "tags": [],
@@ -275,9 +275,9 @@
       "label": "Intake emits InvoiceSubmitted",
       "summary": "The intake publishes InvoiceSubmitted on the invoice events exchange, which the approval policy consumes.",
       "attributes": {
-        "calm_id": "intake-emits",
         "kind": "connects",
-        "protocol": "AMQP"
+        "protocol": "AMQP",
+        "external_id": "intake-emits"
       },
       "aliases": [],
       "tags": [],
@@ -295,9 +295,9 @@
       "label": "Policy schedules the payment",
       "summary": "The approval policy calls the payment scheduler over HTTPS once an invoice is approved.",
       "attributes": {
-        "calm_id": "policy-schedules",
         "kind": "connects",
-        "protocol": "HTTPS"
+        "protocol": "HTTPS",
+        "external_id": "policy-schedules"
       },
       "aliases": [],
       "tags": [],
@@ -315,8 +315,8 @@
       "label": "Deployed in the payments network",
       "summary": "The three services and the database are deployed in the payments network.",
       "attributes": {
-        "calm_id": "deployed-in-network",
-        "kind": "deployed-in"
+        "kind": "deployed-in",
+        "external_id": "deployed-in-network"
       },
       "aliases": [],
       "tags": [],
@@ -334,8 +334,8 @@
       "label": "The platform is composed of its services",
       "summary": "The invoice platform is composed of the three services.",
       "attributes": {
-        "calm_id": "platform-composition",
-        "kind": "composed-of"
+        "kind": "composed-of",
+        "external_id": "platform-composition"
       },
       "aliases": [],
       "tags": [],
@@ -409,8 +409,8 @@
       "label": "Where the invoice store lives",
       "summary": "The options for the invoice store, a decision still open.",
       "attributes": {
-        "calm_id": "store-options",
-        "kind": "options"
+        "kind": "options",
+        "external_id": "store-options"
       },
       "aliases": [],
       "tags": [],
@@ -428,9 +428,9 @@
       "label": "PII encrypted at rest",
       "summary": "Invoice data carries supplier bank details: encrypted at rest and in the JDBC connection.",
       "attributes": {
-        "calm_id": "pii-at-rest",
         "requirement_url": "https://invoice.example/calm/controls/encryption-at-rest.requirement.json",
-        "config_url": "https://invoice.example/calm/controls/encryption-at-rest.config.json"
+        "config_url": "https://invoice.example/calm/controls/encryption-at-rest.config.json",
+        "external_id": "pii-at-rest"
       },
       "aliases": [],
       "tags": [],
@@ -448,8 +448,8 @@
       "label": "Invoice approval",
       "summary": "A submitted invoice is stored, judged by the approval policy and scheduled for payment.",
       "attributes": {
-        "calm_id": "invoice-approval",
-        "requirement_url": "https://invoice.example/calm/flows/invoice-approval.requirement.json"
+        "requirement_url": "https://invoice.example/calm/flows/invoice-approval.requirement.json",
+        "external_id": "invoice-approval"
       },
       "aliases": [],
       "tags": [],
@@ -697,9 +697,9 @@
       "summary": "The HTTPS API the approval policy calls to schedule an approved invoice's payment.",
       "attributes": {
         "url": "https://invoice.example/api/v1/schedules",
-        "calm_id": "scheduling-api",
         "definition_url": "https://invoice.example/calm/interfaces/https-url.json",
-        "config": "{\"url\": \"https://invoice.example/api/v1/schedules\"}"
+        "config": "{\"url\": \"https://invoice.example/api/v1/schedules\"}",
+        "external_id": "scheduling-api"
       },
       "aliases": [],
       "tags": [],

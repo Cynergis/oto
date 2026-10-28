@@ -67,7 +67,7 @@ signed like the policy bundle, verified by `oto policy verify build/iam` and car
 `oto publish`. The controls are the bindings written back into the graph: one generated `Control`
 per resource, carrying `generated_by`, that `safeguards` the resource and the components running
 as its members and `derives_from` the rules it came from; `oto policy iam --apply --by <who>` takes
-them through the gates, and `oto arch export --calm` then carries them. OTO never enforces these
+them through the gates, and `oto arch export --framework calm` then carries them. OTO never enforces these
 bindings: they ship with the system and the platform enforces them; the hooks, the snapshot and
 the served engine keep enforcing the policy on OTO's own actions. PL8 asks what runs as a
 principal and which generated controls bind it, from which rules. The sample's invoice intake

@@ -1,7 +1,7 @@
 # Domain-driven design — the solution's model
 
 Sits on `architecture` (and so on `software-architecture` and `product`): a context's `deployed_as`
-component and its CALM node are one node, with one `calm_id` (roadmap I1). The design of a product's solution for a builder
+component and its architecture node are one node, with one `external_id` (roadmap I1). The design of a product's solution for a builder
 agent: **strategic** (subdomains, bounded contexts, the context map), **event storming** (events,
 commands, reactions, read models, external systems) and **tactical** (aggregates, entities, value
 objects, business rules, domain services).

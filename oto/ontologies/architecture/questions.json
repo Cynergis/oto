@@ -56,34 +56,30 @@
       },
       "gate": "any",
       "terms": [
-        "Relationship.calm_id",
-        "Relationship.calm_metadata",
+        "Relationship.external_id",
+        "Relationship.external_payload",
         "offers_option",
-        "System.calm_id",
-        "System.calm_type",
-        "System.calm_metadata",
-        "Component.calm_id",
-        "Component.calm_type",
-        "Component.calm_metadata",
-        "DataStore.calm_id",
-        "DataStore.calm_type",
-        "DataStore.calm_metadata",
-        "Environment.calm_id",
-        "Environment.calm_type",
-        "Environment.calm_metadata",
-        "Role.calm_id",
-        "Interface.calm_id",
+        "System.external_id",
+        "System.external_type",
+        "System.external_payload",
+        "Component.external_id",
+        "Component.external_type",
+        "Component.external_payload",
+        "DataStore.external_id",
+        "DataStore.external_type",
+        "DataStore.external_payload",
+        "Environment.external_id",
+        "Environment.external_type",
+        "Environment.external_payload",
+        "Role.external_id",
+        "Interface.external_id",
         "Interface.definition_url",
         "Interface.config",
-        "System.calm_details",
-        "Component.calm_details",
-        "DataStore.calm_details",
-        "Environment.calm_details",
-        "Role.calm_type",
-        "Role.calm_metadata",
-        "Role.calm_details",
-        "Decision.calm_option",
-        "Document.calm_header"
+        "Role.external_type",
+        "Role.external_payload",
+        "Decision.external_payload",
+        "Document.external_payload",
+        "Document.framework"
       ]
     },
     "AR2": {
@@ -119,7 +115,7 @@
       },
       "gate": "any",
       "terms": [
-        "Control.calm_id",
+        "Control.external_id",
         "Control.config"
       ]
     },
@@ -164,9 +160,9 @@
       },
       "gate": "any",
       "terms": [
-        "Flow.calm_id",
+        "Flow.external_id",
         "Flow.requirement_url",
-        "Flow.calm_metadata"
+        "Flow.external_payload"
       ]
     },
     "AR4": {

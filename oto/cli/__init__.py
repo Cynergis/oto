@@ -16,7 +16,7 @@ One module per command, in the order a project moves through them:
     connectors.py  oto connectors               the stores a build publishes to, and the conformance kit
     curate.py      oto curate                   gated changes to the curated graph, batches via add
     data.py        oto data                     the data layer: a store's schema, lineage and usage read in; a meaning drafted (skeleton) and confirmed by a person
-    arch.py        oto arch                     the architecture graph: a CALM model in, through the gates, and back out
+    arch.py        oto arch                     the architecture graph: a framework's model in through its adapter, the code map, compile, impact
     ddd.py         oto ddd                      the factory's domain graph: an event-storming board in, through the capture form
     decide.py      oto decide                   a named person moves a decision attribute: readiness, a confirmation
     factory.py     oto factory                  the factory's inputs from the graph: a component's spec, the build plan

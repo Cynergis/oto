@@ -431,10 +431,10 @@
    "label": "IAM bindings on invoices.invoices",
    "summary": "What the platform lets serviceAccount:factory-runner@acme.iam, serviceAccount:invoice-intake@acme.iam do on invoices.invoices, derived from the access policy by oto policy iam; the platform enforces it, OTO does not.",
    "attributes": {
-    "calm_id": "iam-table-invoices",
-    "requirement_url": "https://cynergis.ai/calm/controls/iam-bindings.requirement.json",
+    "requirement_url": "https://cynergis.ai/controls/iam-bindings.requirement.json",
     "generated_by": "oto policy iam",
-    "config": "{\"requirements\":[{\"config\":{\"bindings\":[{\"members\":[\"serviceAccount:invoice-intake@acme.iam\"],\"role\":\"roles/bigquery.dataEditor\"},{\"members\":[\"serviceAccount:factory-runner@acme.iam\"],\"role\":\"roles/bigquery.dataViewer\"}],\"provider\":\"gcp\",\"resource\":\"//bigquery.googleapis.com/projects/acme-invoices/datasets/invoices/tables/invoices\",\"withheld\":[]},\"requirement-url\":\"https://cynergis.ai/calm/controls/iam-bindings.requirement.json\"}]}"
+    "config": "{\"requirements\":[{\"config\":{\"bindings\":[{\"members\":[\"serviceAccount:invoice-intake@acme.iam\"],\"role\":\"roles/bigquery.dataEditor\"},{\"members\":[\"serviceAccount:factory-runner@acme.iam\"],\"role\":\"roles/bigquery.dataViewer\"}],\"provider\":\"gcp\",\"resource\":\"//bigquery.googleapis.com/projects/acme-invoices/datasets/invoices/tables/invoices\",\"withheld\":[]},\"requirement-url\":\"https://cynergis.ai/controls/iam-bindings.requirement.json\"}]}",
+    "external_id": "iam-table-invoices"
    },
    "as_of": "2026-10-27",
    "valid_from": "2026-10-27",

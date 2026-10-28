@@ -33,6 +33,8 @@ from ..arch import ArchError, CONTROL, DECISION, DOCUMENT, FLOW, INTERFACE, ISO_
 from ..data import _slug
 
 FRAMEWORK = "calm"
+IAM_BINDING = "IamBinding"                       # the policy pack's binding node: exported as a control when both packs are composed
+IAM_REQUIREMENT_URL = "https://cynergis.ai/controls/iam-bindings.requirement.json"
 NODE_CLASS = {"system": "System", "ecosystem": "System", "service": "Component", "webclient": "Component",
               "database": "DataStore", "data-asset": "DataStore", "datastore": "DataStore", "ldap": "DataStore", "network": "Environment", "actor": "Role"}
 DEFAULT_CLASS = "Component"
@@ -390,6 +392,21 @@ def write_model(project):
         if e.get("rel") == "safeguards":
             safeguarded.setdefault(e["to"], []).append(e["from"])
     attached = {c for targets in safeguarded.values() for c in targets}
+    iam_controls = {}                                                # node id -> {control id: body}, the policy pack's bindings as controls
+    for b in nodes:
+        if b.get("type") != IAM_BINDING:
+            continue
+        ba = attrs(b)
+        cid = "iam-%s" % (b["id"].split(".", 1)[1] if "." in b["id"] else b["id"])
+        body = {"description": b.get("summary") or "",
+                "requirements": [{"requirement-url": IAM_REQUIREMENT_URL,
+                                  "config": {"provider": ba.get("provider"), "resource": ba.get("resource_uri"),
+                                             "bindings": _loads(ba.get("bindings"), []), "withheld": _loads(ba.get("withheld"), [])}}]}
+        targets = set(outgoing.get((b["id"], "binds"), []))
+        for pid in outgoing.get((b["id"], "grants"), []):
+            targets |= {e["from"] for e in edges if e.get("rel") == "runs_as" and e.get("to") == pid}
+        for t in targets:
+            iam_controls.setdefault(t, {})[cid] = body
 
     def control_map(cids):
         mapping = {}
@@ -419,6 +436,7 @@ def write_model(project):
         if interfaces:
             item["interfaces"] = interfaces
         controls = control_map(safeguarded.get(n["id"], []))
+        controls.update(iam_controls.get(n["id"], {}))
         if controls:
             item["controls"] = controls
         if payload.get("metadata") is not None:

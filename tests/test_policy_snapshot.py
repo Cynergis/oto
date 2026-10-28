@@ -16,7 +16,8 @@ import sys
 
 import pytest
 
-from oto import audit as _audit, policy as _policy
+from oto import audit as _audit
+from oto.packs import policy as _policy
 from oto.cli import main
 from oto.model import ontologies
 from oto.project import Project
@@ -46,7 +47,7 @@ def _hook(script, payload, cwd, env=None):
 
 def test_the_pack_now_knows_principals_and_the_roles_an_agent_is_granted():
     manifest = ontologies.manifest_for("policy")
-    assert manifest["extends"] == ["data", "agent", "architecture"] and manifest["release"] == 3
+    assert manifest["extends"] == ["data", "agent"] and manifest["release"] == 4
     assert ontologies.self_check("policy") == [], ontologies.self_check("policy")
     config, sample, _readme = ontologies.load("policy")
     assert {"Principal", "Agent", "PolicyRule"} <= set(config["classes"]), "the agent pack's Agent, not a second one"

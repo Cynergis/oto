@@ -19,7 +19,8 @@ import urllib.request
 
 import pytest
 
-from oto import audit as _audit, deploy as _deploy, policy as _policy
+from oto import audit as _audit, deploy as _deploy
+from oto.packs import policy as _policy
 from oto.cli import main
 from oto.project import Project
 from oto.scaffold import init

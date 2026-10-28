@@ -30,7 +30,7 @@ import json
 import os
 import re
 
-from .project import ProjectError
+from ...project import ProjectError
 
 BUNDLE_VERSION = 1
 CLASS = "PolicyRule"
@@ -500,7 +500,7 @@ def denial_detail(event):
 def denials(project, events_path):
     """Every `denied` event of the file as an audit record of the project, each once.
     Returns {"events", "recorded", "already", "skipped"}."""
-    from . import audit as _audit
+    from ... import audit as _audit
     if not os.path.isfile(events_path):
         raise PolicyError("no such events file: %s (a guard writes .factory/events.jsonl beside the snapshot)" % events_path)
     seen = {r.get("detail") for r in _audit.read(project) if r.get("action") == DENIED_ACTION}
@@ -605,8 +605,8 @@ def enforce(project, action, by):
     signs, not expired, and still what the graph says now for its agent and principal. Returns a note
     for the audit record, None when no snapshot is in play and none is required; raises PolicyError
     (after an audit record of the refusal) otherwise."""
-    from . import audit as _audit
-    from .curate import session as _session
+    from ... import audit as _audit
+    from ...curate import session as _session
     conf = settings(project)
     path = snapshot_path()
     if not os.path.isfile(path):
@@ -641,3 +641,38 @@ def enforce(project, action, by):
         _audit.append(project, DENIED_ACTION, by, [x for x in (agent_id, principal_id) if x], "refused", "%s: %s" % (action, "; ".join(problems)))
         raise PolicyError("%s refused under the policy snapshot %s: %s" % (action, path, "; ".join(problems)))
     return "under snapshot %s for %s as %s, expires %s" % (str(snap.get("hash"))[:12], agent_id, principal_id, snap.get("expires_at"))
+
+
+# ---- the served read (E5), as a read hook the engine calls ----
+
+def police_read(project, graph, caller, sql):
+    """Hold a native read to the caller's policy: the caller names a principal the policy permits to
+    read every table the query names (and an agent, when named, whose grants are intersected); a
+    refusal is an audit record. Raises ValueError to refuse. Registered as the pack's read hook."""
+    from ... import audit as _audit
+    classes = declared_classes(project)
+    if CLASS not in classes:
+        return
+    principal = (caller or {}).get("principal")
+    agent = (caller or {}).get("agent")
+    if not principal:
+        raise ValueError("kg_read on a policed graph needs to know who asks: send X-Oto-Principal: principal.<id> (and X-Oto-Agent: agent.<id> "
+                         "for an agent) over HTTP, or set OTO_PRINCIPAL (and OTO_AGENT) for stdio")
+    tables = {}
+    for n in graph["nodes"]:
+        if n.get("type") == "Table" and n.get("status") == "current":
+            tables[n["id"]] = n
+    for name in tables_in(sql):
+        short = name.split(".")[-1].lower()
+        found = [n for n in tables.values() if (n.get("label") or "").lower() in (name.lower(), short) or (n.get("label") or "").lower().endswith("." + short)]
+        if not found:
+            raise ValueError("kg_read: the graph knows no table %r; the policy cannot speak about what the graph does not describe" % name)
+        for node in found:
+            try:
+                allowed, reason, _rule = decision(graph, principal, "read", node, agent_id=agent, classes=classes)
+            except PolicyError as exc:
+                raise ValueError("kg_read: %s" % exc)
+            if not allowed:
+                _audit.append(project, DENIED_ACTION, principal, [x for x in (agent, principal, node["id"]) if x], "refused",
+                              "kg_read %s: %s" % (name, reason))
+                raise ValueError("kg_read refused: %s" % reason)

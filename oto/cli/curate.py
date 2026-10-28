@@ -365,11 +365,11 @@ def cmd_curate(args):
         from ..curate import ledger as _ledger
         from ..intake import pipeline as _pipeline
 
-        from .. import audit as _audit, policy as _policy, work as _work
-        from .. import extensions as _extensions
+        from .. import audit as _audit, extensions as _extensions, work as _work
+        from ..project import ProjectError
         try:
-            under = _extensions.before_write(project, "curate apply", args.by or _work.identity(project))   # roadmap E6
-        except _policy.PolicyError as exc:
+            under = _extensions.before_write(project, "curate apply", args.by or _work.identity(project))   # the packs' write hooks (roadmap E6)
+        except ProjectError as exc:
             print("oto: %s" % exc, file=sys.stderr)
             return 1
         retired = _ledger.retirements(live, proposed)

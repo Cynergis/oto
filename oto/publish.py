@@ -133,22 +133,25 @@ def publish(project, repo=None, source=None, branch="main", token=None, engine=N
             if os.path.isdir(target):
                 shutil.rmtree(target)
             shutil.copytree(project.layout.site, target, ignore=shutil.ignore_patterns(".git"))
-        policy_manifest = None
-        if os.path.isdir(project.layout.policy):
-            target = os.path.join(work, "policy")
-            if os.path.isdir(target):
-                shutil.rmtree(target)
-            shutil.copytree(project.layout.policy, target)
-            with open(os.path.join(target, "manifest.json"), encoding="utf-8") as f:
-                policy_manifest = json.load(f)
-        iam_manifest = None
-        if os.path.isdir(project.layout.iam):
-            target = os.path.join(work, "iam")
-            if os.path.isdir(target):
-                shutil.rmtree(target)
-            shutil.copytree(project.layout.iam, target)
-            with open(os.path.join(target, "manifest.json"), encoding="utf-8") as f:
-                iam_manifest = json.load(f)
+        carried = {}                                                   # a composed pack's stage outputs travel with the store (provides.stages owns)
+        from . import extensions as _extensions
+        for stage in _extensions.contributed_stages(project):
+            for name in stage["owns"]:
+                source = getattr(project.layout, name, None) or os.path.join(project.src, name)
+                if not os.path.isdir(source):
+                    continue
+                target = os.path.join(work, name)
+                if os.path.isdir(target):
+                    shutil.rmtree(target)
+                shutil.copytree(source, target)
+                summary = {}
+                if os.path.isfile(os.path.join(target, "manifest.json")):
+                    with open(os.path.join(target, "manifest.json"), encoding="utf-8") as f:
+                        stage_manifest = json.load(f)
+                    summary = {k: v for k, v in stage_manifest.items() if isinstance(v, (int, str)) and not isinstance(v, bool) and k not in ("hash", "generated_at", "content")}
+                    summary["hash"] = stage_manifest.get("hash")
+                    summary["signed"] = bool(stage_manifest.get("signature"))
+                carried[name] = summary
         with open(os.path.join(work, CONFIG_NAME), "w", encoding="utf-8") as f:
             out = {k: cfg[k] for k in IDENTITY_KEYS if cfg.get(k)}
             out.update({"slug": identity["slug"], "name": identity["name"], "db_name": identity["db_name"],
@@ -160,12 +163,7 @@ def publish(project, repo=None, source=None, branch="main", token=None, engine=N
                     "published_at": datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat(),
                     "source": source or "", "repo": repo}
         manifest["site"] = bool(site)
-        if policy_manifest is not None:
-            manifest["policy"] = {"rules": policy_manifest.get("rules"), "hash": policy_manifest.get("hash"),
-                                  "signed": bool(policy_manifest.get("signature"))}
-        if iam_manifest is not None:
-            manifest["iam"] = {"provider": iam_manifest.get("provider"), "bindings": iam_manifest.get("bindings"), "controls": iam_manifest.get("controls"),
-                               "hash": iam_manifest.get("hash"), "signed": bool(iam_manifest.get("signature"))}
+        manifest.update(carried)
         if environment:
             manifest["environment"] = environment
         previous = read_manifest(work)

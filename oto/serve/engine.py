@@ -1228,37 +1228,16 @@ def _policy_graph():
 
 
 def _police_read(project, sql):
-    """Hold a native read to the caller's policy (roadmap E5): when the vocabulary declares PolicyRule,
-    the caller names a principal the policy permits to read every table the query names (and an
-    agent, when named, whose grants are intersected); a refusal is an audit record."""
-    from .. import audit as _audit, policy as _policy
-    classes = _policy.declared_classes(project)
-    if _policy.CLASS not in classes:
+    """Hold a native read to what the composed packs' read hooks say (the policy pack's, roadmap E5):
+    each is called with the project, the current graph with its derived attributes, who asks and the
+    query, and refuses by raising."""
+    from .. import extensions as _extensions
+    hooks = _extensions.read_hooks(project)
+    if not hooks:
         return
-    principal = (CALLER or {}).get("principal")
-    agent = (CALLER or {}).get("agent")
-    if not principal:
-        raise ValueError("kg_read on a policed graph needs to know who asks: send X-Oto-Principal: principal.<id> (and X-Oto-Agent: agent.<id> "
-                         "for an agent) over HTTP, or set OTO_PRINCIPAL (and OTO_AGENT) for stdio")
     graph = _policy_graph()
-    tables = {}
-    for n in graph["nodes"]:
-        if n.get("type") == "Table" and n.get("status") == "current":
-            tables[n["id"]] = n
-    for name in _policy.tables_in(sql):
-        short = name.split(".")[-1].lower()
-        found = [n for n in tables.values() if (n.get("label") or "").lower() in (name.lower(), short) or (n.get("label") or "").lower().endswith("." + short)]
-        if not found:
-            raise ValueError("kg_read: the graph knows no table %r; the policy cannot speak about what the graph does not describe" % name)
-        for node in found:
-            try:
-                allowed, reason, _rule = _policy.decision(graph, principal, "read", node, agent_id=agent, classes=classes)
-            except _policy.PolicyError as exc:
-                raise ValueError("kg_read: %s" % exc)
-            if not allowed:
-                _audit.append(project, _policy.DENIED_ACTION, principal, [x for x in (agent, principal, node["id"]) if x], "refused",
-                              "kg_read %s: %s" % (name, reason))
-                raise ValueError("kg_read refused: %s" % reason)
+    for hook in hooks:
+        hook(project, graph, CALLER or {}, sql)
 
 
 def read_text(sql, limit=50):

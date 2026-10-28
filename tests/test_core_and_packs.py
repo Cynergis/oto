@@ -77,11 +77,13 @@ def test_the_e2e_document_says_which_sections_are_the_core_and_which_a_pack():
 
 
 def test_the_command_line_groups_the_core_commands_and_the_pack_commands():
-    names = {m.__name__.rsplit(".", 1)[-1] for m in COMMANDS}
+    from oto.cli import CORE_COMMANDS as core_modules
+    names = {m.__name__.rsplit(".", 1)[-1] for m in core_modules}
     pack_names = {name for name, _pack in GROUPS["packs"]}
     grouped = set(GROUPS["core"]) | pack_names
     assert "graphs" in names and "graph" in GROUPS["core"], "the graphs module registers `oto graph`"
-    assert grouped >= (names - {"graphs"}) | {"graph", "version"}, sorted((names - {"graphs"}) - grouped)
+    assert set(GROUPS["core"]) >= (names - {"graphs"}) | {"graph", "version"}, sorted((names - {"graphs"}) - set(GROUPS["core"]))
+    assert len(COMMANDS) == len(core_modules) + len(pack_names), "every pack command module registers one command"
     assert set(GROUPS["core"]) == CORE_COMMANDS
     assert dict(GROUPS["packs"]) == PACK_COMMANDS
     assert not set(GROUPS["core"]) & pack_names, "a command is in one group"

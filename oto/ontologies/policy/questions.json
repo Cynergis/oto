@@ -392,8 +392,8 @@
     },
     "PL8": {
       "who": "a security reviewer before the system is deployed",
-      "question": "What runs as $PRINCIPAL, and which generated controls bind it on the platform, from which rules, with which platform role?",
-      "why": "The generated system's effective IAM, component by component: the service account a component runs as, the controls `oto policy iam` derived on the resources it reaches, the rules each came from and the platform role each permission maps to. A principal nothing runs as is a person's account, or a component whose identity nobody recorded.",
+      "question": "What runs as $PRINCIPAL, and which binding nodes grant it what on the platform, from which rules, with which platform role?",
+      "why": "The generated system's effective IAM, component by component: the service account a component runs as, the bindings `oto policy iam` derived that name it, the resource each is on, the rules each came from and the platform role each permission maps to. A principal nothing runs as is a person's account, or a component whose identity nobody recorded.",
       "validated_by": "",
       "params": {
         "PRINCIPAL": {
@@ -413,18 +413,25 @@
             "optional": [
               {
                 "edge": [
-                  "k",
-                  "safeguards",
-                  "c"
+                  "b",
+                  "grants",
+                  "$PRINCIPAL"
                 ]
               },
               {
-                "node": "k",
-                "type": "Control"
+                "node": "b",
+                "type": "IamBinding"
               },
               {
                 "edge": [
-                  "k",
+                  "b",
+                  "binds",
+                  "x"
+                ]
+              },
+              {
+                "edge": [
+                  "b",
                   "derives_from",
                   "r"
                 ]
@@ -442,7 +449,8 @@
         "select": [
           "c.id",
           "c.label",
-          "k.id",
+          "b.id",
+          "x.id",
           "r.id",
           "p.cloud_role"
         ]
@@ -462,9 +470,81 @@
       },
       "terms": [
         "runs_as",
+        "grants",
         "derives_from",
         "Permission.cloud_role",
         "Table.resource_uri"
+      ]
+    },
+    "PL9": {
+      "who": "a platform engineer applying the bindings",
+      "question": "Which members hold which platform roles on $RESOURCE, what was withheld, and from which rules?",
+      "why": "One resource's IAM as the platform will enforce it: the provider, the resource's address, the bindings and what a forbid kept out, with the rules behind each, so the engineer applies what the policy says and nothing else.",
+      "validated_by": "",
+      "params": {
+        "RESOURCE": {
+          "type": "Table|DataStore|Component|Interface"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "b",
+              "binds",
+              "$RESOURCE"
+            ]
+          },
+          {
+            "node": "b",
+            "type": "IamBinding"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "b",
+                  "derives_from",
+                  "r"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "b.id",
+          "b.provider",
+          "b.resource_uri",
+          "b.bindings",
+          "b.withheld",
+          "b.generated_by",
+          "r.id"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "not_edge": [
+              "*",
+              "binds",
+              "$RESOURCE"
+            ]
+          }
+        ],
+        "say": "no binding node is on this resource: no active rule reaches it, it has no resource_uri, or `oto policy iam --apply` has not run"
+      },
+      "terms": [
+        "IamBinding",
+        "binds",
+        "IamBinding.provider",
+        "IamBinding.resource_uri",
+        "IamBinding.bindings",
+        "IamBinding.withheld",
+        "IamBinding.generated_by",
+        "DataStore.resource_uri",
+        "Component.resource_uri",
+        "Interface.resource_uri"
       ]
     }
   }

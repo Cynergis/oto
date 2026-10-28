@@ -1,6 +1,6 @@
 {
-  "_about": "Access policy as facts (roadmap Epic E). A PolicyRule permits or forbids one Permission for the roles and teams it names; a Permission is an action on a kind of resource, narrowed by a selector over the resource's attributes; a rule may single out the resources it covers. A table or a column says how it is classified and whether it holds personal data, so a selector can say `pii=false`. A Principal is an identity that holds a session, a person's account or a service's, and holds roles; an Agent (the agent pack's) is granted roles of its own, and what it may do for a principal is the intersection of the two (`oto policy snapshot`). Only an active rule compiles (`oto policy compile`, ADR-0004); a rule is a draft until a named person activates it. The generated system runs as principals: a Component runs_as a service account, a Permission names the platform role it maps to (cloud_role), a resource says where it is on the platform (resource_uri), and `oto policy iam` derives the platform's bindings and writes them back as generated Controls that derive from the rules (ADR-0005): a design-time output OTO never enforces. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
-  "_summary": "Access policy as facts on the data layer: rules that permit or forbid a permission for a role or a team, permissions as an action on a kind of resource narrowed by a selector, classification and personal data on tables and columns, and the active rules compiled into a Cedar bundle. A principal holds roles, an agent is granted some, and the snapshot an agent runs under is the intersection. The generated system's IAM: components running as principals, permissions mapped to platform roles, resources placed on the platform, and the bindings derived from the rules as generated controls, a design-time output.",
+  "_about": "Access policy as facts (roadmap Epic E). A PolicyRule permits or forbids one Permission for the roles and teams it names; a Permission is an action on a kind of resource, narrowed by a selector over the resource's attributes; a rule may single out the resources it covers. A table or a column says how it is classified and whether it holds personal data, so a selector can say `pii=false`. A Principal is an identity that holds a session, a person's account or a service's, and holds roles; an Agent (the agent pack's) is granted roles of its own, and what it may do for a principal is the intersection of the two (`oto policy snapshot`). Only an active rule compiles (`oto policy compile`, ADR-0004); a rule is a draft until a named person activates it. The generated system runs as principals: a Component runs_as a service account, a Permission names the platform role it maps to (cloud_role), a resource says where it is on the platform (resource_uri), and `oto policy iam` derives the platform's bindings and writes them back as IamBinding nodes that bind the resource, grant the principals and derive from the rules (ADR-0005): a design-time output OTO never enforces. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
+  "_summary": "Access policy as facts on the data layer: rules that permit or forbid a permission for a role or a team, permissions as an action on a kind of resource narrowed by a selector, classification and personal data on tables and columns, and the active rules compiled into a Cedar bundle. A principal holds roles, an agent is granted some, and the snapshot an agent runs under is the intersection. The generated system's IAM: components running as principals, permissions mapped to platform roles, resources placed on the platform, and the bindings derived from the rules as binding nodes of the pack's own, a design-time output.",
   "name": "Policy",
   "ontology_version": 1,
   "strict_domains": false,
@@ -21,6 +21,10 @@
     "Principal": {
       "definition": "An identity that holds a session: a person's account or a service account, the one on whose behalf an agent acts. It holds roles; what it may do is what the active rules say about those roles, and what an agent may do for it is the intersection of the agent's own grants with its.",
       "scope_note": "Not a Person of the work pack and not a Role: a person has one or more accounts, and an account holds roles. A service account is a principal with no person behind it."
+    },
+    "IamBinding": {
+      "definition": "One resource's bindings on the platform, derived from the active rules by `oto policy iam`: which members hold which platform roles on it and what a forbid withheld, as the JSON the platform takes, with the provider and the resource's address. Generated and never authored: it is rewritten on the next derivation, binds the resource, grants the principals and derives from the rules. The platform enforces it; OTO does not (ADR-0005).",
+      "scope_note": "Not a Control of the architecture pack: the policy pack stands on its own. A framework adapter that knows binding nodes (the calm pack's) exports them as controls on the bound node and on the components that run as the granted principals, when both packs are composed."
     }
   },
   "properties": {
@@ -66,16 +70,24 @@
       "definition": "The identity the component runs under in the generated system: a service account. What the component may do on the platform is what the active rules say about the roles its principal holds; `oto policy iam` turns that into the platform's bindings, and the generated control on each resource safeguards the component too."
     },
     "derives_from": {
-      "domain": "Control",
+      "domain": "IamBinding",
       "range": "PolicyRule",
       "inverse": "derived_into",
-      "definition": "The rules a generated control was derived from: the permits that made its bindings and the forbids that withheld one. A control a person declared derives from nothing."
+      "definition": "The rules a binding node was derived from: the permits that made its bindings and the forbids that withheld one."
     },
-    "safeguards": {
-      "domain": "Control",
-      "range": "System|Component|Interface|DataStore|Environment|Relationship|Flow|Table|Column",
-      "inverse": "safeguarded_by",
-      "definition": "What the control applies to. The architecture's relation, widened to the data layer: a generated IAM control safeguards the table or the column the bindings are on."
+    "binds": {
+      "domain": "IamBinding",
+      "range": "Table|DataStore|Component|Interface",
+      "inverse": "bound_by",
+      "min": 1,
+      "max": 1,
+      "definition": "The one resource the bindings are on: the table, store, component or interface whose place on the platform (`resource_uri`) the platform's policy is set on."
+    },
+    "grants": {
+      "domain": "IamBinding",
+      "range": "Principal",
+      "inverse": "holds_binding",
+      "definition": "The principals the bindings name as members, through the roles they hold; a component that runs as one of them is bound by it."
     }
   },
   "attributes": {
@@ -154,6 +166,49 @@
       "identity": {
         "type": "string",
         "definition": "The account as the identity provider names it: an email, a service account name, a workload identity."
+      }
+    },
+    "DataStore": {
+      "resource_uri": {
+        "type": "string",
+        "definition": "The store as the platform addresses it (`//bigquery.googleapis.com/projects/<p>/datasets/<d>`), when the generated system's IAM is derived; one with none is bound to nothing, and the generator says so."
+      }
+    },
+    "Component": {
+      "resource_uri": {
+        "type": "string",
+        "definition": "The component as the platform addresses it (`//run.googleapis.com/projects/<p>/locations/<l>/services/<name>`), when the generated system's IAM is derived; one with none is bound to nothing, and the generator says so."
+      }
+    },
+    "Interface": {
+      "resource_uri": {
+        "type": "string",
+        "definition": "The interface as the platform addresses it (an API gateway's resource name), when the generated system's IAM is derived; one with none is bound to nothing, and the generator says so."
+      }
+    },
+    "IamBinding": {
+      "provider": {
+        "type": "string",
+        "definition": "The platform the bindings are written for (gcp).",
+        "required": true
+      },
+      "resource_uri": {
+        "type": "string",
+        "definition": "The bound resource as the platform addresses it, copied from the resource so the binding reads alone.",
+        "required": true
+      },
+      "bindings": {
+        "type": "string",
+        "definition": "The bindings as the platform takes them, JSON: [{role, members}], members in the platform's form (serviceAccount:<identity>, user:<identity>)."
+      },
+      "withheld": {
+        "type": "string",
+        "definition": "What a forbid withheld, JSON: [{member, role, forbidden_by}], so a reader sees why a member is not in the bindings."
+      },
+      "generated_by": {
+        "type": "string",
+        "definition": "The command that derived the node (`oto policy iam`); never edited by hand: edit the rules it derives from.",
+        "required": true
       }
     }
   }

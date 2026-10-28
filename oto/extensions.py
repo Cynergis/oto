@@ -7,7 +7,8 @@ A pack's manifest may carry `provides`, five kinds, each a list:
       "stages":      [{"name": "policy", "module": "oto.targets.policy", "owns": ["policy"]}],
       "commands":    [{"name": "policy", "module": "oto.cli.policy", "label": "policy"}],
       "endpoints":   ["oto.serve.policy_api"],
-      "write_hooks": ["oto.policy:enforce"],
+      "write_hooks": ["oto.packs.policy:enforce"],
+      "read_hooks":  ["oto.packs.policy:police_read"],
       "adapters":    [{"framework": "<name>", "module": "oto.packs.<name>", "import": "read_model", "export": "write_model", "migrate": "migrate"}]
     }
 
@@ -16,7 +17,8 @@ layout attributes it names, so a partial build stashes them. A command module ex
 as the core's do. An endpoint module exposes `routes(project)`, {"/api/<path>": fn(args) -> (status,
 object)}, served beside the core's routes. A write hook, `module:function`, is called as
 `fn(project, action, by)` before `curate apply`, `decide` and `promote`, returns a note for the audit
-record or None, and refuses by raising a ProjectError. An adapter reads a framework's file into the
+record or None, and refuses by raising a ProjectError. A read hook, `module:function`, is called as
+`fn(project, graph, caller, sql)` before the served native read and refuses by raising. An adapter reads a framework's file into the
 graph's shape (`import`: `fn(project, path, at, **options)`) and writes the graph back as that
 framework (`export`: `fn(project)`), and may migrate a graph written with the framework's former attribute
 names (`migrate`: `fn(project, by)`); `oto arch import --framework <name>` chooses it.
@@ -33,7 +35,7 @@ import json
 from .model import ontologies as _ontologies
 from .project import ProjectError
 
-KINDS = ("stages", "commands", "endpoints", "write_hooks", "adapters")
+KINDS = ("stages", "commands", "endpoints", "write_hooks", "read_hooks", "adapters")
 BEFORE = "site"                     # contributed stages run before this core stage
 
 
@@ -144,6 +146,15 @@ def before_write(project, action, by):
             if note:
                 notes.append(str(note))
     return "; ".join(notes) or None
+
+
+def read_hooks(project):
+    """The composed packs' read hooks, as callables `fn(project, graph, caller, sql)`."""
+    out = []
+    for name in composed(project):
+        for hook in provides(name).get("read_hooks") or []:
+            out.append(_callable(hook, name))
+    return out
 
 
 # ---- framework adapters ----

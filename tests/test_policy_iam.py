@@ -3,9 +3,9 @@ roles each principal holds, become the platform's bindings, a design-time output
 pipeline carries and OTO never enforces (ADR-0005). The policy pack models the component that runs
 as a principal (`runs_as`), the platform role a permission maps to (`cloud_role`) and where a
 resource is on the platform (`resource_uri`); `oto policy iam` (and the `iam` build stage) writes
-`build/iam/`: the bindings, the GCP form, the generated controls as a proposal in the architecture
-vocabulary, each a `Control` that `safeguards` the resource and the components that run as its
-members and `derives_from` the rules it came from, hashed and signed like the policy bundle. A
+`build/iam/`: the bindings, the GCP form, the binding nodes as a proposal in the policy vocabulary,
+each an `IamBinding` that `binds` the resource, `grants` the principals and `derives_from` the
+rules it came from, hashed and signed like the policy bundle. A
 forbid withholds the binding a permit would have made; what cannot bind is named, never guessed."""
 import contextlib
 import hashlib
@@ -16,9 +16,12 @@ import os
 
 import pytest
 
-from oto import adr as _adr, iam as _iam, policy as _policy
+from oto import adr as _adr
+from oto.packs import policy as _policy
+from oto.packs.policy import iam as _iam
 from oto.cli import main
 from oto.curate import evidence as _evidence
+from oto.packs import calm as _calm
 from oto.curate import session as _session
 from oto.model import ontologies
 from oto.project import Project
@@ -88,45 +91,26 @@ def _ledger_graph(**changes):
     return _graph(list(nodes.values()), edges)
 
 
-CLASSES = ["Table", "Role", "Permission", "PolicyRule", "Principal", "Component", "Control"]
+CLASSES = ["Table", "Role", "Permission", "PolicyRule", "Principal", "Component", "IamBinding"]
 
 
-# ---- the model, in both packs ----
+# ---- the model ----
 
-def test_the_policy_pack_now_sits_on_the_architecture_and_models_who_runs_as_what():
+def test_the_policy_pack_models_who_runs_as_what_and_where_a_resource_is_on_the_platform():
     manifest = ontologies.manifest_for("policy")
-    assert manifest["extends"] == ["data", "agent", "architecture"] and manifest["release"] == 3
+    assert manifest["extends"] == ["data", "agent"] and manifest["release"] >= 4
     assert ontologies.self_check("policy") == [], ontologies.self_check("policy")
-    config, _unused = _sample()
-    assert {"Control", "Relationship", "Principal", "PolicyRule", "Component"} <= set(config["classes"]), "composed on the architecture pack: Control is one class"
     own = _own(POLICY)
     runs_as, derives = own["properties"]["runs_as"], own["properties"]["derives_from"]
     assert set(runs_as["domain"].split("|")) == {"Component", "System"} and runs_as["range"] == "Principal" and runs_as["max"] == 1
     assert runs_as["inverse"] == "identity_of"
-    assert derives["domain"] == "Control" and derives["range"] == "PolicyRule" and derives["inverse"] == "derived_into"
-    assert "Table" in own["properties"]["safeguards"]["range"].split("|") and "Column" in own["properties"]["safeguards"]["range"].split("|"), \
-        "a generated control safeguards a table: the architecture's relation, widened"
-    assert "Table" in config["properties"]["safeguards"]["range"].split("|") and "Component" in config["properties"]["safeguards"]["range"].split("|"), \
-        "composed, the relation keeps the architecture's range and gains the data layer's"
+    assert derives["domain"] == "IamBinding" and derives["range"] == "PolicyRule" and derives["inverse"] == "derived_into"
     assert own["attributes"]["Permission"]["cloud_role"]["type"] == "string"
-    assert own["attributes"]["Table"]["resource_uri"]["type"] == "string"
+    for kind in ("Table", "DataStore", "Component", "Interface"):
+        assert own["attributes"][kind]["resource_uri"]["type"] == "string", kind
     questions = ontologies.questions_for("policy")
     assert "PL8" in questions and "PRINCIPAL" in questions["PL8"]["params"] and "runs as" in questions["PL8"]["question"].lower()
     assert {"runs_as", "derives_from", "Permission.cloud_role", "Table.resource_uri"} <= set(questions["PL8"]["terms"])
-
-
-def test_the_architecture_pack_places_a_node_on_the_platform_and_marks_a_generated_control():
-    manifest = ontologies.manifest_for("architecture")
-    assert manifest["release"] >= 5
-    assert ontologies.self_check("architecture") == [], ontologies.self_check("architecture")
-    own = _own(ARCHITECTURE)
-    for kind in ("System", "Component", "DataStore", "Interface"):
-        assert own["attributes"][kind]["resource_uri"]["type"] == "string", kind
-    assert own["attributes"]["Control"]["generated_by"]["type"] == "string"
-    assert not own["attributes"]["Control"]["generated_by"].get("required"), "a person's control carries no generator"
-    questions = ontologies.questions_for("architecture")
-    assert "AR12" in questions and "generated" in questions["AR12"]["question"].lower() and questions["AR12"]["gate"] == "any"
-    assert "Control.generated_by" in questions["AR12"]["terms"]
 
 
 # ---- the derivation ----
@@ -188,7 +172,7 @@ def test_the_gcp_form_is_one_policy_per_resource_in_the_shape_set_iam_policy_tak
 
 # ---- the controls ----
 
-def test_the_generated_controls_are_proposed_in_the_architecture_vocabulary_and_quote_the_document():
+def test_the_binding_nodes_are_proposed_in_the_policy_vocabulary_and_quote_the_document():
     graph = _ledger_graph()
     graph["edges"].append({"from": "principal.svc", "rel": "holds_role", "to": "role.auditor"})
     doc = _iam.compile(graph, classes=CLASSES)
@@ -196,30 +180,27 @@ def test_the_generated_controls_are_proposed_in_the_architecture_vocabulary_and_
     assert "oto policy iam" in text and "never enforced" in text.lower() or "does not enforce" in text.lower()
     proposal = _iam.propose(doc, graph, "2026-10-27", classes=CLASSES)
     assert proposal["source_doc"] == _iam.DOC and proposal["as_of"] == "2026-10-27"
-    assert [n["id"] for n in proposal["nodes"]] == ["control.iam-table-t"]
-    control = proposal["nodes"][0]
-    assert control["type"] == "Control" and control["label"] == "IAM bindings on t"
-    a = control["attributes"]
-    assert a["external_id"] == "iam-table-t" and a["requirement_url"] == _iam.REQUIREMENT_URL and a["generated_by"] == "oto policy iam"
-    body = json.loads(a["config"])
-    assert body["requirements"][0]["requirement-url"] == _iam.REQUIREMENT_URL, "a CALM control body: the export writes it back as given"
-    config = body["requirements"][0]["config"]
-    assert config["provider"] == "gcp" and config["resource"] == "//bigquery.googleapis.com/projects/p/datasets/d/tables/t"
-    assert config["bindings"] == [{"role": VIEWER, "members": ["serviceAccount:svc@p.iam", "user:ann@example.com"]}]
-    assert config["withheld"] == [{"member": "serviceAccount:svc@p.iam", "role": EDITOR, "forbidden_by": ["policyrule.auditors-never-write"]}]
-    for e in control["evidence"]:
+    assert [n["id"] for n in proposal["nodes"]] == ["iambinding.table-t"]
+    binding = proposal["nodes"][0]
+    assert binding["type"] == "IamBinding" and binding["label"] == "IAM bindings on t"
+    a = binding["attributes"]
+    assert a["provider"] == "gcp" and a["resource_uri"] == "//bigquery.googleapis.com/projects/p/datasets/d/tables/t" and a["generated_by"] == "oto policy iam"
+    assert json.loads(a["bindings"]) == [{"role": VIEWER, "members": ["serviceAccount:svc@p.iam", "user:ann@example.com"]}]
+    assert json.loads(a["withheld"]) == [{"member": "serviceAccount:svc@p.iam", "role": EDITOR, "forbidden_by": ["policyrule.auditors-never-write"]}]
+    assert not any(k in a for k in ("external_id", "requirement_url", "config")), "nothing of a framework on the node: the calm adapter shapes the control"
+    for e in binding["evidence"]:
         assert e["doc"] == _iam.DOC and _evidence.found(e["quote"], _evidence.normalise(text)), e["quote"]
     edges = {(e["from"], e["rel"], e["to"]) for e in proposal["edges"]}
-    assert ("control.iam-table-t", "safeguards", "table.t") in edges
-    assert ("control.iam-table-t", "safeguards", "component.api") in edges, "the component that runs as a member is safeguarded too"
-    assert ("control.iam-table-t", "derives_from", "policyrule.readers-read") in edges
-    assert ("control.iam-table-t", "derives_from", "policyrule.auditors-never-write") in edges, "the forbid that withheld a binding shaped the control"
-    assert ("control.iam-table-t", "derives_from", "policyrule.writers-write") in edges
-    without = _iam.propose(doc, graph, "2026-10-27", classes=[c for c in CLASSES if c != "Control"])
-    assert without["nodes"] == [] and without["edges"] == [], "no Control in the vocabulary: nothing to propose"
+    assert ("iambinding.table-t", "binds", "table.t") in edges
+    assert ("iambinding.table-t", "grants", "principal.svc") in edges and ("iambinding.table-t", "grants", "principal.ann") in edges
+    assert ("iambinding.table-t", "derives_from", "policyrule.readers-read") in edges
+    assert ("iambinding.table-t", "derives_from", "policyrule.auditors-never-write") in edges, "the forbid that withheld a binding shaped the node"
+    assert ("iambinding.table-t", "derives_from", "policyrule.writers-write") in edges
+    without = _iam.propose(doc, graph, "2026-10-27", classes=[c for c in CLASSES if c != "IamBinding"])
+    assert without["nodes"] == [] and without["edges"] == [], "no IamBinding in the vocabulary: nothing to propose"
 
 
-def test_the_sample_holds_the_invoice_platform_s_generated_control_as_the_generator_writes_it():
+def test_the_sample_holds_the_invoice_platform_s_binding_node_as_the_generator_writes_it():
     config, sample = _sample()
     doc = _iam.compile(sample, classes=config["classes"])
     bindings = {(b["resource"]["id"], b["role"]): b for b in doc["bindings"]}
@@ -236,13 +217,13 @@ def test_the_sample_holds_the_invoice_platform_s_generated_control_as_the_genera
     assert "table.ledger-customers" not in {b["resource"]["id"] for b in doc["bindings"]}
     proposal = _iam.propose(doc, sample, "2026-10-27", classes=config["classes"])
     generated = {n["id"]: n for n in proposal["nodes"]}
-    shipped = {n["id"]: n for n in sample["nodes"] if n["type"] == "Control" and (n.get("attributes") or {}).get("generated_by")}
-    assert set(shipped) == {"control.iam-table-invoices"} and set(generated) == {"control.iam-table-invoices", "control.iam-table-ledger-daily-balances",
-                                                                                 "control.iam-table-ledger-postings"}
-    assert json.loads(shipped["control.iam-table-invoices"]["attributes"]["config"]) == json.loads(generated["control.iam-table-invoices"]["attributes"]["config"])
+    shipped = {n["id"]: n for n in sample["nodes"] if n["type"] == "IamBinding"}
+    assert set(shipped) == {"iambinding.table-invoices"} and set(generated) == {"iambinding.table-invoices", "iambinding.table-ledger-daily-balances",
+                                                                                 "iambinding.table-ledger-postings"}
+    assert shipped["iambinding.table-invoices"]["attributes"]["bindings"] == generated["iambinding.table-invoices"]["attributes"]["bindings"]
     edges = {(e["from"], e["rel"], e["to"]) for e in sample["edges"]}
-    assert ("control.iam-table-invoices", "safeguards", "table.invoices") in edges and ("control.iam-table-invoices", "safeguards", "component.invoice-intake") in edges
-    assert ("control.iam-table-invoices", "derives_from", "policyrule.intake-writes-invoices") in edges
+    assert ("iambinding.table-invoices", "binds", "table.invoices") in edges and ("iambinding.table-invoices", "grants", "principal.invoice-intake") in edges
+    assert ("iambinding.table-invoices", "derives_from", "policyrule.intake-writes-invoices") in edges
     assert ("component.invoice-intake", "runs_as", "principal.invoice-intake") in edges
 
 
@@ -252,11 +233,11 @@ def test_the_bundle_is_hashed_signed_and_verifiable_like_the_policy_bundle(tmp_p
     out = str(tmp_path / "iam")
     monkeypatch.setenv(KEY_ENV, "a-key-nobody-commits")
     manifest = _iam.bundle(_ledger_graph(), out, version={"build_seq": 3, "graph": "abc", "ontology": 1}, at="2026-10-27", key_env=KEY_ENV, classes=CLASSES)
-    assert sorted(os.listdir(out)) == ["bindings.json", "controls.proposal.json", "gcp.json", "iam-bindings.md", "manifest.json"]
+    assert sorted(os.listdir(out)) == ["bindings.json", "bindings.proposal.json", "gcp.json", "iam-bindings.md", "manifest.json"]
     assert manifest["bundle_version"] == 1 and manifest["provider"] == "gcp" and manifest["content"] == "bindings.json"
-    assert manifest["bindings"] == 2 and manifest["resources"] == 1 and manifest["members"] == 2 and manifest["controls"] == 1 and manifest["withheld"] == 0
+    assert manifest["bindings"] == 2 and manifest["resources"] == 1 and manifest["members"] == 2 and manifest["proposed"] == 1 and manifest["withheld"] == 0
     assert manifest["generated_at"] == "2026-10-27" and manifest["version"]["build_seq"] == 3
-    assert set(manifest["files"]) == {"bindings.json", "controls.proposal.json", "gcp.json", "iam-bindings.md"}
+    assert set(manifest["files"]) == {"bindings.json", "bindings.proposal.json", "gcp.json", "iam-bindings.md"}
     with open(os.path.join(out, "bindings.json"), encoding="utf-8") as f:
         bindings = json.load(f)
     assert bindings["provider"] == "gcp" and len(bindings["bindings"]) == 2 and bindings["generated_at"] == "2026-10-27"
@@ -265,10 +246,10 @@ def test_the_bundle_is_hashed_signed_and_verifiable_like_the_policy_bundle(tmp_p
     assert manifest["signature"]["value"] == hmac.new(b"a-key-nobody-commits", manifest["hash"].encode(), hashlib.sha256).hexdigest()
     with open(os.path.join(out, "gcp.json"), encoding="utf-8") as f:
         assert json.load(f)[0]["policy"]["bindings"][0]["role"] == EDITOR
-    with open(os.path.join(out, "controls.proposal.json"), encoding="utf-8") as f:
-        assert json.load(f)["nodes"][0]["id"] == "control.iam-table-t"
+    with open(os.path.join(out, "bindings.proposal.json"), encoding="utf-8") as f:
+        assert json.load(f)["nodes"][0]["id"] == "iambinding.table-t"
     assert _policy.verify(out, key_env=KEY_ENV) == []
-    assert _iam.describe(manifest).startswith("2 binding(s) on 1 resource(s) for 2 member(s), 1 control(s)")
+    assert _iam.describe(manifest).startswith("2 binding(s) on 1 resource(s) for 2 member(s), 1 binding node(s) proposed")
     monkeypatch.setenv(KEY_ENV, "another")
     assert any("does not verify" in p for p in _policy.verify(out, key_env=KEY_ENV))
     monkeypatch.setenv(KEY_ENV, "a-key-nobody-commits")
@@ -296,10 +277,10 @@ def test_the_build_writes_the_bindings_beside_the_policy_bundle(ledger):
     code, out = _cli("build", "--project", ledger)
     assert code == 0, out
     assert "policy: 4 rule(s)" in out
-    assert "iam: 4 binding(s) on 3 resource(s) for 3 member(s)" in out and "3 control(s) proposed" in out and "unsigned" in out, out
+    assert "iam: 4 binding(s) on 3 resource(s) for 3 member(s)" in out and "3 binding node(s) proposed" in out and "unsigned" in out, out
     assert "not bound: table.ledger-accounts has no resource_uri" in out, out
     project = Project.standard(ledger)
-    assert sorted(os.listdir(project.layout.iam)) == ["bindings.json", "controls.proposal.json", "gcp.json", "iam-bindings.md", "manifest.json"]
+    assert sorted(os.listdir(project.layout.iam)) == ["bindings.json", "bindings.proposal.json", "gcp.json", "iam-bindings.md", "manifest.json"]
     with open(os.path.join(project.layout.iam, "manifest.json"), encoding="utf-8") as f:
         manifest = json.load(f)
     assert manifest["version"]["build_seq"] == int(project.build_seq()) and manifest["problems"] == [
@@ -316,33 +297,25 @@ def test_the_command_writes_the_bundle_anywhere_and_applies_the_controls_through
     assert code == 0, out
     elsewhere = os.path.join(ledger, "elsewhere")
     code, out = _cli("policy", "iam", "--project", ledger, "--out", elsewhere, "--at", "2026-10-27")
-    assert code == 0 and "4 binding(s) on 3 resource(s)" in out and "controls.proposal.json" in out and "oto curate add --from" in out, out
+    assert code == 0 and "4 binding(s) on 3 resource(s)" in out and "bindings.proposal.json" in out and "oto curate add --from" in out, out
     assert os.path.exists(os.path.join(elsewhere, "bindings.json")) and os.path.exists(os.path.join(ledger, "build", "documents", _iam.DOC + ".md"))
     project = Project.standard(ledger)
-    before = {n["id"] for n in _session.live(project)["nodes"] if n["type"] == "Control"}
-    assert "control.iam-table-ledger-postings" not in before
+    before = {n["id"] for n in _session.live(project)["nodes"] if n["type"] == "IamBinding"}
+    assert "iambinding.table-ledger-postings" not in before
     code, out = _cli("policy", "iam", "--project", ledger, "--apply", "--by", "Chiheb Dkhil", "--at", "2026-10-27")
     assert code == 0 and "applied" in out, out
     live = _session.live(project)
-    controls = {n["id"]: n for n in live["nodes"] if n["type"] == "Control" and (n.get("attributes") or {}).get("generated_by")}
-    assert set(controls) == {"control.iam-table-invoices", "control.iam-table-ledger-daily-balances", "control.iam-table-ledger-postings"}
+    bindings = {n["id"]: n for n in live["nodes"] if n["type"] == "IamBinding"}
+    assert set(bindings) == {"iambinding.table-invoices", "iambinding.table-ledger-daily-balances", "iambinding.table-ledger-postings"}
     edges = {(e["from"], e["rel"], e["to"]) for e in live["edges"] if (e.get("status") or "current") == "current"}
-    assert ("control.iam-table-ledger-postings", "safeguards", "table.ledger-postings") in edges
-    assert ("control.iam-table-ledger-postings", "derives_from", "policyrule.compliance-reads-ledger") in edges
-    code, out = _cli("query", "--project", ledger, "ask", "AR12")
-    assert code == 0 and "status: answered" in out and "control.iam-table-ledger-postings" in out and "oto policy iam" in out, out
+    assert ("iambinding.table-ledger-postings", "binds", "table.ledger-postings") in edges
+    assert ("iambinding.table-ledger-postings", "derives_from", "policyrule.compliance-reads-ledger") in edges
+    code, out = _cli("query", "--project", ledger, "ask", "PL9", "RESOURCE=table.ledger-postings")
+    assert code == 0 and "status: answered" in out and "iambinding.table-ledger-postings" in out and "oto policy iam" in out and VIEWER in out, out
     code, out = _cli("query", "--project", ledger, "ask", "PL8", "PRINCIPAL=principal.invoice-intake")
-    assert code == 0 and "status: answered" in out and "component.invoice-intake" in out and "control.iam-table-invoices" in out and EDITOR in out, out
+    assert code == 0 and "status: answered" in out and "component.invoice-intake" in out and "iambinding.table-invoices" in out and EDITOR in out, out
     code, out = _cli("query", "--project", ledger, "ask", "PL8", "PRINCIPAL=principal.ops-clerk")
     assert code == 0 and "nothing runs as" in out, "a person's account: " + out
-    exported = os.path.join(ledger, "exported.calm.json")
-    code, out = _cli("arch", "export", "--framework", "calm", "--out", exported, "--project", ledger)
-    assert code == 0, out
-    with open(exported, encoding="utf-8") as f:
-        model = json.load(f)
-    intake = [n for n in model["nodes"] if n["unique-id"] == "invoice-intake"][0]
-    assert "iam-table-invoices" in (intake.get("controls") or {}), "the generated control is on the component's CALM node: the export carries it"
-    assert intake["controls"]["iam-table-invoices"]["requirements"][0]["requirement-url"] == _iam.REQUIREMENT_URL
     code, out = _cli("policy", "iam", "--project", ledger, "--apply", "--at", "2026-10-27")
     assert code == 1 and "--by" in out, "applying is a person's or a workflow's act, named"
 
@@ -399,4 +372,4 @@ def test_the_docs_know_the_bindings_the_stage_and_the_command():
     assert "oto policy iam" in readme and "ADR-0005" in readme and "runs_as" in readme and "cloud_role" in readme
     with open(os.path.join(ARCHITECTURE, "README.md"), encoding="utf-8") as f:
         arch = f.read()
-    assert "generated_by" in arch and "resource_uri" in arch
+    assert "generated_by" not in arch and "resource_uri" not in arch, "the architecture pack carries nothing for the policy pack's sake"

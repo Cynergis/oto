@@ -1,6 +1,6 @@
 # Policy — access policy as facts, compiled into Cedar
 
-On `data` (and so on `software-architecture`, `product` and `portfolio`): a `PolicyRule` permits or
+On `data` and `agent` (and so on `software-architecture`, `product` and `portfolio`): a `PolicyRule` permits or
 forbids one `Permission` for the roles and teams it names, a `Permission` is an action (read, write,
 export, delete, admin) on a kind of resource (a `Table`, a `Column`, a `DataStore`, a `Component`, an
 `Interface`) narrowed by a selector over the resource's attributes, and a `Table` or a `Column`
@@ -51,27 +51,36 @@ The sample is on the ledger the data sample describes: a customers table whose e
 personal data, compliance reading everything but that, the reports team exporting the daily balances
 and refused every write on the postings, and an owner-administers-the-store rule still a draft.
 
-**The generated system's IAM (release 3, roadmap E7, ADR-0005).** The system OTO helps build has
-access control of its own, on the platform it runs on, and the same rules give it. The pack now
-composes on `architecture` too: a `Component` (or a `System`) `runs_as` a `Principal`, the service
-account it runs under; a `Permission` names the platform role it maps to (`cloud_role`,
-`roles/bigquery.dataViewer`), a fact the organisation states rather than a catalogue in the engine;
-a `Table` (and the architecture's nodes) says where it is on the platform (`resource_uri`). Read
-through the roles each principal holds, the active rules give the bindings: a member
-(`serviceAccount:<identity>`, `user:<identity>`), a role, a resource. A forbid withholds the binding
-a permit would have made for the same member, resource and action; what cannot bind (no platform
-role, no place on the platform, no identity) is named and left out. `oto policy iam` and the `iam`
-build stage write `build/iam/`: `bindings.json`, `gcp.json` (one policy per resource, in the shape
-`set-iam-policy` takes), `controls.proposal.json`, `iam-bindings.md` and a manifest hashed and
-signed like the policy bundle, verified by `oto policy verify build/iam` and carried by
-`oto publish`. The controls are the bindings written back into the graph: one generated `Control`
-per resource, carrying `generated_by`, that `safeguards` the resource and the components running
-as its members and `derives_from` the rules it came from; `oto policy iam --apply --by <who>` takes
-them through the gates, and `oto arch export --framework calm` then carries them. OTO never enforces these
-bindings: they ship with the system and the platform enforces them; the hooks, the snapshot and
-the served engine keep enforcing the policy on OTO's own actions. PL8 asks what runs as a
-principal and which generated controls bind it, from which rules. The sample's invoice intake
-service runs as its own account, which holds the invoice writer role permitted to write the
-invoices table; the control the generator derives on that table is in the sample as it writes it.
+**The generated system's IAM (release 3, roadmap E7, ADR-0005; on its own since release 4, ADR-0006).**
+The system OTO helps build has access control of its own, on the platform it runs on, and the same
+rules give it. A `Component` (or a `System`) `runs_as` a `Principal`, the service account it runs
+under; a `Permission` names the platform role it maps to (`cloud_role`, `roles/bigquery.dataViewer`),
+a fact the organisation states rather than a catalogue in the engine; a `Table`, a `DataStore`, a
+`Component` and an `Interface` say where they are on the platform (`resource_uri`). Read through the
+roles each principal holds, the active rules give the bindings: a member (`serviceAccount:<identity>`,
+`user:<identity>`), a role, a resource. A forbid withholds the binding a permit would have made for
+the same member, resource and action; what cannot bind (no platform role, no place on the platform,
+no identity) is named and left out. `oto policy iam` and the `iam` build stage write `build/iam/`:
+`bindings.json`, `gcp.json` (one policy per resource, in the shape `set-iam-policy` takes),
+`bindings.proposal.json`, `iam-bindings.md` and a manifest hashed and signed like the policy bundle,
+verified by `oto policy verify build/iam` and carried by `oto publish`. The bindings are written
+back as nodes of this pack's own: one `IamBinding` per resource, carrying the `provider`, the
+`resource_uri`, the `bindings` and what was `withheld` as the JSON the platform takes, and
+`generated_by`; it `binds` the resource, `grants` the principals and `derives_from` the rules it
+came from. `oto policy iam --apply --by <who>` takes the binding nodes through the gates. The pack
+depends on no framework: when the calm pack is composed too, its adapter exports a binding node as a
+control on the bound node and on the components that run as the granted principals, so
+`oto arch export --framework calm` carries the IAM the policy implies. OTO never enforces these
+bindings: they ship with the system and the platform enforces them; the write hook, the snapshot
+and the served read hook keep enforcing the policy on OTO's own actions. PL8 asks what runs as a
+principal and which binding nodes grant it, from which rules; PL9 what is bound on a resource. The
+sample's invoice intake service runs as its own account, which holds the invoice writer role
+permitted to write the invoices table; the binding node the generator derives on that table is in
+the sample as it writes it.
 
-This is a first draft of the vocabulary; edit it. Release 3 awaits confirmation of its terms.
+**Where the code is.** The compiler, the snapshot, the IAM derivation, the two build stages, the
+command, the write hook before `curate apply`, `decide` and `promote`, and the read hook before the
+served native read live in `oto/packs/policy/`, and reach the engine only through this pack's
+manifest (`provides`, ADR-0006). The two plain-Python guards stay in the plugins' `hooks/`.
+
+This is a first draft of the vocabulary; edit it. Release 4 awaits confirmation of its terms.

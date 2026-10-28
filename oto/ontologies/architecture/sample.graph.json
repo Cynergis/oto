@@ -95,7 +95,6 @@
       "label": "Invoice intake",
       "summary": "Accepts a submitted invoice, stores it and emits InvoiceSubmitted.",
       "attributes": {
-        "resource_uri": "//run.googleapis.com/projects/acme-invoices/locations/europe-west1/services/invoice-intake",
         "external_id": "invoice-intake",
         "external_type": "service"
       },
@@ -153,7 +152,6 @@
       "label": "Invoice database",
       "summary": "Where submitted invoices and their approval state live.",
       "attributes": {
-        "resource_uri": "//bigquery.googleapis.com/projects/acme-invoices/datasets/invoices",
         "external_id": "invoice-db",
         "external_type": "database"
       },

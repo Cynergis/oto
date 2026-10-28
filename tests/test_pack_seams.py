@@ -41,10 +41,10 @@ def _cli(*args):
 def test_the_shipped_packs_declare_what_they_provide_and_the_core_names_none_of_them():
     policy = ontologies.manifest_for("policy")["provides"]
     assert [s["name"] for s in policy["stages"]] == ["policy", "iam"]
-    assert policy["stages"][0]["module"] == "oto.targets.policy" and policy["stages"][0]["owns"] == ["policy"]
-    assert policy["stages"][1]["module"] == "oto.targets.iam" and policy["stages"][1]["owns"] == ["iam"]
-    assert policy["commands"] == [{"name": "policy", "module": "oto.cli.policy", "label": "policy"}]
-    assert policy["write_hooks"] == ["oto.policy:enforce"]
+    assert policy["stages"][0]["module"] == "oto.packs.policy.bundle_stage" and policy["stages"][0]["owns"] == ["policy"]
+    assert policy["stages"][1]["module"] == "oto.packs.policy.iam_stage" and policy["stages"][1]["owns"] == ["iam"]
+    assert policy["commands"] == [{"name": "policy", "module": "oto.packs.policy.cli", "label": "policy"}]
+    assert policy["write_hooks"] == ["oto.packs.policy:enforce"] and policy["read_hooks"] == ["oto.packs.policy:police_read"]
     architecture = ontologies.manifest_for("architecture")["provides"]
     assert "adapters" not in architecture and architecture["commands"] == [{"name": "arch", "module": "oto.cli.arch", "label": "architecture"}]
     calm = ontologies.manifest_for("calm")["provides"]
@@ -178,7 +178,7 @@ def test_a_pack_is_composed_when_its_own_classes_are_in_the_vocabulary(toy, tmp_
     assert "toy" in extensions.composed(Project.standard(toys)) and "toy" not in extensions.composed(Project.standard(plain))
     assert "data" in extensions.composed(Project.standard(plain)) and "policy" not in extensions.composed(Project.standard(plain))
     ledger = _project(tmp_path, "policy", "ledger")
-    assert {"policy", "data", "agent", "architecture"} <= set(extensions.composed(Project.standard(ledger))), "a pack and what it extends"
+    assert {"policy", "data", "agent"} <= set(extensions.composed(Project.standard(ledger))), "a pack and what it extends"
 
 
 def test_a_composed_pack_s_stages_run_in_the_build_and_own_their_output(toy, tmp_path):

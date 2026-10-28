@@ -20,7 +20,7 @@ from oto.scaffold import init
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INVOICE = os.path.join(ROOT, "tests", "fixtures", "calm", "invoice-platform.calm.json")
-CORE = ("oto/arch.py", "oto/cli/arch.py", "oto/builder.py", "oto/cli/__init__.py", "oto/extensions.py", "oto/factory.py", "oto/iam.py",
+CORE = ("oto/arch.py", "oto/cli/arch.py", "oto/builder.py", "oto/cli/__init__.py", "oto/extensions.py", "oto/factory.py", "oto/packs/policy/iam.py",
         "oto/serve/engine.py", "oto/ontologies/architecture/ontology.config.json", "oto/ontologies/architecture/questions.json",
         "oto/ontologies/architecture/ontology.rationale.json", "oto/ontologies/architecture/sample.graph.json")
 
@@ -48,7 +48,7 @@ def test_the_core_and_the_architecture_pack_name_no_framework():
         else:
             assert "calm" not in text.replace("the calm pack", ""), path
     manifest = ontologies.manifest_for("architecture")
-    assert manifest["release"] == 5 and "framework-neutral" in manifest["summary"]
+    assert manifest["release"] >= 5 and "framework-neutral" in manifest["summary"]
     own = ontologies.load_raw("architecture")["config"]
     for kind in ("System", "Component", "DataStore", "Environment", "Role"):
         assert {"external_id", "external_type", "external_payload"} <= set(own["attributes"][kind]) and not any(a.startswith("calm_") for a in own["attributes"][kind]), kind

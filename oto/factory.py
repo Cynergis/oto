@@ -14,7 +14,7 @@
     oto factory criteria --context <id> | --component <id> --out <dir>
     oto factory deviate --run <dir> --component <id> --about <node> --observed "..." --proposes "..." --at <date> --into <main project>
 
-A spec is a projection: the component (a CALM node), the bounded context it carries and the use
+A spec is a projection: the component (a framework's node), the bounded context it carries and the use
 cases of that context, what it exposes and consumes with each contract's version and status, the
 requirements it satisfies with their budgets and the latest measurement, the decisions that
 govern it, the controls on it and its connections, its connections, the modules that implement it
@@ -27,7 +27,7 @@ is frozen builds in parallel with the provider; one that consumes a draft contra
 interface with none, or depends on a component with no interface between them, waits for it.
 The groups are the levels of that order; a cycle of draft dependencies is named, never looped.
 By default the plan is for the components a signed-off context (`readiness` ready or built)
-runs as; `--context` for one context; `--all` for every CALM component.
+runs as; `--context` for one context; `--all` for every component a framework's model wrote (one with an external_id).
 
 A scope is the run snapshot the factory plugin's hooks read (`factory/`, roadmap J2): the
 component's write scope is the modules the code map says implement it (plus `--allow`), its
@@ -111,7 +111,7 @@ def spec(graph, component_id, at=None):
         raise FactoryError("%s is a %s, not a Component: a spec is a component's" % (component_id, n.get("type")))
     a = _a(n)
     doc = {"schema_version": SCHEMA_VERSION,
-           "component": {"id": component_id, "label": n.get("label") or component_id, "calm_id": a.get("calm_id"), "calm_type": a.get("calm_type"), "summary": n.get("summary") or ""}}
+           "component": {"id": component_id, "label": n.get("label") or component_id, "external_id": a.get("external_id"), "external_type": a.get("external_type"), "summary": n.get("summary") or ""}}
     contexts = [c for c in inc.get((component_id, "deployed_as"), []) if nodes.get(c, {}).get("type") == "BoundedContext"]
     if contexts:
         bc = nodes[contexts[0]]
@@ -199,7 +199,7 @@ def check_spec(doc):
         problems.append("schema_version is %r; this engine writes %d" % (doc.get("schema_version"), SCHEMA_VERSION))
     component = doc.get("component")
     if not isinstance(component, dict) or not component.get("id") or not component.get("label"):
-        problems.append("component is {id, label, calm_id, calm_type, summary}")
+        problems.append("component is {id, label, external_id, external_type, summary}")
     if doc.get("context") is not None and not (isinstance(doc.get("context"), dict) and doc["context"].get("id")):
         problems.append("context is null or {id, label, readiness}")
     for key in LISTS:
@@ -232,7 +232,7 @@ def components_for(graph, mode="ready", context=None):
     """The component ids a plan is for, and the contexts they come from."""
     nodes, out, inc = _index(graph)
     if mode == "all":
-        return sorted(n["id"] for n in nodes.values() if n.get("type") == "Component" and n.get("status") != "superseded" and _a(n).get("calm_id")), []
+        return sorted(n["id"] for n in nodes.values() if n.get("type") == "Component" and n.get("status") != "superseded" and _a(n).get("external_id")), []
     contexts = []
     if context:
         if context not in nodes or nodes[context].get("type") != "BoundedContext":

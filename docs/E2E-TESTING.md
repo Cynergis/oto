@@ -839,7 +839,7 @@ work item.
 
 ## 22. The architecture pack: CALM as facts, the trace to code
 
-Exercises: the `architecture` ontology on `software-architecture`, aligned with CALM 1.0, its shapes, AR1 to AR9.
+Exercises: the `architecture` ontology on `software-architecture`, framework-neutral, with the `calm` pack as the first framework adapter, its shapes, AR1 to AR9.
 
 ```bash
 oto init --name "Invoice approval, as architecture" --slug invoice --ontology architecture --project invoice
@@ -867,13 +867,13 @@ Then a real model in and out (the fixture is the FINOS trading-system example):
 ```bash
 oto init --name "Trading system" --slug trading --ontology architecture --empty --project trading
 # the estate declares an environment first: {"id": "environment.production", "type": "Environment", ...} through the gates
-oto arch import --calm tests/fixtures/calm/trading-system.architecture.json --at 2026-10-27 --environment environment.production --project trading
+oto arch import --framework calm --file tests/fixtures/calm/trading-system.architecture.json --at 2026-10-27 --environment environment.production --project trading
 oto curate start --project trading && oto curate add --from proposals/calm-trading-system.json --project trading
 oto curate check --project trading && oto curate apply --by "<you>" --note "the CALM model" --project trading
 oto build --project trading
 oto query --project trading ask AR1 NODE=component.web-gui                 # five connections over HTTPS
 oto query --project trading ask SA1 SYSTEM=system.trading-system           # the estate's question, from the derived part_of and runs_in
-oto arch export --calm --out trading.exported.json --project trading       # equals the input, up to empty containers
+oto arch export --framework calm --out trading.exported.json --project trading       # equals the input, up to empty containers
 ```
 
 Pass when import reports 13 nodes, 8 interfaces, 18 relationships, 2 controls and 7 flows, names
@@ -1395,7 +1395,7 @@ oto query --project ledger ask PL8 PRINCIPAL=principal.ops-clerk                
 oto policy iam --project ledger --out /tmp/iam --at 2026-10-27                  # anywhere, the same bundle; the document lands in build/documents/iam-bindings.md; next: curate add --from ..., or --apply
 oto policy iam --project ledger --apply --by "<you>" --at 2026-10-27            # applied by <you>: 3 control(s) in the graph, built
 oto query --project ledger ask AR12                                             # the three generated controls, what each safeguards and where that is on the platform
-oto arch export --calm --out /tmp/ledger.calm.json --project ledger && python3 -c "import json; n=[n for n in json.load(open('/tmp/ledger.calm.json'))['nodes'] if n['unique-id']=='invoice-intake'][0]; print(list(n['controls']))"   # ['iam-table-invoices']
+oto arch export --framework calm --out /tmp/ledger.calm.json --project ledger && python3 -c "import json; n=[n for n in json.load(open('/tmp/ledger.calm.json'))['nodes'] if n['unique-id']=='invoice-intake'][0]; print(list(n['controls']))"   # ['iam-table-invoices']
 oto policy iam --project ledger --apply --at 2026-10-27; echo $?               # 1: --apply takes --by
 python3 - <<'PY'
 import json; p="ledger/project.config.json"; c=json.load(open(p)); c["policy"]={"provider":"aws"}; json.dump(c, open(p,"w"), indent=2)
@@ -1410,7 +1410,7 @@ and the customers table, whose column is personal data, is kept out by the deriv
 clerk's account and the runner's are GCP members (`user:`, `serviceAccount:`); a forbid on a
 member's write withholds the editor binding and keeps the viewer one (the unit test holds it with a
 graph of its own); `verify` reads the bindings bundle as it reads the policy bundle; the controls
-are proposed with the architecture's `calm_id`, `requirement_url` and `generated_by`, enter the
+are proposed with the architecture's `external_id`, `requirement_url` and `generated_by`, enter the
 graph only through `--apply` with a named `--by`, safeguard the table and the component that runs
 as the member, derive from the rules, and come out in the CALM export under the component's
 controls; PL8 and AR12 answer; a provider this release does not write is refused by name; and the
@@ -1426,8 +1426,9 @@ python3 -c "import json; print(json.dumps(json.load(open('oto/ontologies/policy/
 oto --help                                                                      # core commands, then each pack command under its pack, from the manifests
 oto init --ontology data --project plain && oto build --project plain           # no "policy:" or "iam:" line: the stages belong to a pack the project does not compose
 oto init --ontology policy --project ledger && oto build --project ledger       # "policy: 4 rule(s) ..." then "iam: 4 binding(s) ...": the pack's stages, before the site
-oto arch export --framework calm --project <an architecture project>            # the adapter the architecture pack provides; --calm still works as shorthand
+oto arch export --framework calm --project <an architecture project>            # the adapter the calm pack provides
 oto arch export --framework c4 --project <an architecture project>; echo $?     # 1: no adapter for framework 'c4': the packs on this machine provide calm
+oto arch migrate --framework calm --by "<you>" --project <a project built before architecture release 5>   # calm_* attributes become external_id, external_type, external_payload, framework; then oto build
 # a pack of your own: a directory under $OTO_ONTOLOGIES with a manifest whose `provides` names your modules
 #   {"provides": {"stages": [{"name": "mine", "module": "mine_ext", "owns": []}], "commands": [{"name": "mine", "module": "mine_ext", "label": "mine"}],
 #                 "endpoints": ["mine_ext"], "write_hooks": ["mine_ext:before_write"], "adapters": [{"framework": "mine", "module": "mine_ext", "import": "read_model", "export": "write_model"}]}}

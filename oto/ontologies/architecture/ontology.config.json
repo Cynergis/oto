@@ -1,5 +1,5 @@
 {
-  "_about": "The architecture graph for implementation (roadmap Epic H): a derived copy of the architecture that agents query before they edit. Aligned with CALM 1.0, the FINOS Common Architecture Language Model (https://calm.finos.org/release/1.0/meta/core.json): a CALM node is an estate node (System, Component, DataStore, Environment, Role) carrying its calm_id and calm_type; a CALM relationship is a Relationship node with its two ends, its kind and its protocol; controls (what they safeguard) and flows are nodes; and the implementation trace runs from a requirement with a budget, through the evidence that measured it, to the code modules and commits that implement a component, with change proposals raised by evidence and settled by decisions; a Contract is a version of an interface, frozen by a named person so consumer and provider build in parallel against it. On software-architecture, so the estate's questions keep answering. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
+  "_about": "The architecture graph for implementation (roadmap Epic H): a derived copy of the architecture that agents query before they edit. Aligned with the architecture framework the model is written in (CALM through the calm pack's adapter; C4 when one exists) 1.0, the FINOS Common Architecture Language Model (https://calm.finos.org/release/1.0/meta/core.json): a CALM node is an estate node (System, Component, DataStore, Environment, Role) carrying its external_id and external_type; a CALM relationship is a Relationship node with its two ends, its kind and its protocol; controls (what they safeguard) and flows are nodes; and the implementation trace runs from a requirement with a budget, through the evidence that measured it, to the code modules and commits that implement a component, with change proposals raised by evidence and settled by decisions; a Contract is a version of an interface, frozen by a named person so consumer and provider build in parallel against it. On software-architecture, so the estate's questions keep answering. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
   "_summary": "The architecture as agents consult it before they change code: CALM nodes, relationships, controls and flows as facts on the estate, requirements with budgets and the evidence that measured them, the code modules and commits that implement each component, and the change proposals evidence raised.",
   "name": "Architecture",
   "ontology_version": 1,
@@ -162,21 +162,17 @@
   },
   "attributes": {
     "System": {
-      "calm_id": {
+      "external_id": {
         "type": "string",
-        "definition": "The CALM node's unique-id, as the model gives it, so the node round-trips to CALM unchanged."
+        "definition": "The node's id in the framework its model was written in (CALM's unique-id, C4's identifier), so the node round-trips to that framework unchanged. A node authored in the graph may carry one too: the export writes it under that id."
       },
-      "calm_type": {
+      "external_type": {
         "type": "string",
-        "definition": "The CALM node-type the model gave it, kept as given. CALM names nine (actor, ecosystem, system, service, database, network, ldap, webclient, data-asset) and allows any other string: a system or an ecosystem is a System; a service or a webclient is a Component; a database, a data-asset, a datastore or an ldap directory (a store of identities) is a DataStore; a network is an Environment; an actor is a Role; any other type is a Component."
+        "definition": "The node's type as the framework names it, kept as given, so the export writes it back unchanged; the class it maps to is the adapter's call (a database or a data asset is a DataStore, a network an Environment, an actor a Role, any other type a Component). Absent, the export uses the class's default."
       },
-      "calm_metadata": {
+      "external_payload": {
         "type": "string",
-        "definition": "The CALM node's metadata, carried as the JSON the model gave and never read by the engine."
-      },
-      "calm_details": {
-        "type": "string",
-        "definition": "The CALM node's details (a detailed architecture, a required pattern), carried as the JSON the model gave."
+        "definition": "What the framework carries about the node that no question asks for (metadata, details), kept as the JSON it gave and never read by the engine; the adapter writes it back as given."
       },
       "resource_uri": {
         "type": "string",
@@ -184,21 +180,17 @@
       }
     },
     "Component": {
-      "calm_id": {
+      "external_id": {
         "type": "string",
-        "definition": "The CALM node's unique-id, as the model gives it, so the node round-trips to CALM unchanged."
+        "definition": "The node's id in the framework its model was written in (CALM's unique-id, C4's identifier), so the node round-trips to that framework unchanged. A node authored in the graph may carry one too: the export writes it under that id."
       },
-      "calm_type": {
+      "external_type": {
         "type": "string",
-        "definition": "The CALM node-type the model gave it, kept as given. CALM names nine (actor, ecosystem, system, service, database, network, ldap, webclient, data-asset) and allows any other string: a system or an ecosystem is a System; a service or a webclient is a Component; a database, a data-asset, a datastore or an ldap directory (a store of identities) is a DataStore; a network is an Environment; an actor is a Role; any other type is a Component."
+        "definition": "The node's type as the framework names it, kept as given, so the export writes it back unchanged; the class it maps to is the adapter's call (a database or a data asset is a DataStore, a network an Environment, an actor a Role, any other type a Component). Absent, the export uses the class's default."
       },
-      "calm_metadata": {
+      "external_payload": {
         "type": "string",
-        "definition": "The CALM node's metadata, carried as the JSON the model gave and never read by the engine."
-      },
-      "calm_details": {
-        "type": "string",
-        "definition": "The CALM node's details (a detailed architecture, a required pattern), carried as the JSON the model gave."
+        "definition": "What the framework carries about the node that no question asks for (metadata, details), kept as the JSON it gave and never read by the engine; the adapter writes it back as given."
       },
       "resource_uri": {
         "type": "string",
@@ -206,21 +198,17 @@
       }
     },
     "DataStore": {
-      "calm_id": {
+      "external_id": {
         "type": "string",
-        "definition": "The CALM node's unique-id, as the model gives it, so the node round-trips to CALM unchanged."
+        "definition": "The node's id in the framework its model was written in (CALM's unique-id, C4's identifier), so the node round-trips to that framework unchanged. A node authored in the graph may carry one too: the export writes it under that id."
       },
-      "calm_type": {
+      "external_type": {
         "type": "string",
-        "definition": "The CALM node-type the model gave it, kept as given. CALM names nine (actor, ecosystem, system, service, database, network, ldap, webclient, data-asset) and allows any other string: a system or an ecosystem is a System; a service or a webclient is a Component; a database, a data-asset, a datastore or an ldap directory (a store of identities) is a DataStore; a network is an Environment; an actor is a Role; any other type is a Component."
+        "definition": "The node's type as the framework names it, kept as given, so the export writes it back unchanged; the class it maps to is the adapter's call (a database or a data asset is a DataStore, a network an Environment, an actor a Role, any other type a Component). Absent, the export uses the class's default."
       },
-      "calm_metadata": {
+      "external_payload": {
         "type": "string",
-        "definition": "The CALM node's metadata, carried as the JSON the model gave and never read by the engine."
-      },
-      "calm_details": {
-        "type": "string",
-        "definition": "The CALM node's details (a detailed architecture, a required pattern), carried as the JSON the model gave."
+        "definition": "What the framework carries about the node that no question asks for (metadata, details), kept as the JSON it gave and never read by the engine; the adapter writes it back as given."
       },
       "resource_uri": {
         "type": "string",
@@ -228,45 +216,37 @@
       }
     },
     "Environment": {
-      "calm_id": {
+      "external_id": {
         "type": "string",
-        "definition": "The CALM node's unique-id, as the model gives it, so the node round-trips to CALM unchanged."
+        "definition": "The node's id in the framework its model was written in (CALM's unique-id, C4's identifier), so the node round-trips to that framework unchanged. A node authored in the graph may carry one too: the export writes it under that id."
       },
-      "calm_type": {
+      "external_type": {
         "type": "string",
-        "definition": "The CALM node-type the model gave it, kept as given. CALM names nine (actor, ecosystem, system, service, database, network, ldap, webclient, data-asset) and allows any other string: a system or an ecosystem is a System; a service or a webclient is a Component; a database, a data-asset, a datastore or an ldap directory (a store of identities) is a DataStore; a network is an Environment; an actor is a Role; any other type is a Component."
+        "definition": "The node's type as the framework names it, kept as given, so the export writes it back unchanged; the class it maps to is the adapter's call (a database or a data asset is a DataStore, a network an Environment, an actor a Role, any other type a Component). Absent, the export uses the class's default."
       },
-      "calm_metadata": {
+      "external_payload": {
         "type": "string",
-        "definition": "The CALM node's metadata, carried as the JSON the model gave and never read by the engine."
-      },
-      "calm_details": {
-        "type": "string",
-        "definition": "The CALM node's details (a detailed architecture, a required pattern), carried as the JSON the model gave."
+        "definition": "What the framework carries about the node that no question asks for (metadata, details), kept as the JSON it gave and never read by the engine; the adapter writes it back as given."
       }
     },
     "Role": {
-      "calm_id": {
+      "external_id": {
         "type": "string",
-        "definition": "The CALM actor's unique-id, when the role came from a CALM model."
+        "definition": "The node's id in the framework its model was written in (CALM's unique-id, C4's identifier), so the node round-trips to that framework unchanged. A node authored in the graph may carry one too: the export writes it under that id."
       },
-      "calm_type": {
+      "external_type": {
         "type": "string",
-        "definition": "The CALM node-type the model gave it, kept as given. CALM names nine (actor, ecosystem, system, service, database, network, ldap, webclient, data-asset) and allows any other string: a system or an ecosystem is a System; a service or a webclient is a Component; a database, a data-asset, a datastore or an ldap directory (a store of identities) is a DataStore; a network is an Environment; an actor is a Role; any other type is a Component."
+        "definition": "The node's type as the framework names it, kept as given, so the export writes it back unchanged; the class it maps to is the adapter's call (a database or a data asset is a DataStore, a network an Environment, an actor a Role, any other type a Component). Absent, the export uses the class's default."
       },
-      "calm_metadata": {
+      "external_payload": {
         "type": "string",
-        "definition": "The CALM node's metadata, carried as the JSON the model gave and never read by the engine."
-      },
-      "calm_details": {
-        "type": "string",
-        "definition": "The CALM node's details (a detailed architecture, a required pattern), carried as the JSON the model gave."
+        "definition": "What the framework carries about the node that no question asks for (metadata, details), kept as the JSON it gave and never read by the engine; the adapter writes it back as given."
       }
     },
     "Interface": {
-      "calm_id": {
+      "external_id": {
         "type": "string",
-        "definition": "The CALM interface's unique-id."
+        "definition": "The interface's id in the framework (CALM's unique-id)."
       },
       "definition_url": {
         "type": "string",
@@ -282,9 +262,9 @@
       }
     },
     "Relationship": {
-      "calm_id": {
+      "external_id": {
         "type": "string",
-        "definition": "The CALM relationship's unique-id.",
+        "definition": "The relationship's id in the framework (CALM's unique-id).",
         "required": true
       },
       "kind": {
@@ -296,15 +276,15 @@
         "type": "enum:HTTP|HTTPS|FTP|SFTP|JDBC|WebSocket|SocketIO|LDAP|AMQP|TLS|mTLS|TCP",
         "definition": "The protocol a connection speaks, from CALM's list."
       },
-      "calm_metadata": {
+      "external_payload": {
         "type": "string",
-        "definition": "The relationship's metadata, carried as given."
+        "definition": "What the framework carries about the relationship beyond its ends, kind and protocol (metadata), kept as the JSON it gave."
       }
     },
     "Control": {
-      "calm_id": {
+      "external_id": {
         "type": "string",
-        "definition": "The control's id, the key CALM files it under (letters, digits, hyphens).",
+        "definition": "The control's id, the key the framework files it under (letters, digits, hyphens).",
         "required": true
       },
       "requirement_url": {
@@ -326,18 +306,18 @@
       }
     },
     "Flow": {
-      "calm_id": {
+      "external_id": {
         "type": "string",
-        "definition": "The flow's unique-id.",
+        "definition": "The flow's id in the framework (CALM's unique-id).",
         "required": true
       },
       "requirement_url": {
         "type": "string",
         "definition": "The requirement the flow serves, by URL."
       },
-      "calm_metadata": {
+      "external_payload": {
         "type": "string",
-        "definition": "The flow's metadata, carried as given."
+        "definition": "What the framework carries about the flow beyond its steps (metadata), kept as the JSON it gave."
       }
     },
     "FlowStep": {
@@ -420,15 +400,19 @@
       }
     },
     "Decision": {
-      "calm_option": {
+      "external_payload": {
         "type": "string",
-        "definition": "For a decision an options relationship offers: the CALM decision object (description, nodes, relationships, controls), carried as the JSON the model gave."
+        "definition": "The option as the framework gave it (a CALM options relationship's decision), kept as JSON so the export writes it back unchanged."
       }
     },
     "Document": {
-      "calm_header": {
+      "framework": {
         "type": "string",
-        "definition": "For the document that is a CALM model: the model's top-level fields other than nodes, relationships, controls and flows ($schema, unique-id, name, description, metadata, adrs), carried as the JSON the model gave, so `oto arch export` writes the model back whole."
+        "definition": "The architecture framework the model was read with (calm), the name of the adapter that reads and writes it; `oto arch export --framework` finds the model by it."
+      },
+      "external_payload": {
+        "type": "string",
+        "definition": "The model's own header as the framework gave it (its schema, id, name, metadata, decision records), kept as JSON; the export starts from it."
       }
     },
     "Contract": {

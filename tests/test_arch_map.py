@@ -86,7 +86,7 @@ def described(tmp_path):
             {"id": "repo.invoice-platform", "type": "Repository", "label": "invoice-platform", "attributes": {"owner": "acme", "name": "invoice-platform"}}],
             "edges": []}, f)
     _gates(root, seed, "the estate")
-    code, out = _cli("arch", "import", "--calm", INVOICE, "--at", "2026-10-27", "--environment", "environment.production", "--project", root)
+    code, out = _cli("arch", "import", "--framework", "calm", "--file", INVOICE, "--at", "2026-10-27", "--environment", "environment.production", "--project", root)
     assert code == 0, out
     with open(os.path.join(root, "proposals", "calm-invoice-platform.json"), encoding="utf-8") as f:
         proposal = json.load(f)

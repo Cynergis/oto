@@ -8,7 +8,7 @@ A pack's manifest may carry `provides`, five kinds, each a list:
       "commands":    [{"name": "policy", "module": "oto.cli.policy", "label": "policy"}],
       "endpoints":   ["oto.serve.policy_api"],
       "write_hooks": ["oto.policy:enforce"],
-      "adapters":    [{"framework": "calm", "module": "oto.arch", "import": "import_calm", "export": "export_calm"}]
+      "adapters":    [{"framework": "<name>", "module": "oto.packs.<name>", "import": "read_model", "export": "write_model", "migrate": "migrate"}]
     }
 
 A stage module exposes `run(project)` and runs after the core's targets, before the site, owning the
@@ -18,7 +18,8 @@ object)}, served beside the core's routes. A write hook, `module:function`, is c
 `fn(project, action, by)` before `curate apply`, `decide` and `promote`, returns a note for the audit
 record or None, and refuses by raising a ProjectError. An adapter reads a framework's file into the
 graph's shape (`import`: `fn(project, path, at, **options)`) and writes the graph back as that
-framework (`export`: `fn(project)`); `oto arch import --framework <name>` chooses it.
+framework (`export`: `fn(project)`), and may migrate a graph written with the framework's former attribute
+names (`migrate`: `fn(project, by)`); `oto arch import --framework <name>` chooses it.
 
 Stages, endpoints and write hooks are loaded only for the packs composed in the project: a pack is
 composed when every class it declares itself is in the project's vocabulary, which is the same gate
@@ -153,7 +154,7 @@ def adapters():
     for name in _ontologies.available():
         for entry in provides(name).get("adapters") or []:
             out[entry["framework"]] = {"framework": entry["framework"], "module_name": entry["module"], "import": entry.get("import"),
-                                       "export": entry.get("export"), "pack": name}
+                                       "export": entry.get("export"), "migrate": entry.get("migrate"), "pack": name}
     return out
 
 
@@ -165,7 +166,8 @@ def adapter(framework):
         raise ExtensionError("no adapter for framework %r: the packs on this machine provide %s" % (framework, ", ".join(sorted(known)) or "none"))
     mod = _load(entry["module_name"], entry["pack"])
     return dict(entry, module=mod, read=getattr(mod, entry["import"]) if entry.get("import") else None,
-                write=getattr(mod, entry["export"]) if entry.get("export") else None)
+                write=getattr(mod, entry["export"]) if entry.get("export") else None,
+                migrate=getattr(mod, entry["migrate"]) if entry.get("migrate") else None)
 
 
 def only_adapter():

@@ -46,8 +46,9 @@ def test_the_shipped_packs_declare_what_they_provide_and_the_core_names_none_of_
     assert policy["commands"] == [{"name": "policy", "module": "oto.cli.policy", "label": "policy"}]
     assert policy["write_hooks"] == ["oto.policy:enforce"]
     architecture = ontologies.manifest_for("architecture")["provides"]
-    assert architecture["adapters"] == [{"framework": "calm", "module": "oto.arch", "import": "import_calm", "export": "export_calm"}]
-    assert architecture["commands"][0]["name"] == "arch" and "CALM" in architecture["commands"][0]["label"]
+    assert "adapters" not in architecture and architecture["commands"] == [{"name": "arch", "module": "oto.cli.arch", "label": "architecture"}]
+    calm = ontologies.manifest_for("calm")["provides"]
+    assert calm["adapters"] == [{"framework": "calm", "module": "oto.packs.calm", "import": "read_model", "export": "write_model", "migrate": "migrate"}]
     for pack, command, label in (("work", "work", "work and communication"), ("data", "data", "data"), ("ddd", "ddd", "ddd"), ("factory-run", "factory", "factory")):
         provides = ontologies.manifest_for(pack)["provides"]
         assert provides["commands"] == [{"name": command, "module": "oto.cli.%s" % command, "label": label}], pack
@@ -251,7 +252,7 @@ def test_a_framework_adapter_is_chosen_by_name_and_calm_is_the_first(toy, tmp_pa
     adapters = extensions.adapters()
     assert set(adapters) >= {"calm", "toy"}
     calm = extensions.adapter("calm")
-    assert calm["pack"] == "architecture" and calm["module"].import_calm and calm["module"].export_calm
+    assert calm["pack"] == "calm" and calm["module"].read_model and calm["module"].write_model and calm["migrate"]
     toy_adapter = extensions.adapter("toy")
     assert toy_adapter["read"](None, "model.toy", "2026-10-28") == {"framework": "toy", "path": "model.toy", "at": "2026-10-28"}
     assert toy_adapter["write"](None) == {"framework": "toy", "nodes": []}

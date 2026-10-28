@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """`oto arch`: the architecture graph for implementation. import reads a framework's model into a document
 and a proposal in the architecture vocabulary (roadmap H1) through the adapter the framework's pack
-provides (CALM first; `--framework`, oto/extensions.py); export writes the graph back the same way;
+provides (`--framework <name>`, oto/extensions.py); export writes the graph back the same way; migrate
+rewrites a graph written with a framework's former attribute names;
 map reads a code repository into a code map; compile runs what the project declares, on every merge (H2);
 impact reports what a decision affects, the orphans and the untraced code (H4); measure records a report
 as evidence of a requirement (H6)."""
@@ -17,8 +18,8 @@ def cmd_arch(args):
     project = _resolve(args)
     from .. import extensions as _extensions
     if args.arch_command == "import":
-        path = args.file or (args.calm if args.calm and args.calm is not True else None)
-        framework = args.framework or ("calm" if args.calm else None) or _extensions.only_adapter()
+        path = args.file
+        framework = args.framework or _extensions.only_adapter()
         if not framework:
             print("oto: import takes --framework <name> (the packs on this machine provide %s) and --file <model>" % (", ".join(sorted(_extensions.adapters())) or "none"),
                   file=sys.stderr)
@@ -29,7 +30,7 @@ def cmd_arch(args):
             print("oto: %s" % exc, file=sys.stderr)
             return 1
         if not path:
-            print("oto: import takes --file <model>, the %s model to read (--calm <model.json> still works for CALM)" % framework, file=sys.stderr)
+            print("oto: import takes --file <model>, the %s model to read" % framework, file=sys.stderr)
             return 1
         try:
             done = adapter["read"](project, path, args.at, name=args.name, environment=args.environment)
@@ -47,10 +48,10 @@ def cmd_arch(args):
             for gap in done["gaps"]:
                 print("    %s" % gap)
         print("  next: oto curate start (if no candidate is open), oto curate add --from %s, oto curate check, oto curate apply --by <you> --note \"...\"; "
-              "then oto arch export --calm writes it back" % rel(done["proposal"]))
+              "then oto arch export --framework %s writes it back" % (rel(done["proposal"]), framework))
         return 0
     if args.arch_command == "export":
-        framework = args.framework or ("calm" if args.calm else None) or _extensions.only_adapter()
+        framework = args.framework or _extensions.only_adapter()
         if not framework:
             print("oto: export takes --framework <name> (the packs on this machine provide %s)" % (", ".join(sorted(_extensions.adapters())) or "none"), file=sys.stderr)
             return 1
@@ -66,6 +67,27 @@ def cmd_arch(args):
             print("%s: %d node(s), %d relationship(s), %d flow(s)" % (args.out, len(model.get("nodes") or []), len(model.get("relationships") or []), len(model.get("flows") or [])))
         else:
             sys.stdout.write(text)
+        return 0
+    if args.arch_command == "migrate":
+        framework = args.framework or _extensions.only_adapter()
+        if not framework:
+            print("oto: migrate takes --framework <name>, the framework whose former attribute names the graph carries", file=sys.stderr)
+            return 1
+        try:
+            adapter = _extensions.adapter(framework)
+        except _extensions.ExtensionError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        migrate = adapter.get("migrate")
+        if not migrate:
+            print("oto: the %s adapter has no migration" % framework, file=sys.stderr)
+            return 1
+        try:
+            changed = migrate(project, args.by)
+        except _arch.ArchError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        print("%d node(s) migrated to the architecture pack's neutral attributes%s" % (changed, "; next: oto build" if changed else ": nothing to do"))
         return 0
     if args.arch_command == "map":
         if not args.repo:
@@ -141,15 +163,15 @@ def cmd_arch(args):
 
 
 def register(sub):
-    arch = sub.add_parser("arch", help="the architecture graph for implementation: a CALM model in, through the gates, and back out")
-    arch.add_argument("arch_command", choices=["import", "export", "map", "compile", "impact", "measure"],
-                      help="import reads a CALM model (--calm <file>) into a document and a proposal; export writes the graph's CALM facts as a model; "
+    arch = sub.add_parser("arch", help="the architecture graph for implementation: a framework's model in through its adapter, the code map, compile on merge, impact")
+    arch.add_argument("arch_command", choices=["import", "export", "migrate", "map", "compile", "impact", "measure"],
+                      help="import reads a framework's model (--framework <name> --file <model>) into a document and a proposal through the framework's adapter; "
+                           "export writes the graph back as that framework; migrate rewrites a graph written with a framework's former attribute names; "
                            "map reads a code repository (--repo, --repository) into a code-map document and a proposal; "
                            "compile runs what project.config.json declares under `arch` through the gates and builds; "
                            "impact reports what a decision affects, the orphans, the untraced code, or the decision records among changed files; "
                            "measure records a test, coverage or load-test report as evidence of a requirement")
-    arch.add_argument("--calm", nargs="?", const=True, default=None, help="for import: the CALM model file; for export: CALM as the framework (shorthand for --framework calm)")
-    arch.add_argument("--framework", default=None, help="for import and export: the architecture framework, chosen among the adapters the packs provide (calm; the only one is the default)")
+    arch.add_argument("--framework", default=None, help="for import, export and migrate: the architecture framework, chosen among the adapters the packs provide (the only one is the default)")
     arch.add_argument("--file", default=None, help="for import: the model file to read, in the framework's form")
     arch.add_argument("--at", default=None, help="for import: the date the model was read, YYYY-MM-DD; never defaulted")
     arch.add_argument("--name", default=None, help="for import: the document's slug (default: the file's stem)")
@@ -157,7 +179,7 @@ def register(sub):
     arch.add_argument("--out", default=None, help="for export: write the model here instead of printing it")
     arch.add_argument("--repo", default=None, help="for map: the code repository to read (a git checkout records its commits)")
     arch.add_argument("--repository", default=None, help="for map: the Repository node the estate declares for it, repo.<id>")
-    arch.add_argument("--by", default=None, help="for compile: who compiles (the workflow names itself)")
+    arch.add_argument("--by", default=None, help="for compile: who compiles (the workflow names itself); for migrate: who migrates")
     arch.add_argument("--note", default=None, help="for compile: what to record with the apply, such as the merge's sha")
     arch.add_argument("--decision", default=None, help="for impact: the decision, decision.<id> or its ADR id")
     arch.add_argument("--orphans", action="store_true", help="for impact: the systems, components, stores and interfaces no relationship reaches")

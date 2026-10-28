@@ -2,7 +2,7 @@
 graph with a named person's sign-off (I2).
 
 I1: the `ddd` pack now extends `architecture`, so a bounded context's deployed component and its
-CALM node are one node, with one `calm_id`, and the architecture's questions answer in a ddd project.
+CALM node are one node, with one `external_id`, and the architecture's questions answer in a ddd project.
 Readiness (draft, ready, built, on use cases, contexts, commands and aggregates) is a decision: a
 new element reads as a draft until a named person says otherwise.
 
@@ -79,7 +79,7 @@ def test_the_ddd_pack_sits_on_the_architecture_pack_and_readiness_is_a_decision(
     assert ontologies.self_check("ddd") == [], ontologies.self_check("ddd")
     config, sample, _readme = ontologies.load("ddd")
     assert {"Relationship", "Control", "Flow", "CodeModule", "BoundedContext", "DomainEvent", "Table"} - {"Table"} <= set(config["classes"]), "the factory's and the architecture's classes compose"
-    assert config["attributes"]["Component"]["calm_id"]["type"] == "string", "a context's deployed component is a CALM node"
+    assert config["attributes"]["Component"]["external_id"]["type"] == "string", "a context's deployed component is a CALM node"
     for kind in ("UseCase", "BoundedContext", "Command", "Aggregate"):
         spec = config["attributes"][kind]["readiness"]
         assert spec["default"] == "draft" and spec.get("decision") is True, kind
@@ -90,7 +90,7 @@ def test_the_ddd_pack_sits_on_the_architecture_pack_and_readiness_is_a_decision(
     edges = {(e["from"], e["rel"], e["to"]) for e in sample["edges"]}
     assert ("bc.invoice-approval", "deployed_as", "component.invoice-intake") in edges, "the sample's new context runs as the architecture sample's CALM node"
     intake = next(n for n in sample["nodes"] if n["id"] == "component.invoice-intake")
-    assert intake["attributes"]["calm_id"] == "invoice-intake", "one node per component across factory and CALM"
+    assert intake["attributes"]["external_id"] == "invoice-intake", "one node per component across factory and CALM"
 
 
 def test_a_ddd_project_answers_the_context_and_the_calm_facts_from_one_node(ddd):
@@ -102,7 +102,7 @@ def test_a_ddd_project_answers_the_context_and_the_calm_facts_from_one_node(ddd)
     assert code == 0, out
     code, out = _cli("ontology", "check", "--project", ddd)
     assert code == 0 and "every node satisfies them" in out, out
-    code, out = _cli("arch", "import", "--calm", INVOICE, "--at", "2026-10-27", "--environment", "environment.payments-network", "--project", ddd)
+    code, out = _cli("arch", "import", "--framework", "calm", "--file", INVOICE, "--at", "2026-10-27", "--environment", "environment.payments-network", "--project", ddd)
     assert code == 0, "a CALM model imports into a ddd project: the classes are there"
 
 

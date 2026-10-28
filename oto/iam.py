@@ -25,7 +25,7 @@ The bundle, `build/iam/` by default, beside the policy bundle:
 
 Only GCP is written in this release; the provider is a setting (`policy.provider`), and another is
 a second shape over the same derivation. The controls enter the graph through the gates
-(`oto policy iam --apply`), never by writing it; the CALM export then carries them.
+(`oto policy iam --apply`), never by writing it; the architecture export then carries them.
 """
 import datetime
 import json
@@ -39,7 +39,7 @@ BUNDLE_VERSION = 1
 PROVIDER = "gcp"
 PROVIDERS = ("gcp",)
 GENERATOR = "oto policy iam"
-REQUIREMENT_URL = "https://cynergis.ai/calm/controls/iam-bindings.requirement.json"
+REQUIREMENT_URL = "https://cynergis.ai/controls/iam-bindings.requirement.json"
 DOC = "iam-bindings"
 CONTENT = "bindings.json"
 FILES = ("bindings.json", "gcp.json", "controls.proposal.json", "iam-bindings.md")
@@ -218,13 +218,13 @@ def propose(doc, graph, at, classes=None):
         bindings = {"provider": doc["provider"], "resource": resource["uri"],
                     "bindings": [{"role": b["role"], "members": list(b["members"])} for b in bound],
                     "withheld": [{"member": w["member"], "role": w.get("role") or w["action"], "forbidden_by": list(w["forbidden_by"])} for w in held]}
-        config = {"requirements": [{"requirement-url": REQUIREMENT_URL, "config": bindings}]}      # a CALM control body, as the export writes it back
+        config = {"requirements": [{"requirement-url": REQUIREMENT_URL, "config": bindings}]}      # a control body as the architecture export writes it back
         rules = sorted({r for b in bound for r in b["rules"]} | {r for w in held for r in w["permitted_by"] + w["forbidden_by"]})
         members = ", ".join(sorted({m for b in bound for m in b["members"]}))
         nodes.append({"id": cid, "type": CONTROL, "label": "IAM bindings on %s" % resource["label"],
                       "summary": "What the platform lets %s do on %s, derived from the access policy by %s; the platform enforces it, OTO does not." % (
                           members, resource["label"], GENERATOR),
-                      "attributes": {"calm_id": "iam-%s" % _slug(rid), "requirement_url": REQUIREMENT_URL, "generated_by": GENERATOR,
+                      "attributes": {"external_id": "iam-%s" % _slug(rid), "requirement_url": REQUIREMENT_URL, "generated_by": GENERATOR,
                                      "config": json.dumps(config, sort_keys=True, ensure_ascii=False, separators=(",", ":"))},
                       "valid_from": at,
                       "evidence": [{"doc": DOC, "where": "bindings", "quote": _binding_line(b)} for b in bound]

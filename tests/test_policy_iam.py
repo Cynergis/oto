@@ -73,7 +73,7 @@ def _ledger_graph(**changes):
                                                 status="active", priority=100),
         "principal.svc": _node("principal.svc", "Principal", label="The service", kind="service", identity="svc@p.iam"),
         "principal.ann": _node("principal.ann", "Principal", label="Ann", kind="person", identity="ann@example.com"),
-        "component.api": _node("component.api", "Component", label="API", calm_id="api", calm_type="service"),
+        "component.api": _node("component.api", "Component", label="API", external_id="api", external_type="service"),
     }
     for nid, node in changes.items():
         if node is None:
@@ -117,7 +117,7 @@ def test_the_policy_pack_now_sits_on_the_architecture_and_models_who_runs_as_wha
 
 def test_the_architecture_pack_places_a_node_on_the_platform_and_marks_a_generated_control():
     manifest = ontologies.manifest_for("architecture")
-    assert manifest["release"] == 4
+    assert manifest["release"] >= 5
     assert ontologies.self_check("architecture") == [], ontologies.self_check("architecture")
     own = _own(ARCHITECTURE)
     for kind in ("System", "Component", "DataStore", "Interface"):
@@ -200,7 +200,7 @@ def test_the_generated_controls_are_proposed_in_the_architecture_vocabulary_and_
     control = proposal["nodes"][0]
     assert control["type"] == "Control" and control["label"] == "IAM bindings on t"
     a = control["attributes"]
-    assert a["calm_id"] == "iam-table-t" and a["requirement_url"] == _iam.REQUIREMENT_URL and a["generated_by"] == "oto policy iam"
+    assert a["external_id"] == "iam-table-t" and a["requirement_url"] == _iam.REQUIREMENT_URL and a["generated_by"] == "oto policy iam"
     body = json.loads(a["config"])
     assert body["requirements"][0]["requirement-url"] == _iam.REQUIREMENT_URL, "a CALM control body: the export writes it back as given"
     config = body["requirements"][0]["config"]
@@ -336,7 +336,7 @@ def test_the_command_writes_the_bundle_anywhere_and_applies_the_controls_through
     code, out = _cli("query", "--project", ledger, "ask", "PL8", "PRINCIPAL=principal.ops-clerk")
     assert code == 0 and "nothing runs as" in out, "a person's account: " + out
     exported = os.path.join(ledger, "exported.calm.json")
-    code, out = _cli("arch", "export", "--calm", "--out", exported, "--project", ledger)
+    code, out = _cli("arch", "export", "--framework", "calm", "--out", exported, "--project", ledger)
     assert code == 0, out
     with open(exported, encoding="utf-8") as f:
         model = json.load(f)

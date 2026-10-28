@@ -263,7 +263,7 @@ def test_set_waits_for_an_open_candidate(plan):
 # ---- the board and the snapshot's work section (M5) ----
 
 def test_the_board_groups_blocked_by_who_it_waits_on_and_deployed_by_environment(plan):
-    from oto import work as _work
+    from oto.packs import work as _work
     board = _work.board(Project.standard(plan))
     assert board["counts"] == {"open": 2, "blocked": 1, "deployed": 1}
     assert [i["id"] for i in board["open"]] == ["workitem.s-settlement-batch", "workitem.s-evidence-retention"], "open, soonest due first"
@@ -297,7 +297,7 @@ def test_a_project_without_work_items_has_no_board(tmp_path):
     root = str(tmp_path / "kb")
     with contextlib.redirect_stdout(io.StringIO()):
         init(root, slug="kb", name="KB")
-    assert snapshot.build(Project.standard(root))["work"] is None
+    assert snapshot.build(Project.standard(root)).get("work") is None, "no work pack, no board in the status (ADR-0006, step 5)"
     code, out = _cli("work", "board", "--project", root)
     assert code == 1 and "WorkItem" in out
 
@@ -427,7 +427,7 @@ def test_a_merged_pull_request_marks_the_item_deployed_once(plan):
 
 def test_identity_from_git_maps_to_a_person(comms, plan):
     import subprocess
-    from oto import work as _work
+    from oto.packs import work as _work
     live = _graph(comms)
     assert _work.person_for(live, "Mina Okafor <mina@example.com>")["id"] == "person.m-okafor", "by name when no email is recorded"
     assert _work.person_for(live, "Someone Else <x@example.com>") is None

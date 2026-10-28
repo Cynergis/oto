@@ -35,8 +35,8 @@ def cmd_ingest(args):
         except (pipeline.NotReady, pipeline.IngestLocked) as exc:
             print("oto: %s" % exc, file=sys.stderr)
             return 1
-        from .. import audit as _audit, work as _work
-        _audit.append(project, "ingest complete", _work.identity(project), [], "applied",
+        from .. import assertion as _assertion, audit as _audit
+        _audit.append(project, "ingest complete", _assertion.identity(project), [], "applied",
                       detail="run %s: archived %s" % (result["run_id"], ", ".join(result["archived"]) or "nothing"))
         print("run %s complete: %d file(s) archived" % (result["run_id"], len(result["archived"])))
         for name in result["versioned"]:

@@ -141,7 +141,7 @@ def existing(graph, slug=None, node=None):
 def record_own(project, by, at):
     """Write this graph's own descriptor into a project made before descriptors existed, through the
     gates. Returns the node id, or None when it is there already."""
-    from . import work as _work
+    from . import assertion as _assertion
     from .curate import session as _session
     with open(project.ontology_config_path, encoding="utf-8") as f:
         vocabulary = json.load(f)
@@ -155,7 +155,7 @@ def record_own(project, by, at):
     def edit(candidate, source):
         candidate["nodes"].append(own_node(descriptor, at))
         return {"node": descriptor["id"]}
-    _work._commit(project, "graph %s describes itself: %s" % (descriptor["id"], descriptor["subject"]), by, at, [descriptor["id"]], edit, action="graph describe")
+    _assertion.commit(project, "graph %s describes itself: %s" % (descriptor["id"], descriptor["subject"]), by, at, [descriptor["id"]], edit, action="graph describe")
     return descriptor["id"]
 
 
@@ -163,7 +163,7 @@ def depend(project, descriptor, by, at):
     """Declare that this graph depends on the one `descriptor` describes: its node (a copy of its
     descriptor, as the person declared it) and the edge, through the gates. Returns
     {"node", "edge", "already"}."""
-    from . import work as _work
+    from . import assertion as _assertion
     from .curate import session as _session
     problems = descriptor_problems(descriptor)
     if problems:
@@ -191,7 +191,7 @@ def depend(project, descriptor, by, at):
                                                        "reach": descriptor["reach"], "slug": descriptor["slug"]}))
         candidate["edges"].append({"from": own, "rel": DEPENDS_ON, "to": descriptor["id"]})
         return {"node": descriptor["id"], "edge": (own, DEPENDS_ON, descriptor["id"]), "already": False}
-    return _work._commit(project, text, by, at, [own, descriptor["id"]], edit, action="graph depend")
+    return _assertion.commit(project, text, by, at, [own, descriptor["id"]], edit, action="graph depend")
 
 
 def dependencies(project):

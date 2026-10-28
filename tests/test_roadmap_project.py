@@ -10,7 +10,8 @@ import shutil
 
 import pytest
 
-from oto import audit, snapshot, work as _work
+from oto import audit, snapshot
+from oto.packs import work as _work
 from oto.cli import main
 from oto.project import Project
 

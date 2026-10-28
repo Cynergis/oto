@@ -2,9 +2,9 @@
 """The work pack's one write: a transition of a work item, appended as a fact (roadmap M2, M3).
 
 An item's state is never written on the item. `set` records what a person says about it as an
-assertion (curate/assertions.py), appends a `Transition` citing it, supersedes the item's current
-transition so the chain is the history, holds the candidate to the same gates as any change (the
-diff's checks, the vocabulary's shapes, the ontology's blocking policies) and applies it. The
+assertion through the engine's write path (oto/assertion.py: the candidate held to the same gates as
+any change, nothing refused written), appends a `Transition` citing it and supersedes the item's
+current transition so the chain is the history. The
 rule `state-follows-the-current-transition` then derives the state at the next build.
 
 What the command refuses, the model refuses: `blocked` without a reason and a waiting-on (a
@@ -19,16 +19,17 @@ reason, so the person asked has the context without anyone retyping it. `inbox` 
 is pending for a person, the way a session opens; `reply` (N4) answers a message, and a resolving
 reply also lifts the block it was about, in one gated change; `event merged-pr` records what a
 merged pull request deployed, once however often the event is delivered. Identity is the git
-`user.name <user.email>` in the project, mapped to a Person by email, else by name.
+`user.name <user.email>` in the project (oto/assertion.py), mapped to a Person by email, else by name.
+The pack's code lives here, in oto/packs/work, and reaches the engine through the pack's manifest (ADR-0006).
 """
 import os
 
-from . import audit as _audit
-from .curate import assertions as _assertions, diff as _diff, ledger as _ledger, session as _session
-from .model.vocabulary import ISO_DATE, _union, covers as _covers
-from .project import ProjectError
-from .reason import engine as _engine, rules as _rules, shapes as _shapes
-from .reason.questions import declared_names
+from ... import audit as _audit
+from ...assertion import WriteError as WorkError, _load_vocabulary, commit as _commit, gates, identity, no_candidate as _no_candidate  # noqa: F401
+from ...curate import assertions as _assertions, session as _session
+from ...model.vocabulary import ISO_DATE, _union, covers as _covers
+from ...reason import engine as _engine, rules as _rules
+from ...reason.questions import declared_names
 
 ITEM = "WorkItem"
 TRANSITION, BLOCK = "Transition", "Block"
@@ -38,16 +39,6 @@ TRANSITION_OF, WAITING_ON = "transition_of", "waiting_on"
 MESSAGE, SENT_TO, SENT_BY, REGARDING, IN_REPLY_TO = "Message", "sent_to", "sent_by", "regarding", "in_reply_to"
 REMINDER_OF, REMINDER_SENDER = "reminder_of", "oto work remind"
 PERSON = "Person"
-
-
-class WorkError(ProjectError):
-    """A refusal, in words the person can act on."""
-
-
-def _load_vocabulary(project):
-    import json
-    with open(project.ontology_config_path, encoding="utf-8") as f:
-        return json.load(f)
 
 
 def _kinds(vocabulary, kind):
@@ -93,20 +84,6 @@ def current_state(graph, item, vocabulary):
     return reading.get("default")
 
 
-def identity(project):
-    """Who is speaking, from git when the person does not say: `user.name <user.email>`."""
-    from . import gitx
-    root = os.path.dirname(project.src)
-    try:
-        name = gitx.run(["config", "user.name"], cwd=root).strip()
-        email = gitx.run(["config", "user.email"], cwd=root).strip()
-    except ProjectError:
-        return None
-    if not (name or email):
-        return None
-    return ("%s <%s>" % (name, email)) if name and email else (name or email)
-
-
 def person_for(graph, identity):
     """The Person `identity` ("Name <email>", or either alone) names: by email when one is recorded
     on a Person, else by label or alias. None when the project knows no such person."""
@@ -136,52 +113,6 @@ def _next_id(graph, prefix, item_id):
     while "%s-%d" % (stem, n) in taken:
         n += 1
     return "%s-%d" % (stem, n)
-
-
-def _no_candidate(project):
-    if _session.exists(project):
-        raise WorkError("a curate candidate is open (%s): apply or abort it first, so this change is not mixed into it"
-                        % os.path.basename(_session.candidate_path(project)))
-
-
-def _commit(project, text, by, at, about, edit, action="work"):
-    """Record `text` as an assertion by `by`, let `edit(candidate, source)` append what cites it,
-    hold the candidate to the gates and apply it. Returns what `edit` returned. Nothing refused is
-    written: a refusal aborts the candidate, and the assertion stands as what was said. Both
-    outcomes go to the audit log (audit.py), keyed to the nodes touched."""
-    _no_candidate(project)
-    from . import extensions as _extensions
-    try:
-        under = _extensions.before_write(project, action, by)        # the composed packs' write hooks: the policy snapshot re-checked (roadmap E6)
-    except ProjectError as exc:
-        raise WorkError(str(exc))
-    vocabulary = _load_vocabulary(project)
-    live = _session.live(project)
-    entry = _assertions.record(project, text=text, by=by.strip(), at=at, about=about)
-    candidate_path = _session.start(project)
-    try:
-        candidate = _session.candidate(project)
-        done = edit(candidate, {"source_type": _assertions.HUMAN_ASSERTION, "sources": [_assertions.reference(entry["id"])],
-                                "source_doc": _assertions.reference(entry["id"]), "as_of": at, "valid_from": at,
-                                "status": "current", "aliases": [], "tags": []})
-        problems = gates(project, live, candidate, vocabulary)
-        if problems:
-            refusal = WorkError("refused by the gates:\n  - " + "\n  - ".join("%s: %s" % (f.subject, f.detail) for f in problems[:10]))
-            _audit.append(project, action, by, about, "refused", detail=str(refusal).splitlines()[1].strip(" -") if "\n" in str(refusal) else str(refusal))
-            raise refusal
-        _session._write(candidate_path, candidate)
-    except Exception:
-        _session.abort(project)
-        raise
-    summary = _diff.summarize(live, candidate)
-    record = _ledger.entry(summary, _ledger.retirements(live, candidate), by=by.strip(), note="oto %s: %s" % (action, text),
-                           sources=_ledger.new_sources(live, candidate))
-    _session.apply(project)
-    _ledger.append(project, record)
-    done["assertion"] = entry["id"]
-    touched = list(about) + list(summary.get("nodes_added") or []) + [nid for nid, _f in summary.get("nodes_changed") or []]
-    _audit.append(project, action, by, touched, "applied", detail=text + ((" [%s]" % under) if under else ""))
-    return done
 
 
 def refused(project, action, by, term, error):
@@ -300,7 +231,7 @@ def _seen(project, vocabulary, graph):
                 derived.setdefault(a["node"], {})[a["name"]] = a["value"]
         except _engine.DoesNotConverge:
             pass
-    from .reason.match import Graph
+    from ...reason.match import Graph
     return Graph(nodes, edges, derived, covers=cover, declared=declared)
 
 
@@ -676,26 +607,6 @@ def event_merged_pr(project, repo, number, term, environment, at, by=None):
     return _commit(project, "%s: %s" % (event, text), who, at.strip(), [item["id"]], edit, action="work event")
 
 
-def gates(project, live, candidate, vocabulary):
-    """The blocking findings the candidate would meet at `oto curate check`: the diff's checks, the
-    declared shapes, the ontology's blocking policies."""
-    findings = [f for f in _diff.check(live, candidate, vocabulary, known_assertions=_assertions.known_ids(project))
-                if f.severity == _diff.Finding.BLOCKING]
-    nodes, edges = candidate.get("nodes") or [], candidate.get("edges") or []
-    for item in _shapes.findings(vocabulary, nodes, edges):
-        findings.append(_diff.Finding(_diff.Finding.BLOCKING, item["node"], "shape %s: %s" % (item["kind"], item["message"])))
-    rules = _rules.load(project)
-    if rules and not _rules.problems(rules, vocabulary):
-        try:
-            outcome = _engine.run(rules, nodes, edges, covers=_covers(vocabulary.get("classes") or {}), declared=declared_names(vocabulary))
-        except _engine.DoesNotConverge as exc:
-            findings.append(_diff.Finding(_diff.Finding.BLOCKING, "rules", str(exc)))
-        else:
-            findings += [_diff.Finding(_diff.Finding.BLOCKING, f.get("node") or "(graph)", "policy %s: %s" % (f["rule"], f["message"]))
-                         for f in outcome["findings"] if f["severity"] == "blocking"]
-    return findings
-
-
 def event_verdict(project, term, run_id, component, verdict, at, by=None, gaps=(), waiting_on=None):
     """A factory verdict on the work item (roadmap M4): a failed or escalated build blocks the item
     on a named person, with the run, the component and the gaps as the reason; a pass changes no
@@ -707,7 +618,7 @@ def event_verdict(project, term, run_id, component, verdict, at, by=None, gaps=(
         raise WorkError("a factory verdict names its run (--run) and its component (--component)")
     who = (by or "").strip() or "oto factory run %s" % run_id.strip()
     if verdict == "pass":
-        from . import audit as _audit
+        from ... import audit as _audit
         vocabulary = _load_vocabulary(project)
         item = resolve(_session.live(project), term, _kinds(vocabulary, ITEM))
         _audit.append(project, "work event", who, [item["id"]], "unchanged", detail="run %s: %s passed; no state changes on a pass" % (run_id.strip(), component.strip()))
@@ -718,3 +629,8 @@ def event_verdict(project, term, run_id, component, verdict, at, by=None, gaps=(
     done = set_state(project, term, "blocked", who, at, reason=reason, waiting_on=waiting_on)
     done["noted"] = False
     return done
+
+
+def status(project):
+    """The pack's part of the project's status (`oto status`, the workbench's Work page): the board."""
+    return {"work": board(project)}

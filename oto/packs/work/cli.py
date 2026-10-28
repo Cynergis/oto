@@ -5,12 +5,13 @@ merged pull request deployed."""
 import json
 import sys
 
-from ._common import project_arguments, resolve as _resolve
+from ...cli._common import project_arguments, resolve as _resolve
 
 
 def cmd_work(args):
-    from .. import tracing, work as _work
-    from ..project import ProjectError
+    from ... import tracing
+    from ...project import ProjectError
+    from .. import work as _work
 
     try:
         project = _resolve(args)

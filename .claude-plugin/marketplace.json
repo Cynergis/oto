@@ -10,7 +10,7 @@
     {
       "name": "oto",
       "source": "./",
-      "version": "0.14.1",
+      "version": "0.14.2",
       "description": "The OTO engine: the kg_* query tools as an MCP server, the generic skills, and the session hook. Every pack depends on it."
     }
   ]

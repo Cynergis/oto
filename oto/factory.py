@@ -521,7 +521,8 @@ def run_sync(run_dir, events_path):
     project = _run_project(run_dir)
     run_id = _run_node(_session.live(project))["id"].split(".", 1)[1]
     counts = {"events": 0, "new": 0, "iterations": 0, "passed": 0, "escalated": 0, "skipped": 0, "denied": 0}
-    from . import audit as _audit, policy as _policy
+    from . import audit as _audit
+    from .packs import policy as _policy                        # a pack on a pack: the factory reads the policy's denials
     seen_denials = {r.get("detail") for r in _audit.read(project) if r.get("action") == _policy.DENIED_ACTION}
     with open(events_path, encoding="utf-8") as f:
         for line in f:

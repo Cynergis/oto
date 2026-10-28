@@ -16,38 +16,37 @@ The bundle, `build/iam/` by default, beside the policy bundle:
 
     bindings.json            the bindings, the withheld ones, the members, what could not bind
     gcp.json                 the same bindings resource by resource, in the shape set-iam-policy takes
-    controls.proposal.json   the generated controls as a proposal in the architecture vocabulary: one
-                             Control per resource that safeguards it and the components running as its
-                             members, derives_from the rules it came from, config holding the bindings
-    iam-bindings.md          the document the controls quote, one line per binding
+    bindings.proposal.json   the bindings as a proposal in the policy vocabulary: one IamBinding per
+                             resource that binds it, grants the principals and derives_from the rules it
+                             came from, carrying the provider, the resource's address, the bindings and
+                             what was withheld as the JSON the platform takes
+    iam-bindings.md          the document the binding nodes quote, one line per binding
     manifest.json            like the policy bundle's: version, counts, file hashes, a content hash
                              over bindings.json, a signature with the key the project names
 
 Only GCP is written in this release; the provider is a setting (`policy.provider`), and another is
-a second shape over the same derivation. The controls enter the graph through the gates
+a second shape over the same derivation. The binding nodes enter the graph through the gates
 (`oto policy iam --apply`), never by writing it; the architecture export then carries them.
 """
 import datetime
 import json
 import os
 
-from . import policy as _policy
-from .data import _slug
-from .project import ProjectError
+from .. import policy as _policy
+from ...data import _slug
+from ...project import ProjectError
 
 BUNDLE_VERSION = 1
 PROVIDER = "gcp"
 PROVIDERS = ("gcp",)
 GENERATOR = "oto policy iam"
-REQUIREMENT_URL = "https://cynergis.ai/controls/iam-bindings.requirement.json"
 DOC = "iam-bindings"
 CONTENT = "bindings.json"
-FILES = ("bindings.json", "gcp.json", "controls.proposal.json", "iam-bindings.md")
+FILES = ("bindings.json", "gcp.json", "bindings.proposal.json", "iam-bindings.md")
 MEMBER_PREFIX = {"service": "serviceAccount", "person": "user"}
 RESOURCE_URI = "resource_uri"
 CLOUD_ROLE = "cloud_role"
-CONTROL = "Control"
-RUNS_AS = "runs_as"
+BINDING = "IamBinding"
 
 
 class IamError(ProjectError):
@@ -157,7 +156,7 @@ def gcp_policies(doc):
     return [{"resource": uri, "policy": {"bindings": sorted(by_uri[uri], key=lambda x: x["role"])}} for uri in sorted(by_uri)]
 
 
-# ---- the document and the controls ----
+# ---- the document and the binding nodes ----
 
 def _binding_line(b):
     return "%s: %s for %s (%s)" % (b["resource"]["id"], b["role"], ", ".join(b["members"]), ", ".join(b["rules"]))
@@ -169,11 +168,11 @@ def _withheld_line(w):
 
 
 def document(doc, at):
-    """(title, text): one line per binding, the quotes the generated controls cite."""
+    """(title, text): one line per binding, the quotes the binding nodes cite."""
     title = "IAM bindings of the generated system"
     lines = ["# %s" % title, "",
              "Derived on %s by `%s` from the active rules of the access policy, read through the roles each principal holds, for %s. "
-             "One line per binding; each generated control quotes its lines here. OTO does not enforce these: they ship with the system "
+             "One line per binding; each binding node quotes its lines here. OTO does not enforce these: they ship with the system "
              "and the platform enforces them (ADR-0005)." % (at, GENERATOR, doc["provider"]), "", "## Bindings", ""]
     for b in doc.get("bindings") or []:
         lines.append("- %s" % _binding_line(b))
@@ -190,19 +189,15 @@ def document(doc, at):
     return title, "\n".join(lines).rstrip() + "\n"
 
 
-def control_id(resource_id):
-    return "control.iam-%s" % _slug(resource_id)
+def binding_id(resource_id):
+    return "iambinding.%s" % _slug(resource_id)
 
 
 def propose(doc, graph, at, classes=None):
-    """The generated controls as a proposal: one Control per bound resource. Empty when the vocabulary
-    declares no Control (the architecture pack is not composed)."""
-    if classes is not None and CONTROL not in set(classes):
+    """The bindings as a proposal: one IamBinding per bound resource, which `binds` the resource, `grants`
+    the principals and `derives_from` the rules. Empty when the vocabulary declares no IamBinding."""
+    if classes is not None and BINDING not in set(classes):
         return {"source_doc": DOC, "as_of": at, "nodes": [], "edges": []}
-    runs_as = {}
-    for e in graph.get("edges") or []:
-        if e.get("rel") == RUNS_AS and (e.get("status") or "current") == "current":
-            runs_as.setdefault(e.get("to"), set()).add(e.get("from"))
     nodes, edges, seen = [], [], set()
 
     def edge(a, rel, b):
@@ -214,34 +209,32 @@ def propose(doc, graph, at, classes=None):
         bound = [b for b in doc["bindings"] if b["resource"]["id"] == rid]
         held = [w for w in doc.get("withheld") or [] if w["resource"]["id"] == rid]
         resource = bound[0]["resource"]
-        cid = control_id(rid)
-        bindings = {"provider": doc["provider"], "resource": resource["uri"],
-                    "bindings": [{"role": b["role"], "members": list(b["members"])} for b in bound],
-                    "withheld": [{"member": w["member"], "role": w.get("role") or w["action"], "forbidden_by": list(w["forbidden_by"])} for w in held]}
-        config = {"requirements": [{"requirement-url": REQUIREMENT_URL, "config": bindings}]}      # a control body as the architecture export writes it back
+        bid = binding_id(rid)
         rules = sorted({r for b in bound for r in b["rules"]} | {r for w in held for r in w["permitted_by"] + w["forbidden_by"]})
+        principals = sorted({p for b in bound for p in b["principals"]} | {w["principal"] for w in held})
         members = ", ".join(sorted({m for b in bound for m in b["members"]}))
-        nodes.append({"id": cid, "type": CONTROL, "label": "IAM bindings on %s" % resource["label"],
+        compact = lambda value: json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))  # noqa: E731
+        nodes.append({"id": bid, "type": BINDING, "label": "IAM bindings on %s" % resource["label"],
                       "summary": "What the platform lets %s do on %s, derived from the access policy by %s; the platform enforces it, OTO does not." % (
                           members, resource["label"], GENERATOR),
-                      "attributes": {"external_id": "iam-%s" % _slug(rid), "requirement_url": REQUIREMENT_URL, "generated_by": GENERATOR,
-                                     "config": json.dumps(config, sort_keys=True, ensure_ascii=False, separators=(",", ":"))},
+                      "attributes": {"provider": doc["provider"], "resource_uri": resource["uri"], "generated_by": GENERATOR,
+                                     "bindings": compact([{"role": b["role"], "members": list(b["members"])} for b in bound]),
+                                     "withheld": compact([{"member": w["member"], "role": w.get("role") or w["action"], "forbidden_by": list(w["forbidden_by"])} for w in held])},
                       "valid_from": at,
                       "evidence": [{"doc": DOC, "where": "bindings", "quote": _binding_line(b)} for b in bound]
                       + [{"doc": DOC, "where": "withheld", "quote": _withheld_line(w)} for w in held]})
-        edge(cid, "safeguards", rid)
-        for pid in sorted({p for b in bound for p in b["principals"]} | {w["principal"] for w in held}):
-            for component in sorted(runs_as.get(pid, ())):
-                edge(cid, "safeguards", component)
+        edge(bid, "binds", rid)
+        for pid in principals:
+            edge(bid, "grants", pid)
         for rule in rules:
-            edge(cid, "derives_from", rule)
+            edge(bid, "derives_from", rule)
     return {"source_doc": DOC, "as_of": at, "nodes": nodes, "edges": edges}
 
 
 # ---- the bundle ----
 
 def bundle(graph, out_dir, version=None, at=None, key_env=None, classes=None, provider=PROVIDER):
-    """Write bindings.json, gcp.json, controls.proposal.json, iam-bindings.md and manifest.json into
+    """Write bindings.json, gcp.json, bindings.proposal.json, iam-bindings.md and manifest.json into
     `out_dir`; return the manifest. Signed with the key in `key_env` when named, as the policy bundle."""
     doc = compile(graph, classes, provider=provider)
     at = at or datetime.date.today().isoformat()
@@ -259,11 +252,11 @@ def bundle(graph, out_dir, version=None, at=None, key_env=None, classes=None, pr
 
     write_json("bindings.json", bindings)
     write_json("gcp.json", gcp_policies(doc))
-    write_json("controls.proposal.json", proposal)
+    write_json("bindings.proposal.json", proposal)
     with open(os.path.join(out_dir, DOC + ".md"), "w", encoding="utf-8", newline="\n") as f:
         f.write(text)
     manifest = {"bundle_version": BUNDLE_VERSION, "generated_at": at, "version": dict(version or {}), "provider": doc["provider"], "content": CONTENT,
-                "bindings": len(doc["bindings"]), "resources": len(doc["resources"]), "members": len(doc["members"]), "controls": len(proposal["nodes"]),
+                "bindings": len(doc["bindings"]), "resources": len(doc["resources"]), "members": len(doc["members"]), "proposed": len(proposal["nodes"]),
                 "withheld": len(doc["withheld"]), "problems": doc["problems"],
                 "files": {name: _policy._file_hash(os.path.join(out_dir, name)) for name in FILES},
                 "hash": _policy.content_hash(bindings), "signature": signature}
@@ -274,8 +267,8 @@ def bundle(graph, out_dir, version=None, at=None, key_env=None, classes=None, pr
 def describe(manifest):
     """One line about a bindings bundle."""
     signature = manifest.get("signature")
-    return "%d binding(s) on %d resource(s) for %d member(s), %d control(s), %d withheld, hash %s, %s" % (
-        manifest.get("bindings", 0), manifest.get("resources", 0), manifest.get("members", 0), manifest.get("controls", 0), manifest.get("withheld", 0),
+    return "%d binding(s) on %d resource(s) for %d member(s), %d binding node(s) proposed, %d withheld, hash %s, %s" % (
+        manifest.get("bindings", 0), manifest.get("resources", 0), manifest.get("members", 0), manifest.get("proposed", 0), manifest.get("withheld", 0),
         str(manifest.get("hash"))[:12], ("signed with %s" % signature["key"]) if signature else "unsigned")
 
 
@@ -330,7 +323,7 @@ def built_graph(project):
 def graph_for(project):
     """The graph the bindings are derived from: the built one when it exists, with the derived
     attributes folded in, else the live graph (and which it was)."""
-    from .curate import session as _session
+    from ...curate import session as _session
     graph = built_graph(project)
     if graph is not None:
         return graph, "build"

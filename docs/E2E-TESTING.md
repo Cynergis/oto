@@ -1385,16 +1385,17 @@ to Cedar give the platform's bindings, written beside the policy bundle and back
 generated controls.
 
 ```bash
-oto init --ontology policy --project ledger && oto build --project ledger      # "policy: 4 rule(s) ..." then "iam: 4 binding(s) on 3 resource(s) for 3 member(s) into build/iam (gcp), 3 control(s) proposed, unsigned"
+oto init --ontology policy --project ledger && oto build --project ledger      # "policy: 4 rule(s) ..." then "iam: 4 binding(s) on 3 resource(s) for 3 member(s) into build/iam (gcp), 3 binding node(s) proposed, unsigned"
 #                                                                               #   not bound: table.ledger-accounts has no resource_uri: no binding on it (policyrule.compliance-reads-ledger)
-ls ledger/build/iam                                                             # bindings.json controls.proposal.json gcp.json iam-bindings.md manifest.json
+ls ledger/build/iam                                                             # bindings.json bindings.proposal.json gcp.json iam-bindings.md manifest.json
 cat ledger/build/iam/gcp.json                                                   # one policy per resource: {"resource": "//bigquery.googleapis.com/.../tables/invoices", "policy": {"bindings": [{"role": "roles/bigquery.dataEditor", "members": ["serviceAccount:invoice-intake@acme.iam"]}, ...]}}
-oto policy verify ledger/build/iam --project ledger                             # holds: 4 binding(s) on 3 resource(s) for 3 member(s), 3 control(s), 0 withheld, hash ..., unsigned
-oto query --project ledger ask PL8 PRINCIPAL=principal.invoice-intake           # component.invoice-intake runs as it; control.iam-table-invoices derives from policyrule.intake-writes-invoices, roles/bigquery.dataEditor
+oto policy verify ledger/build/iam --project ledger                             # holds: 4 binding(s) on 3 resource(s) for 3 member(s), 3 binding node(s) proposed, 0 withheld, hash ..., unsigned
+oto query --project ledger ask PL8 PRINCIPAL=principal.invoice-intake           # component.invoice-intake runs as it; iambinding.table-invoices grants it, derived from policyrule.intake-writes-invoices, roles/bigquery.dataEditor
 oto query --project ledger ask PL8 PRINCIPAL=principal.ops-clerk                # nothing runs as this principal: a person's account
 oto policy iam --project ledger --out /tmp/iam --at 2026-10-27                  # anywhere, the same bundle; the document lands in build/documents/iam-bindings.md; next: curate add --from ..., or --apply
-oto policy iam --project ledger --apply --by "<you>" --at 2026-10-27            # applied by <you>: 3 control(s) in the graph, built
-oto query --project ledger ask AR12                                             # the three generated controls, what each safeguards and where that is on the platform
+oto policy iam --project ledger --apply --by "<you>" --at 2026-10-27            # applied by <you>: 3 binding node(s) in the graph, built
+oto query --project ledger ask PL9 RESOURCE=table.ledger-postings               # the binding node on the postings table: provider, address, bindings, withheld, the rules behind it
+# with the calm pack composed too (oto init --ontology policy,calm), the adapter exports a binding node as a control on the component that runs as the granted principal:
 oto arch export --framework calm --out /tmp/ledger.calm.json --project ledger && python3 -c "import json; n=[n for n in json.load(open('/tmp/ledger.calm.json'))['nodes'] if n['unique-id']=='invoice-intake'][0]; print(list(n['controls']))"   # ['iam-table-invoices']
 oto policy iam --project ledger --apply --at 2026-10-27; echo $?               # 1: --apply takes --by
 python3 - <<'PY'

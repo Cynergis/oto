@@ -242,7 +242,7 @@ def problems(directory):
     return out
 
 
-PROVIDES_KINDS = ("stages", "commands", "endpoints", "write_hooks", "adapters")
+PROVIDES_KINDS = ("stages", "commands", "endpoints", "write_hooks", "read_hooks", "adapters")
 
 
 def provides_problems(provides):
@@ -257,7 +257,7 @@ def provides_problems(provides):
             continue
         if not isinstance(entries, list):
             shape = {"stages": "{name, module, owns}", "commands": "{name, module, label}", "endpoints": "module names",
-                     "write_hooks": "module:function names", "adapters": "{framework, module, import, export}"}[kind]
+                     "write_hooks": "module:function names", "read_hooks": "module:function names", "adapters": "{framework, module, import, export}"}[kind]
             out.append("manifest.json provides.%s must be a list of %s" % (kind, shape))
             continue
         for i, entry in enumerate(entries):
@@ -273,7 +273,7 @@ def provides_problems(provides):
             elif kind == "endpoints":
                 if not isinstance(entry, str) or not entry:
                     out.append("manifest.json %s must be a module name" % where)
-            elif kind == "write_hooks":
+            elif kind in ("write_hooks", "read_hooks"):
                 if not isinstance(entry, str) or ":" not in entry or not entry.split(":", 1)[1]:
                     out.append("manifest.json %s %r is not module:function" % (where, entry))
             elif kind == "adapters":

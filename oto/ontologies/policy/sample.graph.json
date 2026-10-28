@@ -1,5 +1,5 @@
 {
- "_about": "A worked example on the ledger the data sample describes: a customers table with an email column that is personal data, three active rules (compliance reads what holds no personal data, reports exports the daily balances, reports never writes postings) and a draft rule nobody activated. The roles, teams, tables and the store come from the ontologies this one extends. Release 2 adds two principals, a clerk's account and the factory runner's service account, and grants the agent pack's merchant assistant the reports team's and compliance's roles, so a snapshot for it under the runner's account intersects the two. Release 3 adds the generated system: the invoice intake component runs as its own service account, which holds the invoice writer role permitted to write the invoices table; the permissions name their platform roles and the tables their place on the platform, and the control `oto policy iam` derives on the invoices table is in the sample as the generator writes it.",
+ "_about": "A worked example on the ledger the data sample describes: a customers table with an email column that is personal data, three active rules (compliance reads what holds no personal data, reports exports the daily balances, reports never writes postings) and a draft rule nobody activated. The roles, teams, tables and the store come from the ontologies this one extends. Release 2 adds two principals, a clerk's account and the factory runner's service account, and grants the agent pack's merchant assistant the reports team's and compliance's roles, so a snapshot for it under the runner's account intersects the two. Release 3 adds the generated system: the invoice intake component runs as its own service account, which holds the invoice writer role permitted to write the invoices table; the permissions name their platform roles and the tables their place on the platform, and the binding node `oto policy iam` derives on the invoices table is in the sample as the generator writes it.",
  "nodes": [
   {
    "id": "table.ledger-customers",
@@ -426,39 +426,6 @@
    "tags": []
   },
   {
-   "id": "control.iam-table-invoices",
-   "type": "Control",
-   "label": "IAM bindings on invoices.invoices",
-   "summary": "What the platform lets serviceAccount:factory-runner@acme.iam, serviceAccount:invoice-intake@acme.iam do on invoices.invoices, derived from the access policy by oto policy iam; the platform enforces it, OTO does not.",
-   "attributes": {
-    "requirement_url": "https://cynergis.ai/controls/iam-bindings.requirement.json",
-    "generated_by": "oto policy iam",
-    "config": "{\"requirements\":[{\"config\":{\"bindings\":[{\"members\":[\"serviceAccount:invoice-intake@acme.iam\"],\"role\":\"roles/bigquery.dataEditor\"},{\"members\":[\"serviceAccount:factory-runner@acme.iam\"],\"role\":\"roles/bigquery.dataViewer\"}],\"provider\":\"gcp\",\"resource\":\"//bigquery.googleapis.com/projects/acme-invoices/datasets/invoices/tables/invoices\",\"withheld\":[]},\"requirement-url\":\"https://cynergis.ai/controls/iam-bindings.requirement.json\"}]}",
-    "external_id": "iam-table-invoices"
-   },
-   "as_of": "2026-10-27",
-   "valid_from": "2026-10-27",
-   "source_doc": "ledger-access-policy",
-   "status": "current",
-   "sources": [
-    "ledger-access-policy"
-   ],
-   "aliases": [],
-   "tags": [],
-   "evidence": [
-    {
-     "doc": "iam-bindings",
-     "where": "bindings",
-     "quote": "table.invoices: roles/bigquery.dataEditor for serviceAccount:invoice-intake@acme.iam (policyrule.intake-writes-invoices)"
-    },
-    {
-     "doc": "iam-bindings",
-     "where": "bindings",
-     "quote": "table.invoices: roles/bigquery.dataViewer for serviceAccount:factory-runner@acme.iam (policyrule.compliance-reads-ledger)"
-    }
-   ]
-  },
-  {
    "id": "column.invoices-invoice-id",
    "type": "Column",
    "label": "invoice_id",
@@ -502,6 +469,76 @@
    ],
    "aliases": [],
    "tags": []
+  },
+  {
+   "id": "component.invoice-intake",
+   "type": "Component",
+   "label": "Invoice intake",
+   "summary": "The service that receives a supplier's invoice and records it; it runs as its own service account.",
+   "attributes": {
+    "resource_uri": "//run.googleapis.com/projects/acme-invoices/locations/europe-west1/services/invoice-intake"
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  },
+  {
+   "id": "datastore.invoice-db",
+   "type": "DataStore",
+   "label": "Invoice database",
+   "summary": "The invoice platform's store: the invoices table and what the intake records.",
+   "attributes": {
+    "resource_uri": "//bigquery.googleapis.com/projects/acme-invoices/datasets/invoices"
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": []
+  },
+  {
+   "id": "iambinding.table-invoices",
+   "type": "IamBinding",
+   "label": "IAM bindings on invoices.invoices",
+   "summary": "What the platform lets serviceAccount:factory-runner@acme.iam, serviceAccount:invoice-intake@acme.iam do on invoices.invoices, derived from the access policy by oto policy iam; the platform enforces it, OTO does not.",
+   "attributes": {
+    "provider": "gcp",
+    "resource_uri": "//bigquery.googleapis.com/projects/acme-invoices/datasets/invoices/tables/invoices",
+    "generated_by": "oto policy iam",
+    "bindings": "[{\"members\":[\"serviceAccount:invoice-intake@acme.iam\"],\"role\":\"roles/bigquery.dataEditor\"},{\"members\":[\"serviceAccount:factory-runner@acme.iam\"],\"role\":\"roles/bigquery.dataViewer\"}]",
+    "withheld": "[]"
+   },
+   "as_of": "2026-10-27",
+   "valid_from": "2026-10-27",
+   "source_doc": "ledger-access-policy",
+   "status": "current",
+   "sources": [
+    "ledger-access-policy"
+   ],
+   "aliases": [],
+   "tags": [],
+   "evidence": [
+    {
+     "doc": "iam-bindings",
+     "where": "bindings",
+     "quote": "table.invoices: roles/bigquery.dataEditor for serviceAccount:invoice-intake@acme.iam (policyrule.intake-writes-invoices)"
+    },
+    {
+     "doc": "iam-bindings",
+     "where": "bindings",
+     "quote": "table.invoices: roles/bigquery.dataViewer for serviceAccount:factory-runner@acme.iam (policyrule.compliance-reads-ledger)"
+    }
+   ]
   }
  ],
  "edges": [
@@ -650,30 +687,6 @@
    "status": "current"
   },
   {
-   "from": "control.iam-table-invoices",
-   "rel": "safeguards",
-   "to": "table.invoices",
-   "status": "current"
-  },
-  {
-   "from": "control.iam-table-invoices",
-   "rel": "safeguards",
-   "to": "component.invoice-intake",
-   "status": "current"
-  },
-  {
-   "from": "control.iam-table-invoices",
-   "rel": "derives_from",
-   "to": "policyrule.compliance-reads-ledger",
-   "status": "current"
-  },
-  {
-   "from": "control.iam-table-invoices",
-   "rel": "derives_from",
-   "to": "policyrule.intake-writes-invoices",
-   "status": "current"
-  },
-  {
    "from": "column.invoices-invoice-id",
    "rel": "column_of",
    "to": "table.invoices",
@@ -683,6 +696,66 @@
    "from": "column.invoices-supplier",
    "rel": "column_of",
    "to": "table.invoices",
+   "status": "current"
+  },
+  {
+   "from": "iambinding.table-invoices",
+   "rel": "binds",
+   "to": "table.invoices",
+   "status": "current"
+  },
+  {
+   "from": "iambinding.table-invoices",
+   "rel": "grants",
+   "to": "principal.factory-runner",
+   "status": "current"
+  },
+  {
+   "from": "iambinding.table-invoices",
+   "rel": "grants",
+   "to": "principal.invoice-intake",
+   "status": "current"
+  },
+  {
+   "from": "iambinding.table-invoices",
+   "rel": "derives_from",
+   "to": "policyrule.compliance-reads-ledger",
+   "status": "current"
+  },
+  {
+   "from": "iambinding.table-invoices",
+   "rel": "derives_from",
+   "to": "policyrule.intake-writes-invoices",
+   "status": "current"
+  },
+  {
+   "from": "component.invoice-intake",
+   "rel": "part_of",
+   "to": "system.payments",
+   "status": "current"
+  },
+  {
+   "from": "datastore.invoice-db",
+   "rel": "part_of",
+   "to": "system.payments",
+   "status": "current"
+  },
+  {
+   "from": "component.invoice-intake",
+   "rel": "runs_in",
+   "to": "environment.production",
+   "status": "current"
+  },
+  {
+   "from": "datastore.invoice-db",
+   "rel": "runs_in",
+   "to": "environment.production",
+   "status": "current"
+  },
+  {
+   "from": "component.invoice-intake",
+   "rel": "writes_to",
+   "to": "datastore.invoice-db",
    "status": "current"
   }
  ]

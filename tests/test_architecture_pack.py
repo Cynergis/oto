@@ -48,7 +48,7 @@ def _enum(spec):
 
 def test_the_pack_sits_on_software_architecture_and_the_calm_pack_pins_calm():
     manifest = ontologies.manifest_for("architecture")
-    assert manifest["extends"] == ["software-architecture"] and manifest["release"] == 5 and manifest["domain"] == "software"
+    assert manifest["extends"] == ["software-architecture"] and manifest["release"] == 6 and manifest["domain"] == "software"
     assert manifest["engine"] == ">=0.11" and "framework-neutral" in manifest["summary"], "the pack names no framework; CALM is the calm pack's"
     calm_pack = ontologies.manifest_for("calm")
     assert calm_pack["extends"] == ["architecture"] and ontologies.self_check("calm") == [], ontologies.self_check("calm")
@@ -165,7 +165,7 @@ def test_no_relation_or_inverse_name_collides_with_another_pack():
 def test_the_questions_say_what_the_graph_is_for():
     questions = ontologies.questions_for("architecture")
     ids = [q for q in questions if q.startswith("AR")]
-    assert ids == ["AR%d" % i for i in range(1, 13)], ids
+    assert ids == ["AR%d" % i for i in range(1, 12)], ids
     asks = {q: questions[q]["question"].lower() for q in ids}
     assert "NODE" in questions["AR1"]["params"] and "protocol" in asks["AR1"], "AR1: what a node connects to"
     assert "NODE" in questions["AR2"]["params"] and "control" in asks["AR2"], "AR2: what safeguards it"

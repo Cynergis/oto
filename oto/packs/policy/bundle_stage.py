@@ -12,8 +12,9 @@ import json
 import os
 import shutil
 
-from .. import audit as _audit, policy as _policy
-from ..project import ProjectError
+from ... import audit as _audit
+from ...project import ProjectError
+from .. import policy as _policy
 
 
 def settings(project):

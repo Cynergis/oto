@@ -1,7 +1,7 @@
 {
   "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
   "name": "architecture",
-  "release": 5,
+  "release": 6,
   "domain": "software",
   "summary": "The architecture graph for implementation, framework-neutral: estate nodes carrying the id, type and payload of the framework their model was written in (CALM through the calm pack's adapter), relationships, controls and flows as nodes, requirements with budgets and the evidence that measured them, the code modules and commits that implement each component, and the change proposals evidence raised.",
   "extends": [
@@ -18,6 +18,11 @@
   ],
   "maintainer": "OTO",
   "changelog": [
+    {
+      "release": 6,
+      "at": "2026-10-28",
+      "note": "resource_uri on System, Component, DataStore and Interface, generated_by on Control and AR12 leave for the policy pack (ADR-0006, step 4): where a resource is on the platform and the derived bindings are the policy pack's terms, and the pack no longer carries anything for another pack's sake."
+    },
     {
       "release": 5,
       "at": "2026-10-28",

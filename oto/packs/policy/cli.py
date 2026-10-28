@@ -3,14 +3,14 @@
 under (E3) and the generated system's IAM (E7). compile writes the bundle from the live graph;
 snapshot writes the signed intersection of what an agent and a principal may do; iam writes the
 platform's bindings derived from the rules through the roles each principal holds, with the
-generated controls as a proposal, and applies them through the gates with --apply; verify checks a
+binding nodes as a proposal, and applies them through the gates with --apply; verify checks a
 bundle, a bindings bundle or a snapshot against its hash and signature; list reads every rule in
 words; denials turns a guard's refusals into audit records."""
 import json
 import os
 import sys
 
-from ._common import project_arguments, resolve as _resolve
+from ...cli._common import project_arguments, resolve as _resolve
 
 
 def _vocabulary(project):
@@ -19,9 +19,10 @@ def _vocabulary(project):
 
 
 def cmd_policy(args):
-    from .. import audit as _audit, policy as _policy
-    from ..curate import session as _session
-    from ..targets import policy as _stage
+    from ... import audit as _audit
+    from ...curate import session as _session
+    from .. import policy as _policy
+    from . import bundle_stage as _stage
     project = _resolve(args)
     vocabulary = _vocabulary(project)
     classes = vocabulary.get("classes") or {}
@@ -47,11 +48,12 @@ def cmd_policy(args):
             print("  left out: %s" % problem)
         return 0
     if args.policy_command == "iam":
-        from .. import arch as _arch, iam as _iam
+        from ... import arch as _arch
+        from . import iam as _iam
         out = args.out or project.layout.iam
         key_env = args.sign_with or _stage.settings(project)["sign_with"]
         if args.apply and not (args.by or "").strip():
-            print("oto: --apply takes --by <who>: applying the controls is a person's or a workflow's act, named", file=sys.stderr)
+            print("oto: --apply takes --by <who>: applying the binding nodes is a person's or a workflow's act, named", file=sys.stderr)
             return 1
         try:
             seq = int(project.build_seq())
@@ -67,13 +69,13 @@ def cmd_policy(args):
         print("%s: %s (from the %s graph)" % (out, _iam.describe(manifest), source))
         for problem in manifest["problems"]:
             print("  not bound: %s" % problem)
-        if _iam.CONTROL not in classes:
-            print("  no Control in the vocabulary: no controls proposed (compose the architecture pack)")
+        if _iam.BINDING not in classes:
+            print("  no IamBinding in the vocabulary: nothing proposed")
             return 0
         document = _iam.install_document(project, out)
-        proposal = os.path.join(out, "controls.proposal.json")
+        proposal = os.path.join(out, "bindings.proposal.json")
         rel = lambda p: os.path.relpath(p, project.data)  # noqa: E731
-        print("  document %s; proposal %s: %d control(s)" % (rel(document), rel(proposal), manifest["controls"]))
+        print("  document %s; proposal %s: %d binding node(s)" % (rel(document), rel(proposal), manifest["proposed"]))
         if not args.apply:
             print("  next: oto curate start (if no candidate is open), oto curate add --from %s, oto curate check, oto curate apply --by <you>; "
                   "or oto policy iam --apply --by <you>" % rel(proposal))
@@ -83,7 +85,7 @@ def cmd_policy(args):
         except _arch.ArchError as exc:
             print("oto: %s" % exc, file=sys.stderr)
             return 1
-        print("  applied by %s: %d control(s) in the graph, built" % (args.by.strip(), manifest["controls"]))
+        print("  applied by %s: %d binding node(s) in the graph, built" % (args.by.strip(), manifest["proposed"]))
         return 0
     if args.policy_command == "snapshot":
         if not args.agent or not args.principal:
@@ -151,7 +153,7 @@ def cmd_policy(args):
         if manifest.get("signature") and not key_env:
             note = "; the signature names the key in %s, not checked without it (--sign-with %s)" % (manifest["signature"]["key"], manifest["signature"]["key"])
         if manifest.get("content") == "bindings.json":
-            from .. import iam as _iam
+            from . import iam as _iam
             print("%s holds: %s%s" % (where, _iam.describe(manifest), note))
             return 0
         print("%s holds: %s%s" % (where, _policy.describe(manifest), note))
@@ -191,10 +193,10 @@ def register(sub):
     policy.add_argument("policy_command", choices=["compile", "snapshot", "iam", "verify", "list", "denials"],
                         help="compile writes policies.cedar, policies.json and manifest.json from the active rules; snapshot writes the signed "
                              "intersection of what an agent and a principal may do (.factory/policy.json); iam writes the generated system's "
-                             "bindings (build/iam: bindings.json, gcp.json, the controls proposal, manifest.json) and with --apply takes the "
-                             "controls through the gates; verify checks a bundle directory or a snapshot file against its hash and signature; "
+                             "bindings (build/iam: bindings.json, gcp.json, the bindings proposal, manifest.json) and with --apply takes the "
+                             "binding nodes through the gates; verify checks a bundle directory or a snapshot file against its hash and signature; "
                              "list reads every rule in words; denials turns a guard's refusals into audit records")
-    policy.add_argument("--apply", action="store_true", help="for iam: add, check and apply the generated controls through the gates, then build")
+    policy.add_argument("--apply", action="store_true", help="for iam: add, check and apply the binding nodes through the gates, then build")
     policy.add_argument("--by", default=None, help="for iam --apply: who applies, a person or the workflow")
     policy.add_argument("--note", default=None, help="for iam --apply: the note on the apply (default: generated by oto policy iam)")
     policy.add_argument("bundle", nargs="?", default=None, help="for verify: the bundle directory (default build/policy) or a snapshot file")

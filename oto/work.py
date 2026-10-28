@@ -150,11 +150,10 @@ def _commit(project, text, by, at, about, edit, action="work"):
     written: a refusal aborts the candidate, and the assertion stands as what was said. Both
     outcomes go to the audit log (audit.py), keyed to the nodes touched."""
     _no_candidate(project)
-    from . import policy as _policy
     from . import extensions as _extensions
     try:
-        under = _extensions.before_write(project, action, by)        # the snapshot the session runs under, re-checked (roadmap E6)
-    except _policy.PolicyError as exc:
+        under = _extensions.before_write(project, action, by)        # the composed packs' write hooks: the policy snapshot re-checked (roadmap E6)
+    except ProjectError as exc:
         raise WorkError(str(exc))
     vocabulary = _load_vocabulary(project)
     live = _session.live(project)

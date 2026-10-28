@@ -19,7 +19,7 @@ import sqlite3
 
 import pytest
 
-from oto import meaning
+from oto.packs.data import meaning
 from oto.cli import main
 from oto.curate import diff, session
 from oto.model import vocabulary as _vocabulary

@@ -33,7 +33,7 @@
     "commands": [
       {
         "name": "data",
-        "module": "oto.cli.data",
+        "module": "oto.packs.data.cli",
         "label": "data"
       }
     ]

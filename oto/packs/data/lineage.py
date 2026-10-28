@@ -27,7 +27,7 @@ import json
 import os
 import re
 
-from .data import DataError, _graph_ids, _slug, store_slug, table_id
+from . import DataError, _graph_ids, _slug, store_slug, table_id
 
 JOB, FEED, DOCUMENT = "LoadJob", "Feed", "Document"
 DOC_KIND = "lineage"

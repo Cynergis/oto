@@ -37,7 +37,7 @@ import json
 import os
 import re
 
-from .data import _slug
+from .naming import slug as _slug
 from .project import ProjectError
 
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -235,7 +235,7 @@ def storm(project, path, at, name=None, context_id=None):
             raise DddError("%s is not JSON: %s" % (path, exc))
     board = read_board(raw)
     if context_id:
-        from .data import _graph_ids
+        from .naming import graph_ids as _graph_ids
         if context_id not in _graph_ids(project):
             raise DddError("the graph holds no %s: --context names a BoundedContext the graph holds" % context_id)
     doc = "storm-%s" % (_slug(name) if name else _slug(board.get("context") or board["session"]))

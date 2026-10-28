@@ -15,7 +15,6 @@ One module per command, in the order a project moves through them:
     deploy.py      oto deploy                   the deploy config, checked; what each environment holds
     connectors.py  oto connectors               the stores a build publishes to, and the conformance kit
     curate.py      oto curate                   gated changes to the curated graph, batches via add
-    data.py        oto data                     the data layer: a store's schema, lineage and usage read in; a meaning drafted (skeleton) and confirmed by a person
     arch.py        oto arch                     the architecture graph: a framework's model in through its adapter, the code map, compile, impact
     ddd.py         oto ddd                      the factory's domain graph: an event-storming board in, through the capture form
     decide.py      oto decide                   a named person moves a decision attribute: readiness, a confirmation
@@ -31,7 +30,8 @@ One module per command, in the order a project moves through them:
     feedback.py    oto feedback                 a complaint becomes a gold question
     publishable.py oto publishable              no client name or credential in a repository about to be published
 
-Each exposes `register(sub)` to add its parsers, and a `cmd_*` handler per command. The handlers
+Each exposes `register(sub)` to add its parsers, and a `cmd_*` handler per command. A pack's command (oto work, oto data,
+oto policy, ...) lives under oto/packs/<pack>/cli.py and is discovered from the pack's manifest (ADR-0006). The handlers
 import what they need lazily, so `oto --help` and `oto version` start without loading the engine.
 """
 import argparse

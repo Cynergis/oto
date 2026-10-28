@@ -25,7 +25,8 @@ import json
 import os
 import re
 
-from .project import ProjectError
+from ...naming import graph_ids as _graph_ids, slug as _slug  # noqa: F401  (the engine's; the pack's code keeps its names)
+from ...project import ProjectError
 
 TABLE, COLUMN, STORE, DOCUMENT = "Table", "Column", "DataStore", "Document"
 DOC_KIND = "schema"
@@ -33,10 +34,6 @@ DOC_KIND = "schema"
 
 class DataError(ProjectError):
     """A refusal, in words the person can act on."""
-
-
-def _slug(text):
-    return re.sub(r"[^a-z0-9]+", "-", str(text or "").lower()).strip("-")
 
 
 def store_slug(store_id):
@@ -115,18 +112,10 @@ def propose(schema, doc, store_id, at, connector_name):
     return {"source_doc": doc, "as_of": at, "nodes": nodes, "edges": edges}
 
 
-def _graph_ids(project):
-    from .curate import session as _session
-    nodes = list(_session.live(project).get("nodes") or [])
-    if _session.exists(project):
-        nodes += list(_session.candidate(project).get("nodes") or [])
-    return {n.get("id") for n in nodes if n.get("id")}
-
-
 def introspect(project, connector_name="sqlite", path=None, store_id=None, at=None, settings=None):
     """Read the catalog, write the document and the proposal. Returns {"doc", "document", "archive",
     "proposal", "store", "tables", "columns", "read_at"}."""
-    from . import connectors as _connectors
+    from ... import connectors as _connectors
     if not at or not re.match(r"^\d{4}-\d{2}-\d{2}$", str(at)):
         raise DataError("--at YYYY-MM-DD is required: the date the catalog was read is never defaulted")
     with open(project.ontology_config_path, encoding="utf-8") as f:

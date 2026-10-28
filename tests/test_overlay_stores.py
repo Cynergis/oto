@@ -18,7 +18,8 @@ import types
 
 import pytest
 
-from oto import connectors, data, deploy
+from oto import connectors, deploy
+from oto.packs import data
 from oto.cli import main
 from oto.connectors import conformance
 from oto.project import Project

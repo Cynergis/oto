@@ -26,8 +26,8 @@ import json
 import os
 import re
 
-from .data import DataError, TABLE, COLUMN, _graph_ids, store_slug
-from .curate import session as _session
+from . import DataError, TABLE, COLUMN, _graph_ids, store_slug
+from ...curate import session as _session
 
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 DRAFT, CONFIRMED = "draft", "confirmed"
@@ -185,7 +185,7 @@ def confirm(project, node_id, by, at, description=None, note=None):
     """A named person confirms a description: an assertion by them, the status moved, applied under
     the gates (decide.move, for a table's or column's description). Returns {"node", "label",
     "already", "assertion"?, "description"}."""
-    from . import decide as _decide
+    from ... import decide as _decide
     if not (by or "").strip():
         raise MeaningError("--by names the person who confirms: a decision has a name")
     if not at or not ISO_DATE.match(str(at)):

@@ -30,7 +30,7 @@ import json
 import os
 
 from ..arch import ArchError, CONTROL, DECISION, DOCUMENT, FLOW, INTERFACE, ISO_DATE, PREFIX, RELATIONSHIP, STEP
-from ..data import _slug
+from ..naming import slug as _slug
 
 FRAMEWORK = "calm"
 IAM_BINDING = "IamBinding"                       # the policy pack's binding node: exported as a control when both packs are composed
@@ -335,7 +335,7 @@ def read_model(project, path, at, name=None, environment=None):
         except ValueError as exc:
             raise ArchError("%s is not JSON: %s" % (path, exc))
     if environment:
-        from ..data import _graph_ids
+        from ..naming import graph_ids as _graph_ids
         if environment not in _graph_ids(project):
             raise ArchError("the graph holds no %s: --environment names an Environment the estate declares" % environment)
     doc = model_slug(path, name)

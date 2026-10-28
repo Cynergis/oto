@@ -28,7 +28,7 @@ import json
 import os
 import re
 
-from .data import DataError, _graph_ids, _slug, store_slug, table_id
+from . import DataError, _graph_ids, _slug, store_slug, table_id
 from .lineage import statement_tables
 
 USAGE, DOCUMENT = "Usage", "Document"
@@ -287,7 +287,7 @@ def propose(found, left_out, readers, store_id, doc, at, graph_ids, source):
 
 def changed_kinds(project, proposal):
     """The uses whose kind differs from the live graph's: supersessions the merge will refuse."""
-    from .curate import session as _session
+    from ...curate import session as _session
     live = {n.get("id"): n for n in _session.live(project).get("nodes") or []}
     out = []
     for n in proposal["nodes"]:
@@ -329,7 +329,7 @@ def usage(project, connector_name=None, path=None, log=None, store_id=None, at=N
     if log:
         entries, source = read_log_file(log), "log"
     else:
-        from . import connectors as _connectors
+        from ... import connectors as _connectors
         connector = _connectors.get(connector_name)
         if connector is None or "overlay" not in (connector.MANIFEST.get("modes") or []):
             raise UsageError("no overlay connector %r" % connector_name)

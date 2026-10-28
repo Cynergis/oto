@@ -34,7 +34,7 @@
     "commands": [
       {
         "name": "ddd",
-        "module": "oto.cli.ddd",
+        "module": "oto.packs.ddd.cli",
         "label": "ddd"
       }
     ]

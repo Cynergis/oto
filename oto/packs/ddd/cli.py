@@ -4,7 +4,7 @@ capture against the ddd vocabulary (roadmap I2)."""
 import os
 import sys
 
-from ._common import project_arguments, resolve as _resolve
+from ...cli._common import project_arguments, resolve as _resolve
 
 
 def cmd_ddd(args):

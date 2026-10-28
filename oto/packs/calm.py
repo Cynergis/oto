@@ -20,7 +20,8 @@ tell from absence. What CALM does not say is not invented: a node CALM deploys n
 unless `environment` names the estate's environment, and a node CALM composes in nothing is part of
 nothing, which the estate's shape names at the gate. `migrate` rewrites a graph written before the
 architecture pack's release 5 (`calm_id`, `calm_type`, `calm_metadata`, `calm_details`, `calm_header`,
-`calm_option`) into the neutral names.
+`calm_option`) into the neutral names, in the graph and in the project's own copy of the vocabulary and
+its questions.
 
 Aligned with CALM 1.0 (https://calm.finos.org/release/1.0/meta/core.json); the core schema is
 unchanged through 1.3. The engine knows none of this: the architecture pack's manifest no longer
@@ -544,9 +545,76 @@ def migrate_attributes(node):
     return changed
 
 
+TERM_RENAMES = (("Document.calm_header", "Document.external_payload"), ("Decision.calm_option", "Decision.external_payload"),
+                (".calm_id", ".external_id"), (".calm_type", ".external_type"), (".calm_metadata", ".external_payload"), (".calm_details", ".external_payload"))
+
+
+def _pack_declaration(kind, name):
+    """The architecture pack's own declaration of an attribute, so a migrated vocabulary says what the pack says."""
+    from ..model import ontologies as _ontologies
+    try:
+        declared = _ontologies.load_raw("architecture")["config"].get("attributes") or {}
+    except (KeyError, _ontologies.OntologyError):
+        return None
+    spec = (declared.get(kind) or {}).get(name)
+    return dict(spec) if isinstance(spec, dict) else None
+
+
+def migrate_vocabulary(vocabulary):
+    """The project's own vocabulary with CALM's former attribute declarations read as the neutral ones:
+    the pack's declaration where it has one, else the old one under the new name; what was required
+    stays required. Returns the number of declarations changed."""
+    changed = 0
+    for kind, attrs in (vocabulary.get("attributes") or {}).items():
+        if not isinstance(attrs, dict):
+            continue
+        for old, new in RENAMED.items():
+            if old in attrs:
+                spec = attrs.pop(old)
+                replacement = _pack_declaration(kind, new) or dict(spec)
+                if spec.get("required"):
+                    replacement["required"] = True
+                attrs[new] = replacement
+                changed += 1
+        for old in ("calm_metadata", "calm_details", "calm_header", "calm_option"):
+            if old in attrs:
+                spec = attrs.pop(old)
+                if "external_payload" not in attrs:
+                    attrs["external_payload"] = _pack_declaration(kind, "external_payload") or dict(spec, definition="What the framework carries about the node beyond these facts, as the JSON it gave.")
+                changed += 1
+                if old == "calm_header" and "framework" not in attrs:
+                    attrs["framework"] = _pack_declaration(kind, "framework") or {"type": "string", "definition": "The architecture framework the model was read with."}
+                    changed += 1
+    return changed
+
+
+def migrate_questions(questions):
+    """The questions' cited terms under the neutral names, each once; Document.framework cited beside the header."""
+    changed = 0
+    for q in (questions.get("questions") or {}).values():
+        terms = q.get("terms")
+        if not isinstance(terms, list):
+            continue
+        out = []
+        for term in terms:
+            new = term
+            for old, replacement in TERM_RENAMES:
+                new = new.replace(old, replacement)
+            if new != term:
+                changed += 1
+            if new not in out:
+                out.append(new)
+        if "Document.external_payload" in out and "Document.framework" not in out:
+            out.append("Document.framework")
+            changed += 1
+        q["terms"] = out
+    return changed
+
+
 def migrate(project, by):
-    """Rewrite the live graph's CALM-named attributes into the architecture pack's neutral names, once,
-    with an audit record. Refused while a candidate is open. Returns the number of nodes changed."""
+    """Rewrite the live graph's CALM-named attributes into the architecture pack's neutral names, and the
+    project's own vocabulary and questions with them, once, with an audit record. Refused while a
+    candidate is open. Returns {"nodes", "declarations", "terms"}: what changed."""
     from .. import audit as _audit
     from ..curate import session as _session
     if _session.exists(project):
@@ -566,6 +634,25 @@ def migrate(project, by):
         with open(path, "w", encoding="utf-8", newline="\n") as f:
             json.dump(graph, f, indent=2, ensure_ascii=False)
             f.write("\n")
+    declarations = terms = 0
+    with open(project.ontology_config_path, encoding="utf-8") as f:
+        vocabulary = json.load(f)
+    declarations = migrate_vocabulary(vocabulary)
+    if declarations:
+        with open(project.ontology_config_path, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(vocabulary, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+    questions_path = os.path.join(project.data, "questions.json")
+    if os.path.isfile(questions_path):
+        with open(questions_path, encoding="utf-8") as f:
+            questions = json.load(f)
+        terms = migrate_questions(questions)
+        if terms:
+            with open(questions_path, "w", encoding="utf-8", newline="\n") as f:
+                json.dump(questions, f, indent=2, ensure_ascii=False)
+                f.write("\n")
+    if changed or declarations or terms:
         _audit.append(project, "arch migrate", by.strip(), changed, "applied",
-                      "calm_* attributes read as external_id, external_type, external_payload and framework on %d node(s)" % len(changed))
-    return len(changed)
+                      "calm_* read as external_id, external_type, external_payload and framework: %d node(s), %d vocabulary declaration(s), %d cited term(s)"
+                      % (len(changed), declarations, terms))
+    return {"nodes": len(changed), "declarations": declarations, "terms": terms}

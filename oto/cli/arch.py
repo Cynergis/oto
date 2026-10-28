@@ -87,7 +87,10 @@ def cmd_arch(args):
         except _arch.ArchError as exc:
             print("oto: %s" % exc, file=sys.stderr)
             return 1
-        print("%d node(s) migrated to the architecture pack's neutral attributes%s" % (changed, "; next: oto build" if changed else ": nothing to do"))
+        done = changed if isinstance(changed, dict) else {"nodes": int(changed), "declarations": 0, "terms": 0}
+        total = sum(done.values())
+        print("%d node(s), %d vocabulary declaration(s) and %d cited term(s) migrated to the architecture pack's neutral attributes%s"
+              % (done["nodes"], done["declarations"], done["terms"], "; next: oto build" if total else ": nothing to do"))
         return 0
     if args.arch_command == "map":
         if not args.repo:

@@ -1429,7 +1429,7 @@ oto init --ontology data --project plain && oto build --project plain           
 oto init --ontology policy --project ledger && oto build --project ledger       # "policy: 4 rule(s) ..." then "iam: 4 binding(s) ...": the pack's stages, before the site
 oto arch export --framework calm --project <an architecture project>            # the adapter the calm pack provides
 oto arch export --framework c4 --project <an architecture project>; echo $?     # 1: no adapter for framework 'c4': the packs on this machine provide calm
-oto arch migrate --framework calm --by "<you>" --project <a project built before architecture release 5>   # calm_* attributes become external_id, external_type, external_payload, framework; then oto build
+oto arch migrate --framework calm --by "<you>" --project <a project built before architecture release 5>   # calm_* become external_id, external_type, external_payload, framework, in the graph and in the project's vocabulary and questions; then oto build
 # a pack of your own: a directory under $OTO_ONTOLOGIES with a manifest whose `provides` names your modules
 #   {"provides": {"stages": [{"name": "mine", "module": "mine_ext", "owns": []}], "commands": [{"name": "mine", "module": "mine_ext", "label": "mine"}],
 #                 "endpoints": ["mine_ext"], "write_hooks": ["mine_ext:before_write"], "adapters": [{"framework": "mine", "module": "mine_ext", "import": "read_model", "export": "write_model"}]}}

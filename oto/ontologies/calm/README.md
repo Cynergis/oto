@@ -36,8 +36,9 @@ safeguards when it carries an `external_id`.
 `calm_details`, `calm_header` and `calm_option` to `external_id`, `external_type`, `external_payload`
 and `framework`. A graph written before it reads as before once migrated:
 `oto arch migrate --framework calm --by <who>` rewrites the live graph in place (the previous one kept
-as `graph.previous.json`), records an audit record naming the nodes, and refuses while a candidate is
-open; then `oto build`.
+as `graph.previous.json`) and the project's own copy of the vocabulary and its questions, which were
+written at the earlier release too, records an audit record naming the nodes, and refuses while a
+candidate is open; then `oto build`.
 
 **Another framework** is another pack of this shape: a manifest whose `provides.adapters` names a
 module with `import` and `export` functions of the same signatures, and whatever terms the framework

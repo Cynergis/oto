@@ -126,6 +126,34 @@ def test_a_graph_written_before_release_5_migrates_once_and_exports_as_before(tm
     assert touched
     with open(path, "w", encoding="utf-8") as f:
         json.dump(graph, f, indent=2)
+    # the project's own copy of the vocabulary and its questions were written at release 4 too
+    config_path = os.path.join(root, "ontology.config.json")
+    with open(config_path, encoding="utf-8") as f:
+        vocabulary = json.load(f)
+    for kind, attrs in vocabulary["attributes"].items():
+        for new, old in back.items():
+            if new in attrs:
+                attrs[old] = attrs.pop(new)
+        if "external_payload" in attrs:
+            spec = attrs.pop("external_payload")
+            if kind == "Document":
+                attrs["calm_header"] = spec
+                attrs.pop("framework", None)
+            elif kind == "Decision":
+                attrs["calm_option"] = spec
+            else:
+                attrs["calm_metadata"] = dict(spec)
+                attrs["calm_details"] = dict(spec)
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump(vocabulary, f, indent=2)
+    questions_path = os.path.join(root, "questions.json")
+    with open(questions_path, encoding="utf-8") as f:
+        questions = json.load(f)
+    for q in questions["questions"].values():
+        q["terms"] = [t.replace(".external_id", ".calm_id").replace(".external_type", ".calm_type").replace("Document.external_payload", "Document.calm_header")
+                      .replace("Decision.external_payload", "Decision.calm_option").replace(".external_payload", ".calm_metadata") for t in q.get("terms", []) if t != "Document.framework"]
+    with open(questions_path, "w", encoding="utf-8") as f:
+        json.dump(questions, f, indent=2)
     code, out = _cli("arch", "export", "--framework", "calm", "--out", os.path.join(root, "before.json"), "--project", root)
     with open(os.path.join(root, "before.json"), encoding="utf-8") as f:
         assert json.load(f)["nodes"] == [], "the old names are not read: no node has an external_id until the graph migrates"
@@ -137,10 +165,22 @@ def test_a_graph_written_before_release_5_migrates_once_and_exports_as_before(tm
     assert code == 1 and "candidate is open" in out, out
     code, out = _cli("curate", "abort", "--project", root)
     code, out = _cli("arch", "migrate", "--framework", "calm", "--by", "Ada", "--project", root)
-    assert code == 0 and "node(s) migrated" in out and "oto build" in out, out
+    assert code == 0 and "node(s)" in out and "declaration(s)" in out and "migrated" in out and "oto build" in out, out
     project = Project.standard(root)
     live = _session.live(project)
     assert not any(a.startswith("calm_") for n in live["nodes"] for a in (n.get("attributes") or {}))
+    with open(config_path, encoding="utf-8") as f:
+        vocabulary = json.load(f)
+    assert not any(a.startswith("calm_") for attrs in vocabulary["attributes"].values() for a in attrs), "the project's vocabulary follows the graph"
+    assert vocabulary["attributes"]["Control"]["external_id"]["required"] is True, "what was required stays required"
+    assert "framework" in vocabulary["attributes"]["Document"] and "external_payload" in vocabulary["attributes"]["Document"]
+    assert vocabulary["attributes"]["Component"]["external_payload"]["type"] == "string" and "calm_details" not in vocabulary["attributes"]["Component"]
+    with open(questions_path, encoding="utf-8") as f:
+        questions = json.load(f)
+    terms = {t for q in questions["questions"].values() for t in q.get("terms", [])}
+    assert not any("calm" in t for t in terms) and "Document.framework" in terms, "the questions cite the new names"
+    code, out = _cli("ontology", "check", "--project", root)
+    assert code == 0, "the migrated vocabulary checks: " + out
     intake = next(n for n in live["nodes"] if n["id"] == "component.invoice-intake")["attributes"]
     assert intake["external_id"] == "invoice-intake" and intake["external_type"] == "service"
     record = _audit.read(project)[-1]

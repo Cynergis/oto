@@ -67,7 +67,7 @@ only when run at a terminal. By hand:
 sbx settings set kit.allowedSources '["docker.io/","ghcr.io/cynergis/"]'   # once per machine
 export PROJECT=<your Google Cloud project id>
 mkdir -p ~/oto-test/project ~/oto-test/code
-sbx run ghcr.io/cynergis/oto-gcp:0.14.0 ~/oto-test/project ~/oto-test/code --name oto-test -e PROJECT
+sbx run ghcr.io/cynergis/oto-gcp:0.14.1 ~/oto-test/project ~/oto-test/code --name oto-test -e PROJECT
 ```
 
 **Releasing it.** The kit's version is the engine's. A version bump moves it in the same change, in

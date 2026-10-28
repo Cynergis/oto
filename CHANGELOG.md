@@ -4,6 +4,17 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.14.1 — 2026-10-28
+
+**The migration carries the project's vocabulary.** One fix (pull request 114), found by migrating
+the first real project to 0.14.0: `oto arch migrate --framework calm` renamed the graph's attributes
+and left the project's own copy of the vocabulary and its questions at the former names, so the gates
+still demanded `calm_id` and `oto arch compile` was refused. The migration now rewrites the project's
+`ontology.config.json` too (each former declaration becomes the architecture pack's own declaration of
+the neutral attribute, what was required stays required, the two payload attributes become one, a
+`Document` gains `framework`) and the questions' cited terms, and reports the three counts. A project
+that ran the 0.14.0 migration runs it once more; it changes only what is left.
+
 ## 0.14.0 — 2026-10-28
 
 **The core and the packs.** Everything since 0.13.0 (pull requests 105 to 112): the decision that

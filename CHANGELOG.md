@@ -4,6 +4,33 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.14.2 — 2026-10-28
+
+**A pack carries its own code, and the factory leaves.** Two pull requests (116 and 117) and one
+decision, [ADR-0007](docs/adr/0007-a-use-case-lives-outside-the-engine.md): a use case of the graph
+lives in a repository of its own.
+
+- **`code/` in a pack.** A pack from outside the engine, in the user's ontologies directory or an
+  installed plugin, brings its modules in its own `code/` folder, declared in the manifest's `carries`.
+  When the engine loads anything the pack provides (a stage, a command, an endpoint, a hook, an
+  adapter), it puts that folder first on the import path, once, so the modules the manifest names
+  import from the pack itself and nothing has to be installed on the machine's Python path. The
+  engine's own packs carry no `code/`.
+- **The factory is in its own repository**, [Cynergis/oto-factory](https://github.com/Cynergis/oto-factory),
+  listed in the registry as `oto-factory` 4.0.0 (the plugin version is the pack release from now on).
+  Building software from the graph is something one does with a knowledge graph, not a knowledge
+  graph: the plugin (agents, hooks, the spec-context skill, the Actions workflow), the `factory-run`
+  ontology with the `oto factory` commands in its `code/`, its tests and its E2E section left the
+  engine's repository, which lists the engine plugin alone in its marketplace. Install the factory
+  with `/plugin install oto-factory@cynergis` or `oto pack add https://github.com/Cynergis/oto-factory`;
+  this release is the first that loads it. What a factory needs from the engine stays: `oto work
+  event verdict` takes a verdict from any factory, `oto policy snapshot` and `oto policy denials`
+  with the reader a guard copies are the policy pack's, and `oto arch measure` is the architecture's.
+
+**Migration.** Nothing changes for a project. A machine that used `oto factory` from the engine
+installs the factory pack once; the commands and the run graph are the same. The kit image
+`ghcr.io/cynergis/oto-gcp:0.14.2` carries this engine.
+
 ## 0.14.1 — 2026-10-28
 
 **The migration carries the project's vocabulary.** One fix (pull request 114), found by migrating

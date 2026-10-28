@@ -43,6 +43,29 @@ from . import arch, audit, bench, build, capture, clipboard, connectors, curate,
 
 COMMANDS = (init, status, lock, sandbox, ingest, capture, clipboard, ontology, lexicon, pack, registry, rules, tools, curate, data, deploy, connectors, draft, vet, build, preview, query, publish, publishable, bench, feedback, work, audit, graphs, arch, ddd, decide, factory, policy)
 
+# The core and the packs (ADR-0006). The core is the knowledge graph's lifecycle with its tools and
+# its deploy; a pack command works only on a project whose vocabulary composes its pack, and says
+# so otherwise. The grouping is what `oto --help` prints; the packs' code still ships in the engine
+# until it moves behind the pack seams.
+GROUPS = {
+    "core": ("init", "status", "lock", "sandbox", "ingest", "capture", "clipboard", "ontology", "lexicon", "pack", "registry", "rules", "tools",
+             "curate", "decide", "deploy", "connectors", "draft", "vet", "build", "preview", "query", "publish", "publishable", "bench",
+             "feedback", "audit", "graph", "version"),
+    "packs": (("work", "work and communication"), ("data", "data"), ("arch", "architecture (CALM)"), ("ddd", "ddd"),
+              ("factory", "factory"), ("policy", "policy")),
+}
+
+
+def _epilog():
+    lines = ["core: the knowledge graph, its tools and its deploy",
+             "  " + ", ".join(GROUPS["core"]),
+             "",
+             "packs: each works on a project whose vocabulary composes its pack (ADR-0006)"]
+    width = max(len(name) for name, _pack in GROUPS["packs"])
+    for name, pack in GROUPS["packs"]:
+        lines.append("  %-*s  %s" % (width, name, pack))
+    return "\n".join(lines)
+
 
 def cmd_version(args):
     print("oto %s" % __version__)
@@ -50,7 +73,8 @@ def cmd_version(args):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog="oto", description="OTO")
+    parser = argparse.ArgumentParser(prog="oto", description="OTO: a temporal knowledge graph built from your documents, served to agents, deployed like code.",
+                                     epilog=_epilog(), formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command")
     for command in COMMANDS:
         command.register(sub)

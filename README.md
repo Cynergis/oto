@@ -15,6 +15,16 @@ It is domain agnostic. You declare your domain vocabulary in one config file. OT
 curated graph into a queryable store, and refuses to build if the graph uses vocabulary you did not
 declare.
 
+## What is core, and what is a pack
+
+The core is the knowledge graph's lifecycle with its tools, the estate and the reified model it is
+described in, and the deploy of the graph, because what is deployed is the graph. Everything else
+is a pack: an ontology with the tools that work on it, loaded only when a project composes it. An
+architecture framework is a pack plus an adapter, CALM today and C4 when someone needs it, so a
+framework is swapped by changing a pack, never the engine. Work, data, policy and the factory are
+packs the same way. [ADR-0006](docs/adr/0006-the-core-and-the-packs.md) records the line;
+`oto --help` prints it.
+
 ## What makes it different
 
 Most retrieval systems answer "what does a document say". OTO answers **"what is true now"**, and

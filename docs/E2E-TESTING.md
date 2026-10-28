@@ -14,6 +14,20 @@ alias oto='uvx --from "oto-kg[all] @ git+https://github.com/Cynergis/oto" oto'  
 alias oto='uvx --from "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto" oto'
 ```
 
+## How to read this document
+
+The sections follow the order the features were built, and [ADR-0006](adr/0006-the-core-and-the-packs.md)
+draws one line through them. The **core**, the knowledge graph with its tools and its deploy, is
+sections 1 to 17, 19, 20 and 23 to 27: install, a project, documents in, the vocabulary, rules,
+authoring under the gates, time, query and serve, evaluation, Neo4j, repository mode, the query
+repository, specs and decisions, an ontology of your own, tools, deploy, audit and tracing, graphs
+that know each other, the engine's own CI, and the ontology explorer. Drive these first: they are
+the product, and they need no pack. The **packs**, each an ontology with the tools that work on it,
+are sections 18 (work and communication), 21 (data), 22 (architecture, with CALM as the first
+framework adapter), 28 to 30 and 32 (policy, the snapshot and guards, the generated IAM) and 31
+(the inbox and reminders). Each is optional: a project that does not compose the pack never sees
+its commands or its build stages.
+
 ## What needs your accounts
 
 | You provide | Used in stages | Where it goes |

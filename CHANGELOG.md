@@ -4,6 +4,98 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.14.0 — 2026-10-28
+
+**The core and the packs.** Everything since 0.13.0 (pull requests 105 to 112): the decision that
+narrows OTO's core to the knowledge graph, its tools and its deploy, and the refactoring that follows
+from it, in five steps. This release renames attributes and moves files, so it carries migration
+notes; read them before upgrading a project built on the architecture pack.
+
+### The decision ([ADR-0006](docs/adr/0006-the-core-and-the-packs.md))
+
+OTO's core is the knowledge graph's lifecycle with its tools, the estate and the reified model it
+is described in, and the deploy of the graph. An architecture framework is a pack plus an adapter;
+a domain feature is a pack plus its tools, loaded only when the pack is composed in the project. No
+pack depends on a framework pack. The documents, the README and `oto --help` draw the line between
+the core and the packs.
+
+### The seams (step 2)
+
+A pack's manifest declares what it provides beyond its vocabulary, read by `oto/extensions.py`:
+build stages (`{name, module, owns}`, after the core's targets and before the site, owning the
+build paths a partial build stashes), commands (`{name, module, label}`), served endpoints
+(`routes(project)`), write hooks (before `curate apply`, `decide` and `promote`), read hooks (before
+the served native read), status hooks (the project's status snapshot) and framework adapters
+(`import`, `export`, `migrate`). Stages, endpoints and hooks load only for the packs composed in the
+project, a pack being composed when every class it declares itself is in the vocabulary; commands
+and adapters are discovered from every pack the machine has. The manifest checker holds the shapes.
+The core names no pack: `builder.STAGES` is the seven core stages, the CLI imports the core commands
+and discovers the packs', and a pack the engine has never heard of plugs in the same way.
+
+### CALM out (step 3)
+
+The architecture pack is framework-neutral (release 5). A node a framework's model wrote carries
+`external_id`, `external_type` and `external_payload`; the model's `Document` carries `framework`
+and the header. CALM is the `calm` pack: an adapter (`oto/packs/calm.py`) its manifest provides,
+chosen by `oto arch import --framework calm --file <model>` and `oto arch export --framework calm`,
+with the mapping from CALM's nine node types in its README. `oto arch migrate --framework calm
+--by <who>` rewrites a graph written before release 5. The compile reads `arch.models` as
+`[{"framework", "path"}]`; a framework's name as a key (`"calm": [...]`) still reads.
+
+### Policy and IAM out (step 4)
+
+The policy pack stands on `data` and `agent` (release 4). The generated system's bindings are its own
+class, `IamBinding` (`provider`, `resource_uri`, `bindings`, `withheld`, `generated_by`), one per bound
+resource, which `binds` the resource, `grants` the principals and `derives_from` the rules; `resource_uri`
+on `Table`, `DataStore`, `Component` and `Interface` is the policy pack's term, and the architecture pack
+(release 6) drops `resource_uri`, `Control.generated_by` and AR12. The calm adapter exports a binding
+node as a CALM control on the bound node and on the components that run as the granted principals,
+when both packs are composed. The compiler, the snapshot, the IAM derivation, the two build stages,
+the command, the write hook and the served read hook live in `oto/packs/policy`. PL8 is reworked; PL9
+asks what is bound on a resource. `oto publish` carries every composed pack's stage output with the
+store.
+
+### The remaining tools out (step 5)
+
+- **Work and communication:** the engine keeps the write path as `oto/assertion.py` (`commit`,
+  `identity`, `gates`, `WriteError`), used by `decide`, the graph descriptors, `publish`, `curate`
+  and `ingest`; the work items, the board, messages, the inbox and reminders live in
+  `oto/packs/work`, with a status hook that puts the board in the status snapshot. A project without
+  the pack has no board.
+- **Data:** introspection, lineage, usage and meaning live in `oto/packs/data`; the engine keeps
+  `oto/naming.py` (a slug, the graph's ids), which every pack uses.
+- **ddd:** the storming importer lives in `oto/packs/ddd`.
+- **The factory:** the spec, the plan, the scope, the run graph, criteria and deviations live in
+  `oto/packs/factory`; measuring a requirement (`oto arch measure`, H6) is the architecture's and
+  moves into `oto/arch.py`.
+
+### Migration notes
+
+- **A project on the architecture pack built before this release** carries `calm_id`, `calm_type`,
+  `calm_metadata`, `calm_details`, `calm_header` and `calm_option`. Run once, then build:
+
+      oto arch migrate --framework calm --by "<you>" --project <project>
+      oto build --project <project>
+
+  The former names are not read until the graph migrates: an export before it writes a model with no
+  nodes. The migration keeps the previous graph as `graph.previous.json`, records an audit record
+  naming the nodes, and refuses while a candidate is open.
+- **`oto arch import --calm <file>` and `oto arch export --calm` are gone.** Use `--framework calm
+  --file <model>` and `--framework calm`; with one adapter on the machine the framework is the default.
+- **`project.config.json`'s `arch` section** may now list `models` as `[{"framework", "path"}]`; the
+  `calm` key still reads as before.
+- **The IAM build output** writes `build/iam/bindings.proposal.json` where it wrote
+  `controls.proposal.json`, and its manifest counts `proposed` nodes where it counted `controls`.
+  A graph that holds the former generated `Control` nodes keeps them as history; `oto policy iam
+  --apply` writes `IamBinding` nodes beside them, and the architecture pack no longer declares
+  `Control.generated_by` or `resource_uri`, so `oto ontology check` names those attributes on the old
+  nodes until they are retired.
+- **Spec files written by `oto factory spec`** name the component by `external_id` and `external_type`.
+- **Code that imported the engine's modules directly** (`oto.policy`, `oto.iam`, `oto.work`,
+  `oto.data`, `oto.lineage`, `oto.usage`, `oto.meaning`, `oto.ddd`, `oto.factory`) finds them under
+  `oto.packs.<pack>`; the write path is `oto.assertion` and the shared helpers `oto.naming`. The
+  commands are unchanged.
+
 ## 0.13.0 — 2026-10-27
 
 **The generated system's IAM, and the roadmap closed.** Everything since 0.12.0 (pull requests 102

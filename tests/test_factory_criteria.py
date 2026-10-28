@@ -19,7 +19,8 @@ import os
 
 import pytest
 
-from oto import factory
+from oto import arch as _arch
+from oto.packs import factory
 from oto.cli import main
 from oto.curate import session
 from oto.project import Project
@@ -190,14 +191,14 @@ def test_measurements_from_reports_become_evidence_of_the_requirement(domain, tm
     coverage.write_text(COVERAGE, encoding="utf-8")
     k6 = tmp_path / "k6-summary.json"
     k6.write_text(json.dumps(K6), encoding="utf-8")
-    assert factory.measure_from(str(junit)) == ("junit", "10 of 12 tests passed (1 failed, 1 skipped)")
-    assert factory.measure_from(str(coverage)) == ("coverage", "87 % of lines covered (174 of 200)")
-    assert factory.measure_from(str(k6)) == ("k6", "p95 870 ms over 5000 requests")
-    with pytest.raises(factory.FactoryError):
-        factory.measure_from(str(tmp_path / "nothing.txt"))
+    assert _arch.measure_from(str(junit)) == ("junit", "10 of 12 tests passed (1 failed, 1 skipped)")
+    assert _arch.measure_from(str(coverage)) == ("coverage", "87 % of lines covered (174 of 200)")
+    assert _arch.measure_from(str(k6)) == ("k6", "p95 870 ms over 5000 requests")
+    with pytest.raises(_arch.ArchError):
+        _arch.measure_from(str(tmp_path / "nothing.txt"))
     (tmp_path / "odd.json").write_text("{}", encoding="utf-8")
-    with pytest.raises(factory.FactoryError) as e:
-        factory.measure_from(str(tmp_path / "odd.json"))
+    with pytest.raises(_arch.ArchError) as e:
+        _arch.measure_from(str(tmp_path / "odd.json"))
     assert "junit" in str(e.value) and "coverage" in str(e.value) and "k6" in str(e.value)
     code, out = _cli("arch", "measure", "--nfr", "nfr.req-042", "--from", str(k6), "--at", "2026-10-29", "--source", "https://ci.invoice.example/runs/2026-10-29/k6", "--project", domain)
     assert code == 0, out

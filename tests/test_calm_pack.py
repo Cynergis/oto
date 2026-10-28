@@ -20,7 +20,7 @@ from oto.scaffold import init
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INVOICE = os.path.join(ROOT, "tests", "fixtures", "calm", "invoice-platform.calm.json")
-CORE = ("oto/arch.py", "oto/cli/arch.py", "oto/builder.py", "oto/cli/__init__.py", "oto/extensions.py", "oto/factory.py", "oto/packs/policy/iam.py",
+CORE = ("oto/arch.py", "oto/cli/arch.py", "oto/builder.py", "oto/cli/__init__.py", "oto/extensions.py", "oto/packs/factory/__init__.py", "oto/packs/policy/iam.py",
         "oto/serve/engine.py", "oto/ontologies/architecture/ontology.config.json", "oto/ontologies/architecture/questions.json",
         "oto/ontologies/architecture/ontology.rationale.json", "oto/ontologies/architecture/sample.graph.json")
 

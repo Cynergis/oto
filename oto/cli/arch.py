@@ -121,13 +121,12 @@ def cmd_arch(args):
         print("  applied by %s on %s%s, and built" % (args.by, args.at, " (%s)" % args.note if args.note else ""))
         return 0
     if args.arch_command == "measure":
-        from .. import factory as _factory
         if not args.nfr:
             print("oto: measure takes --nfr <requirement> and --from <report> or --value \"...\", with --at <date>", file=sys.stderr)
             return 1
         try:
-            done = _factory.measure(project, args.nfr, args.at, value=args.value, path=args.from_, source=args.source)
-        except _factory.FactoryError as exc:
+            done = _arch.measure(project, args.nfr, args.at, value=args.value, path=args.from_, source=args.source)
+        except _arch.ArchError as exc:
             print("oto: %s" % exc, file=sys.stderr)
             return 1
         rel = lambda p: os.path.relpath(p, project.data)  # noqa: E731

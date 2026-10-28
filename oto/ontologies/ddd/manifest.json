@@ -29,5 +29,14 @@
       "at": "2026-10-07",
       "note": "Generalised out of ddd-kyc @2 (decided with Chiheb Dkhil, 2026-10-07): sits on software-architecture and product, so the product's personas, roles, requirements, scenarios, policies, terms, decisions and open questions serve and the estate's team and component carry a context. The event-storming policy is Reaction. 24 questions, a sample on the payments platform."
     }
-  ]
+  ],
+  "provides": {
+    "commands": [
+      {
+        "name": "ddd",
+        "module": "oto.cli.ddd",
+        "label": "ddd"
+      }
+    ]
+  }
 }

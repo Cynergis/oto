@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-"""`oto arch`: the architecture graph for implementation. import reads a CALM model into a document
-and a proposal in the architecture vocabulary (roadmap H1); export writes the graph's CALM facts back;
+"""`oto arch`: the architecture graph for implementation. import reads a framework's model into a document
+and a proposal in the architecture vocabulary (roadmap H1) through the adapter the framework's pack
+provides (CALM first; `--framework`, oto/extensions.py); export writes the graph back the same way;
 map reads a code repository into a code map; compile runs what the project declares, on every merge (H2);
 impact reports what a decision affects, the orphans and the untraced code (H4); measure records a report
 as evidence of a requirement (H6)."""
@@ -14,18 +15,30 @@ from ._common import project_arguments, resolve as _resolve
 def cmd_arch(args):
     from .. import arch as _arch
     project = _resolve(args)
+    from .. import extensions as _extensions
     if args.arch_command == "import":
-        if not args.calm or args.calm is True:
-            print("oto: import takes --calm <model.json>, the CALM model to read", file=sys.stderr)
+        path = args.file or (args.calm if args.calm and args.calm is not True else None)
+        framework = args.framework or ("calm" if args.calm else None) or _extensions.only_adapter()
+        if not framework:
+            print("oto: import takes --framework <name> (the packs on this machine provide %s) and --file <model>" % (", ".join(sorted(_extensions.adapters())) or "none"),
+                  file=sys.stderr)
             return 1
         try:
-            done = _arch.import_calm(project, args.calm, args.at, name=args.name, environment=args.environment)
+            adapter = _extensions.adapter(framework)
+        except _extensions.ExtensionError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        if not path:
+            print("oto: import takes --file <model>, the %s model to read (--calm <model.json> still works for CALM)" % framework, file=sys.stderr)
+            return 1
+        try:
+            done = adapter["read"](project, path, args.at, name=args.name, environment=args.environment)
         except _arch.ArchError as exc:
             print("oto: %s" % exc, file=sys.stderr)
             return 1
         rel = lambda p: os.path.relpath(p, project.data)  # noqa: E731
         print("%s: %d node(s), %d interface(s), %d relationship(s), %d control(s), %d flow(s) read from %s%s"
-              % (done["doc"], done["nodes"], done["interfaces"], done["relationships"], done["controls"], done["flows"], os.path.basename(args.calm),
+              % (done["doc"], done["nodes"], done["interfaces"], done["relationships"], done["controls"], done["flows"], os.path.basename(path),
                  " (%s)" % done["schema"] if done["schema"] else ""))
         print("  document %s (kept in %s)" % (rel(done["document"]), rel(done["archive"])))
         print("  proposal %s" % rel(done["proposal"]))
@@ -37,9 +50,13 @@ def cmd_arch(args):
               "then oto arch export --calm writes it back" % rel(done["proposal"]))
         return 0
     if args.arch_command == "export":
+        framework = args.framework or ("calm" if args.calm else None) or _extensions.only_adapter()
+        if not framework:
+            print("oto: export takes --framework <name> (the packs on this machine provide %s)" % (", ".join(sorted(_extensions.adapters())) or "none"), file=sys.stderr)
+            return 1
         try:
-            model = _arch.export_calm(project)
-        except _arch.ArchError as exc:
+            model = _extensions.adapter(framework)["write"](project)
+        except (_arch.ArchError, _extensions.ExtensionError) as exc:
             print("oto: %s" % exc, file=sys.stderr)
             return 1
         text = json.dumps(model, indent=2, ensure_ascii=False) + "\n"
@@ -131,7 +148,9 @@ def register(sub):
                            "compile runs what project.config.json declares under `arch` through the gates and builds; "
                            "impact reports what a decision affects, the orphans, the untraced code, or the decision records among changed files; "
                            "measure records a test, coverage or load-test report as evidence of a requirement")
-    arch.add_argument("--calm", nargs="?", const=True, default=None, help="for import: the CALM model file; for export: the format (the only one)")
+    arch.add_argument("--calm", nargs="?", const=True, default=None, help="for import: the CALM model file; for export: CALM as the framework (shorthand for --framework calm)")
+    arch.add_argument("--framework", default=None, help="for import and export: the architecture framework, chosen among the adapters the packs provide (calm; the only one is the default)")
+    arch.add_argument("--file", default=None, help="for import: the model file to read, in the framework's form")
     arch.add_argument("--at", default=None, help="for import: the date the model was read, YYYY-MM-DD; never defaulted")
     arch.add_argument("--name", default=None, help="for import: the document's slug (default: the file's stem)")
     arch.add_argument("--environment", default=None, help="for import: the Environment the estate declares, for what the model deploys nowhere")

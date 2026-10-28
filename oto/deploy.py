@@ -271,8 +271,8 @@ def record_entry(environment, manifest, by=None, kind=None, source_environment=N
 def promote(project, environment, commit, by=None, kind="person", token=None):
     """Copy the store the previous environment holds into `environment`, after checking it is the
     build of `commit` and its hash is intact. Returns the record entry appended."""
-    from . import gitx as _gitx, policy as _policy, publish as _publish
-    note = _policy.enforce(project, "promote", by)        # the snapshot the session runs under, re-checked (roadmap E6)
+    from . import gitx as _gitx, extensions as _extensions, publish as _publish
+    note = _extensions.before_write(project, "promote", by)        # the snapshot the session runs under, re-checked (roadmap E6)
     config = loaded_and_valid(project)
     names = chain(config)
     if environment not in names:

@@ -28,5 +28,14 @@
       "at": "2026-10-26",
       "note": "First release (roadmap I8, J4): Run, Build, Iteration; FR1 to FR3."
     }
-  ]
+  ],
+  "provides": {
+    "commands": [
+      {
+        "name": "factory",
+        "module": "oto.cli.factory",
+        "label": "factory"
+      }
+    ]
+  }
 }

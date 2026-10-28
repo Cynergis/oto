@@ -49,5 +49,14 @@
       "at": "2026-10-07",
       "note": "First release: work items and milestones on the product's requirements, features and components; the delivery lead's questions WK1-WK10, confirmed by Chiheb Dkhil on 2026-10-07."
     }
-  ]
+  ],
+  "provides": {
+    "commands": [
+      {
+        "name": "work",
+        "module": "oto.cli.work",
+        "label": "work and communication"
+      }
+    ]
+  }
 }

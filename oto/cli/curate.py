@@ -366,8 +366,9 @@ def cmd_curate(args):
         from ..intake import pipeline as _pipeline
 
         from .. import audit as _audit, policy as _policy, work as _work
+        from .. import extensions as _extensions
         try:
-            under = _policy.enforce(project, "curate apply", args.by or _work.identity(project))   # roadmap E6
+            under = _extensions.before_write(project, "curate apply", args.by or _work.identity(project))   # roadmap E6
         except _policy.PolicyError as exc:
             print("oto: %s" % exc, file=sys.stderr)
             return 1

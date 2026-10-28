@@ -57,7 +57,7 @@ CARRIES = {
     "actions": "actions",                       # the name before Actions became Tools (2026-10)
     "gold": os.path.join("gold", "patterns.jsonl"),
 }
-FIELDS = ("name", "release", "domain", "product_type", "summary", "extends", "namespace", "engine", "carries", "maintainer", "changelog")
+FIELDS = ("name", "release", "domain", "product_type", "summary", "extends", "namespace", "engine", "carries", "maintainer", "changelog", "provides")
 #: The domains the engine has seen: the category an ontology or a pack belongs to. A new one is
 #: allowed and noted, never refused; add it here once it is deliberate. Never the same word as a
 #: relation's domain and range, which live inside the vocabulary.
@@ -236,4 +236,47 @@ def problems(directory):
             elif isinstance(release, int) and entry.get("release", 0) > release:
                 out.append("manifest.json changelog entry %d is for release %d, newer than the ontology's %d"
                            % (index, entry["release"], release))
+    provides = declared.get("provides")
+    if provides is not None:
+        out += provides_problems(provides)
+    return out
+
+
+PROVIDES_KINDS = ("stages", "commands", "endpoints", "write_hooks", "adapters")
+
+
+def provides_problems(provides):
+    """Problems with a manifest's `provides` (the pack seams, oto/extensions.py): each kind a list of
+    the shape the engine loads. The modules are not imported here; a bad one is named when it is used."""
+    out = []
+    if not isinstance(provides, dict):
+        return ["manifest.json provides must be an object of %s" % ", ".join(PROVIDES_KINDS)]
+    for kind, entries in provides.items():
+        if kind not in PROVIDES_KINDS:
+            out.append("manifest.json provides.%s is not a kind the engine loads (%s)" % (kind, ", ".join(PROVIDES_KINDS)))
+            continue
+        if not isinstance(entries, list):
+            shape = {"stages": "{name, module, owns}", "commands": "{name, module, label}", "endpoints": "module names",
+                     "write_hooks": "module:function names", "adapters": "{framework, module, import, export}"}[kind]
+            out.append("manifest.json provides.%s must be a list of %s" % (kind, shape))
+            continue
+        for i, entry in enumerate(entries):
+            where = "provides.%s[%d]" % (kind, i)
+            if kind == "stages":
+                if not isinstance(entry, dict) or not entry.get("name") or not entry.get("module"):
+                    out.append("manifest.json %s needs name and module (and may own layout paths)" % where)
+                elif entry.get("owns") is not None and (not isinstance(entry["owns"], list) or not all(isinstance(x, str) for x in entry["owns"])):
+                    out.append("manifest.json %s owns must be a list of layout attribute names" % where)
+            elif kind == "commands":
+                if not isinstance(entry, dict) or not entry.get("name") or not entry.get("module"):
+                    out.append("manifest.json %s needs name and module (and a label)" % where)
+            elif kind == "endpoints":
+                if not isinstance(entry, str) or not entry:
+                    out.append("manifest.json %s must be a module name" % where)
+            elif kind == "write_hooks":
+                if not isinstance(entry, str) or ":" not in entry or not entry.split(":", 1)[1]:
+                    out.append("manifest.json %s %r is not module:function" % (where, entry))
+            elif kind == "adapters":
+                if not isinstance(entry, dict) or not entry.get("framework") or not entry.get("module"):
+                    out.append("manifest.json %s needs framework and module (and import, export)" % where)
     return out

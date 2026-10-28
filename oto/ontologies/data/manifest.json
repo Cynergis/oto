@@ -28,5 +28,14 @@
       "at": "2026-10-26",
       "note": "First release (roadmap Epic C, groundwork): Table, Column, Feed, LoadJob, Usage on software-architecture; a column is of one table, a use is of one table; a meaning is a draft until confirmed; DT1-DT6, awaiting confirmation."
     }
-  ]
+  ],
+  "provides": {
+    "commands": [
+      {
+        "name": "data",
+        "module": "oto.cli.data",
+        "label": "data"
+      }
+    ]
+  }
 }

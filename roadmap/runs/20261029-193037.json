@@ -1,0 +1,25 @@
+{
+  "completed": true,
+  "completed_at": "2026-10-29T19:30:49",
+  "copied": false,
+  "files": [
+    {
+      "file": "0008-a-framework-is-a-pack-of-the-registry.md",
+      "outcome": "extracted",
+      "sha256": "3eda259e6839ec32fe6e63430fbadbc6bc069ec45dabfc27ec7d4059adcb160c",
+      "size": 4154,
+      "slug": "0008-a-framework-is-a-pack-of-the-registry"
+    }
+  ],
+  "finished": "2026-10-29T19:30:37",
+  "inbox": "/Users/chihebdkhil/oto-doc/oto/roadmap/inbox",
+  "run_id": "20261029-193037",
+  "started": "2026-10-29T19:30:37",
+  "summary": {
+    "blocked": 0,
+    "extracted": 1,
+    "extraction-failed": 0,
+    "missing-parser": 0,
+    "unsupported": 0
+  }
+}

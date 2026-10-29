@@ -8,7 +8,7 @@ log=/tmp/oto-init.log
     git config --global --add url."https://github.com/".insteadOf ssh://git@github.com/; }
   claude plugin marketplace list 2>/dev/null | grep -q cynergis || claude plugin marketplace add Cynergis/oto-registry
   have=$(claude plugin list 2>/dev/null)
-  for p in product software-architecture product-report report flow medallion report-medallion platform work pdf-to-template; do
+  for p in product software-architecture calm product-report report flow medallion report-medallion platform work pdf-to-template; do
     echo "$have" | grep -q "$p@cynergis" || claude plugin install "$p@cynergis"
   done
   python3 "$HOME/.oto/lock-plugins"     # only the plugins installed here load: see the script

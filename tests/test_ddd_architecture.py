@@ -2,7 +2,7 @@
 graph with a named person's sign-off (I2).
 
 I1: the `ddd` pack now extends `architecture`, so a bounded context's deployed component and its
-CALM node are one node, with one `external_id`, and the architecture's questions answer in a ddd project.
+framework's node are one node, with one `external_id`, and the architecture's questions answer in a ddd project.
 Readiness (draft, ready, built, on use cases, contexts, commands and aggregates) is a decision: a
 new element reads as a draft until a named person says otherwise.
 
@@ -25,7 +25,7 @@ from oto.project import Project
 from oto.scaffold import init
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-INVOICE = os.path.join(ROOT, "tests", "fixtures", "calm", "invoice-platform.calm.json")
+INVOICE = os.path.join(ROOT, "tests", "fixtures", "arch", "invoice-platform.model.json")   # a framework's model: the plain adapter the tests carry
 
 BOARD = {
     "session": "Invoice approval, big picture", "held_on": "2026-10-20", "facilitator": "Ana Lyst", "context": "Invoice approval",
@@ -79,7 +79,7 @@ def test_the_ddd_pack_sits_on_the_architecture_pack_and_readiness_is_a_decision(
     assert ontologies.self_check("ddd") == [], ontologies.self_check("ddd")
     config, sample, _readme = ontologies.load("ddd")
     assert {"Relationship", "Control", "Flow", "CodeModule", "BoundedContext", "DomainEvent", "Table"} - {"Table"} <= set(config["classes"]), "the domain's and the architecture's classes compose"
-    assert config["attributes"]["Component"]["external_id"]["type"] == "string", "a context's deployed component is a CALM node"
+    assert config["attributes"]["Component"]["external_id"]["type"] == "string", "a context's deployed component is a framework's node"
     for kind in ("UseCase", "BoundedContext", "Command", "Aggregate"):
         spec = config["attributes"][kind]["readiness"]
         assert spec["default"] == "draft" and spec.get("decision") is True, kind
@@ -88,12 +88,12 @@ def test_the_ddd_pack_sits_on_the_architecture_pack_and_readiness_is_a_decision(
     assert own["classes"].keys() == {"Subdomain", "BoundedContext", "ContextRelationship", "UseCase", "DomainEvent", "Command", "Reaction", "ReadModel",
                                      "ExternalSystem", "Aggregate", "Entity", "ValueObject", "BusinessRule", "DomainService"}, "the pack's own classes are unchanged"
     edges = {(e["from"], e["rel"], e["to"]) for e in sample["edges"]}
-    assert ("bc.invoice-approval", "deployed_as", "component.invoice-intake") in edges, "the sample's new context runs as the architecture sample's CALM node"
+    assert ("bc.invoice-approval", "deployed_as", "component.invoice-intake") in edges, "the sample's new context runs as the architecture sample's component"
     intake = next(n for n in sample["nodes"] if n["id"] == "component.invoice-intake")
-    assert intake["attributes"]["external_id"] == "invoice-intake", "one node per component across the domain and CALM"
+    assert intake["attributes"]["external_id"] == "invoice-intake", "one node per component across the domain and the framework"
 
 
-def test_a_ddd_project_answers_the_context_and_the_calm_facts_from_one_node(ddd):
+def test_a_ddd_project_answers_the_context_and_the_framework_s_facts_from_one_node(ddd, plain_framework):
     code, out = _cli("query", "--project", ddd, "ask", "DD2", "CONTEXT=bc.invoice-approval")
     assert code == 0 and "status: answered" in out and "Invoice intake" in out, out
     code, out = _cli("query", "--project", ddd, "ask", "AR1", "NODE=component.invoice-intake")
@@ -102,8 +102,8 @@ def test_a_ddd_project_answers_the_context_and_the_calm_facts_from_one_node(ddd)
     assert code == 0, out
     code, out = _cli("ontology", "check", "--project", ddd)
     assert code == 0 and "every node satisfies them" in out, out
-    code, out = _cli("arch", "import", "--framework", "calm", "--file", INVOICE, "--at", "2026-10-27", "--environment", "environment.payments-network", "--project", ddd)
-    assert code == 0, "a CALM model imports into a ddd project: the classes are there"
+    code, out = _cli("arch", "import", "--framework", "plain", "--file", INVOICE, "--at", "2026-10-27", "--environment", "environment.payments-network", "--project", ddd)
+    assert code == 0, "a framework's model imports into a ddd project: the classes are there\n" + out
 
 
 # ---- I2: the board, through the capture form and the gates ----

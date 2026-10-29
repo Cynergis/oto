@@ -3,8 +3,9 @@ vocabulary: build stages, commands, served endpoints, write hooks and framework 
 engine loads a pack's contributions only when the pack is composed in the project (its own classes
 are in the vocabulary); commands and adapters are discovered from every pack the machine has, since
 a command must exist before a project is named. The core names none of the packs: the policy and
-iam stages, the pack commands and the CALM adapter come from manifests, and a toy pack in a
-temporary directory proves a pack the engine has never heard of plugs in the same way."""
+iam stages and the pack commands come from manifests, the engine ships no framework adapter at all
+(ADR-0008: the calm pack is the registry's), and a toy pack in a temporary directory proves a pack
+the engine has never heard of plugs in the same way."""
 import contextlib
 import importlib
 import io
@@ -47,8 +48,8 @@ def test_the_shipped_packs_declare_what_they_provide_and_the_core_names_none_of_
     assert policy["write_hooks"] == ["oto.packs.policy:enforce"] and policy["read_hooks"] == ["oto.packs.policy:police_read"]
     architecture = ontologies.manifest_for("architecture")["provides"]
     assert "adapters" not in architecture and architecture["commands"] == [{"name": "arch", "module": "oto.cli.arch", "label": "architecture"}]
-    calm = ontologies.manifest_for("calm")["provides"]
-    assert calm["adapters"] == [{"framework": "calm", "module": "oto.packs.calm", "import": "read_model", "export": "write_model", "migrate": "migrate"}]
+    for pack in ontologies.available():
+        assert "adapters" not in (ontologies.manifest_for(pack).get("provides") or {}), "%s: the engine ships no framework adapter (ADR-0008)" % pack
     for pack, command, module, label in (("work", "work", "oto.packs.work.cli", "work and communication"), ("data", "data", "oto.packs.data.cli", "data"),
                                          ("ddd", "ddd", "oto.packs.ddd.cli", "ddd")):
         provides = ontologies.manifest_for(pack)["provides"]
@@ -267,24 +268,31 @@ def test_a_composed_pack_s_endpoint_is_served_and_listed(toy, tmp_path):
         server.stop()
 
 
-def test_a_framework_adapter_is_chosen_by_name_and_calm_is_the_first(toy, tmp_path):
+def test_a_framework_adapter_is_chosen_by_name_and_the_engine_ships_none(toy, tmp_path):
     adapters = extensions.adapters()
-    assert set(adapters) >= {"calm", "toy"}
-    calm = extensions.adapter("calm")
-    assert calm["pack"] == "calm" and calm["module"].read_model and calm["module"].write_model and calm["migrate"]
+    assert set(adapters) == {"toy"}, "the one framework on this machine is the toy's: the engine provides none (ADR-0008)"
+    assert extensions.only_adapter() == "toy"
     toy_adapter = extensions.adapter("toy")
+    assert toy_adapter["pack"] == "toy" and toy_adapter["migrate"] is None
     assert toy_adapter["read"](None, "model.toy", "2026-10-28") == {"framework": "toy", "path": "model.toy", "at": "2026-10-28"}
     assert toy_adapter["write"](None) == {"framework": "toy", "nodes": []}
     with pytest.raises(extensions.ExtensionError) as refused:
-        extensions.adapter("c4")
-    assert "c4" in str(refused.value) and "calm" in str(refused.value), "refused by name, the known frameworks listed"
+        extensions.adapter("calm")
+    assert "calm" in str(refused.value) and "toy" in str(refused.value), "refused by name, the frameworks this machine has listed"
     invoice = _project(tmp_path, "architecture", "invoice")
-    code, out = _cli("arch", "export", "--framework", "calm", "--out", os.path.join(invoice, "out.json"), "--project", invoice)
-    assert code == 0 and os.path.exists(os.path.join(invoice, "out.json")), out
     code, out = _cli("arch", "export", "--framework", "c4", "--project", invoice)
-    assert code == 1 and "c4" in out and "calm" in out, out
+    assert code == 1 and "c4" in out and "toy" in out, out
     code, out = _cli("arch", "import", "--framework", "c4", "--file", "x.json", "--at", "2026-10-28", "--project", invoice)
     assert code == 1 and "c4" in out, out
+
+
+def test_without_a_framework_pack_import_and_export_say_which_packs_would_provide_one(tmp_path):
+    assert extensions.adapters() == {} and extensions.only_adapter() is None, "a bare machine: the engine ships no adapter"
+    invoice = _project(tmp_path, "architecture", "invoice")
+    code, out = _cli("arch", "export", "--project", invoice)
+    assert code == 1 and "--framework" in out and "none" in out, out
+    code, out = _cli("arch", "import", "--framework", "calm", "--file", "x.json", "--at", "2026-10-28", "--project", invoice)
+    assert code == 1 and "no adapter for framework 'calm'" in out and "none" in out, out
 
 
 # ---- the roadmap and the docs ----

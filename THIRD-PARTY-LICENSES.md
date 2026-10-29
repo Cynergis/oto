@@ -58,7 +58,6 @@ versions.
 
 ## Test fixtures from other projects
 
-`tests/fixtures/calm/trading-system.architecture.json` is the trading-system example from the FINOS
-`architecture-as-code` repository (https://github.com/finos/architecture-as-code,
-`docs/static/calm-example/trading-system.architecture.json`), Apache-2.0, copied unchanged as the
-round-trip fixture for `oto arch import` and `export`.
+None. The FINOS trading-system example (`docs/static/calm-example/trading-system.architecture.json` in
+https://github.com/finos/architecture-as-code, Apache-2.0) is the round-trip fixture of the calm pack's
+tests, in Cynergis/oto-registry (`packs/calm`), since ADR-0008 moved CALM there.

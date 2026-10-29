@@ -1,0 +1,12 @@
+{
+  "_about": "The plain framework adds no term: its model is the architecture pack's reified model as a file. This vocabulary exists so the pack composes like any other.",
+  "name": "Plain",
+  "ontology_version": 1,
+  "strict_domains": false,
+  "languages": [
+    "en"
+  ],
+  "classes": {},
+  "properties": {},
+  "attributes": {}
+}

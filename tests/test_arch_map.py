@@ -24,7 +24,7 @@ from oto.project import Project
 from oto.scaffold import init
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-INVOICE = os.path.join(ROOT, "tests", "fixtures", "calm", "invoice-platform.calm.json")
+INVOICE = os.path.join(ROOT, "tests", "fixtures", "arch", "invoice-platform.model.json")   # the plain framework's model: the reified model as a file
 
 
 def _cli(*args):
@@ -74,8 +74,9 @@ def code(tmp_path):
 
 
 @pytest.fixture
-def described(tmp_path):
-    """An architecture project with the invoice model applied: the components the code implements exist."""
+def described(tmp_path, plain_framework):
+    """An architecture project with the invoice model applied through a framework adapter (the `plain`
+    one the tests carry: the engine ships none, ADR-0008): the components the code implements exist."""
     root = str(tmp_path / "arch")
     with contextlib.redirect_stdout(io.StringIO()):
         init(root, slug="arch", name="Architecture", ontology="architecture", empty=True)
@@ -86,15 +87,15 @@ def described(tmp_path):
             {"id": "repo.invoice-platform", "type": "Repository", "label": "invoice-platform", "attributes": {"owner": "acme", "name": "invoice-platform"}}],
             "edges": []}, f)
     _gates(root, seed, "the estate")
-    code, out = _cli("arch", "import", "--framework", "calm", "--file", INVOICE, "--at", "2026-10-27", "--environment", "environment.production", "--project", root)
+    code, out = _cli("arch", "import", "--framework", "plain", "--file", INVOICE, "--at", "2026-10-27", "--environment", "environment.production", "--project", root)
     assert code == 0, out
-    with open(os.path.join(root, "proposals", "calm-invoice-platform.json"), encoding="utf-8") as f:
+    with open(os.path.join(root, "proposals", "invoice-platform.json"), encoding="utf-8") as f:
         proposal = json.load(f)
     proposal["nodes"] = [n for n in proposal["nodes"] if n["id"] != "component.reporting-lake"]
     proposal["edges"] = [e for e in proposal["edges"] if "component.reporting-lake" not in (e["from"], e["to"])]
-    with open(os.path.join(root, "proposals", "calm-invoice-platform.json"), "w", encoding="utf-8") as f:
+    with open(os.path.join(root, "proposals", "invoice-platform.json"), "w", encoding="utf-8") as f:
         json.dump(proposal, f)
-    _gates(root, os.path.join(root, "proposals", "calm-invoice-platform.json"), "the model")
+    _gates(root, os.path.join(root, "proposals", "invoice-platform.json"), "the model")
     return root
 
 
@@ -238,23 +239,24 @@ def test_map_refuses_what_it_cannot_cite(described, code, tmp_path):
 
 def test_compile_runs_what_the_config_declares_through_the_gates_and_builds(described, code):
     root = described
-    model = os.path.join(root, "architecture", "invoice.calm.json")
+    model = os.path.join(root, "architecture", "invoice.model.json")
     os.makedirs(os.path.dirname(model), exist_ok=True)
     with open(INVOICE, encoding="utf-8") as f:
         m = json.load(f)
-    m["nodes"] = [n for n in m["nodes"] if n["unique-id"] != "reporting-lake"]
+    m["proposal"]["nodes"] = [n for n in m["proposal"]["nodes"] if n["id"] != "component.reporting-lake"]
+    m["proposal"]["edges"] = [e for e in m["proposal"]["edges"] if "component.reporting-lake" not in (e["from"], e["to"])]
     with open(model, "w", encoding="utf-8") as f:
         json.dump(m, f)
     config_path = os.path.join(root, "project.config.json")
     with open(config_path, encoding="utf-8") as f:
         config = json.load(f)
-    config["arch"] = {"calm": ["architecture/invoice.calm.json"], "environment": "environment.production",
+    config["arch"] = {"plain": ["architecture/invoice.model.json"], "environment": "environment.production",
                       "codemap": {"repo": os.path.relpath(code, root), "repository": "repo.invoice-platform"}}
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
     code_, out = _cli("arch", "compile", "--at", "2026-10-28", "--by", "oto architecture", "--note", "compiled from abc123", "--project", root)
     assert code_ == 0, out
-    assert "calm-invoice" in out and "codemap-invoice-platform" in out and "applied" in out and "built" in out, out
+    assert "invoice" in out and "codemap-invoice-platform" in out and "applied" in out and "built" in out, out
     graph = session.live(Project.standard(root))
     assert any(n["type"] == "CodeModule" for n in graph["nodes"]) and any(n["type"] == "Relationship" for n in graph["nodes"])
     code_, out = _cli("audit", "log", "--project", root)
@@ -271,7 +273,7 @@ def test_compile_refuses_at_the_gate_and_leaves_no_candidate(described, code):
     config_path = os.path.join(root, "project.config.json")
     with open(config_path, encoding="utf-8") as f:
         config = json.load(f)
-    config["arch"] = {"calm": [os.path.relpath(INVOICE, root)]}      # the lakehouse composed in nothing, deployed nowhere
+    config["arch"] = {"plain": [os.path.relpath(INVOICE, root)]}     # the lakehouse composed in nothing, deployed nowhere
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
     code_, out = _cli("arch", "compile", "--at", "2026-10-28", "--by", "oto architecture", "--project", root)

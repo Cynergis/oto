@@ -21,7 +21,6 @@ from oto.scaffold import init
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PACK = os.path.join(ROOT, "oto", "ontologies", "architecture")
-CALM = "https://calm.finos.org/release/1.0/meta/core.json"
 NODE_TYPES = ["actor", "ecosystem", "system", "service", "database", "network", "ldap", "webclient", "data-asset"]
 RELATIONSHIP_KINDS = ["interacts", "connects", "deployed-in", "composed-of", "options"]
 PROTOCOLS = ["HTTP", "HTTPS", "FTP", "SFTP", "JDBC", "WebSocket", "SocketIO", "LDAP", "AMQP", "TLS", "mTLS", "TCP"]
@@ -46,14 +45,12 @@ def _enum(spec):
 
 # ---- the vocabulary ----
 
-def test_the_pack_sits_on_software_architecture_and_the_calm_pack_pins_calm():
+def test_the_pack_sits_on_software_architecture_and_ships_no_framework():
     manifest = ontologies.manifest_for("architecture")
     assert manifest["extends"] == ["software-architecture"] and manifest["release"] == 6 and manifest["domain"] == "software"
-    assert manifest["engine"] == ">=0.11" and "framework-neutral" in manifest["summary"], "the pack names no framework; CALM is the calm pack's"
-    calm_pack = ontologies.manifest_for("calm")
-    assert calm_pack["extends"] == ["architecture"] and ontologies.self_check("calm") == [], ontologies.self_check("calm")
-    _config, _sample, calm_readme = ontologies.load("calm")
-    assert CALM in calm_readme, "the CALM release is pinned where the adapter's pack says what it is"
+    assert manifest["engine"] == ">=0.11" and "framework-neutral" in manifest["summary"], "the pack names no framework; CALM is the registry's calm pack"
+    assert "calm" not in ontologies.available(), "the engine ships no framework pack (ADR-0008): calm is a pack of the registry"
+    assert "adapters" not in (manifest.get("provides") or {})
     assert ontologies.self_check("architecture") == [], ontologies.self_check("architecture")
     config, _sample, readme = ontologies.load("architecture")
     assert {"Relationship", "Control", "Flow", "FlowStep", "NFR", "Evidence", "CodeModule", "Commit", "ChangeProposal"} <= set(config["classes"])

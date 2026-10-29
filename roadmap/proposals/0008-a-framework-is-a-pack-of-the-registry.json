@@ -1,0 +1,64 @@
+{
+  "source_doc": "0008-a-framework-is-a-pack-of-the-registry",
+  "as_of": "2026-10-29",
+  "nodes": [
+    {
+      "id": "decision.adr-0008",
+      "type": "Decision",
+      "label": "A framework is a pack of the registry; the engine ships none",
+      "summary": "An architecture framework is a pack of the registry, with its adapter in its own `code/`, installed like any pack and chosen through the adapter seam; the engine ships no framework adapter, and CALM, the first, moves to Cynergis/oto-registry as the `calm` pack.",
+      "attributes": {
+        "status": "accepted",
+        "decided_on": "2026-10-29",
+        "rationale": "An architecture framework is a pack of the registry, with its adapter in its own `code/`, installed like any pack and chosen through the adapter seam; the engine ships no framework adapter, and CALM, the first, moves to Cynergis/oto-registry as the `calm` pack."
+      },
+      "valid_from": "2026-10-29",
+      "evidence": [
+        {
+          "doc": "0008-a-framework-is-a-pack-of-the-registry",
+          "where": "Decision",
+          "quote": "An architecture framework is a pack of the registry, with its adapter in its own `code/`, installed like any pack and chosen through the adapter seam; the engine ships no framework adapter, and CALM, the first, moves to Cynergis/oto-registry as the `calm` pack."
+        },
+        {
+          "doc": "0008-a-framework-is-a-pack-of-the-registry",
+          "where": "frontmatter",
+          "quote": "decided_on: 2026-10-29"
+        }
+      ]
+    },
+    {
+      "id": "document.0008-a-framework-is-a-pack-of-the-registry",
+      "type": "Document",
+      "label": "A framework is a pack of the registry; the engine ships none",
+      "summary": "ADR ADR-0008, the record of this decision.",
+      "attributes": {
+        "kind": "adr"
+      },
+      "valid_from": "2026-10-29",
+      "evidence": [
+        {
+          "doc": "0008-a-framework-is-a-pack-of-the-registry",
+          "where": "title",
+          "quote": "A framework is a pack of the registry; the engine ships none"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "decision.adr-0008",
+      "rel": "documented_in",
+      "to": "document.0008-a-framework-is-a-pack-of-the-registry"
+    },
+    {
+      "from": "decision.adr-0008",
+      "rel": "governs",
+      "to": "workitem.epic-h"
+    },
+    {
+      "from": "decision.adr-0008",
+      "rel": "decided_by",
+      "to": "person.chiheb-dkhil"
+    }
+  ]
+}

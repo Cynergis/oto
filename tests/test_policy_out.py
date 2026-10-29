@@ -2,8 +2,8 @@
 framework, and its generated bindings are a class of its own, `IamBinding`, that binds one resource,
 grants the principals and derives from the rules. The compiler, the snapshot, the IAM derivation,
 the two stages, the command, the write hook and the served read hook live in oto/packs/policy and
-reach the engine only through the pack's manifest; the engine imports none of them. The calm pack's
-adapter exports a binding node as a control when both packs are composed."""
+reach the engine only through the pack's manifest; the engine imports none of them. A framework adapter
+that knows binding nodes (the registry's calm pack) exports them as controls; the engine provides none."""
 import contextlib
 import io
 import json
@@ -13,7 +13,7 @@ from oto import extensions
 from oto.cli import main
 from oto.curate import session as _session
 from oto.model import ontologies
-from oto.packs import calm as _calm, policy as _policy
+from oto.packs import policy as _policy
 from oto.packs.policy import iam as _iam
 from oto.project import Project
 from oto.scaffold import init
@@ -111,40 +111,7 @@ def test_the_bindings_are_proposed_as_binding_nodes_that_bind_grant_and_derive()
     assert without["nodes"] == []
 
 
-def test_the_calm_adapter_exports_a_binding_node_as_a_control_when_both_packs_are_composed(tmp_path):
-    root = _project(tmp_path, "policy,calm", "platform")
-    path = os.path.join(root, "graph.json")
-    with open(path, encoding="utf-8") as f:
-        graph = json.load(f)
-    intake = next(n for n in graph["nodes"] if n["id"] == "component.invoice-intake")
-    intake["attributes"]["external_id"], intake["attributes"]["external_type"] = "invoice-intake", "service"
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(graph, f, indent=2)
-    code, out = _cli("build", "--project", root)
-    assert code == 0 and "iam:" in out and "binding node(s) proposed" in out, out
-    code, out = _cli("policy", "iam", "--project", root, "--apply", "--by", "Ada", "--at", "2026-10-28")
-    assert code == 0 and "applied" in out and "binding node(s)" in out, out
-    live = _session.live(Project.standard(root))
-    bindings = [n for n in live["nodes"] if n["type"] == "IamBinding"]
-    assert {n["id"] for n in bindings} >= {"iambinding.table-invoices", "iambinding.table-ledger-postings"}
-    assert not any(n["type"] == "Control" and (n.get("attributes") or {}).get("generated_by") for n in live["nodes"]), "no control is generated: the bindings are the pack's own nodes"
-    exported = os.path.join(root, "out.calm.json")
-    code, out = _cli("arch", "export", "--framework", "calm", "--out", exported, "--project", root)
-    assert code == 0, out
-    with open(exported, encoding="utf-8") as f:
-        model = json.load(f)
-    node = next(n for n in model["nodes"] if n["unique-id"] == "invoice-intake")
-    control = node["controls"]["iam-table-invoices"]
-    assert control["requirements"][0]["requirement-url"] == _calm.IAM_REQUIREMENT_URL
-    config = control["requirements"][0]["config"]
-    assert config["provider"] == "gcp" and config["bindings"][0]["role"] == "roles/bigquery.dataEditor" and config["resource"].startswith("//bigquery")
-    code, out = _cli("query", "--project", root, "ask", "PL9", "RESOURCE=table.ledger-postings")
-    assert code == 0 and "status: answered" in out and "iambinding.table-ledger-postings" in out and "roles/bigquery.dataViewer" in out, out
-    code, out = _cli("query", "--project", root, "ask", "PL8", "PRINCIPAL=principal.invoice-intake")
-    assert code == 0 and "iambinding.table-invoices" in out and "component.invoice-intake" in out, out
-
-
-def test_a_policy_project_without_the_calm_pack_still_binds_and_publishes_the_bundle_summary(tmp_path):
+def test_a_policy_project_binds_and_publishes_the_bundle_summary_with_no_framework_to_export_to(tmp_path):
     ledger = _project(tmp_path, "policy", "ledger")
     code, out = _cli("build", "--project", ledger)
     assert code == 0 and "iam: 4 binding(s) on 3 resource(s)" in out and "3 binding node(s) proposed" in out, out
@@ -154,7 +121,7 @@ def test_a_policy_project_without_the_calm_pack_still_binds_and_publishes_the_bu
         manifest = json.load(f)
     assert manifest["proposed"] == 3 and "controls" not in manifest
     code, out = _cli("arch", "export", "--framework", "calm", "--project", ledger)
-    assert code == 1 and ("no adapter" in out or "nothing to export" in out or "vocabulary" in out), "no calm pack, no export: " + out
+    assert code == 1 and "no adapter" in out and "calm" in out, "the engine ships no framework adapter (ADR-0008): " + out
 
 
 def test_the_docs_know_where_the_code_is_and_what_a_binding_node_is():

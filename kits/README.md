@@ -8,7 +8,7 @@ from a published kit with one command, and writes no file of their own.
 
 Claude Code with everything an OTO product on Google Cloud needs:
 
-- **OTO:** the `cynergis` marketplace and its plugins (product, software-architecture, product-report, report,
+- **OTO:** the `cynergis` marketplace and its plugins (product, software-architecture, calm, product-report, report,
   flow, medallion, report-medallion, platform, work, pdf-to-template, and the engine plugin `oto`), and the
   engine itself at the version in `spec.yaml`, pinned through `OTO_SOURCE`;
 - **Google Cloud:** the Google Cloud CLI (`gcloud`, `bq`);

@@ -23,8 +23,8 @@ authoring under the gates, time, query and serve, evaluation, Neo4j, repository 
 repository, specs and decisions, an ontology of your own, tools, deploy, audit and tracing, graphs
 that know each other, the engine's own CI, the ontology explorer, and the pack seams. Drive these first: they are
 the product, and they need no pack. The **packs**, each an ontology with the tools that work on it,
-are sections 18 (work and communication), 21 (data), 22 (architecture, with CALM as the first
-framework adapter), 28 to 30 and 32 (policy, the snapshot and guards, the generated IAM) and 31
+are sections 18 (work and communication), 21 (data), 22 (architecture; CALM, the first framework
+adapter, is the registry's `calm` pack, [ADR-0008](adr/0008-a-framework-is-a-pack-of-the-registry.md)), 28 to 30 and 32 (policy, the snapshot and guards, the generated IAM) and 31
 (the inbox and reminders). Each is optional: a project that does not compose the pack never sees
 its commands or its build stages.
 
@@ -837,9 +837,9 @@ that is not a table or column, a missing `--at` and an empty `--by` are refused 
 ranks the data graph first for a question about a table and the plan first for a question about a
 work item.
 
-## 22. The architecture pack: CALM as facts, the trace to code
+## 22. The architecture pack: a framework's model as facts, the trace to code
 
-Exercises: the `architecture` ontology on `software-architecture`, framework-neutral, with the `calm` pack as the first framework adapter, its shapes, AR1 to AR9.
+Exercises: the `architecture` ontology on `software-architecture`, framework-neutral, its shapes, AR1 to AR9; then CALM through the registry's `calm` pack, the first framework adapter (ADR-0008: the engine ships none).
 
 ```bash
 oto init --name "Invoice approval, as architecture" --slug invoice --ontology architecture --project invoice
@@ -862,12 +862,14 @@ are one of each CALM shape with a protocol from CALM's list, the flow's steps co
 open proposal is listed and the implemented one is not, `src/legacy` is the one untraced module, and
 `oto ontology check` says every node satisfies the shapes.
 
-Then a real model in and out (the fixture is the FINOS trading-system example):
+Then a real model in and out, through the calm pack (the fixture is the FINOS trading-system example, in the pack's tests):
 
 ```bash
-oto init --name "Trading system" --slug trading --ontology architecture --empty --project trading
+oto arch import --framework calm --file x.json --at 2026-10-27 --project invoice; echo $?   # 1: no adapter for framework 'calm': the packs on this machine provide none
+oto pack add calm                                                                     # from the cynergis registry; in Claude Code, /plugin install calm@cynergis
+oto init --name "Trading system" --slug trading --ontology architecture,calm --empty --project trading
 # the estate declares an environment first: {"id": "environment.production", "type": "Environment", ...} through the gates
-oto arch import --framework calm --file tests/fixtures/calm/trading-system.architecture.json --at 2026-10-27 --environment environment.production --project trading
+oto arch import --framework calm --file ~/.oto/packs/calm/tests/fixtures/trading-system.architecture.json --at 2026-10-27 --environment environment.production --project trading
 oto curate start --project trading && oto curate add --from proposals/calm-trading-system.json --project trading
 oto curate check --project trading && oto curate apply --by "<you>" --note "the CALM model" --project trading
 oto build --project trading
@@ -876,7 +878,7 @@ oto query --project trading ask SA1 SYSTEM=system.trading-system           # the
 oto arch export --framework calm --out trading.exported.json --project trading       # equals the input, up to empty containers
 ```
 
-Pass when import reports 13 nodes, 8 interfaces, 18 relationships, 2 controls and 7 flows, names
+Pass when, with the engine alone, import names the framework it has no adapter for and says the packs provide none; with the pack, import reports 13 nodes, 8 interfaces, 18 relationships, 2 controls and 7 flows, names
 what the model does not say (nothing deployed anywhere: `--environment` supplies it), the document
 has a line per fact and every quote holds at `curate check`, the gates apply, AR1 and SA1 answer, and
 the exported model equals the input once empty interface and control lists are dropped; a model
@@ -1292,7 +1294,7 @@ oto query --project ledger ask PL8 PRINCIPAL=principal.ops-clerk                
 oto policy iam --project ledger --out /tmp/iam --at 2026-10-27                  # anywhere, the same bundle; the document lands in build/documents/iam-bindings.md; next: curate add --from ..., or --apply
 oto policy iam --project ledger --apply --by "<you>" --at 2026-10-27            # applied by <you>: 3 binding node(s) in the graph, built
 oto query --project ledger ask PL9 RESOURCE=table.ledger-postings               # the binding node on the postings table: provider, address, bindings, withheld, the rules behind it
-# with the calm pack composed too (oto init --ontology policy,calm), the adapter exports a binding node as a control on the component that runs as the granted principal:
+# with the registry's calm pack installed and composed too (oto pack add calm; oto init --ontology policy,calm), its adapter exports a binding node as a control on the component that runs as the granted principal:
 oto arch export --framework calm --out /tmp/ledger.calm.json --project ledger && python3 -c "import json; n=[n for n in json.load(open('/tmp/ledger.calm.json'))['nodes'] if n['unique-id']=='invoice-intake'][0]; print(list(n['controls']))"   # ['iam-table-invoices']
 oto policy iam --project ledger --apply --at 2026-10-27; echo $?               # 1: --apply takes --by
 python3 - <<'PY'
@@ -1324,8 +1326,8 @@ python3 -c "import json; print(json.dumps(json.load(open('oto/ontologies/policy/
 oto --help                                                                      # core commands, then each pack command under its pack, from the manifests
 oto init --ontology data --project plain && oto build --project plain           # no "policy:" or "iam:" line: the stages belong to a pack the project does not compose
 oto init --ontology policy --project ledger && oto build --project ledger       # "policy: 4 rule(s) ..." then "iam: 4 binding(s) ...": the pack's stages, before the site
-oto arch export --framework calm --project <an architecture project>            # the adapter the calm pack provides
-oto arch export --framework c4 --project <an architecture project>; echo $?     # 1: no adapter for framework 'c4': the packs on this machine provide calm
+oto arch export --framework calm --project <an architecture project>            # the adapter the registry's calm pack provides, once installed (oto pack add calm); the engine ships none (ADR-0008)
+oto arch export --framework c4 --project <an architecture project>; echo $?     # 1: no adapter for framework 'c4': the packs on this machine provide calm (or none, with the engine alone)
 oto arch migrate --framework calm --by "<you>" --project <a project built before architecture release 5>   # calm_* become external_id, external_type, external_payload, framework, in the graph and in the project's vocabulary and questions; then oto build
 # a pack of your own: a directory under $OTO_ONTOLOGIES with a manifest whose `provides` names your modules, which live in its code/ folder (carries: ["code", ...]); nothing to install
 #   {"provides": {"stages": [{"name": "mine", "module": "mine_ext", "owns": []}], "commands": [{"name": "mine", "module": "mine_ext", "label": "mine"}],

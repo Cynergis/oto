@@ -1,0 +1,35 @@
+{
+  "_about": "A framework pack the engine's tests carry, never shipped (ADR-0008): its adapter reads a model that is already the architecture pack's reified model, so the core's handling of any framework's model is tested without naming one.",
+  "name": "plain",
+  "release": 1,
+  "domain": "software",
+  "summary": "The plain architecture framework, for the engine's tests: a model file that holds the document and the proposal an adapter writes, read through the adapter seam like any framework's model.",
+  "extends": [
+    "architecture"
+  ],
+  "namespace": "https://cynergis.ai/ont/plain#",
+  "engine": ">=0.14",
+  "carries": [
+    "vocabulary",
+    "readme",
+    "code"
+  ],
+  "maintainer": "OTO",
+  "provides": {
+    "adapters": [
+      {
+        "framework": "plain",
+        "module": "plain_model",
+        "import": "read_model",
+        "export": "write_model"
+      }
+    ]
+  },
+  "changelog": [
+    {
+      "release": 1,
+      "at": "2026-10-29",
+      "note": "First release (ADR-0008): the engine's tests stop reading CALM models; this adapter reads the reified model as a file."
+    }
+  ]
+}

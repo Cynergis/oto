@@ -158,7 +158,7 @@ jobs:
 
 ARCHITECTURE = """name: oto architecture
 
-# Every merge to main compiles the architecture graph from what the repository holds: the CALM
+# Every merge to main compiles the architecture graph from what the repository holds: the framework
 # model(s) and the code map that project.config.json names under `arch`, imported, held to the
 # four gates and applied with the merge's sha in the note, then built (roadmap H2). A merge the
 # gates refuse fails the job with the findings, and the graph stays as it was; nobody edits it by

@@ -21,7 +21,6 @@ from oto.packs import policy as _policy
 from oto.packs.policy import iam as _iam
 from oto.cli import main
 from oto.curate import evidence as _evidence
-from oto.packs import calm as _calm
 from oto.curate import session as _session
 from oto.model import ontologies
 from oto.project import Project

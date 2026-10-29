@@ -1,0 +1,744 @@
+{
+  "_about": "A framework-neutral architecture model for the engine's own tests: the document and the proposal an adapter writes, as the architecture pack's reified model (ADR-0008: the engine ships no framework adapter). The invoice platform of the roadmap's example: eight estate nodes, two interfaces, seven relationships, four controls, one flow; reporting-lake is composed in no system, which the gate names.",
+  "document": "# Architecture model Invoice platform\n\nRead from invoice-platform.model.json on 2026-10-27 by a framework adapter the tests carry (the `plain` pack under tests/fixtures/frameworks). One line per node, interface, relationship, control, flow and step: each fact in the graph quotes its line here. What the framework carries beyond these lines is kept on the facts as the JSON the model gave.\n\n## Nodes\n\n- invoice-platform (system): Invoice platform\n- payments-network (network): Payments network\n- ap-clerk (actor): Accounts payable clerk\n- invoice-intake (service): Invoice intake\n  - interface invoice-api\n  - interface invoice-events\n  - control invoice-intake/input-validation: Every submitted invoice is validated against the schema before it is stored.\n- approval-policy (service): Approval policy\n- payment-scheduler (service): Payment scheduler\n- invoice-db (database): Invoice database\n- reporting-lake (lakehouse): Reporting lake\n\n## Relationships\n\n- clerk-submits (interacts): The clerk submits an invoice through the intake.\n- intake-stores (connects, JDBC): The intake writes the invoice to the database.\n  - control intake-stores/pii-at-rest: Supplier bank details are encrypted at rest and on the JDBC connection.\n- intake-emits (connects, AMQP): The intake publishes InvoiceSubmitted, which the approval policy consumes.\n- policy-schedules (connects, HTTPS)\n- deployed-in-network (deployed-in): The services and the database run in the payments network.\n- platform-composition (composed-of): The platform is composed of its services.\n- store-options (options): Where the invoice store lives.\n  - store-options option 1: Keep the invoice store on Postgres.\n  - store-options option 2: Move the invoice store to a managed ledger service.\n\n## Controls\n\n- control model/encryption-in-transit: Every connection between services is TLS 1.3 or better.\n\n## Flows\n\n- flow invoice-approval: Invoice approval\n  - step 1 over clerk-submits: The clerk submits the invoice.\n  - step 2 over intake-emits: The intake emits InvoiceSubmitted.\n  - step 3 over policy-schedules: The policy schedules the payment.\n  - control invoice-approval/four-eyes: An approval above the threshold is confirmed by a second person.\n",
+  "proposal": {
+    "source_doc": "invoice-platform",
+    "as_of": "2026-10-27",
+    "nodes": [
+      {
+        "id": "document.invoice-platform",
+        "type": "Document",
+        "label": "Architecture model Invoice platform",
+        "summary": "The invoice approval platform as an architecture model: intake, approval policy and payment scheduling.",
+        "attributes": {
+          "kind": "architecture",
+          "framework": "plain",
+          "external_payload": "{\"$id\": \"https://invoice.example/architecture/invoice-platform.json\", \"adrs\": [\"https://invoice.example/adrs/ADR-007.md\"], \"description\": \"The invoice approval platform as an architecture model: intake, approval policy and payment scheduling.\", \"metadata\": {\"owner\": \"payments-platform\", \"tier\": \"2\"}, \"name\": \"Invoice platform\", \"title\": \"Invoice platform\", \"unique-id\": \"invoice-platform-model\"}"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "title",
+            "quote": "Architecture model Invoice platform"
+          }
+        ]
+      },
+      {
+        "id": "system.invoice-platform",
+        "type": "System",
+        "label": "Invoice platform",
+        "summary": "Intake, approval and payment scheduling.",
+        "attributes": {
+          "external_id": "invoice-platform",
+          "external_type": "system",
+          "external_payload": "{\"details\": {\"detailed-architecture\": \"https://invoice.example/architecture/invoice-platform-detailed.json\"}}"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "nodes",
+            "quote": "invoice-platform (system)"
+          }
+        ]
+      },
+      {
+        "id": "environment.payments-network",
+        "type": "Environment",
+        "label": "Payments network",
+        "summary": "The network segment the services run in.",
+        "attributes": {
+          "external_id": "payments-network",
+          "external_type": "network"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "nodes",
+            "quote": "payments-network (network)"
+          }
+        ]
+      },
+      {
+        "id": "role.ap-clerk",
+        "type": "Role",
+        "label": "Accounts payable clerk",
+        "summary": "Submits supplier invoices.",
+        "attributes": {
+          "external_id": "ap-clerk",
+          "external_type": "actor",
+          "external_payload": "{\"metadata\": {\"department\": \"finance\"}}"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "nodes",
+            "quote": "ap-clerk (actor)"
+          }
+        ]
+      },
+      {
+        "id": "component.invoice-intake",
+        "type": "Component",
+        "label": "Invoice intake",
+        "summary": "Accepts a submitted invoice, stores it and emits InvoiceSubmitted.",
+        "attributes": {
+          "external_id": "invoice-intake",
+          "external_type": "service"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "nodes",
+            "quote": "invoice-intake (service)"
+          }
+        ]
+      },
+      {
+        "id": "interface.invoice-api",
+        "type": "Interface",
+        "label": "invoice-api",
+        "summary": "",
+        "attributes": {
+          "external_id": "invoice-api",
+          "config": "{\"config\": {\"url\": \"https://invoice.example/api/v1/invoices\"}, \"definition-url\": \"https://invoice.example/architecture/interfaces/https-url.json\"}",
+          "definition_url": "https://invoice.example/architecture/interfaces/https-url.json",
+          "url": "https://invoice.example/api/v1/invoices"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "invoice-intake",
+            "quote": "interface invoice-api"
+          }
+        ]
+      },
+      {
+        "id": "interface.invoice-events",
+        "type": "Interface",
+        "label": "Invoice events",
+        "summary": "",
+        "attributes": {
+          "external_id": "invoice-events",
+          "config": "{\"exchange\": \"invoices\", \"name\": \"Invoice events\", \"protocol\": \"AMQP\", \"routing-key\": \"invoice.*\"}"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "invoice-intake",
+            "quote": "interface invoice-events"
+          }
+        ]
+      },
+      {
+        "id": "control.invoice-intake-input-validation",
+        "type": "Control",
+        "label": "input-validation",
+        "summary": "Every submitted invoice is validated against the schema before it is stored.",
+        "attributes": {
+          "external_id": "input-validation",
+          "requirement_url": "https://invoice.example/architecture/controls/input-validation.requirement.json",
+          "config": "{\"requirements\": [{\"config\": {\"schema\": \"invoice-v1\"}, \"requirement-url\": \"https://invoice.example/architecture/controls/input-validation.requirement.json\"}]}"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "invoice-intake",
+            "quote": "control invoice-intake/input-validation"
+          }
+        ]
+      },
+      {
+        "id": "component.approval-policy",
+        "type": "Component",
+        "label": "Approval policy",
+        "summary": "Applies the approval rules and emits InvoiceApproved.",
+        "attributes": {
+          "external_id": "approval-policy",
+          "external_type": "service"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "nodes",
+            "quote": "approval-policy (service)"
+          }
+        ]
+      },
+      {
+        "id": "component.payment-scheduler",
+        "type": "Component",
+        "label": "Payment scheduler",
+        "summary": "Schedules the payment of an approved invoice.",
+        "attributes": {
+          "external_id": "payment-scheduler",
+          "external_type": "service"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "nodes",
+            "quote": "payment-scheduler (service)"
+          }
+        ]
+      },
+      {
+        "id": "datastore.invoice-db",
+        "type": "DataStore",
+        "label": "Invoice database",
+        "summary": "Where invoices and their approval state live.",
+        "attributes": {
+          "external_id": "invoice-db",
+          "external_type": "database"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "nodes",
+            "quote": "invoice-db (database)"
+          }
+        ]
+      },
+      {
+        "id": "component.reporting-lake",
+        "type": "Component",
+        "label": "Reporting lake",
+        "summary": "A custom node type: the finance reporting lakehouse.",
+        "attributes": {
+          "external_id": "reporting-lake",
+          "external_type": "lakehouse"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "nodes",
+            "quote": "reporting-lake (lakehouse)"
+          }
+        ]
+      },
+      {
+        "id": "relationship.clerk-submits",
+        "type": "Relationship",
+        "label": "The clerk submits an invoice through the intake.",
+        "summary": "The clerk submits an invoice through the intake.",
+        "attributes": {
+          "external_id": "clerk-submits",
+          "kind": "interacts"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "relationships",
+            "quote": "clerk-submits (interacts)"
+          }
+        ]
+      },
+      {
+        "id": "relationship.intake-stores",
+        "type": "Relationship",
+        "label": "The intake writes the invoice to the database.",
+        "summary": "The intake writes the invoice to the database.",
+        "attributes": {
+          "external_id": "intake-stores",
+          "kind": "connects",
+          "protocol": "JDBC",
+          "external_payload": "{\"metadata\": {\"pii\": true}}"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "relationships",
+            "quote": "intake-stores (connects, JDBC)"
+          }
+        ]
+      },
+      {
+        "id": "control.intake-stores-pii-at-rest",
+        "type": "Control",
+        "label": "pii-at-rest",
+        "summary": "Supplier bank details are encrypted at rest and on the JDBC connection.",
+        "attributes": {
+          "external_id": "pii-at-rest",
+          "requirement_url": "https://invoice.example/architecture/controls/encryption-at-rest.requirement.json",
+          "config_url": "https://invoice.example/architecture/controls/encryption-at-rest.config.json",
+          "config": "{\"requirements\": [{\"config-url\": \"https://invoice.example/architecture/controls/encryption-at-rest.config.json\", \"requirement-url\": \"https://invoice.example/architecture/controls/encryption-at-rest.requirement.json\"}]}"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "relationships",
+            "quote": "control intake-stores/pii-at-rest"
+          }
+        ]
+      },
+      {
+        "id": "relationship.intake-emits",
+        "type": "Relationship",
+        "label": "The intake publishes InvoiceSubmitted, which the approval policy consumes.",
+        "summary": "The intake publishes InvoiceSubmitted, which the approval policy consumes.",
+        "attributes": {
+          "external_id": "intake-emits",
+          "kind": "connects",
+          "protocol": "AMQP"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "relationships",
+            "quote": "intake-emits (connects, AMQP)"
+          }
+        ]
+      },
+      {
+        "id": "relationship.policy-schedules",
+        "type": "Relationship",
+        "label": "policy-schedules",
+        "summary": "",
+        "attributes": {
+          "external_id": "policy-schedules",
+          "kind": "connects",
+          "protocol": "HTTPS"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "relationships",
+            "quote": "policy-schedules (connects, HTTPS)"
+          }
+        ]
+      },
+      {
+        "id": "relationship.deployed-in-network",
+        "type": "Relationship",
+        "label": "The services and the database run in the payments network.",
+        "summary": "The services and the database run in the payments network.",
+        "attributes": {
+          "external_id": "deployed-in-network",
+          "kind": "deployed-in"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "relationships",
+            "quote": "deployed-in-network (deployed-in)"
+          }
+        ]
+      },
+      {
+        "id": "relationship.platform-composition",
+        "type": "Relationship",
+        "label": "The platform is composed of its services.",
+        "summary": "The platform is composed of its services.",
+        "attributes": {
+          "external_id": "platform-composition",
+          "kind": "composed-of"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "relationships",
+            "quote": "platform-composition (composed-of)"
+          }
+        ]
+      },
+      {
+        "id": "relationship.store-options",
+        "type": "Relationship",
+        "label": "Where the invoice store lives.",
+        "summary": "Where the invoice store lives.",
+        "attributes": {
+          "external_id": "store-options",
+          "kind": "options"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "relationships",
+            "quote": "store-options (options)"
+          }
+        ]
+      },
+      {
+        "id": "decision.store-options-1",
+        "type": "Decision",
+        "label": "Keep the invoice store on Postgres.",
+        "summary": "Keep the invoice store on Postgres.",
+        "attributes": {
+          "status": "proposed",
+          "external_payload": "{\"description\": \"Keep the invoice store on Postgres.\", \"nodes\": [\"invoice-db\"], \"relationships\": [\"intake-stores\"]}"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "relationships",
+            "quote": "store-options option 1"
+          }
+        ]
+      },
+      {
+        "id": "decision.store-options-2",
+        "type": "Decision",
+        "label": "Move the invoice store to a managed ledger service.",
+        "summary": "Move the invoice store to a managed ledger service.",
+        "attributes": {
+          "status": "proposed",
+          "external_payload": "{\"controls\": [\"pii-at-rest\"], \"description\": \"Move the invoice store to a managed ledger service.\", \"nodes\": [\"invoice-db\"], \"relationships\": [\"intake-stores\"]}"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "relationships",
+            "quote": "store-options option 2"
+          }
+        ]
+      },
+      {
+        "id": "control.model-encryption-in-transit",
+        "type": "Control",
+        "label": "encryption-in-transit",
+        "summary": "Every connection between services is TLS 1.3 or better.",
+        "attributes": {
+          "external_id": "encryption-in-transit",
+          "requirement_url": "https://invoice.example/architecture/controls/encryption-in-transit.requirement.json",
+          "config": "{\"requirements\": [{\"config\": {\"minimumVersion\": \"1.3\", \"protocol\": \"TLS\"}, \"requirement-url\": \"https://invoice.example/architecture/controls/encryption-in-transit.requirement.json\"}]}"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "controls",
+            "quote": "control model/encryption-in-transit"
+          }
+        ]
+      },
+      {
+        "id": "flow.invoice-approval",
+        "type": "Flow",
+        "label": "Invoice approval",
+        "summary": "A submitted invoice is stored, judged and scheduled for payment.",
+        "attributes": {
+          "external_id": "invoice-approval",
+          "requirement_url": "https://invoice.example/architecture/flows/invoice-approval.requirement.json"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "flows",
+            "quote": "flow invoice-approval"
+          }
+        ]
+      },
+      {
+        "id": "flowstep.invoice-approval-1",
+        "type": "FlowStep",
+        "label": "Invoice approval, step 1",
+        "summary": "The clerk submits the invoice.",
+        "attributes": {
+          "sequence": 1
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "invoice-approval",
+            "quote": "step 1 over clerk-submits"
+          }
+        ]
+      },
+      {
+        "id": "flowstep.invoice-approval-2",
+        "type": "FlowStep",
+        "label": "Invoice approval, step 2",
+        "summary": "The intake emits InvoiceSubmitted.",
+        "attributes": {
+          "sequence": 2,
+          "direction": "source-to-destination"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "invoice-approval",
+            "quote": "step 2 over intake-emits"
+          }
+        ]
+      },
+      {
+        "id": "flowstep.invoice-approval-3",
+        "type": "FlowStep",
+        "label": "Invoice approval, step 3",
+        "summary": "The policy schedules the payment.",
+        "attributes": {
+          "sequence": 3,
+          "direction": "destination-to-source"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "invoice-approval",
+            "quote": "step 3 over policy-schedules"
+          }
+        ]
+      },
+      {
+        "id": "control.invoice-approval-four-eyes",
+        "type": "Control",
+        "label": "four-eyes",
+        "summary": "An approval above the threshold is confirmed by a second person.",
+        "attributes": {
+          "external_id": "four-eyes",
+          "requirement_url": "https://invoice.example/architecture/controls/four-eyes.requirement.json",
+          "config": "{\"requirements\": [{\"config\": {\"threshold\": 10000}, \"requirement-url\": \"https://invoice.example/architecture/controls/four-eyes.requirement.json\"}]}"
+        },
+        "valid_from": "2026-10-27",
+        "evidence": [
+          {
+            "doc": "invoice-platform",
+            "where": "flows",
+            "quote": "control invoice-approval/four-eyes"
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "component.invoice-intake",
+        "rel": "exposes",
+        "to": "interface.invoice-api"
+      },
+      {
+        "from": "component.invoice-intake",
+        "rel": "exposes",
+        "to": "interface.invoice-events"
+      },
+      {
+        "from": "control.invoice-intake-input-validation",
+        "rel": "safeguards",
+        "to": "component.invoice-intake"
+      },
+      {
+        "from": "relationship.clerk-submits",
+        "rel": "connects_from",
+        "to": "role.ap-clerk"
+      },
+      {
+        "from": "relationship.clerk-submits",
+        "rel": "connects_to",
+        "to": "component.invoice-intake"
+      },
+      {
+        "from": "relationship.intake-stores",
+        "rel": "connects_from",
+        "to": "component.invoice-intake"
+      },
+      {
+        "from": "relationship.intake-stores",
+        "rel": "connects_to",
+        "to": "datastore.invoice-db"
+      },
+      {
+        "from": "control.intake-stores-pii-at-rest",
+        "rel": "safeguards",
+        "to": "relationship.intake-stores"
+      },
+      {
+        "from": "relationship.intake-emits",
+        "rel": "connects_from",
+        "to": "component.invoice-intake"
+      },
+      {
+        "from": "relationship.intake-emits",
+        "rel": "connects_to",
+        "to": "component.approval-policy"
+      },
+      {
+        "from": "relationship.intake-emits",
+        "rel": "via",
+        "to": "interface.invoice-events"
+      },
+      {
+        "from": "component.approval-policy",
+        "rel": "consumes",
+        "to": "interface.invoice-events"
+      },
+      {
+        "from": "relationship.policy-schedules",
+        "rel": "connects_from",
+        "to": "component.approval-policy"
+      },
+      {
+        "from": "relationship.policy-schedules",
+        "rel": "connects_to",
+        "to": "component.payment-scheduler"
+      },
+      {
+        "from": "component.approval-policy",
+        "rel": "depends_on",
+        "to": "component.payment-scheduler"
+      },
+      {
+        "from": "relationship.deployed-in-network",
+        "rel": "connects_from",
+        "to": "environment.payments-network"
+      },
+      {
+        "from": "relationship.deployed-in-network",
+        "rel": "connects_to",
+        "to": "component.invoice-intake"
+      },
+      {
+        "from": "component.invoice-intake",
+        "rel": "runs_in",
+        "to": "environment.payments-network"
+      },
+      {
+        "from": "relationship.deployed-in-network",
+        "rel": "connects_to",
+        "to": "component.approval-policy"
+      },
+      {
+        "from": "component.approval-policy",
+        "rel": "runs_in",
+        "to": "environment.payments-network"
+      },
+      {
+        "from": "relationship.deployed-in-network",
+        "rel": "connects_to",
+        "to": "component.payment-scheduler"
+      },
+      {
+        "from": "component.payment-scheduler",
+        "rel": "runs_in",
+        "to": "environment.payments-network"
+      },
+      {
+        "from": "relationship.deployed-in-network",
+        "rel": "connects_to",
+        "to": "datastore.invoice-db"
+      },
+      {
+        "from": "datastore.invoice-db",
+        "rel": "runs_in",
+        "to": "environment.payments-network"
+      },
+      {
+        "from": "relationship.platform-composition",
+        "rel": "connects_from",
+        "to": "system.invoice-platform"
+      },
+      {
+        "from": "relationship.platform-composition",
+        "rel": "connects_to",
+        "to": "component.invoice-intake"
+      },
+      {
+        "from": "component.invoice-intake",
+        "rel": "part_of",
+        "to": "system.invoice-platform"
+      },
+      {
+        "from": "relationship.platform-composition",
+        "rel": "connects_to",
+        "to": "component.approval-policy"
+      },
+      {
+        "from": "component.approval-policy",
+        "rel": "part_of",
+        "to": "system.invoice-platform"
+      },
+      {
+        "from": "relationship.platform-composition",
+        "rel": "connects_to",
+        "to": "component.payment-scheduler"
+      },
+      {
+        "from": "component.payment-scheduler",
+        "rel": "part_of",
+        "to": "system.invoice-platform"
+      },
+      {
+        "from": "relationship.platform-composition",
+        "rel": "connects_to",
+        "to": "datastore.invoice-db"
+      },
+      {
+        "from": "datastore.invoice-db",
+        "rel": "part_of",
+        "to": "system.invoice-platform"
+      },
+      {
+        "from": "relationship.store-options",
+        "rel": "offers_option",
+        "to": "decision.store-options-1"
+      },
+      {
+        "from": "relationship.store-options",
+        "rel": "offers_option",
+        "to": "decision.store-options-2"
+      },
+      {
+        "from": "flowstep.invoice-approval-1",
+        "rel": "step_of",
+        "to": "flow.invoice-approval"
+      },
+      {
+        "from": "flowstep.invoice-approval-1",
+        "rel": "over",
+        "to": "relationship.clerk-submits"
+      },
+      {
+        "from": "flowstep.invoice-approval-2",
+        "rel": "step_of",
+        "to": "flow.invoice-approval"
+      },
+      {
+        "from": "flowstep.invoice-approval-2",
+        "rel": "over",
+        "to": "relationship.intake-emits"
+      },
+      {
+        "from": "flowstep.invoice-approval-3",
+        "rel": "step_of",
+        "to": "flow.invoice-approval"
+      },
+      {
+        "from": "flowstep.invoice-approval-3",
+        "rel": "over",
+        "to": "relationship.policy-schedules"
+      },
+      {
+        "from": "control.invoice-approval-four-eyes",
+        "rel": "safeguards",
+        "to": "flow.invoice-approval"
+      },
+      {
+        "from": "component.reporting-lake",
+        "rel": "runs_in",
+        "to": "environment.production"
+      }
+    ]
+  }
+}

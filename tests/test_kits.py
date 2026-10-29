@@ -51,3 +51,15 @@ def test_the_kit_keeps_the_sandbox_to_its_own_plugins():
     script = _read("kits", "oto-gcp", "files", "home", ".oto", "lock-plugins")
     assert sandbox.OUTSIDE in script and '"allowed"' in script and ".oto/lock-plugins" in sandbox.LOCK_CHECK
     assert "disableSideloadFlags" not in script, "the managed setting would refuse Desktop's --plugin-dir launch"
+
+
+def test_the_kit_tells_its_claude_which_plugin_list_is_the_sandboxs():
+    """Claude Desktop's ListPlugins and ListSkills tools describe the person's claude.ai account, where
+    everything they ever added is enabled, not what loads in the sandbox. Asked "which plugins are on?",
+    the sandbox's Claude answered from them. The kit's user memory says which list is the sandbox's."""
+    note = _read("kits", "oto-gcp", "files", "home", ".claude", "CLAUDE.md")
+    assert "ListPlugins" in note and "ListSkills" in note, "names the two account tools"
+    assert "claude.ai account" in note and "claude plugin list" in note, "says what they describe, and what to read instead"
+    assert "@cynergis" in note and "oto sandbox status" in note, "the sandbox's plugins, and the status that confirms the lock"
+    readme = _read("kits", "README.md")
+    assert "files/home/.claude/CLAUDE.md" in readme and "ListPlugins" in readme

@@ -38,6 +38,11 @@ the computer with the same name as one of the sandbox's is switched off and the 
 The `@builtin` plugins and the `mcp-gateway` server `sbx` declares stay. It keeps a copy of the file as it
 was, once (`settings.json.before-oto-plugin-lock`), and changes nothing the second time.
 
+The sandbox's Claude is told which list is its own (`files/home/.claude/CLAUDE.md`, its user memory): Claude
+Desktop's `ListPlugins` and `ListSkills` tools describe the person's claude.ai account, where everything they
+ever added shows as enabled, so asked "which plugins are on?" it answers from `claude plugin list` and the
+skills it can invoke, not from the account.
+
 It runs at every start (`init.sh`) and, through a `SessionStart` hook it adds, at every session start.
 `oto sandbox up`, which runs on the computer, also reads the plugins Desktop would hand over (the
 claude.ai account's plugins in `~/.claude/plugins/synced`, and Desktop's bundle of the account's

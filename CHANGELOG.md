@@ -4,6 +4,27 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.14.6 — 2026-10-30
+
+**One built-in view: the workbench.** One pull request (128).
+
+- **`oto serve --http <port>` shows the workbench**, and so do the site stage and the `all` home page: the
+  explorer and the reader are no longer apps of their own. The workbench already held both: its Knowledge
+  page is the reader's pages (browse by kind, search, one thing with its history and evidence) beside the
+  explorer's graph, with the ontology (classes, rules, lexicon, dependencies, versions), the project's
+  stations and the work around them. `--view explorer` and `--view reader` are refused as any unknown view
+  is; `--view <name|dir>` still serves a pack's or your own view.
+- **What moved into the workbench.** `views/explorer.json`, an ontology's, a pack's or a project's tuning
+  of the graph (columns, colours, icons, threshold, title), is named under the workbench's `overrides`,
+  served and exported beside the page and read by its Graph tab. `#/knowledge/graph` opens Knowledge on
+  the graph; the registry's catalog embeds it for a pack's sample.
+
+**Migration.** A project that served or exported `--view explorer` or `--view reader` drops the flag: the
+workbench is the default. A `project.config.json` with `"site": {"view": "explorer"}` or `"reader"` names
+`"workbench"` instead, or drops the key. A `views/explorer.json` keeps working, through the workbench.
+A sandbox started before this release shows the workbench when it is named (`--view workbench`); from
+this release a bare port is enough.
+
 ## 0.14.5 — 2026-10-30
 
 **A graph served in the sandbox opens in the computer's browser.** One pull request (126).

@@ -4,6 +4,32 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.14.4 — 2026-10-30
+
+**A sandbox starts with the engine alone, and two skills look after it.** Two pull requests (123 and 124).
+
+- **The engine alone.** A new sandbox installs the engine plugin (`oto@cynergis-engine`) and adds the
+  registry as a marketplace, and installs none of its packs. The packs a project needs are chosen from
+  the session Claude works in, in Claude Desktop over SSH or in a terminal, with the **packs skill**
+  (`/oto:packs`): a checklist of what the registry offers (the question tool with several answers, grouped
+  by category, what is already on left out), or advice from what the project composes, then
+  `claude plugin install <pack>@cynergis --scope project` and `oto lock --use`, so the choice lands in the
+  project's settings and its lock. The one step left, `/reload-plugins`, is the person's.
+- **Every sandbox, and cleaning up.** `oto sandbox ls [--json]` lists every sandbox on the computer with
+  its status, its kit, its folders and whether each still exists, when it was created and last used, days
+  idle and whether SSH reaches it, and flags Claude Desktop's saved SSH connections to sandboxes that no
+  longer exist (read from the app's own file, never written). `oto sandbox stop <name>...` and
+  `oto sandbox rm <name>...` act by name; `rm` removes the containers, the state and the sandbox's secrets
+  and keeps the project and code folders. The **sandboxes skill** (`/oto:sandboxes`) proposes what could go
+  (stopped and idle, folders gone, not OTO's kit, a stale connection) as a checklist, removes after a yes,
+  offers the Desktop sessions for archiving through the app's own tools, and names the connections only
+  the person can remove, in Desktop's SSH environment menu.
+
+**Migration.** Nothing changes for a project. A sandbox made from an earlier kit keeps its packs; the
+packs skill works there too once its engine plugin is reinstalled from the marketplace (Claude Code
+caches a plugin by version, so a skill added between releases needs `claude plugin uninstall` and
+`install` once; from this release an ordinary update brings it).
+
 ## 0.14.3 — 2026-10-29
 
 **The engine comes from its own marketplace, and CALM is a pack of the registry.** Three pull requests

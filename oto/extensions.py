@@ -7,10 +7,10 @@ A pack's manifest may carry `provides`, five kinds, each a list:
       "stages":      [{"name": "policy", "module": "oto.targets.policy", "owns": ["policy"]}],
       "commands":    [{"name": "policy", "module": "oto.cli.policy", "label": "policy"}],
       "endpoints":   ["oto.serve.policy_api"],
-      "write_hooks": ["oto.packs.policy:enforce"],
-      "read_hooks":  ["oto.packs.policy:police_read"],
+      "write_hooks": ["oto_policy:enforce"],
+      "read_hooks":  ["oto_policy:police_read"],
       "status":      ["oto_work:status"],
-      "adapters":    [{"framework": "<name>", "module": "oto.packs.<name>", "import": "read_model", "export": "write_model", "migrate": "migrate"}]
+      "adapters":    [{"framework": "<name>", "module": "oto_<name>", "import": "read_model", "export": "write_model", "migrate": "migrate"}]
     }
 
 A stage module exposes `run(project)` and runs after the core's targets, before the site, owning the
@@ -29,7 +29,7 @@ names (`migrate`: `fn(project, by)`); `oto arch import --framework <name>` choos
 A pack from outside the engine carries its modules in its own `code/` folder (`carries: ["code", ...]`):
 the engine puts that folder on the import path, once, when it loads anything the pack provides, so
 nothing has to be installed on the machine for a pack to plug in. The engine's own packs carry no
-`code/`; their modules import from the engine under `oto.packs.<pack>`.
+`code/`; their modules import from the engine under the pack's own `code/`.
 
 Stages, endpoints and write hooks are loaded only for the packs composed in the project: a pack is
 composed when every class it declares itself is in the project's vocabulary, which is the same gate
@@ -135,7 +135,10 @@ def stages(project):
     """The build's stages for the project: the core's, with the composed packs' before the site."""
     from . import builder
     core = list(builder.STAGES)
-    extra = [(s["name"], s["module"]) for s in contributed_stages(project)]
+    extra = []
+    for s in contributed_stages(project):
+        _on_path(s["pack"])                                   # the pack's code/ on the path before the build imports its stage
+        extra.append((s["name"], s["module"]))
     at = next((i for i, (n, _m) in enumerate(core) if n == BEFORE), len(core))
     return core[:at] + extra + core[at:]
 

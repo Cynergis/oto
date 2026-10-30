@@ -72,8 +72,6 @@ def test_the_documents_point_at_the_factory_s_repository_and_name_no_factory_com
 def test_what_a_factory_needs_from_the_engine_stays():
     code, out = _cli("--help")
     assert code == 0 and "  work " not in out, "the verdict event is the work pack's, a pack of the registry (ADR-0010)"
-    code, out = _cli("policy", "--help")
-    assert code == 0 and "snapshot" in out and "denials" in out, out
     code, out = _cli("arch", "--help")
     assert code == 0 and "measure" in out, out
     assert callable(_arch.measure) and callable(_arch.measure_from), "measuring a requirement is the architecture's (H6)"

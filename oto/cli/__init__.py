@@ -29,7 +29,7 @@ One module per command, in the order a project moves through them:
     publishable.py oto publishable              no client name or credential in a repository about to be published
 
 Each exposes `register(sub)` to add its parsers, and a `cmd_*` handler per command. A pack's command (oto work, oto data,
-oto policy, ...) lives under oto/packs/<pack>/cli.py and is discovered from the pack's manifest (ADR-0006). The handlers
+oto policy, ...) lives in the pack's own code/, a pack of the registry (ADR-0010), and is discovered from the pack's manifest (ADR-0006). The handlers
 import what they need lazily, so `oto --help` and `oto version` start without loading the engine.
 """
 import argparse

@@ -33,6 +33,7 @@ import os
 import re
 import shutil
 import subprocess
+import datetime
 import time
 
 from . import __version__
@@ -207,8 +208,88 @@ def _sandboxes(sbx):
     except ValueError:
         listed = []
     return {box["name"]: {"status": "running" if box.get("status") == "running" else "stopped",
-                          "agent": box.get("agent") or "", "folders": list(box.get("workspaces") or [])}
+                          "agent": box.get("agent") or "", "folders": list(box.get("workspaces") or []),
+                          "created_at": box.get("created_at"), "last_used_at": box.get("last_used_at")}
             for box in listed if isinstance(box, dict) and box.get("name")}
+
+
+def _days_since(stamp):
+    """Whole days since an ISO timestamp `sbx ls` prints, or None when it prints none."""
+    if not stamp:
+        return None
+    try:
+        then = datetime.datetime.strptime(str(stamp)[:19], "%Y-%m-%dT%H:%M:%S")
+    except ValueError:
+        return None
+    return max(0, (datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - then).days)
+
+
+def desktop_ssh_connections():
+    """The SSH connections Claude Desktop has saved, by the host each reaches (`<name>.sbx` for a
+    sandbox), read from the app's own file where it exists (macOS); [] elsewhere. Read only: the app
+    owns the file, and a connection is removed in its SSH environment menu, never here."""
+    path = os.path.join(os.path.expanduser("~"), "Library", "Application Support", "Claude", "ssh_configs.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            configs = (json.load(f) or {}).get("configs") or []
+    except (OSError, ValueError, AttributeError):
+        return []
+    out = []
+    for entry in configs:
+        if isinstance(entry, dict) and isinstance(entry.get("sshHost"), str):
+            out.append({"name": entry.get("name") or entry["sshHost"], "host": entry["sshHost"]})
+    return out
+
+
+def list_sandboxes():
+    """Every sandbox on this computer, for `oto sandbox ls`: {sandboxes: [...], connections: [...]}.
+    A sandbox carries its status, the kit it was made from (and whether that is OTO's), its folders
+    with whether each still exists, when it was created and last used, how many days idle, and
+    whether SSH reaches it. A saved Desktop connection to a `.sbx` host carries whether a sandbox of
+    that name still exists: one without is stale, and only the person can remove it (§ the skill)."""
+    sbx = Sbx()
+    out = {"sbx": None, "signed_in": False, "sandboxes": [], "connections": []}
+    if not sbx.path:
+        return out
+    out["sbx"] = _version(sbx) or "unknown"
+    out["signed_in"] = _signed_in(sbx)
+    if not out["signed_in"]:
+        return out
+    kit = _kit_name(kit_ref())
+    boxes = _sandboxes(sbx)
+    for name in sorted(boxes):
+        box = boxes[name]
+        out["sandboxes"].append({
+            "name": name, "status": box["status"], "made_from": box["agent"], "from_kit": box["agent"] == kit,
+            "folders": [{"path": f, "exists": os.path.isdir(f)} for f in box["folders"]],
+            "created_at": box.get("created_at"), "last_used_at": box.get("last_used_at"),
+            "idle_days": _days_since(box.get("last_used_at")), "ssh": _ssh_ready(name)})
+    for conn in desktop_ssh_connections():
+        host = conn["host"]
+        if host.endswith(".sbx"):
+            out["connections"].append({"name": conn["name"], "host": host, "sandbox": host[:-4], "exists": host[:-4] in boxes})
+    return out
+
+
+def remove_sandboxes(names, stop_only=False):
+    """Stop (`stop_only`) or remove sandboxes by name, for `oto sandbox stop` and `rm`: {done, missing,
+    failed}. Removal is `sbx rm -f`: the containers, the state and the sandbox's own secrets go; the
+    project and code folders on this computer stay. Nothing is removed that `sbx ls` does not list."""
+    sbx = Sbx()
+    if not sbx.path:
+        raise SandboxError("sbx is not installed", fix="install Docker Sandboxes first (oto sandbox status says how)")
+    have = _sandboxes(sbx)
+    out = {"done": [], "missing": [], "failed": []}
+    for name in names:
+        if name not in have:
+            out["missing"].append(name)
+            continue
+        code, _o, err = sbx("stop", name) if stop_only else sbx("rm", "-f", name)
+        if code == 0:
+            out["done"].append(name)
+        else:
+            out["failed"].append({"name": name, "error": (err or _o).strip().splitlines()[-1] if (err or _o).strip() else "sbx failed"})
+    return out
 
 
 def _ssh_ready(name):

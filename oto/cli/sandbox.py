@@ -27,8 +27,64 @@ def _print_status(s):
         print("  sandbox        not created: oto sandbox up --name %s" % s["name"])
 
 
+def _print_listing(listing):
+    if not listing["sbx"]:
+        print("sbx is not installed: nothing to list")
+        return
+    if not listing["signed_in"]:
+        print("sbx is not signed in to Docker (sbx login): nothing to list")
+        return
+    boxes = listing["sandboxes"]
+    print("%d sandbox(es) on this computer" % len(boxes) if boxes else "no sandbox on this computer")
+    for box in boxes:
+        idle = "used today" if box["idle_days"] == 0 else ("idle %d day(s)" % box["idle_days"]) if box["idle_days"] is not None else "last use unknown"
+        kit = "OTO's kit" if box["from_kit"] else ("made from %s, not OTO's kit" % (box["made_from"] or "?"))
+        print("  %-22s %-8s %s; %s; SSH %s" % (box["name"], box["status"], idle, kit, "%s.sbx" % box["name"] if box["ssh"] else "not set up"))
+        for folder in box["folders"]:
+            print("      %s%s" % (folder["path"], "" if folder["exists"] else "  (folder gone)"))
+    stale = [c for c in listing["connections"] if not c["exists"]]
+    if listing["connections"]:
+        print("Claude Desktop knows %d SSH connection(s) to sandboxes%s" % (len(listing["connections"]),
+              ": %d with no sandbox behind them any more: %s. Remove those in Desktop's SSH environment menu." % (len(stale), ", ".join(c["name"] for c in stale)) if stale else ", each with its sandbox"))
+
+
 def cmd_sandbox(args):
     from .. import sandbox as _sandbox
+
+    if args.action == "ls":
+        listing = _sandbox.list_sandboxes()
+        if args.json:
+            print(json.dumps(listing, indent=2))
+        else:
+            _print_listing(listing)
+        return 0 if listing["sbx"] and listing["signed_in"] else 1
+    if args.action in ("stop", "rm"):
+        if not args.names:
+            print("oto: sandbox %s takes the sandbox name(s): oto sandbox %s <name> [<name> ...]" % (args.action, args.action), file=sys.stderr)
+            return 1
+        try:
+            done = _sandbox.remove_sandboxes(args.names, stop_only=args.action == "stop")
+        except _sandbox.SandboxError as e:
+            if args.json:
+                print(json.dumps({"ok": False, "problem": str(e), "fix": e.fix}, indent=2))
+            else:
+                print("oto: %s" % e, file=sys.stderr)
+            return 2
+        done["ok"] = not done["failed"] and not done["missing"]
+        if args.json:
+            print(json.dumps(done, indent=2))
+        else:
+            verb = "stopped" if args.action == "stop" else "removed"
+            for name in done["done"]:
+                print("%s the sandbox %s%s" % (verb, name, "" if args.action == "stop" else
+                      " (its containers, state and secrets; the project and code folders on this computer stay)"))
+            for name in done["missing"]:
+                print("oto: no sandbox named %s (oto sandbox ls)" % name, file=sys.stderr)
+            for failed in done["failed"]:
+                print("oto: %s: %s" % (failed["name"], failed["error"]), file=sys.stderr)
+            if done["done"] and args.action == "rm":
+                print("  Claude Desktop still lists the SSH connection and any session on it: remove the connection in its SSH environment menu, archive or delete the sessions from the sidebar.")
+        return 0 if done["ok"] else 1
 
     if args.action == "status":
         s = _sandbox.status(args.name)
@@ -78,8 +134,11 @@ def cmd_sandbox(args):
 
 def register(sub):
     p = sub.add_parser("sandbox", help="Claude Code with OTO in a Docker sandbox, for Claude Desktop or a terminal: "
-                                       "up creates and sets it up, status says where it stands")
-    p.add_argument("action", choices=["up", "status"], help="up: check, create and set up; status: say where it stands")
+                                       "up creates and sets it up, status says where it stands, ls lists them all, stop and rm clean up")
+    p.add_argument("action", choices=["up", "status", "ls", "stop", "rm"],
+                   help="up: check, create and set up; status: say where it stands; ls: every sandbox on this computer, "
+                        "with Desktop's SSH connections to them; stop <name>...; rm <name>...: remove for good (the folders stay)")
+    p.add_argument("names", nargs="*", help="for stop and rm: the sandbox name(s)")
     p.add_argument("--name", default="oto-sandbox", help="the sandbox's name; SSH reaches it as <name>.sbx (default oto-sandbox)")
     p.add_argument("--dir", help="the folder holding its project and code folders (default ~/<name>)")
     p.add_argument("--project-id", help="the Google Cloud project's id, given to the sandbox as PROJECT")

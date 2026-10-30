@@ -630,6 +630,13 @@ managed setting `disableSideloadFlags` is not used: it refuses `--plugin-dir` at
 sessions depend on. `oto sandbox status` reads the same file with its own read-only check
 (`LOCK_CHECK`), so it also answers for a sandbox made before the kit carried the lock.
 
+`oto sandbox ls` lists every sandbox on the computer from `sbx ls --json` (status, the kit, the folders
+and whether each still exists, created and last used, days idle, whether SSH reaches it) and, read only,
+Claude Desktop's saved SSH connections to `.sbx` hosts from the app's own `ssh_configs.json`, flagging
+those with no sandbox behind them; `oto sandbox stop` and `rm` act by name on sandboxes `sbx` lists
+(`rm` is `sbx rm -f`: containers, state and the sandbox's secrets go, the folders stay). The sandboxes
+skill drives them and leaves Desktop's connections and sessions to the person and the app's own tools.
+
 ## Rules, and what a derived fact is
 
 A rule is declared like a class, with a reason and a place for who confirmed it, and versioned in

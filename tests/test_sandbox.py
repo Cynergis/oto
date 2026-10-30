@@ -28,7 +28,8 @@ elif not state["signed_in"] and args[:1] in (["ls"], ["create"]):
     err, code = "error: not signed in to Docker\ntry: sbx login\n", 1
 elif args == ["ls", "--json"]:
     out = json.dumps([{"name": name, "id": "x", "agent": box["agent"], "status": "running" if box["running"] else "stopped",
-                       "workspaces": box["folders"]} for name, box in state["sandboxes"].items()])
+                       "workspaces": box["folders"], "created_at": box.get("created_at", "2026-10-01T10:00:00Z"),
+                       "last_used_at": box.get("last_used_at")} for name, box in state["sandboxes"].items()])
 elif args[:1] == ["ls"]:
     out = "SANDBOX   AGENT   STATUS   PORTS   WORKSPACE   CREATED\n"
 elif args[:2] == ["policy", "ls"]:
@@ -78,6 +79,8 @@ elif args[:1] == ["exec"]:
         out = box["init"] + "\n"
 elif args[:1] == ["rm"]:
     state["sandboxes"].pop(args[-1], None)
+elif args[:1] == ["stop"]:
+    state["sandboxes"][args[-1]]["running"] = False
 elif args[:2] == ["setup", "ssh"]:
     state["ssh"] = True
 save()
@@ -364,3 +367,61 @@ def test_up_warns_about_a_sandbox_made_from_a_kit_without_the_lock(fake, tmp_pat
     out = json.loads(capsys.readouterr().out)
     assert any("made from a kit without the plugin lock" in w and "--recreate" in w for w in out["warnings"])
     assert "NOT blocked" in out["outside_plugins_summary"] and "kit without the plugin lock" in out["outside_plugins_summary"]
+
+
+# ---- ls, stop and rm: every sandbox, and cleaning up ----
+
+def test_ls_lists_every_sandbox_with_its_use_its_folders_and_desktops_stale_connections(fake, tmp_path, monkeypatch, capsys):
+    import datetime
+    gone = str(tmp_path / "gone" / "project")
+    fake.write(ssh=True, sandboxes={
+        "northwind": {"agent": "oto-gcp", "running": True, "folders": [str(tmp_path / "home")], "env": {}, "init": "OTO ready: 1 plugins",
+                      "last_used_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")},
+        "old-try": {"agent": "oto-gcp", "running": False, "folders": [gone], "env": {}, "init": "", "last_used_at": "2026-10-01T10:00:00Z"},
+        "other": {"agent": "claude", "running": False, "folders": [], "env": {}, "init": ""}})
+    desktop = tmp_path / "home" / "Library" / "Application Support" / "Claude"
+    desktop.mkdir(parents=True)
+    (desktop / "ssh_configs.json").write_text(json.dumps({"configs": [
+        {"name": "northwind", "sshHost": "northwind.sbx"}, {"name": "first try", "sshHost": "oto-first.sbx"}, {"name": "devbox", "sshHost": "dev.example.com"}]}))
+    listing = sandbox.list_sandboxes()
+    by_name = {b["name"]: b for b in listing["sandboxes"]}
+    assert list(by_name) == ["northwind", "old-try", "other"]
+    assert by_name["northwind"]["status"] == "running" and by_name["northwind"]["from_kit"] and by_name["northwind"]["idle_days"] == 0 and by_name["northwind"]["ssh"]
+    assert by_name["northwind"]["folders"][0]["exists"] is True
+    assert by_name["old-try"]["status"] == "stopped" and by_name["old-try"]["idle_days"] >= 20 and by_name["old-try"]["folders"] == [{"path": gone, "exists": False}]
+    assert by_name["other"]["from_kit"] is False and by_name["other"]["idle_days"] is None, "sbx said nothing about its use"
+    assert listing["connections"] == [{"name": "northwind", "host": "northwind.sbx", "sandbox": "northwind", "exists": True},
+                                      {"name": "first try", "host": "oto-first.sbx", "sandbox": "oto-first", "exists": False}], \
+        "only .sbx hosts are sandboxes; a connection with no sandbox behind it is stale"
+    assert main(["sandbox", "ls"]) == 0
+    out = capsys.readouterr().out
+    assert "3 sandbox(es)" in out and "old-try" in out and "(folder gone)" in out and "not OTO's kit" in out
+    assert "1 with no sandbox behind them any more: first try" in out and "SSH environment menu" in out
+    assert main(["sandbox", "ls", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["connections"][1]["exists"] is False
+
+
+def test_stop_and_rm_act_only_on_sandboxes_that_exist_and_say_what_stays(fake, capsys):
+    fake.write(sandboxes={"a": {"agent": "oto-gcp", "running": True, "folders": [], "env": {}, "init": ""},
+                          "b": {"agent": "oto-gcp", "running": True, "folders": [], "env": {}, "init": ""}})
+    assert main(["sandbox", "stop", "a"]) == 0
+    assert "stopped the sandbox a" in capsys.readouterr().out and fake.read()["sandboxes"]["a"]["running"] is False
+    assert main(["sandbox", "rm", "b", "nope"]) == 1
+    out = capsys.readouterr()
+    assert "removed the sandbox b" in out.out and "folders on this computer stay" in out.out and "SSH connection" in out.out
+    assert "no sandbox named nope" in out.err
+    assert set(fake.read()["sandboxes"]) == {"a"} and fake.calls("rm") == [["rm", "-f", "b"]]
+    assert main(["sandbox", "rm"]) == 1 and "takes the sandbox name(s)" in capsys.readouterr().err
+    assert main(["sandbox", "rm", "a", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"done": ["a"], "missing": [], "failed": [], "ok": True}
+
+
+def test_ls_without_sbx_or_a_sign_in_says_so(fake, monkeypatch, capsys):
+    fake.write(signed_in=False)
+    listing = sandbox.list_sandboxes()
+    assert listing["sbx"] and not listing["signed_in"] and listing["sandboxes"] == []
+    assert main(["sandbox", "ls"]) == 1 and "not signed in" in capsys.readouterr().out
+    monkeypatch.setenv("OTO_SBX", "/nowhere/sbx")
+    assert sandbox.list_sandboxes()["sbx"] is None
+    with pytest.raises(sandbox.SandboxError):
+        sandbox.remove_sandboxes(["a"])

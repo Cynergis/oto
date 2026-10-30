@@ -123,7 +123,8 @@ message, the approval is missing: §2, then `up --recreate`. From a terminal ins
 `sbx run --name <name>`.
 
 Later, `oto sandbox status` says whether it is still ready; `oto sandbox up` starts it again after a
-restart of the computer.
+restart of the computer. Every sandbox on the computer, and cleaning up the ones no longer used, is the
+sandboxes skill (`/oto:sandboxes`: `oto sandbox ls`, `oto sandbox rm`).
 
 ## 5. What the sandbox uses
 

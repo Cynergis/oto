@@ -117,7 +117,7 @@ def test_who_decides_what_is_enforced():
 
 
 def test_platform_composes_with_the_patterns():
-    config, _sample_graph, _readme, _rationale, report = ontologies.merge(["software-architecture", "ddd", "agent", "platform"])
+    config, _sample_graph, _readme, _rationale, report = ontologies.merge(["software-architecture", "agent", "platform"])
     assert report["class_clashes"] == []
     about = set(config["properties"]["about"]["range"].split("|"))
-    assert {"Environment", "Choice", "Job", "BoundedContext"} <= about
+    assert {"Environment", "Choice", "Job", "Component"} <= about

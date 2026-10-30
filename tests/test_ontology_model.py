@@ -59,10 +59,10 @@ def test_a_class_knows_its_parents_children_relations_and_attributes():
 
 
 def test_a_decision_attribute_and_a_required_one_are_marked():
-    m = _ontology.model(_vocabulary("ddd"))
+    m = _ontology.model(_vocabulary("data"))
     by = {c["name"]: c for c in m["classes"]}
-    readiness = next(a for a in by["BoundedContext"]["attributes"] if a["name"] == "readiness")
-    assert readiness["decision"] is True and readiness["default"] == "draft"
+    status = next(a for a in by["Column"]["attributes"] if a["name"] == "description_status")
+    assert status["decision"] is True and status["default"] == "draft"
     m = _ontology.model(_vocabulary("work"))
     at = next(a for a in {c["name"]: c for c in m["classes"]}["Transition"]["attributes"] if a["name"] == "at")
     assert at["required"] is True and at["type"] == "date"

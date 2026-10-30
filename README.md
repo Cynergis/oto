@@ -23,7 +23,7 @@ is a pack: an ontology with the tools that work on it, loaded only when a projec
 architecture framework is a pack plus an adapter, and a pack of the registry rather than of the engine
 ([ADR-0008](docs/adr/0008-a-framework-is-a-pack-of-the-registry.md)): CALM today (`calm@cynergis`), C4
 when someone needs it, so a framework is swapped by installing a pack, never by changing the engine, which ships none. Work, data, policy and the domain model are
-packs the same way; what someone builds on the graph, the software factory first, is a use case
+packs the same way, and leave the engine for the registry in turn ([ADR-0010](docs/adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), the domain model (`ddd@cynergis`) first; what someone builds on the graph, the software factory first, is a use case
 and lives in a repository of its own ([ADR-0007](docs/adr/0007-a-use-case-lives-outside-the-engine.md),
 [Cynergis/oto-factory](https://github.com/Cynergis/oto-factory)). [ADR-0006](docs/adr/0006-the-core-and-the-packs.md) records the line;
 `oto --help` prints it.

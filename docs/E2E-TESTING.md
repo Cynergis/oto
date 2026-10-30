@@ -24,7 +24,7 @@ repository, specs and decisions, an ontology of your own, tools, deploy, audit a
 that know each other, the engine's own CI, the ontology explorer, and the pack seams. Drive these first: they are
 the product, and they need no pack. The **packs**, each an ontology with the tools that work on it,
 are sections 18 (work and communication), 21 (data), 22 (architecture; CALM, the first framework
-adapter, is the registry's `calm` pack, [ADR-0008](adr/0008-a-framework-is-a-pack-of-the-registry.md)), 28 to 30 and 32 (policy, the snapshot and guards, the generated IAM) and 31
+adapter, is the registry's `calm` pack, [ADR-0008](adr/0008-a-framework-is-a-pack-of-the-registry.md); the domain model is the registry's `ddd` pack, [ADR-0010](adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), 28 to 30 and 32 (policy, the snapshot and guards, the generated IAM) and 31
 (the inbox and reminders). Each is optional: a project that does not compose the pack never sees
 its commands or its build stages.
 
@@ -939,9 +939,11 @@ and the components with no module; `--files` prints a markdown report for a deci
 for a file that is not one, and a note for a record the graph does not hold yet; and the checks
 workflow comments the report on a pull request that changes `docs/adr/`.
 
-Then the product's domain graph (Epic I): a storming board in, and the analyst's sign-off:
+Then the product's domain graph (Epic I), the registry's `ddd` pack since [ADR-0010](adr/0010-a-domain-feature-is-a-pack-of-the-registry.md):
+install it, then a storming board in, and the analyst's sign-off:
 
 ```bash
+oto pack add ddd                                                               # the domain model comes from the registry; in Claude Code, /plugin install ddd@cynergis
 oto init --name "The invoice domain" --slug domain --ontology ddd --project domain && oto build --project domain
 oto query --project domain ask DD2 CONTEXT=bc.invoice-approval                 # the sample's context runs as the architecture sample's CALM node
 oto query --project domain ask AR1 NODE=component.invoice-intake               # the same node, the architecture's question
@@ -954,7 +956,7 @@ oto decide boundedcontext.invoice-approval readiness=ready --by "Ana Lyst" --at 
 oto build --project domain && oto query --project domain ask DD23              # the ready context whose aggregate is still a draft
 ```
 
-Pass when the ddd project answers DD2 and AR1 from one node; the board becomes a document with one
+Pass when `oto ddd` exists only once the pack is installed; the ddd project answers DD2 and AR1 from one node; the board becomes a document with one
 line per sticky and a capture whose items quote their stickies, with the root entity of each
 aggregate, the trigger of each command (its actor, the policy that issues it, or the external system
 that sends it), the events in board order preceding each other, and every element part of the

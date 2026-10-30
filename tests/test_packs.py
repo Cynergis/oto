@@ -502,7 +502,7 @@ def test_a_pack_that_replaces_a_plugin_takes_its_place_and_continues_its_version
 # ---- a pattern pack declares what it is a pattern of ----
 
 def _pattern_pack(name="dddp", of="software-architecture", skill="model-domain"):
-    assert main(["pack", "new", name, "--ontology", "ddd", "--maintainer", "Cynergis"]) == 0
+    assert main(["pack", "new", name, "--ontology", "agent", "--maintainer", "Cynergis"]) == 0
     directory = packs.dir_for(name)
     os.makedirs(os.path.join(directory, "skills", "model-domain"))
     with open(os.path.join(directory, "skills", "model-domain", "SKILL.md"), "w", encoding="utf-8") as f:
@@ -665,7 +665,7 @@ def test_a_binding_pack_says_what_it_binds_and_is_listed(home, capsys):
     assert main(["pack", "list", "--bindings"]) == 0
     assert "binding of software-architecture: for where each part runs and what it is built with (skill bind)" in capsys.readouterr().out
     assert any("binding: the skill 'nope'" in p for p in packs.check(_binding_pack("plat2", skill="nope")))
-    assert any("does not extend 'ddd', so it binds nothing of it" in p for p in packs.check(_binding_pack("plat3", of="ddd")))
+    assert any("does not extend 'agent', so it binds nothing of it" in p for p in packs.check(_binding_pack("plat3", of="agent")))
     manifest = json.load(open(os.path.join(directory, "manifest.json"), encoding="utf-8"))
     manifest["binding"] = {"for": "x"}
     json.dump(manifest, open(os.path.join(directory, "manifest.json"), "w", encoding="utf-8"))

@@ -1428,6 +1428,63 @@
       "sources": [
         "0009-the-registry-carries-no-engine"
       ]
+    },
+    {
+      "id": "decision.adr-0010",
+      "type": "Decision",
+      "label": "A domain feature is a pack of the registry; the engine ships no pack with tools of its own",
+      "summary": "A domain feature is a pack of the registry, its tools in its own `code/` and its tests beside it; the engine ships no pack that provides a command, a build stage or a hook, and `ddd`, the first, moves to Cynergis/oto-registry as the `ddd` pack.",
+      "attributes": {
+        "status": "accepted",
+        "decided_on": "2026-10-30",
+        "rationale": "A domain feature is a pack of the registry, its tools in its own `code/` and its tests beside it; the engine ships no pack that provides a command, a build stage or a hook, and `ddd`, the first, moves to Cynergis/oto-registry as the `ddd` pack."
+      },
+      "valid_from": "2026-10-30",
+      "evidence": [
+        {
+          "doc": "0010-a-domain-feature-is-a-pack-of-the-registry",
+          "where": "Decision",
+          "quote": "A domain feature is a pack of the registry, its tools in its own `code/` and its tests beside it; the engine ships no pack that provides a command, a build stage or a hook, and `ddd`, the first, moves to Cynergis/oto-registry as the `ddd` pack."
+        },
+        {
+          "doc": "0010-a-domain-feature-is-a-pack-of-the-registry",
+          "where": "frontmatter",
+          "quote": "decided_on: 2026-10-30"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-30",
+      "source_doc": "0010-a-domain-feature-is-a-pack-of-the-registry",
+      "sources": [
+        "0010-a-domain-feature-is-a-pack-of-the-registry"
+      ]
+    },
+    {
+      "id": "document.0010-a-domain-feature-is-a-pack-of-the-registry",
+      "type": "Document",
+      "label": "A domain feature is a pack of the registry; the engine ships no pack with tools of its own",
+      "summary": "ADR ADR-0010, the record of this decision.",
+      "attributes": {
+        "kind": "adr"
+      },
+      "valid_from": "2026-10-30",
+      "evidence": [
+        {
+          "doc": "0010-a-domain-feature-is-a-pack-of-the-registry",
+          "where": "title",
+          "quote": "A domain feature is a pack of the registry; the engine ships no pack with tools of its own"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-10-30",
+      "source_doc": "0010-a-domain-feature-is-a-pack-of-the-registry",
+      "sources": [
+        "0010-a-domain-feature-is-a-pack-of-the-registry"
+      ]
     }
   ],
   "edges": [
@@ -1738,6 +1795,41 @@
     },
     {
       "from": "decision.adr-0009",
+      "rel": "decided_by",
+      "to": "person.chiheb-dkhil"
+    },
+    {
+      "from": "decision.adr-0010",
+      "rel": "documented_in",
+      "to": "document.0010-a-domain-feature-is-a-pack-of-the-registry"
+    },
+    {
+      "from": "decision.adr-0010",
+      "rel": "governs",
+      "to": "workitem.epic-i"
+    },
+    {
+      "from": "decision.adr-0010",
+      "rel": "governs",
+      "to": "workitem.epic-c"
+    },
+    {
+      "from": "decision.adr-0010",
+      "rel": "governs",
+      "to": "workitem.epic-e"
+    },
+    {
+      "from": "decision.adr-0010",
+      "rel": "governs",
+      "to": "workitem.epic-m"
+    },
+    {
+      "from": "decision.adr-0010",
+      "rel": "governs",
+      "to": "workitem.epic-n"
+    },
+    {
+      "from": "decision.adr-0010",
       "rel": "decided_by",
       "to": "person.chiheb-dkhil"
     }

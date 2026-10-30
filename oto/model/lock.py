@@ -116,7 +116,7 @@ def plugin_for(directory):
 def packs_of(ontology, root, prefer=()):
     """The installed plugin that is the pack of this ontology (its manifest embeds it as its own),
     for this project: it brings the ontology's skills and views wherever the vocabulary was read
-    from (a built-in ddd still needs the ddd pack's model-domain). Several, from several
+    from (a built-in agent still needs the agent pack's design-agent). Several, from several
     marketplaces: the one from a preferred marketplace, else the first. None when no pack is installed."""
     owners = []
     for key, entry in sorted(installed(root).items()):

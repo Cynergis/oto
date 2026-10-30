@@ -96,11 +96,11 @@ def test_what_is_missing_is_a_warning_not_a_refusal():
     assert not _findings(nodes, edges, "blocking")
 
 
-def test_agent_composes_with_ddd_widening_the_shared_relations():
-    config, _sample, _readme, _rationale, report = ontologies.merge(["software-architecture", "ddd", "agent"])
+def test_agent_composes_on_the_architecture_widening_the_shared_relations():
+    config, _sample, _readme, _rationale, report = ontologies.merge(["software-architecture", "agent"])
     assert report["class_clashes"] == []
-    assert {"Agent", "Job", "UseCase", "BoundedContext"} <= set(config["classes"])
+    assert {"Agent", "Job", "Component", "System"} <= set(config["classes"])
     deployed = set(config["properties"]["deployed_as"]["domain"].split("|"))
-    assert {"BoundedContext", "Agent"} <= deployed
+    assert "Agent" in deployed
     part_of = set(config["properties"]["part_of"]["domain"].split("|"))
-    assert {"UseCase", "Job"} <= part_of
+    assert {"Component", "Job"} <= part_of and ("part_of", "software-architecture", "agent") in report["relation_clashes"], "the pattern widens the estate's relation"

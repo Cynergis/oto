@@ -286,7 +286,7 @@ def plugin_files(directory, registry_name=None):
     manifest and the embedded ontology. Returns the paths written."""
     manifest = read(directory)
     raw = _ontologies.load_raw(embedded_name(directory), roots=[embedded_root(directory)])
-    # A pack broader than its ontology (a studio over `ddd`) names itself; otherwise the ontology's name.
+    # A pack broader than its ontology (a studio over `product`) names itself; otherwise the ontology's name.
     title = (manifest.get("title") or raw["config"].get("name") or manifest["name"]).strip()
     onto = manifest.get("ontology") or {}
     written = []

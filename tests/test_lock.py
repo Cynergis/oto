@@ -232,7 +232,7 @@ def test_without_claude_code_installs_nothing_is_declared(tmp_path, monkeypatch)
 
 
 def test_a_shipped_ontology_with_an_installed_pack_declares_the_pack_for_its_skills(claude):
-    """ddd ships with the engine, and the ddd pack brings model-domain: naming it declares the pack."""
+    """organization-process ships with the engine, and a pack that embeds it brings its skills: naming it declares the pack."""
     assert main(["pack", "new", "orgs", "--ontology", "organization-process", "--to", str(claude["tmp"] / "cache" / "orgs")]) == 0
     _installed_pack(claude, "orgs@acme", claude["tmp"] / "cache" / "orgs" / "orgs")
     _installed_pack(claude, "orgs@elsewhere", claude["tmp"] / "cache" / "orgs" / "orgs")

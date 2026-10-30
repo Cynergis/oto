@@ -53,6 +53,12 @@
     "sha256": "7451e101a07eed88e9e9109ab6ffd7f583315b3d4808907be669d15dd30e97fc",
     "slug": "0009-the-registry-carries-no-engine"
   },
+  "0010-a-domain-feature-is-a-pack-of-the-registry.md": {
+    "archived_at": "2026-10-30T18:21:47",
+    "run_id": "20261030-182146",
+    "sha256": "f76061e668e8524a366e57064dbcddeb518e569d4a413cb75ea846b596ed2e0a",
+    "slug": "0010-a-domain-feature-is-a-pack-of-the-registry"
+  },
   "OTO Roadmap 2.0.md": {
     "archived_at": "2026-10-25T16:56:01",
     "run_id": "20261025-165359",

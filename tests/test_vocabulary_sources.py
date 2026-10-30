@@ -40,13 +40,13 @@ def test_merge_unions_classes_and_reports_clashes():
 
 
 def test_merge_widens_a_relation_two_parts_declare_differently():
-    """product-report and ddd both widen the product's `part_of` and `owned_by`; a merge keeps the union
-    of both signatures, as composition widens, so neither pack's facts are refused."""
-    config, _s, _r, _rat, report = ontologies.merge(["software-architecture", "ddd"])
-    assert ("part_of", "software-architecture", "ddd") in report["relation_clashes"]
+    """software-architecture and agent both widen the product's `part_of` and `owned_by`; a merge keeps the
+    union of both signatures, as composition widens, so neither pack's facts are refused."""
+    config, _s, _r, _rat, report = ontologies.merge(["software-architecture", "agent"])
+    assert ("part_of", "software-architecture", "agent") in report["relation_clashes"]
     domain = set(config["properties"]["part_of"]["domain"].split("|"))
-    assert {"Component", "Feature", "Aggregate", "Term"} <= domain
-    assert {"System", "BoundedContext", "Product"} <= set(config["properties"]["part_of"]["range"].split("|"))
+    assert {"Component", "Feature", "Job"} <= domain
+    assert {"System", "Agent", "Product"} <= set(config["properties"]["part_of"]["range"].split("|"))
     assert config["properties"]["part_of"]["inverse"] == "contains", "the first part's inverse and definition are kept"
 
 

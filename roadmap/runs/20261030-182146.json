@@ -1,0 +1,25 @@
+{
+  "completed": true,
+  "completed_at": "2026-10-30T18:21:47",
+  "copied": false,
+  "files": [
+    {
+      "file": "0010-a-domain-feature-is-a-pack-of-the-registry.md",
+      "outcome": "extracted",
+      "sha256": "f76061e668e8524a366e57064dbcddeb518e569d4a413cb75ea846b596ed2e0a",
+      "size": 5249,
+      "slug": "0010-a-domain-feature-is-a-pack-of-the-registry"
+    }
+  ],
+  "finished": "2026-10-30T18:21:46",
+  "inbox": "/Users/chihebdkhil/oto-doc/oto/roadmap/inbox",
+  "run_id": "20261030-182146",
+  "started": "2026-10-30T18:21:46",
+  "summary": {
+    "blocked": 0,
+    "extracted": 1,
+    "extraction-failed": 0,
+    "missing-parser": 0,
+    "unsupported": 0
+  }
+}

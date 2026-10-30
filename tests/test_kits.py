@@ -25,6 +25,7 @@ def test_the_oto_gcp_kit_carries_this_engine():
     assert 'OTO_SOURCE: "oto-kg @ git+https://github.com/Cynergis/oto@v%s"' % version in spec, \
         "kits/oto-gcp/spec.yaml: OTO_SOURCE must pin v%s" % version
     assert "the OTO engine %s," % version in spec, "kits/oto-gcp/spec.yaml: the description names the engine %s" % version
+    assert re.search(r"^    OTO_SANDBOX: kit$", spec, re.M), "the kit tells the engine it runs inside a sandbox: oto serve binds all interfaces, no token"
     init = _read("kits", "oto-gcp", "files", "home", ".oto", "init.sh")
     assert '"oto-kg[intake] @ git+https://github.com/Cynergis/oto@v%s"' % version in init, \
         "kits/oto-gcp/files/home/.oto/init.sh installs v%s" % version

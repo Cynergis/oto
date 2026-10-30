@@ -23,6 +23,9 @@ def _print_status(s):
         if s["sandbox"] == "running" and s["from_kit"]:
             print("  outside plugins %s" % s["outside_plugins_summary"])
         print("  SSH            %s" % ("%s.sbx" % s["name"] if s["ssh"] else "not set up"))
+        if s.get("ports"):
+            print("  ports          %s (oto serve --http <port> inside; open http://localhost:<port>/ on this computer)"
+                  % ", ".join("%d" % e["port"] if e["port"] == e["host_port"] else "%d->%d" % (e["host_port"], e["port"]) for e in s["ports"]))
     elif s["sbx"] and s["signed_in"]:
         print("  sandbox        not created: oto sandbox up --name %s" % s["name"])
 
@@ -95,10 +98,13 @@ def cmd_sandbox(args):
         return 0 if s["sandbox"] and s["oto"] and _sandbox.READY in s["oto"] and s["ssh"] else 1
 
     say = (lambda line: None) if args.json else (lambda line: print("  ... " + line, flush=True))
+    if args.publish is not None:
+        args.publish = [p for p in args.publish if p > 0]
     try:
         report = _sandbox.up(name=args.name, directory=args.dir, project_id=args.project_id, kit=args.kit,
                              approve=args.approve_anthropic, init_policy=args.init_policy, recreate=args.recreate,
-                             check=args.check, wait=args.wait, say=say, allow_outside=args.allow_outside_plugins)
+                             check=args.check, wait=args.wait, say=say, allow_outside=args.allow_outside_plugins,
+                             publish=args.publish if args.publish is not None else None)
     except _sandbox.SandboxError as e:
         if args.json:
             print(json.dumps({"ok": False, "problem": str(e), "fix": e.fix}, indent=2))
@@ -122,6 +128,8 @@ def cmd_sandbox(args):
         print("  folders: %s" % " and ".join(f for f in (report["project"], report["code"]) if f))
         print("  %s" % report["oto"])
         print("  outside plugins: %s" % report["outside_plugins_summary"])
+        if report.get("ports"):
+            print("  ports: %s published to this computer's localhost" % " and ".join("%d" % e["port"] for e in report["ports"]))
         for line in report["warnings"]:
             print("  warning: %s" % line)
         if not report["anthropic_signed_in"]:
@@ -150,6 +158,9 @@ def register(sub):
     p.add_argument("--allow-outside-plugins", action="store_true",
                    help="create the sandbox so that plugins from this computer, Claude Desktop and the claude.ai "
                         "account load in it too (by default only the sandbox's own plugins load)")
+    p.add_argument("--publish", type=int, action="append", metavar="PORT",
+                   help="for up: a sandbox port to publish to this computer's localhost, repeatable (default 8798 and 8799, "
+                        "for oto serve inside; --publish 0 publishes none)")
     p.add_argument("--recreate", action="store_true", help="remove an existing sandbox of that name and create it again")
     p.add_argument("--check", action="store_true", help="say what up would do, change nothing")
     p.add_argument("--wait", type=int, default=600, help="seconds to wait for OTO to be ready inside (default 600)")

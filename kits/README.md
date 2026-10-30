@@ -61,6 +61,11 @@ changes nothing. The choice is made when the sandbox is created. `oto sandbox st
 sandbox is, and what would load in it. It does not use the managed setting `disableSideloadFlags`, which
 refuses `--plugin-dir` and so would most likely stop Desktop's sessions from starting.
 
+**Serving from inside.** `oto sandbox up` publishes ports 8798 and 8799 to the computer's localhost
+(`--publish <port>` chooses others, `--publish 0` none). Inside, `oto serve --http 8798` binds all interfaces
+and needs no token (the kit sets `OTO_SANDBOX`, which the engine reads), and the person opens
+`http://localhost:8798/` on the computer. A port published to a running sandbox forwards from its next start.
+
 **Run it.** `oto sandbox up` does all of it, checks first, and sets up SSH for Claude Desktop's Code tab:
 
 ```bash

@@ -48,7 +48,7 @@ elif args == ["secret", "ls", "--json"]:
                       if state["anthropic_secret"] else [], "custom_secrets": []})
 elif args[:1] == ["create"]:
     kit, rest = args[1], args[2:]
-    folders, env, name = [], {}, None
+    folders, env, name, ports = [], {}, None, []
     while rest:
         a = rest.pop(0)
         if a == "--name":
@@ -56,10 +56,13 @@ elif args[:1] == ["create"]:
         elif a == "-e":
             k, v = rest.pop(0).split("=", 1)
             env[k] = v
+        elif a == "-p":
+            host_port, sandbox_port = rest.pop(0).split(":")
+            ports.append({"host_ip": "127.0.0.1", "host_port": int(host_port), "sandbox_port": int(sandbox_port), "protocol": "tcp4"})
         elif not a.startswith("--"):
             folders.append(a)
     state["sandboxes"][name] = {"agent": kit.split("/")[-1].split(":")[0], "running": True, "folders": folders,
-                                "env": env, "init": state["init_line"]}
+                                "env": env, "init": state["init_line"], "ports": ports}
 elif args[:1] == ["exec"]:
     box = state["sandboxes"][args[1]]
     box["running"] = True
@@ -77,6 +80,22 @@ elif args[:1] == ["exec"]:
         box["given"] = box.get("given", []) + command[4:]
     elif "oto-init.log" in command[-1]:
         out = box["init"] + "\n"
+elif args[:1] == ["ports"]:
+    box = state["sandboxes"].get(args[1])
+    if box is None:
+        err, code = "error: no such sandbox\n", 1
+    elif "--publish" in args:
+        box["running"] = True
+        host_port, sandbox_port = args[args.index("--publish") + 1].split(":")
+        if any(p["host_port"] == int(host_port) for p in box.setdefault("ports", [])):
+            err, code = "error: publish ports: 409 Conflict: port 127.0.0.1:%s/tcp4 is already published\n" % host_port, 1
+        else:
+            box["ports"].append({"host_ip": "127.0.0.1", "host_port": int(host_port), "sandbox_port": int(sandbox_port), "protocol": "tcp4"})
+            out = "Published 127.0.0.1:%s -> %s/tcp4\n" % (host_port, sandbox_port)
+    elif "--json" in args:
+        out = json.dumps(box.get("ports", []))
+    else:
+        out = "HOST IP     HOST PORT   SANDBOX PORT   PROTOCOL\n"
 elif args[:1] == ["rm"]:
     state["sandboxes"].pop(args[-1], None)
 elif args[:1] == ["stop"]:
@@ -425,3 +444,52 @@ def test_ls_without_sbx_or_a_sign_in_says_so(fake, monkeypatch, capsys):
     assert sandbox.list_sandboxes()["sbx"] is None
     with pytest.raises(sandbox.SandboxError):
         sandbox.remove_sandboxes(["a"])
+
+
+# ---- the published ports: oto serve inside, a browser tab on the computer ----
+
+def test_up_publishes_the_serve_ports_at_creation_and_says_what_to_open(fake, tmp_path, capsys):
+    work = tmp_path / "nw"
+    assert main(["sandbox", "up", "--name", "nw", "--dir", str(work), "--approve-anthropic"]) == 0
+    out = capsys.readouterr().out
+    create = fake.calls("create")[0]
+    assert create[:7] == ["create", "ghcr.io/cynergis/oto-gcp:%s" % __version__, str(work / "project"), str(work / "code"), "--name", "nw", "--no-progress"]
+    assert create[7:11] == ["-p", "8798:8798", "-p", "8799:8799"], "published at creation, so the forward is live from the first start"
+    assert fake.read()["sandboxes"]["nw"]["ports"][0]["sandbox_port"] == 8798
+    assert "published ports 8798 and 8799 to this computer's localhost" in out and "ports: 8798 and 8799 published" in out
+    assert "oto serve --project . --http 8798" in out and "open http://localhost:8798/" in out and "no token needed" in out
+    s = sandbox.status("nw")
+    assert [e["port"] for e in s["ports"]] == [8798, 8799] and s["ports"][0]["host"] == "127.0.0.1"
+    assert main(["sandbox", "status", "--name", "nw"]) == 0
+    assert "ports          8798, 8799 (oto serve --http <port> inside; open http://localhost:<port>/ on this computer)" in capsys.readouterr().out
+
+
+def test_publish_chooses_the_ports_and_zero_means_none(fake, tmp_path):
+    assert main(["sandbox", "up", "--name", "one", "--dir", str(tmp_path / "one"), "--publish", "9000", "--approve-anthropic"]) == 0
+    assert ["-p", "9000:9000"] == fake.calls("create")[-1][7:9] and "-p" not in fake.calls("create")[-1][9:]
+    assert main(["sandbox", "up", "--name", "none", "--dir", str(tmp_path / "none"), "--publish", "0", "--approve-anthropic"]) == 0
+    assert "-p" not in fake.calls("create")[-1]
+
+
+def test_up_on_an_existing_sandbox_publishes_what_is_missing_and_says_when_it_takes_effect(fake, tmp_path, capsys):
+    fake.write(ssh=True, sandboxes={"old": {"agent": "oto-gcp", "running": True, "folders": [str(tmp_path / "old" / "project"), str(tmp_path / "old" / "code")],
+                                            "env": {}, "init": "OTO ready: 1 plugins", "ports": [{"host_ip": "127.0.0.1", "host_port": 8798, "sandbox_port": 8798, "protocol": "tcp4"}]}})
+    report = sandbox.up(name="old", directory=str(tmp_path / "old"), approve=True)
+    published = [c for c in fake.calls("ports") if "--publish" in c]
+    assert published == [["ports", "old", "--publish", "8799:8799"]], "only the missing port"
+    assert [e["port"] for e in report["ports"]] == [8798, 8799]
+    assert any("published port 8799" in d for d in report["done"])
+    assert any("forwards from its next start" in w and "sbx stop old" in w for w in report["warnings"]), "a running sandbox forwards a new port at its next start"
+    report = sandbox.up(name="old", directory=str(tmp_path / "old"), approve=True)
+    assert not any("published port" in d for d in report["done"]) and not any("next start" in w for w in report["warnings"]), "nothing missing the second time"
+
+
+def test_inside_the_kit_is_read_from_the_environment_or_the_kits_files(tmp_path, monkeypatch):
+    monkeypatch.delenv(sandbox.INSIDE_ENV, raising=False)
+    assert sandbox.inside_kit(environ={}, home=str(tmp_path)) is False
+    assert sandbox.inside_kit(environ={sandbox.INSIDE_ENV: "kit"}, home=str(tmp_path)) is True
+    (tmp_path / ".oto").mkdir()
+    (tmp_path / ".oto" / "init.sh").write_text("#!/bin/sh\n")
+    assert sandbox.inside_kit(environ={}, home=str(tmp_path)) is False, "init.sh alone is not the kit"
+    (tmp_path / ".oto" / "lock-plugins").write_text("# lock\n")
+    assert sandbox.inside_kit(environ={}, home=str(tmp_path)) is True

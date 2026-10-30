@@ -396,14 +396,49 @@ def test_binding_beyond_this_machine_needs_the_token():
     _http.check_bind("127.0.0.1", None)
     _http.check_bind("localhost", None)
     assert _http.token_from_env({}) is None and _http.token_from_env({"OTO_SERVE_TOKEN": " x "}) == "x"
+    # inside a sandbox made from OTO's kit, all interfaces is this computer: the sandbox tool publishes the
+    # port to the computer's loopback only, so the bind needs no token and is the default for a bare port
+    _http.check_bind("0.0.0.0", None, inside=True)
+    with pytest.raises(_http.BindError):
+        _http.check_bind("0.0.0.0", None, inside=False)
+    assert _http.default_host(inside=True) == "0.0.0.0" and _http.default_host(inside=False) == "127.0.0.1"
+    assert _http.parse_bind("8798", default_host=_http.default_host(inside=True)) == ("0.0.0.0", 8798)
     with tempfile.TemporaryDirectory() as root:
         _project(root)
         env = dict(os.environ, PYTHONPATH=REPO)
         env.pop("OTO_STORE", None)
         env.pop("OTO_SERVE_TOKEN", None)
+        env.pop("OTO_SANDBOX", None)
         r = subprocess.run([sys.executable, "-m", "oto.cli", "serve", "--project", root, "--http", "0.0.0.0:0"],
                            cwd=REPO, env=env, capture_output=True, text=True, timeout=60)
         assert r.returncode == 1 and "refused" in r.stderr and "OTO_SERVE_TOKEN" in r.stderr
+
+
+def test_inside_the_kit_a_bare_port_binds_all_interfaces_without_a_token_and_names_the_address_to_open():
+    """The kit sets OTO_SANDBOX; a server started there with `--http <port>` must be reachable through the port
+    the sandbox publishes, which forwards only to a listener beyond the sandbox's loopback."""
+    from oto.serve import http as _http
+    import oto.sandbox as _sandbox
+    with tempfile.TemporaryDirectory() as root:
+        _project(root)
+        env = dict(os.environ, PYTHONPATH=REPO, OTO_SANDBOX="kit", HOME=root)
+        env.pop("OTO_STORE", None)
+        env.pop("OTO_SERVE_TOKEN", None)
+        script = ("import sys, threading, time, urllib.request\n"
+                  "from oto.serve import http as h\n"
+                  "from oto.serve import engine\n"
+                  "assert h.inside_sandbox() and h.default_host() == '0.0.0.0'\n"
+                  "s = h.Server(engine, h.default_host(), 0, token=None).start()\n"
+                  "host, port = s.address\n"
+                  "assert host == '0.0.0.0', host\n"
+                  "r = urllib.request.urlopen('http://127.0.0.1:%d/api/status' % port, timeout=10)\n"
+                  "assert r.status == 200\n"
+                  "s.stop(); print('ok', port)\n")
+        env["OTO_DB"] = os.path.join(root, "build", "acme.db") if os.path.exists(os.path.join(root, "build", "acme.db")) else ""
+        env["OTO_PROJECT_CONFIG"] = os.path.join(root, "project.config.json")
+        r = subprocess.run([sys.executable, "-c", script], cwd=REPO, env=env, capture_output=True, text=True, timeout=60)
+        assert r.returncode == 0 and r.stdout.startswith("ok "), r.stderr
+    assert _sandbox.inside_kit(environ={"OTO_SANDBOX": "kit"}) and not _sandbox.inside_kit(environ={}, home=tempfile.gettempdir())
 
 
 # ---- a project's views side by side: the home page, each view under its name ----

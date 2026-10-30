@@ -4,6 +4,40 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.14.3 — 2026-10-29
+
+**The engine comes from its own marketplace, and CALM is a pack of the registry.** Three pull requests
+(119, 120 and 121) and two decisions, [ADR-0008](docs/adr/0008-a-framework-is-a-pack-of-the-registry.md)
+and [ADR-0009](docs/adr/0009-the-registry-carries-no-engine.md).
+
+- **The registry carries no engine.** The engine plugin is installed from this repository's own
+  marketplace, `cynergis-engine`: `/plugin marketplace add Cynergis/oto`, then `/plugin install
+  oto@cynergis-engine`. The registry, Cynergis/oto-registry, lists extensions and packs of the engine and
+  never the engine itself; every pack `oto pack new` or `publish` writes depends on `oto@cynergis-engine`,
+  which the registry's marketplace allows to cross (`allowCrossMarketplaceDependenciesOn`), and `oto pack
+  check` still accepts the bare `oto` of packs written before. The release workflow no longer opens pin
+  pull requests for the engine; `oto lock` finds the engine plugin in whichever known marketplace lists
+  it; the repository workflows the engine writes install `oto@cynergis-engine` (they named a marketplace
+  that never existed under `oto@oto`); the catalog pages and the scaffolded registry README say to add the
+  engine's marketplace first.
+- **CALM is the registry's `calm` pack**, 1.0.0, with the adapter as the module `oto_calm` in its
+  `code/`, its guide and its tests: `/plugin install calm@cynergis` or `oto pack add calm`, and `oto arch
+  import --framework calm` finds it from any architecture project. The engine ships no framework adapter:
+  on a machine with the engine alone, `oto arch import` and `export` name the framework they lack and say
+  which packs provide one. The engine's own tests exercise the core's handling of a framework's model
+  through a `plain` adapter they carry.
+- **The sandbox kit** adds the engine's marketplace before the registry, installs `oto@cynergis-engine`
+  and the `calm` pack with the others, and tells its Claude which plugin list is the sandbox's: Claude
+  Desktop's `ListPlugins` and `ListSkills` describe the person's claude.ai account, `claude plugin list`
+  describes the sandbox (`files/home/.claude/CLAUDE.md`).
+
+**Migration.** A machine that installed `oto@cynergis` adds the engine's marketplace, installs
+`oto@cynergis-engine` and uninstalls `oto@cynergis`; packs installed before are reinstalled once so their
+cached manifests name the new dependency. A project's `.claude/settings.json` names `oto@cynergis-engine`
+and both marketplaces, then `oto lock`. A project that imports CALM models installs the `calm` pack; a
+project that already holds CALM facts changes nothing. An existing sandbox runs the same three plugin
+commands; a new one from this kit needs none of it.
+
 ## 0.14.2 — 2026-10-28
 
 **A pack carries its own code, and the factory leaves.** Two pull requests (116 and 117) and one

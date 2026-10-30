@@ -78,9 +78,11 @@ def test_the_documents_point_at_the_calm_pack_and_name_the_decision():
             text = f.read()
         assert "0008" in text and ("calm@cynergis" in text or "oto pack add calm" in text or "packs/calm" in text), "%s says where CALM went and why" % path
     with open(os.path.join(ROOT, "kits", "oto-gcp", "files", "home", ".oto", "init.sh"), encoding="utf-8") as f:
-        assert " calm " in f.read(), "the sandbox kit installs the calm pack with the others"
-    with open(os.path.join(ROOT, "kits", "README.md"), encoding="utf-8") as f:
-        assert "calm" in f.read()
+        init = f.read()
+    assert "Cynergis/oto-registry" in init and "/oto:packs" in init, \
+        "the sandbox kit adds the registry, where the calm pack is turned on from the session with the packs skill"
+    with open(os.path.join(ROOT, "skills", "packs", "SKILL.md"), encoding="utf-8") as f:
+        assert "`calm`" in f.read(), "the packs skill knows the calm pack"
 
 
 def test_the_engine_s_tests_carry_a_framework_of_their_own(plain_framework):

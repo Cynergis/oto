@@ -8,9 +8,11 @@ from a published kit with one command, and writes no file of their own.
 
 Claude Code with everything an OTO product on Google Cloud needs:
 
-- **OTO:** the engine plugin from its own marketplace (`oto@cynergis-engine`, Cynergis/oto), the `cynergis` marketplace (Cynergis/oto-registry) and its plugins (product, software-architecture, calm, product-report, report,
-  flow, medallion, report-medallion, platform, work, pdf-to-template, and the engine plugin `oto`), and the
-  engine itself at the version in `spec.yaml`, pinned through `OTO_SOURCE`;
+- **OTO:** the engine plugin from its own marketplace (`oto@cynergis-engine`, Cynergis/oto) and the engine
+  itself at the version in `spec.yaml`, pinned through `OTO_SOURCE`; the `cynergis` marketplace
+  (Cynergis/oto-registry) is added but none of its packs is installed: a sandbox starts with the engine
+  alone, and the packs a project needs are turned on from the session with the packs skill
+  (`/oto:packs`), which installs them for the project and records them in its lock;
 - **Google Cloud:** the Google Cloud CLI (`gcloud`, `bq`);
 - **documents:** LibreOffice and fonts (older Office files at intake), Chromium (pdf-to-template's renderer);
 - **network:** the hosts these need, allowed for this sandbox alone (GitHub, Python packages, Google's APIs

@@ -10,10 +10,7 @@ log=/tmp/oto-init.log
   echo "$markets" | grep -q "(Cynergis/oto)" || claude plugin marketplace add Cynergis/oto                    # the engine plugin's own marketplace, cynergis-engine
   echo "$markets" | grep -q "(Cynergis/oto-registry)" || claude plugin marketplace add Cynergis/oto-registry   # the packs (ADR-0009: the registry carries no engine)
   have=$(claude plugin list 2>/dev/null)
-  echo "$have" | grep -q "oto@cynergis-engine" || claude plugin install "oto@cynergis-engine"
-  for p in product software-architecture calm product-report report flow medallion report-medallion platform work pdf-to-template; do
-    echo "$have" | grep -q "$p@cynergis" || claude plugin install "$p@cynergis"
-  done
+  echo "$have" | grep -q "oto@cynergis-engine" || claude plugin install "oto@cynergis-engine"   # the engine alone: the packs a project needs are turned on from the session (/oto:packs)
   python3 "$HOME/.oto/lock-plugins"     # only the plugins installed here load: see the script
   command -v oto >/dev/null || uv tool install "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v0.14.3"
   [ -d "$HOME/.cache/ms-playwright" ] || uv tool run --from playwright playwright install chromium

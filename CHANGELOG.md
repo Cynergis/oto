@@ -4,6 +4,22 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.14.7 — 2026-10-30
+
+**The workbench in a reader's order.** One pull request (130), nothing to the engine.
+
+- **The tabs run Overview, Project, Ontology, Knowledge** (then Work when the vocabulary has work items):
+  where the project stands, what it is made of, what it knows. They ran Overview, Knowledge, Ontology, Project.
+- **The competency questions are a tab of the Ontology page** (`#/ontology/questions`), beside Classes, Rules,
+  Lexicon, Versions and Dependencies: they are the vocabulary's contract, not a station of the project. The tab
+  shows the answered count and lists what is not answered first, each question with its id and who asks it. The
+  Project page's vocabulary station keeps its facts and what the vocabulary is made of.
+- **A kind's list stays beside the thing.** On Knowledge, a thing opened from a kind's list keeps that list as
+  the middle card (`#/knowledge/kind/<Class>/<id>`) instead of falling back to Everything current. Opening a
+  thing from search or from Everything current is unchanged.
+
+No migration: addresses saved before this release still open the same pages.
+
 ## 0.14.6 — 2026-10-30
 
 **One built-in view: the workbench.** One pull request (128).

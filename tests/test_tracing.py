@@ -85,7 +85,7 @@ def exporter():
 def plan(tmp_path):
     root = str(tmp_path / "plan")
     with contextlib.redirect_stdout(io.StringIO()):
-        init(root, slug="plan", name="The plan", ontology="communication")
+        init(root, slug="plan", name="The plan", ontology="organization-process")
     return root
 
 
@@ -128,15 +128,17 @@ def test_the_build_opens_a_span_per_stage(exporter, plan):
 
 @otel
 def test_an_audit_record_written_inside_a_span_carries_its_trace_id(exporter, plan):
-    code, out = _cli("work", "set", "workitem.s-settlement-batch", "--state", "blocked", "--reason", "the file format is not published",
-                     "--waiting-on", "team.payments", "--by", "Chiheb Dkhil", "--at", "2026-10-20", "--project", plan)
-    assert code == 0, out
-    record = audit.read(Project.standard(plan))[-1]
-    spans = [s for s in exporter.get_finished_spans() if s.name == "oto.work.set"]
+    from oto import tracing
+    project = Project.standard(plan)
+    with tracing.span("oto.test.write", item="process.onboarding"):
+        audit.append(project, action="test write", principal="Chiheb Dkhil", nodes=["process.onboarding"], decision="applied",
+                     detail="the reason is text someone wrote")
+    record = audit.read(project)[-1]
+    spans = [s for s in exporter.get_finished_spans() if s.name == "oto.test.write"]
     assert spans, [s.name for s in exporter.get_finished_spans()]
     assert record["trace_id"] == format(spans[0].context.trace_id, "032x") and len(record["trace_id"]) == 32
-    assert "file format" not in json.dumps(dict(spans[0].attributes)), "the reason is text someone wrote"
-    assert audit.verify(Project.standard(plan))["ok"]
+    assert "text someone wrote" not in json.dumps(dict(spans[0].attributes)), "what a person wrote never goes on a span"
+    assert audit.verify(project)["ok"]
 
 
 @otel

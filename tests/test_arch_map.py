@@ -229,7 +229,7 @@ def test_map_refuses_what_it_cannot_cite(described, code, tmp_path):
     os.remove(os.path.join(code, "oto.codemap.json"))
     plain = str(tmp_path / "plain")
     with contextlib.redirect_stdout(io.StringIO()):
-        init(plain, slug="plain", name="Plain", ontology="communication")
+        init(plain, slug="plain", name="Plain", ontology="organization-process")
     code_, out = _cli("arch", "map", "--repo", code, "--repository", "repo.invoice-platform", "--at", "2026-10-27", "--project", plain)
     assert code_ == 1 and "CodeModule" in out, out
     assert not os.path.exists(os.path.join(root, "proposals", "codemap-nope.json"))

@@ -52,7 +52,7 @@ def world(tmp_path):
     """Two project graphs and a concierge root that depends on both."""
     plan, policy, root = str(tmp_path / "plan"), str(tmp_path / "policy"), str(tmp_path / "root")
     with contextlib.redirect_stdout(io.StringIO()):
-        init(plan, slug="plan", name="The payments plan", ontology="communication")
+        init(plan, slug="plan", name="The payments plan", ontology="organization-process")
         init(policy, slug="policy", name="Claims policy", ontology="auto-claims")
         init(root, slug="root", name="Concierge", concierge=True)
     for project, reach in ((plan, "http://127.0.0.1:1/plan"), (policy, "http://127.0.0.1:1/policy")):
@@ -84,7 +84,7 @@ def test_kg_dependencies_lists_what_the_graph_depends_on_and_ranks_them_for_a_qu
     assert not error, text
     assert "graph.root" in text and "graph.plan" in text and "graph.policy" in text
     assert "The payments plan" in text and "Claims policy" in text and "http://127.0.0.1:1/policy" in text
-    assert "WorkItem" in text and "Claim" in text, "the classes each holds, so an agent can tell them apart"
+    assert "Process" in text and "Claim" in text, "the classes each holds, so an agent can tell them apart"
     error, text = _call(engine, "kg_dependencies", question="which claims cover the vehicle in that incident")
     assert not error and text.index("graph.policy") < text.index("graph.plan"), text
     assert "ask graph.policy" in text
@@ -109,7 +109,7 @@ def served_plan(tmp_path):
     """The payments plan served over HTTP in its own process, so the root can reach it."""
     plan = str(tmp_path / "served")
     with contextlib.redirect_stdout(io.StringIO()):
-        init(plan, slug="served", name="The served plan", ontology="communication")
+        init(plan, slug="served", name="The served plan", ontology="organization-process")
     code, out = _cli("build", "--project", plan)
     assert code == 0, out
     port = _free_port()
@@ -141,11 +141,11 @@ def test_kg_call_follows_a_dependency_s_reach_over_http(served_plan, tmp_path):
     code, out = _cli("build", "--project", root)
     assert code == 0, out
     engine = _engine(Project.standard(root))
-    error, text = _call(engine, "kg_call", graph="graph.served", tool="kg_search", arguments={"query": "settlement", "n": 3})
+    error, text = _call(engine, "kg_call", graph="graph.served", tool="kg_search", arguments={"query": "onboarding", "n": 3})
     assert not error, text
-    assert text.startswith("from The served plan (%s)" % url) and "settlement" in text.lower(), text
-    error, text = _call(engine, "kg_call", graph="The served plan", tool="kg_entity", arguments={"term": "Daily settlement batch"})
-    assert not error and "Daily settlement batch" in text and "WorkItem" in text, text
+    assert text.startswith("from The served plan (%s)" % url) and "onboarding" in text.lower(), text
+    error, text = _call(engine, "kg_call", graph="The served plan", tool="kg_entity", arguments={"term": "Customer onboarding"})
+    assert not error and "Customer onboarding" in text and "Process" in text, text
     error, text = _call(engine, "kg_call", graph="graph.served", tool="kg_call", arguments={})
     assert error and "one hop" in text
     error, text = _call(engine, "kg_call", graph="graph.served", tool="kg_nothing", arguments={})
@@ -158,8 +158,8 @@ def test_kg_call_follows_a_dependency_s_reach_over_http(served_plan, tmp_path):
     try:
         status, _c, body = _get(server.url + "/api/dependencies")
         assert status == 200 and "graph.served" in json.loads(body)["text"]
-        status, _c, body = _get(server.url + "/api/call?graph=graph.served&tool=kg_search&query=settlement")
-        assert status == 200 and "settlement" in json.loads(body)["text"].lower(), body
+        status, _c, body = _get(server.url + "/api/call?graph=graph.served&tool=kg_search&query=onboarding")
+        assert status == 200 and "onboarding" in json.loads(body)["text"].lower(), body
     finally:
         server.stop()
 

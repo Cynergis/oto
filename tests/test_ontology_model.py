@@ -63,9 +63,9 @@ def test_a_decision_attribute_and_a_required_one_are_marked():
     by = {c["name"]: c for c in m["classes"]}
     status = next(a for a in by["Column"]["attributes"] if a["name"] == "description_status")
     assert status["decision"] is True and status["default"] == "draft"
-    m = _ontology.model(_vocabulary("work"))
-    at = next(a for a in {c["name"]: c for c in m["classes"]}["Transition"]["attributes"] if a["name"] == "at")
-    assert at["required"] is True and at["type"] == "date"
+    m = _ontology.model(_vocabulary("architecture"))
+    sha = next(a for a in {c["name"]: c for c in m["classes"]}["Commit"]["attributes"] if a["name"] == "sha")
+    assert sha["required"] is True and sha["type"] == "string"
 
 
 def test_one_class_or_an_unknown_one():

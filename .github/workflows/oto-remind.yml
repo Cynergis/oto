@@ -3,7 +3,8 @@ name: Reminders
 # Every weekday morning, the roadmap's pending messages past their due date get one reminder each
 # (roadmap N5): `oto work remind` writes them into the roadmap graph as messages of their own, never
 # replies, and the change comes as a pull request so the record is reviewed before it lands. People
-# who are not in a session see the reminder in their inbox when they next open one.
+# who are not in a session see the reminder in their inbox when they next open one. `oto work` is the
+# registry's work pack (ADR-0010), installed here beside the engine.
 
 on:
   schedule:
@@ -27,6 +28,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install .
+          oto pack add https://github.com/Cynergis/oto-registry.git --path packs/work
       - name: Send today's reminders into the roadmap graph
         id: remind
         run: |

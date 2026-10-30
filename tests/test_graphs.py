@@ -27,7 +27,7 @@ def _cli(*args):
 def plan(tmp_path):
     root = str(tmp_path / "plan")
     with contextlib.redirect_stdout(io.StringIO()):
-        init(root, slug="plan", name="The payments plan", ontology="communication")
+        init(root, slug="plan", name="The payments plan", ontology="organization-process")
     return root
 
 
@@ -45,7 +45,7 @@ def test_init_writes_the_graph_s_own_descriptor(plan):
     assert node["label"] == "The payments plan" and node["status"] == "current"
     attributes = node["attributes"]
     assert attributes["slug"] == "plan" and attributes["reach"] == "plan-kg" and attributes["subject"]
-    assert "WorkItem" in attributes["classes"] and "Message" in attributes["classes"] and "Document" in attributes["classes"]
+    assert "Process" in attributes["classes"] and "Role" in attributes["classes"] and "Document" in attributes["classes"]
     assert node["source_type"] == "inference" and node["source_doc"] == "project.config.json" and node["sources"] == ["project.config.json"]
     assert node["as_of"] and node["valid_from"] == node["as_of"]
 
@@ -53,7 +53,7 @@ def test_init_writes_the_graph_s_own_descriptor(plan):
 def test_an_empty_project_still_describes_itself_and_a_bare_one_cannot(tmp_path):
     root = str(tmp_path / "empty")
     with contextlib.redirect_stdout(io.StringIO()):
-        init(root, slug="empty", name="Empty", ontology="work", empty=True)
+        init(root, slug="empty", name="Empty", ontology="agent", empty=True)
     found, graph = _descriptor(root)
     assert [n["id"] for n in found] == ["graph.empty"], "the vocabulary installed, no sample, and the one node every graph holds"
     assert len(graph["nodes"]) == 1
@@ -69,7 +69,7 @@ def test_describe_prints_the_descriptor_another_project_can_depend_on(plan):
     descriptor = json.loads(out)
     assert descriptor["id"] == "graph.plan" and descriptor["label"] == "The payments plan"
     assert descriptor["subject"] and descriptor["reach"] == "plan-kg" and descriptor["slug"] == "plan"
-    assert "WorkItem" in descriptor["classes"] and descriptor["engine"]
+    assert "Process" in descriptor["classes"] and descriptor["engine"]
     assert set(descriptor) == {"id", "label", "subject", "classes", "reach", "slug", "namespace", "engine", "described_at"}
     code, out = _cli("graph", "describe", "--reach", "https://kg.example.org/plan", "--project", plan)
     assert code == 0 and json.loads(out)["reach"] == "https://kg.example.org/plan", "how the graph is reached from outside, when the server name is not it"

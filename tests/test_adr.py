@@ -25,7 +25,7 @@ title: Returns net of fees, month-end NAV
 status: accepted
 decided_on: 2026-10-20
 decided_by: Payments team
-governs: [workitem.s-settlement-batch, component.settlement-job]
+governs: [component.payment-api, component.settlement-job]
 resolves: [openquestion.q-evidence]
 supersedes: ADR-0009
 ---
@@ -50,7 +50,7 @@ id: ADR-0009
 title: Gross returns
 status: accepted
 decided_on: 2026-09-01
-governs: [workitem.s-settlement-batch]
+governs: [component.payment-api]
 ---
 
 # Gross returns
@@ -73,7 +73,7 @@ def _cli(*args):
 def test_frontmatter_is_read_without_a_yaml_library_and_the_body_kept():
     record = adr.parse(ADR)
     assert record["front"]["id"] == "ADR-0017" and record["front"]["status"] == "accepted"
-    assert record["front"]["governs"] == ["workitem.s-settlement-batch", "component.settlement-job"]
+    assert record["front"]["governs"] == ["component.payment-api", "component.settlement-job"]
     assert record["front"]["resolves"] == ["openquestion.q-evidence"] and record["front"]["supersedes"] == "ADR-0009"
     assert record["body"].startswith("# Returns net of fees") and "## Decision" in record["body"]
     assert record["sections"]["Decision"] == "Returns are reported net of fees, computed on the month-end NAV."
@@ -100,7 +100,7 @@ def test_what_is_wrong_with_an_adr_is_named():
 # ---- the proposal ----
 
 def test_an_adr_proposes_a_decision_with_its_evidence_edges_and_supersession():
-    graph_ids = {"workitem.s-settlement-batch", "component.settlement-job", "openquestion.q-evidence", "team.payments", "decision.adr-0009"}
+    graph_ids = {"component.payment-api", "component.settlement-job", "openquestion.q-evidence", "team.payments", "decision.adr-0009"}
     proposal = adr.propose(adr.parse(ADR), "0017-returns-net-of-fees", graph_ids, labels={"Payments team": "team.payments"})
     assert proposal["source_doc"] == "0017-returns-net-of-fees" and proposal["as_of"] == "2026-10-20"
     nodes = {n["id"]: n for n in proposal["nodes"]}
@@ -116,12 +116,12 @@ def test_an_adr_proposes_a_decision_with_its_evidence_edges_and_supersession():
     assert old == {"id": "decision.adr-0009", "status": "superseded", "valid_to": "2026-10-20", "superseded_by": "decision.adr-0017",
                    "change_note": decision["change_note"]}
     edges = {(e["rel"], e["to"]) for e in proposal["edges"] if e["from"] == "decision.adr-0017"}
-    assert edges == {("governs", "workitem.s-settlement-batch"), ("governs", "component.settlement-job"),
+    assert edges == {("governs", "component.payment-api"), ("governs", "component.settlement-job"),
                      ("resolves", "openquestion.q-evidence"), ("decided_by", "team.payments"), ("documented_in", "document.0017-returns-net-of-fees")}
     assert proposal["unresolved"] == []
-    missing = adr.propose(adr.parse(ADR), "x", {"workitem.s-settlement-batch"}, labels={})
+    missing = adr.propose(adr.parse(ADR), "x", {"component.payment-api"}, labels={})
     assert sorted(missing["unresolved"]) == ["Payments team", "component.settlement-job", "decision.adr-0009", "openquestion.q-evidence"]
-    assert all(e["to"] in {"workitem.s-settlement-batch", "document.x"} for e in missing["edges"]), "an edge to nothing is not proposed; the gap is named"
+    assert all(e["to"] in {"component.payment-api", "document.x"} for e in missing["edges"]), "an edge to nothing is not proposed; the gap is named"
 
 
 # ---- end to end, in a project ----
@@ -130,7 +130,7 @@ def test_an_adr_proposes_a_decision_with_its_evidence_edges_and_supersession():
 def plan(tmp_path):
     root = str(tmp_path / "plan")
     with contextlib.redirect_stdout(io.StringIO()):
-        init(root, slug="plan", name="The plan", ontology="communication")
+        init(root, slug="plan", name="The plan", ontology="software-architecture")
     return root
 
 
@@ -174,7 +174,7 @@ def test_an_adr_goes_through_ingest_propose_and_the_gates_and_the_graph_answers_
     assert by_id["decision.adr-0017"]["status"] == "current" and by_id["decision.adr-0017"]["supersedes"] == "decision.adr-0009"
     code, out = _cli("build", "--project", plan)
     assert code == 0, out
-    code, out = _cli("query", "--project", plan, "ask", "PR26", "THING=workitem.s-settlement-batch")
+    code, out = _cli("query", "--project", plan, "ask", "PR26", "THING=component.payment-api")
     assert code == 0 and "status: answered" in out and "Returns net of fees" in out and "Gross returns" not in out, out
     code, out = _cli("query", "--project", plan, "entity", "decision.adr-0009", "--as-of", "2026-09-15")
     assert "status=superseded" in out and "valid_to=2026-10-20" in out, out
@@ -198,15 +198,13 @@ def test_an_adr_whose_frontmatter_is_wrong_or_points_at_nothing_is_refused_befor
 
 # ---- the vocabulary, the skill, the repository's own decisions ----
 
-def test_decision_declares_status_and_governs_and_the_estate_and_the_plan_widen_it():
+def test_decision_declares_status_and_governs_and_the_estate_widens_it():
     product, _s, _r = ontologies.load("product")
     assert product["attributes"]["Decision"]["status"]["type"] == "enum:proposed|accepted"
     assert product["properties"]["governs"]["domain"] == "Decision"
     arch, _s, _r = ontologies.load("software-architecture")
     assert "Component" in arch["properties"]["governs"]["range"]
-    work, _s, _r = ontologies.load("work")
-    assert "WorkItem" in work["properties"]["governs"]["range"]
-    for name in ("product", "software-architecture", "work", "communication"):
+    for name in ("product", "software-architecture"):
         assert ontologies.self_check(name) == [], name
 
 

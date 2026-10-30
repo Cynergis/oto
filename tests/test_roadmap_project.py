@@ -10,8 +10,7 @@ import shutil
 
 import pytest
 
-from oto import audit, snapshot
-from oto.packs import work as _work
+from oto import assertion as _assertion, audit, snapshot
 from oto.cli import main
 from oto.project import Project
 
@@ -80,15 +79,21 @@ def test_the_fourteen_epics_and_six_phases_are_facts_with_their_source_and_no_as
     assert docs and all(os.path.exists(os.path.join(ROADMAP, "build", "documents", d + ".md")) for d in docs), docs
 
 
+def _current_transition(graph, item):
+    of = {e["from"] for e in graph["edges"] if e["rel"] == "transition_of" and e["to"] == item}
+    return [n for n in graph["nodes"] if n["id"] in of and n["status"] == "current"]
+
+
 def test_what_shipped_is_deployed_by_the_pull_request_that_merged_it(copy):
-    board = _work.board(Project.standard(copy))
-    assert board["counts"] == {"open": len(EPICS) - len(SHIPPED), "blocked": 0, "deployed": len(SHIPPED)}
-    assert {d["id"]: d["environment"] for d in board["deployed"]} == {"workitem.epic-%s" % e: "prod" for e in SHIPPED}
+    """The board itself is the work pack's (Cynergis/oto-registry, packs/work, ADR-0010): here the committed graph says it."""
     graph = _graph()
+    current = {e.lower(): _current_transition(graph, "workitem.epic-%s" % e.lower()) for e in EPICS}
+    assert {e for e, ts in current.items() if ts and ts[0]["attributes"]["to"] == "deployed"} == set(SHIPPED)
+    assert {e: ts[0]["attributes"]["environment"] for e, ts in current.items() if e in SHIPPED} == {e: "prod" for e in SHIPPED}
+    assert not any(ts and ts[0]["attributes"]["to"] == "blocked" for ts in current.values()), "nothing blocked"
     for epic, event in SHIPPED.items():
-        current = [t for t in _work.transitions_of(graph, "workitem.epic-%s" % epic) if t["status"] == "current"]
-        assert len(current) == 1 and current[0]["attributes"]["event"] == "github:" + event, epic
-        assert current[0]["source_type"] == "human_assertion" or current[0].get("sources"), "the event is attributed"
+        assert len(current[epic]) == 1 and current[epic][0]["attributes"]["event"] == "github:" + event, epic
+        assert current[epic][0]["source_type"] == "human_assertion" or current[epic][0].get("sources"), "the event is attributed"
     code, out = _cli("query", "--project", copy, "ask", "WK12")
     assert code == 0 and out.count("w.deployed_to=prod") == len(SHIPPED), out
     code, out = _cli("query", "--project", copy, "ask", "WK11")
@@ -149,13 +154,13 @@ def test_the_build_is_clean_and_the_published_copy_is_publishable(copy):
     with open(project.ontology_config_path, encoding="utf-8") as f:
         vocabulary = json.load(f)
     graph = _graph()
-    assert _work.gates(project, graph, graph, vocabulary) == [], "the committed graph passes its own gates: shapes, blocking policies"
+    assert _assertion.gates(project, graph, graph, vocabulary) == [], "the committed graph passes its own gates: shapes, blocking policies"
     code, out = _cli("ontology", "check", "--project", copy)
     assert code == 0 and "every node satisfies them" in out, out
     live = snapshot.build(project)
-    assert live["work"]["counts"]["deployed"] == len(SHIPPED)
+    assert "work" not in live, "the board is the work pack's status hook: on the engine alone the snapshot has none (ADR-0010)"
     assert [f for f in live["rules"]["findings"] if f["severity"] == "blocking"] == []
     published = snapshot.published(live)
     assert snapshot.refusals(published) == []
-    code, out = _cli("work", "inbox", "--as", "Chiheb Dkhil", "--project", copy)
-    assert code == 0 and "nothing pending" in out, out
+    code, out = _cli("query", "--project", copy, "ask", "CM3")
+    assert code == 0 and ("status: empty" in out or "(no rows)" in out), "nothing pending past its due date; the inbox itself is the work pack's command\n" + out

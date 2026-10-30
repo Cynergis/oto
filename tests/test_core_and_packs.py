@@ -15,7 +15,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CORE_COMMANDS = {"init", "status", "lock", "sandbox", "ingest", "capture", "clipboard", "ontology", "lexicon", "pack", "registry", "rules", "tools",
                  "curate", "decide", "deploy", "connectors", "draft", "vet", "build", "preview", "query", "publish", "publishable", "bench",
                  "feedback", "audit", "graph", "version"}
-PACK_COMMANDS = {"work": "work and communication", "data": "data", "arch": "architecture", "policy": "policy"}   # ddd is the registry's (ADR-0010)
+PACK_COMMANDS = {"data": "data", "arch": "architecture", "policy": "policy"}   # ddd and work are the registry's (ADR-0010)
 
 
 def _read(*parts):

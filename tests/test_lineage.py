@@ -244,7 +244,7 @@ def test_lineage_refuses_what_it_cannot_cite(tmp_path, described):
     assert code == 1 and "no .sql" in out, out
     plain = str(tmp_path / "plain")
     with contextlib.redirect_stdout(io.StringIO()):
-        init(plain, slug="plain", name="Plain", ontology="communication")
+        init(plain, slug="plain", name="Plain", ontology="organization-process")
     code, out = _cli("data", "lineage", "--dbt", MANIFEST, "--store", "datastore.ledger", "--at", "2026-10-27", "--project", plain)
     assert code == 1 and "LoadJob" in out, out
     assert not os.path.exists(os.path.join(root, "proposals", "lineage-ledger-dbt.json"))

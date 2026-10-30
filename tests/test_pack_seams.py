@@ -50,7 +50,7 @@ def test_the_shipped_packs_declare_what_they_provide_and_the_core_names_none_of_
     assert "adapters" not in architecture and architecture["commands"] == [{"name": "arch", "module": "oto.cli.arch", "label": "architecture"}]
     for pack in ontologies.available():
         assert "adapters" not in (ontologies.manifest_for(pack).get("provides") or {}), "%s: the engine ships no framework adapter (ADR-0008)" % pack
-    for pack, command, module, label in (("work", "work", "oto.packs.work.cli", "work and communication"), ("data", "data", "oto.packs.data.cli", "data")):
+    for pack, command, module, label in (("data", "data", "oto.packs.data.cli", "data"),):
         provides = ontologies.manifest_for(pack)["provides"]
         assert provides["commands"] == [{"name": command, "module": module, "label": label}], pack
     assert [n for n, _p in builder.STAGES] == CORE_STAGES, "the core's stage list names no pack"
@@ -223,8 +223,8 @@ def test_a_composed_pack_s_stages_run_in_the_build_and_own_their_output(toy, tmp
 def test_a_pack_s_command_is_discovered_and_the_help_groups_it_under_its_pack(toy, tmp_path):
     found = {c["name"]: c for c in extensions.commands()}
     assert found["toy"]["module"] == "toy_ext" and found["toy"]["pack"] == "toy" and found["toy"]["label"] == "toys"
-    assert {"policy", "work", "data", "arch"} <= set(found)
-    assert "ddd" not in found, "the domain model is a pack of the registry (ADR-0010): the engine alone has no ddd command"
+    assert {"policy", "data", "arch"} <= set(found)
+    assert not {"ddd", "work"} & set(found), "the domain model and the plan are packs of the registry (ADR-0010): the engine alone has neither command"
     code, out = _cli("toy", "--project", "somewhere")
     assert code == 0 and "toy says hello from somewhere" in out, out
     code, out = _cli("--help")

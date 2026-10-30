@@ -245,7 +245,7 @@ def test_introspecting_again_an_unchanged_store_changes_nothing(described, ledge
 def test_introspect_refuses_a_vocabulary_without_tables_and_a_missing_store(tmp_path, ledger_db):
     plain = str(tmp_path / "plain")
     with contextlib.redirect_stdout(io.StringIO()):
-        init(plain, slug="plain", name="Plain", ontology="communication")
+        init(plain, slug="plain", name="Plain", ontology="organization-process")
     code, out = _cli("data", "introspect", "--path", ledger_db, "--store", "datastore.ledger", "--at", "2026-10-26", "--project", plain)
     assert code == 1 and "Table" in out and "data" in out, out
     root = str(tmp_path / "d")

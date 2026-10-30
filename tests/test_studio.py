@@ -41,20 +41,20 @@ def test_a_view_declares_its_place_and_wrong_declarations_are_refused():
             assert (words is None and found == []) or any(words in p for p in found), (bad, found)
 
 
-def test_the_pages_come_in_reading_order_with_the_front_page_first_and_the_explorer_last():
+def test_the_pages_come_in_reading_order_with_the_front_page_first_and_the_workbench_last():
     with tempfile.TemporaryDirectory() as base:
         views = [_view(base, "runs", title="Where it runs", place="runs", shows=["Environment"]),
                  _view(base, "spec", title="What it must do", place="product", shows=["Requirement"]),
                  _view(base, "front", title="Overview", portal=True),
                  _view(base, "design", title="How it is designed", place="design", shows=["Component", "Requirement"]),
-                 ("explorer", os.path.join(apps.UI_DIR, "explorer")),
+                 ("workbench", os.path.join(apps.UI_DIR, "workbench")),
                  _view(base, "loose")]
         data = studio.data(views, PAYLOAD)
-        assert [p["name"] for p in data["pages"]] == ["front", "spec", "design", "runs", "loose", "explorer"]
+        assert [p["name"] for p in data["pages"]] == ["front", "spec", "design", "runs", "loose", "workbench"]
         assert data["portal"] == "front" and data["project"]["name"] == "Fund reports"
         places = {p["id"]: p["pages"] for p in data["places"]}
         assert places["front"] == [] and places["product"] == ["spec"] and places["other"] == ["loose"]
-        assert places["technical"] == ["explorer"]
+        assert places["technical"] == ["workbench"]
         assert data["entities"]["requirement.r1"] == {"label": "Produce the profile monthly", "view": "spec"}, \
             "a thing opens on the first page, in reading order, that shows it"
         assert data["entities"]["component.c1"]["view"] == "design" and "component.old" not in data["entities"]

@@ -316,9 +316,9 @@ files in `inbox/`, documents in `processing/`, every proposal under `proposals/`
 `curate add --dry-run` would (on top of the open candidate, in file order, a refused proposal
 listed with its reason rather than dropped), and the candidate's changes against the live graph
 (new, changed, updated, retired). The thirteenth tool, `kg_pending`, and `oto query pending`
-list it by station; the payload carries the same rows under `pending`, so the explorer draws a
-pending entity dotted with its station badge and a pending edge dotted, the reader lists them on
-the home page and on the page they would change, and a custom app projects them with `$pending`.
+list it by station; the payload carries the same rows under `pending`, so the workbench's graph draws a
+pending entity dotted with its station badge and a pending edge dotted, its pages list them where they
+would change, and a custom app projects them with `$pending`.
 
 Three regimes decide when a served view moves. **Live**, the default: the view shows the believed
 graph and changes only when a candidate is applied and built (in repository mode, when the pull
@@ -367,42 +367,31 @@ project whose vocabulary lacks what the app requires, naming what is missing, ra
 an empty page. Three fixture apps of deliberately different shapes, under `tests/fixtures/apps/`,
 with their expected output checked in, keep the contract from becoming any one app's shape.
 
-The engine ships two apps and uses the first when none is named, for `oto serve --http` and for
-the site stage alike.
+The engine ships one app, the **workbench**, and uses it when none is named, for `oto serve --http`
+and for the site stage alike (ADR: the explorer and the reader, the two earlier built-ins, are
+inside it; neither is served on its own any more).
 
-The **explorer**, under [ui/explorer/](../oto/ui/explorer/), is the generic view for every
-ontology: the graph as a columnar canvas, one column per class in the vocabulary's own order,
-a legend of class chips that filter, hover to light a neighbourhood, click for a detail panel
-with the entity's provenance line, attributes, evidence quotes, its connections grouped by
-relation with an incoming edge named by the inverse the vocabulary declares, a derived edge
-marked by its rule with its premises, and history. A dashed node cites no evidence; a dashed
-edge was derived. Above a threshold of entities it switches to focus mode and draws the
-neighbourhood of a searched or selected entity, hop by hop. It is ported from the Ascent
-prototype's reusable graph explorer and made vocabulary-driven: the columns, the palette and
-what counts as evidenceable are derived in `defaults.js`, and an ontology or a project may tune
-them with a `views/explorer.json` (columns, colours, icons, evidenceable classes, threshold,
-title), which the app's manifest names under `overrides` and the engine serves and exports
-beside the app when present. It needs React and React Flow, so its source lives in
-[ui-src/explorer/](../ui-src/explorer/) with one esbuild step (`npm run build` in `ui-src/`)
-and the built bundle is committed, so a user installs nothing and the app makes no network call
-beyond the engine. Its pure modules, the payload adapter and the defaults, are tested under Node.
+The **workbench**, under [ui/workbench/](../oto/ui/workbench/), is one page for a project over two
+objects, the snapshot (`api/status`, or `snapshot.json` when exported) and the graph payload
+(`data.json`). Its Knowledge page is the graph two ways: Browse, the former reader, lists things by
+kind and finds them by search, and opens one with its provenance, attributes typed and derived,
+relations grouped by name with derived ones marked and their premises, history, evidence quotes and
+documents; Graph is the former explorer mounted as a component, the graph as a columnar canvas, one
+column per class in the vocabulary's own order, a legend of class chips that filter, hover to light a
+neighbourhood, click for the detail, a dashed node citing no evidence and a dashed edge derived, focus
+mode above a threshold of entities. `#/knowledge/graph` opens it on the graph, which is what the
+registry's catalog embeds. Around them: Overview, Ontology (classes, rules, lexicon, dependencies,
+versions), Project (the stations) and Work. The graph's columns, palette, icons, evidenceable classes,
+threshold and title are derived in the explorer's `defaults.js` and tuned by a `views/explorer.json`
+from an ontology, a pack or the project, which the app's manifest names under `overrides` and the
+engine serves and exports beside the page when present. The workbench needs React, React Flow and
+shadcn/ui, so its source lives in [ui-src/workbench/](../ui-src/workbench/) and the graph component's
+in [ui-src/explorer/](../ui-src/explorer/), built with one esbuild step (`npm run build` in `ui-src/`);
+the built bundle is committed, so a user installs nothing and the app makes no network call beyond
+the engine. In live mode it polls `/api/changes` and reloads on a new build; opened from disk it
+says "static". The graph's pure modules, the payload adapter and the defaults, are tested under Node.
 
-The **reader**, under [ui/reader/](../oto/ui/reader/), is the page-shaped alternative,
-served with `--view reader`. It is plain HTML, CSS
-and JavaScript with no build toolchain and no network beyond the engine, and its `app.json`
-asks for the whole payload as `data.json` (`{"$graph": true}`), so a static export needs nothing
-the site stage does not already write. Seven pages behind hash routes: home as the map (counts,
-classes, the most connected entities, recent changes, the corpus frontier, the pending count
-when the lane is on), a section per class, the entity card with provenance, aliases, attributes
-typed and derived, relations grouped by name with derived ones marked and their premises
-expandable, history, findings, sources and evidence quotes, the document page with its passage
-and everything that cites it, search over entities and passages, findings and rules, and the
-ledger. Both themes, phone width, no external font. In live mode it polls `/api/changes` and
-reloads on a new build; opened from disk it says "static". Its pure functions (indexing, search,
-each page's markup) are exported and tested under Node over a real payload, and a Python smoke
-test serves it and exports it.
-
-A domain's own app is attached the same way either built-in is chosen: `--view <name|dir>`, with
+A domain's own app is attached the same way the built-in is chosen: `--view <name|dir>`, with
 the app under the ontology's or the project's `views/`, and served live or exported static.
 
 No shipped ontology carries an app yet: a generic view that applies to every ontology is
@@ -562,8 +551,8 @@ The catalog ([catalog.py](../oto/catalog.py)) is how a person browses before ins
 packs and ontologies grouped by domain, one page per pack (install lines, the classes with the
 question each answers and why it exists, the relations, the tools, the skills, the views, the
 guide, the changelog) and one per ontology. A pack's page draws its sample graph with the
-explorer: a throwaway project is started from the pack, built, and exported as the explorer's
-static site under the page. The registry's site workflow, written with the check workflow when a
+workbench: a throwaway project is started from the pack, built, and exported as the workbench's
+static site under the page, opened on its graph. The registry's site workflow, written with the check workflow when a
 registry is created, generates it on every push and publishes it with GitHub Pages; the site
 directory is ignored by git.
 

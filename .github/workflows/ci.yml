@@ -141,7 +141,7 @@ jobs:
         working-directory: ui-src
         run: npm run typecheck
       - name: Rebuild and compare with the committed bundles
-        # The explorer and workbench bundles under oto/ui/ are committed so a user needs no Node.
+        # The workbench bundle under oto/ui/ (the explorer's graph inside it) is committed so a user needs no Node.
         # The build is deterministic, so a rebuild from ui-src/ must leave them byte for byte as
         # they are. If it does not, someone changed ui-src/ without rebuilding, or the reverse.
         run: |

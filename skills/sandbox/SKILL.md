@@ -124,7 +124,7 @@ message, the approval is missing: §2, then `up --recreate`. From a terminal ins
 
 To see a served graph from their own browser: in the sandbox session, `oto serve --project . --http 8798`
 (it binds all interfaces there and needs no token), and on their computer `http://localhost:8798/`; 8799
-for a second view. `up` publishes both ports when it makes the sandbox; `--publish <port>` adds others.
+for a second server, a pack's view. `up` publishes both ports when it makes the sandbox; `--publish <port>` adds others.
 
 Later, `oto sandbox status` says whether it is still ready; `oto sandbox up` starts it again after a
 restart of the computer. Every sandbox on the computer, and cleaning up the ones no longer used, is the

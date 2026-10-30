@@ -19,7 +19,7 @@ From the person's computer, `oto sandbox status` says whether anything from outs
 **Serving the graph.** `oto serve --project . --http 8798` here listens on all interfaces, with no
 token: the engine knows it runs inside the kit, and the sandbox tool forwards the port only to the
 person's computer, on its localhost. The person opens `http://localhost:8798/` in their own browser (8799
-for a second view: `--view reader`). A server bound to this sandbox's loopback is unreachable from the
+for a second server, a pack's view with `--view <name>`). A server bound to this sandbox's loopback is unreachable from the
 computer, so never pass `127.0.0.1:<port>`. The ports are published when the sandbox is made
 (`oto sandbox up`, 8798 and 8799); another port is `sbx ports <name> --publish <port>:<port>` on the
 computer, live from the sandbox's next start.

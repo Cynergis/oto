@@ -189,7 +189,7 @@ def test_a_view_a_pack_ships_is_found_by_name(home):
     shutil.copytree(os.path.join(FIXTURES, "globals-site"), os.path.join(directory, "views", "globals-site"))
     assert apps.resolve("globals-site") == os.path.join(directory, "views", "globals-site")
     assert ("globals-site", os.path.join(directory, "views", "globals-site"), "pack arch") in apps.available()
-    assert apps.resolve("explorer").endswith(os.path.join("ui", "explorer")), "the built-ins are still found"
+    assert apps.resolve("workbench").endswith(os.path.join("ui", "workbench")), "the built-in is still found"
 
 
 def test_an_ontology_carries_no_views_plugin_or_skills_any_more(home):

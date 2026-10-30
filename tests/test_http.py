@@ -256,8 +256,8 @@ def test_site_config_drives_the_stage_and_passages_can_be_dropped(capsys):
             json.dump(cfg, f)
         build(project)
         out = capsys.readouterr().out
-        assert "site:" in out and "with app explorer" in out
-        assert os.path.exists(os.path.join(project.layout.site, "explorer.js")), "the explorer is the default app"
+        assert "site:" in out and "with app workbench" in out
+        assert os.path.exists(os.path.join(project.layout.site, "workbench.js")), "the workbench is the default app"
         with open(os.path.join(project.layout.site, "data.json"), encoding="utf-8") as f:
             assert "passages" not in json.load(f)
 
@@ -465,13 +465,13 @@ def test_the_site_of_a_project_with_views_is_a_home_page_and_every_view():
         for kit in ("studio.css", "studio.js"):
             assert os.path.exists(os.path.join(site, "_studio", kit)), kit
         studio = open(os.path.join(site, "_studio", "data.js"), encoding="utf-8").read()
-        assert studio.startswith("window.__STUDIO__ = ") and '"title":"Explore the knowledge graph"' in studio
+        assert studio.startswith("window.__STUDIO__ = ") and '"title":"The workbench"' in studio
         listing = json.load(open(os.path.join(site, "views.json"), encoding="utf-8"))
         assert listing["project"]["name"] == "Acme"
-        assert [(v["name"], v["path"]) for v in listing["views"]] == [("board", "board/"), ("map", "map/"), ("explorer", "explorer/")]
+        assert [(v["name"], v["path"]) for v in listing["views"]] == [("board", "board/"), ("map", "map/"), ("workbench", "workbench/")]
         assert listing["views"][0]["summary"] == "The board."
         assert "__COUNT__" in open(os.path.join(site, "board", "data.js"), encoding="utf-8").read()
-        assert os.path.exists(os.path.join(site, "explorer", "data.json")) and os.path.exists(os.path.join(site, "map", "index.html"))
+        assert os.path.exists(os.path.join(site, "workbench", "data.json")) and os.path.exists(os.path.join(site, "map", "index.html"))
         assert main(["build", "--project", root, "--target", "site", "--view", "map"]) == 0
         assert not os.path.exists(os.path.join(site, "views.json")), "one view named: that view at the root, as before"
         assert os.path.exists(os.path.join(site, "data.js")) and os.path.exists(os.path.join(site, "_studio", "studio.js"))
@@ -492,19 +492,19 @@ def test_the_server_mounts_every_view_under_the_home_page():
             assert status == 200 and b"_studio/data.js" in body
             status, ctype, body = _get(server.url + "/_studio/data.js")
             studio = json.loads(body.decode("utf-8").split(" = ", 1)[1].rstrip().rstrip(";"))
-            assert status == 200 and "javascript" in ctype and [p["name"] for p in studio["pages"]] == ["board", "map", "explorer"]
+            assert status == 200 and "javascript" in ctype and [p["name"] for p in studio["pages"]] == ["board", "map", "workbench"]
             status, ctype, body = _get(server.url + "/_studio/studio.css")
             assert status == 200 and "css" in ctype and b".studio-bar" in body
             status, _ctype, body = _get(server.url + "/views.json")
-            assert [v["name"] for v in json.loads(body)["views"]] == ["board", "map", "explorer"]
+            assert [v["name"] for v in json.loads(body)["views"]] == ["board", "map", "workbench"]
             status, _ctype, body = _get(server.url + "/board/")
             assert status == 200 and b"<title>board</title>" in body
             status, _ctype, body = _get(server.url + "/board/data.js")
             assert status == 200 and b"__COUNT__" in body
-            status, _ctype, body = _get(server.url + "/explorer/data.json")
+            status, _ctype, body = _get(server.url + "/workbench/data.json")
             assert status == 200 and json.loads(body)["nodes"], "a built-in view's relative data.json resolves under its prefix"
-            status, _ctype, body = _get(server.url + "/explorer/api/status")
-            assert status == 200 and json.loads(body)["views"] == ["board", "map", "explorer"]
+            status, _ctype, body = _get(server.url + "/workbench/api/status")
+            assert status == 200 and json.loads(body)["views"] == ["board", "map", "workbench"]
             req = urllib.request.Request(server.url + "/map")
             opener = urllib.request.build_opener(type("NoRedirect", (urllib.request.HTTPRedirectHandler,), {"redirect_request": lambda *a, **k: None}))
             try:
@@ -532,7 +532,7 @@ def test_a_page_asking_for_its_data_files_at_once_gets_them_all():
                               mounts=views, catalog=apps.catalog(views, project.config())).start()
         try:
             results = []
-            paths = ["/_studio/data.js", "/board/data.js", "/map/data.js", "/explorer/data.json", "/api/status"] * 4
+            paths = ["/_studio/data.js", "/board/data.js", "/map/data.js", "/workbench/data.json", "/api/status"] * 4
             def fetch(path):
                 try:
                     results.append(_get(server.url + path)[0])

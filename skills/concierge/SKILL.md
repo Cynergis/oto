@@ -82,7 +82,7 @@ proposals  --oto curate start / add-->  graph.candidate.json
 candidate  --oto curate check-->  the report: blocking problems, contradictions, gaps, personal data
 candidate  --oto curate apply --by --note-->  graph.json + changelog   (the ledger)
 graph.json --oto build-->  build/: entities, rules (derived.json), ontology, cards, <slug>.db, site
-build      --oto serve-->  kg_* tools (stdio) | --http: the explorer, /api/graph
+build      --oto serve-->  kg_* tools (stdio) | --http: the workbench, /api/graph
 build      --oto bench run-->  answer quality against gold/questions.jsonl
 ```
 
@@ -109,7 +109,7 @@ oto bench validate --project <root>      # the gold set's shape
 | Where apply happens | locally by a person; in a repository, by pull request | local for one author; repository mode for a team | `oto curate apply --by <you> --note <why>`; `oto init --repo` and the workflows it writes |
 | Which store serves | SQLite, the local build; Neo4j, self-hosted, shared | SQLite until more than one machine reads; Neo4j is the production store | `serve.backend` in `project.config.json`, `oto serve --backend sqlite|neo4j`, `oto build --target neo4j --verify` |
 | What a served view shows | live (believed facts, the pending lane beside them); preview, on command; watch, on every change | live for readers; watch while authoring | `oto serve --http <port>`, `oto preview`, `oto serve --http <port> --preview`, `oto serve --http <port> --watch` |
-| How people read it | the explorer; the reader; a custom view | the explorer | `oto serve --http <port>`, `--view reader`, `--view <name|dir>` |
+| How people read it | the workbench (the graph as pages and as a graph, the ontology, the project); a custom view | the workbench | `oto serve --http <port>`, `--view <name|dir>` |
 | Server or static site | a server on this machine; a static site to host anywhere | a server for a person at the keyboard; the site for a team | `oto serve --http <port>`, `oto build --target site`, `oto publish --repo <url> --site` |
 | What the data means | a store's catalog introspected in place; its lineage from a dbt manifest or the ETL's SQL; its usage from the query log; each table's and column's meaning, drafted then confirmed | the catalog first, then lineage and usage, then the meanings: the data-meaning skill drafts, a named person confirms | `oto data introspect`, `oto data lineage`, `oto data usage`, `oto data meaning`, the data-meaning skill, `oto data confirm` |
 | Who may do what with the data | access policy as facts on the data layer: a rule permits or forbids a permission for a role or a team, a table or a column says how it is classified and whether it holds personal data; the active rules compiled into a Cedar bundle with a JSON form, hashed and signed, carried by the deploy pipeline | the rules as facts first, drafted then activated by a named person; only active rules compile; the graph is edited, never the bundle | `oto init --ontology policy`, `oto decide policyrule.<id> status=active --by <who> --at <date>`, `oto policy compile`, `oto policy verify`, `oto policy list`, `oto policy snapshot --agent <id> --principal <id> [--ttl <hours>]`, `oto policy denials --events <file>`, `X-Oto-Principal` on a served read, `oto policy iam [--apply --by <who>]` for the generated system's bindings (build/iam, never enforced by OTO), PL1 to PL8 |

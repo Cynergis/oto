@@ -319,7 +319,7 @@ def test_init_installs_the_views_of_every_declared_pack(claude, capsys):
     directory = _pack(str(claude["tmp"] / "cache" / "claimsplus"), "pack-claims",
                       {"pack-claims": ("auto-claims", 3), "oto-core": ("oto-core", 5)})
     _with_view(directory, "claims-map", "Where each claim stands.")
-    _with_view(directory, "explorer", "A pack view named like the built-in.")
+    _with_view(directory, "workbench", "A pack view named like the built-in.")
     _installed_pack(claude, "claimsplus@acme", directory)
     root = str(claude["tmp"] / "project")
     init(root, slug="p", name="P", ontology="pack-claims", empty=True)
@@ -327,8 +327,8 @@ def test_init_installs_the_views_of_every_declared_pack(claude, capsys):
     assert "wrote: views/claims-map (from claimsplus@acme)" in out
     assert os.path.exists(os.path.join(root, "views", "claims-map", "app.json"))
     from oto.apps import manifest as apps
-    assert [name for name, _d in apps.project_views(root)] == ["claims-map", "explorer"]
-    assert apps.project_views(root)[1][1] == os.path.join(root, "views", "explorer"), "a project view wins over the built-in"
+    assert [name for name, _d in apps.project_views(root)] == ["claims-map", "workbench"]
+    assert apps.project_views(root)[1][1] == os.path.join(root, "views", "workbench"), "a project view wins over the built-in"
     assert apps.default_view(root) == apps.ALL
 
 
@@ -341,10 +341,10 @@ def test_lock_use_installs_the_views_of_the_tool_it_declares(claude, capsys):
     assert os.path.isdir(os.path.join(project.data, "views", "tool-board"))
 
 
-def test_a_project_without_views_of_its_own_keeps_the_explorer(tmp_path):
+def test_a_project_without_views_of_its_own_keeps_the_workbench(tmp_path):
     from oto.apps import manifest as apps
-    assert apps.default_view(str(tmp_path)) == "explorer"
-    assert apps.project_views(str(tmp_path)) == [("explorer", os.path.join(apps.UI_DIR, "explorer"))]
+    assert apps.default_view(str(tmp_path)) == "workbench"
+    assert apps.project_views(str(tmp_path)) == [("workbench", os.path.join(apps.UI_DIR, "workbench"))]
 
 
 def test_status_marks_the_projects_pattern_packs(claude, capsys):

@@ -1,6 +1,8 @@
-"""The graph explorer: the generic default app. Its pure modules under Node over a real payload,
-the built bundle in the package, served and exported by default, a project's explorer.json
-override served and copied, and the reader still there by name."""
+"""The graph explorer lives inside the workbench: its pure modules under ui-src/explorer (the payload
+adapter and the vocabulary-driven defaults) are the Graph tab of the workbench's Knowledge page, and
+the workbench is the one built-in view. The explorer is no longer an app of its own, nor is the
+reader: `oto/ui/` holds the workbench, the home page of `all` and the studio kit. A project's or a
+pack's `views/explorer.json` still tunes the graph, through the workbench's `overrides`."""
 import json
 import os
 import shutil
@@ -19,9 +21,8 @@ from oto.serve.store import SqliteStore
 
 from test_apps import _engine, _get
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
-EXPLORER = os.path.join(ROOT, "oto", "ui", "explorer")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WORKBENCH = os.path.join(ROOT, "oto", "ui", "workbench")
 SRC = os.path.join(ROOT, "ui-src", "explorer")
 NODE = shutil.which("node")
 
@@ -41,19 +42,20 @@ def _project(root):
     return project
 
 
-def test_the_explorer_is_a_valid_built_app_and_the_default():
-    from oto.model import ontologies
-    vocabulary, _s, _r = ontologies.load("software-architecture")
-    assert apps.problems(EXPLORER, vocabulary) == []
-    manifest = apps.read(EXPLORER)
-    assert manifest["overrides"] == ["explorer.json"] and manifest["data"][0]["root"] == {"$graph": True}
-    assert apps.resolve("explorer") == EXPLORER and apps.resolve("reader").endswith("reader")
-    for name in ("index.html", "explorer.js", "explorer.css", "app.json"):
-        assert os.path.exists(os.path.join(EXPLORER, name)), name
-    with open(os.path.join(EXPLORER, "explorer.js"), encoding="utf-8") as f:
+def test_the_explorer_and_the_reader_are_no_longer_apps_of_their_own():
+    assert sorted(d for d in os.listdir(os.path.join(ROOT, "oto", "ui")) if not d.startswith(".")) == ["_studio", "home", "workbench"]
+    for gone in ("explorer", "reader"):
+        with pytest.raises(apps.AppError):
+            apps.resolve(gone)
+    assert [name for name, _d, where in apps.available() if where == "built-in" and name != "home"] == ["workbench"], "the home page of `all` aside"
+    assert apps.BUILTIN == "workbench" and apps.default_view(tempfile.gettempdir()) == "workbench"
+    for name in ("explorer.jsx", "adapter.js", "defaults.js", "explorer.css"):
+        assert os.path.exists(os.path.join(SRC, name)), "the graph component's source stays for the workbench: %s" % name
+    assert not os.path.exists(os.path.join(SRC, "main.jsx")) or "oto/ui/explorer" not in open(os.path.join(ROOT, "ui-src", "build.mjs"), encoding="utf-8").read(), \
+        "the build writes no explorer app"
+    with open(os.path.join(WORKBENCH, "workbench.js"), encoding="utf-8") as f:
         bundle = f.read()
-    assert len(bundle) > 100000 and "http" not in bundle[:200], "a built bundle, React and React Flow inside"
-    assert "cdn" not in bundle.lower()[:5000]
+    assert "explorer.json" in bundle and '"graph"' in bundle, "the workbench reads the graph's override and knows the graph route"
 
 
 @pytest.mark.skipif(not NODE, reason="node is not on the PATH")
@@ -68,7 +70,7 @@ def test_the_adapter_and_the_defaults_under_node():
         path = os.path.join(root, "payload.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(payload, f)
-        r = subprocess.run([NODE, os.path.join(HERE, "explorer_checks.js"), SRC, path], capture_output=True, text=True, timeout=60)
+        r = subprocess.run([NODE, os.path.join(ROOT, "tests", "explorer_checks.js"), SRC, path], capture_output=True, text=True, timeout=60)
         assert r.returncode == 0, r.stderr
         out = json.loads(r.stdout)
         assert out["historyNodes"] == out["nodes"] + 1, "a superseded node is dropped unless history is asked for"
@@ -95,7 +97,7 @@ def test_the_adapter_and_the_defaults_under_node():
         assert out["readable"] == ["Decision Record", "data store"]
 
 
-def test_served_by_default_with_a_project_override_and_exported():
+def test_the_project_override_is_served_and_exported_beside_the_workbench():
     from oto.serve import http as _http
     with tempfile.TemporaryDirectory() as root:
         project = _project(root)
@@ -103,14 +105,13 @@ def test_served_by_default_with_a_project_override_and_exported():
         with open(os.path.join(root, "views", "explorer.json"), "w", encoding="utf-8") as f:
             json.dump({"columns": [["Team"], ["System"]], "title": "Acme graph"}, f)
         engine = _engine(project)
-        app = apps.resolve(None) or apps.resolve("explorer", root)
+        app = apps.resolve(apps.default_view(root), root)
+        assert app == WORKBENCH
         server = _http.Server(engine, "127.0.0.1", 0, app_dir=app, project_root=root, identity=project.config()).start()
         try:
-            status, ctype, html = _get(server.url + "/")
-            assert status == 200 and "explorer.js" in html
-            status, ctype, text = _get(server.url + "/explorer.js")
-            assert status == 200 and "javascript" in ctype
-            status, ctype, text = _get(server.url + "/explorer.json")
+            status, _c, html = _get(server.url + "/")
+            assert status == 200 and "workbench.js" in html
+            status, _c, text = _get(server.url + "/explorer.json")
             assert status == 200 and json.loads(text)["title"] == "Acme graph", "the project's override is served beside the app"
             status, _c, text = _get(server.url + "/data.json")
             assert json.loads(text)["vocabulary"]["classes"]["System"]
@@ -118,16 +119,15 @@ def test_served_by_default_with_a_project_override_and_exported():
             server.stop()
         assert main(["build", "--project", root, "--target", "site"]) == 0
         site = project.layout.site
-        for name in ("index.html", "explorer.js", "explorer.css", "data.json", "explorer.json"):
+        for name in ("index.html", "workbench.js", "workbench.css", "data.json", "snapshot.json", "explorer.json"):
             assert os.path.exists(os.path.join(site, name)), name
         with open(os.path.join(site, "explorer.json"), encoding="utf-8") as f:
             assert json.load(f)["title"] == "Acme graph"
-        # without an override nothing is served for it, and the app still works
         os.remove(os.path.join(root, "views", "explorer.json"))
-        server = _http.Server(engine, "127.0.0.1", 0, app_dir=apps.resolve("explorer", root), project_root=root, identity=project.config()).start()
+        server = _http.Server(engine, "127.0.0.1", 0, app_dir=app, project_root=root, identity=project.config()).start()
         try:
             status, _c, _t = _get(server.url + "/explorer.json")
-            assert status == 404
+            assert status == 404, "without an override nothing is served for it, and the app still works"
         finally:
             server.stop()
 
@@ -144,6 +144,6 @@ def test_a_pack_may_supply_the_override(monkeypatch, capsys):
         assert packs.check(base) == [], "an override file beside no app is fine"
         with tempfile.TemporaryDirectory() as root:
             init(root, slug="t", name="T", ontology="software-architecture")
-            manifest = apps.read(EXPLORER)
+            manifest = apps.read(WORKBENCH)
             found = apps.override_files(manifest, root)
             assert found["explorer.json"] == os.path.join(base, "views", "explorer.json")

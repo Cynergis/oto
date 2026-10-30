@@ -380,8 +380,11 @@ documents; Graph is the former explorer mounted as a component, the graph as a c
 column per class in the vocabulary's own order, a legend of class chips that filter, hover to light a
 neighbourhood, click for the detail, a dashed node citing no evidence and a dashed edge derived, focus
 mode above a threshold of entities. `#/knowledge/graph` opens it on the graph, which is what the
-registry's catalog embeds. Around them: Overview, Ontology (classes, rules, lexicon, dependencies,
-versions), Project (the stations) and Work. The graph's columns, palette, icons, evidenceable classes,
+registry's catalog embeds. The tabs run in the order a reader meets a project: Overview, Project (the
+stations), Ontology (classes, rules, lexicon, questions, versions, dependencies: the competency questions
+sit here, with the vocabulary they are the contract of, not among the stations) and Knowledge, then Work
+when the vocabulary has work items. A thing opened from a kind's list keeps that list beside it
+(`#/knowledge/kind/<Class>/<id>`). The graph's columns, palette, icons, evidenceable classes,
 threshold and title are derived in the explorer's `defaults.js` and tuned by a `views/explorer.json`
 from an ontology, a pack or the project, which the app's manifest names under `overrides` and the
 engine serves and exports beside the page when present. The workbench needs React, React Flow and

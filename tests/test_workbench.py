@@ -1,4 +1,4 @@
-"""The workbench: one app for a project, Overview, Knowledge (the reader's pages and the explorer's graph)
+"""The workbench: one app for a project, Overview, Project, Ontology, Knowledge (the reader's pages and the explorer's graph)
 and Project (the stations). A built bundle in the package like the explorer's, read-only, served by
 name with the snapshot beside the graph, and the reader and the explorer unchanged beside it."""
 import json
@@ -38,6 +38,11 @@ def test_the_workbench_is_the_one_built_in_app():
     for route in ("api/status", "api/changes", "data.json", "snapshot.json"):
         assert route in bundle, route
     assert "#/work" in bundle and "waits on" in bundle, "the Work page: the board over the snapshot's work section"
+    tabs = ['value:"overview",children:"Overview"', 'value:"project",children:"Project"', 'value:"ontology",children:"Ontology"', 'value:"knowledge",children:"Knowledge"']
+    at = [bundle.find(t) for t in tabs]
+    assert -1 not in at and at == sorted(at), "the tabs run Overview, Project, Ontology, Knowledge: where it stands, what it is made of, what it knows"
+    assert "#/ontology/questions" in bundle and "Questions it must answer" in bundle, "the competency questions are a tab of the Ontology page"
+    assert "#/knowledge/kind/" in bundle, "a thing opened from a kind's list keeps the list: #/knowledge/kind/<Class>/<id>"
     with open(os.path.join(WORKBENCH, "workbench.css"), encoding="utf-8") as f:
         css = f.read()
     assert "--mx-accent" in css and "--primary" in css, "the explorer's variables renamed beside shadcn's tokens"

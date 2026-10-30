@@ -1,7 +1,10 @@
-/* The workbench: Overview, Knowledge, Ontology, Project and, when the vocabulary has work items, Work,
- * over one snapshot and one graph. Where the reader is lives in the address (#/overview, #/knowledge/<id>, #/knowledge/graph,
- * #/knowledge/kind/<Class>, #/ontology/<Class>, #/ontology/rules/<Class>, #/ontology/lexicon/<words>,
- * #/ontology/dependencies/<graph>, #/ontology/versions, #/project/<station>, #/work), so a link to a page can be shared and the browser's back button works. */
+/* The workbench: Overview, Project, Ontology, Knowledge and, when the vocabulary has work items, Work, in
+ * the order a reader meets a project (where it stands, what it is made of, what it knows), over one snapshot
+ * and one graph. Where the reader is lives in the address (#/overview, #/project/<station>, #/ontology/<Class>,
+ * #/ontology/rules/<Class>, #/ontology/lexicon/<words>, #/ontology/dependencies/<graph>, #/ontology/versions,
+ * #/ontology/questions, #/knowledge/<id>, #/knowledge/kind/<Class>, #/knowledge/kind/<Class>/<id> (a thing
+ * opened from a kind's list keeps that list beside it), #/knowledge/graph, #/work), so a link to a page can be
+ * shared and the browser's back button works. */
 import * as React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { Badge } from "./components/ui/badge";
@@ -15,10 +18,11 @@ import { Dependencies } from "./views/Dependencies";
 import { Versions } from "./views/Versions";
 import { Project } from "./views/Project";
 import { Work } from "./views/Work";
+import { Questions } from "./views/Questions";
 import type { LinkTarget, StationId } from "./types";
 import { follow, load, type Loaded } from "./data";
 
-type OntologyView = "classes" | "rules" | "lexicon" | "dependencies" | "versions";
+type OntologyView = "classes" | "rules" | "lexicon" | "dependencies" | "versions" | "questions";
 type Route = { section: "overview" | "knowledge" | "ontology" | "project" | "work"; entity: string | null; kind: string | null; klass: string | null; view: OntologyView; term: string; graph: string | null; station: StationId };
 const STATIONS: StationId[] = ["sources", "survey", "vocabulary", "curate", "build", "rules", "test", "deploy"];
 
@@ -27,7 +31,7 @@ function parse(hash: string): Route {
   const route: Route = { section: "overview", entity: null, kind: null, klass: null, view: "classes", term: "", graph: null, station: "vocabulary" };
   if (parts[0] === "knowledge") {
     route.section = "knowledge";
-    if (parts[1] === "kind") route.kind = parts[2] || null;
+    if (parts[1] === "kind") { route.kind = parts[2] || null; route.entity = parts[3] || null; }
     else if (parts[1] === "graph") route.graph = "graph";
     else route.entity = parts[1] || null;
   } else if (parts[0] === "ontology") {
@@ -36,6 +40,7 @@ function parse(hash: string): Route {
     else if (parts[1] === "lexicon") { route.view = "lexicon"; route.term = parts.slice(2).join("/"); }
     else if (parts[1] === "dependencies") { route.view = "dependencies"; route.graph = parts[2] || null; }
     else if (parts[1] === "versions") route.view = "versions";
+    else if (parts[1] === "questions") route.view = "questions";
     else route.klass = parts[1] || null;
   } else if (parts[0] === "project") {
     route.section = "project";
@@ -47,12 +52,16 @@ function parse(hash: string): Route {
 }
 
 function href(r: Partial<Route> & { section: Route["section"] }) {
-  if (r.section === "knowledge") return "#/knowledge" + (r.entity ? "/" + encodeURIComponent(r.entity) : r.kind ? "/kind/" + encodeURIComponent(r.kind) : "");
+  if (r.section === "knowledge") {
+    if (r.kind) return "#/knowledge/kind/" + encodeURIComponent(r.kind) + (r.entity ? "/" + encodeURIComponent(r.entity) : "");
+    return "#/knowledge" + (r.entity ? "/" + encodeURIComponent(r.entity) : "");
+  }
   if (r.section === "ontology") {
     if (r.view === "rules") return "#/ontology/rules" + (r.klass ? "/" + encodeURIComponent(r.klass) : "");
     if (r.view === "lexicon") return "#/ontology/lexicon" + (r.term ? "/" + encodeURIComponent(r.term) : "");
     if (r.view === "dependencies") return "#/ontology/dependencies" + (r.graph ? "/" + encodeURIComponent(r.graph) : "");
     if (r.view === "versions") return "#/ontology/versions";
+    if (r.view === "questions") return "#/ontology/questions";
     return "#/ontology" + (r.klass ? "/" + encodeURIComponent(r.klass) : "");
   }
   if (r.section === "project") return "#/project/" + (r.station || "vocabulary");
@@ -102,9 +111,9 @@ export function App() {
           <Tabs value={route.section} onValueChange={v => go({ section: v as Route["section"], station: route.station })} className="flex-1">
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="knowledge">Knowledge</TabsTrigger>
-              <TabsTrigger value="ontology">Ontology</TabsTrigger>
               <TabsTrigger value="project">Project</TabsTrigger>
+              <TabsTrigger value="ontology">Ontology</TabsTrigger>
+              <TabsTrigger value="knowledge">Knowledge</TabsTrigger>
               {s?.work ? <TabsTrigger value="work">Work{s.work.counts.blocked ? <span className="ml-1.5 rounded-full bg-attention/15 px-1.5 text-xs text-attention">{s.work.counts.blocked}</span> : null}</TabsTrigger> : null}
             </TabsList>
           </Tabs>
@@ -124,7 +133,7 @@ export function App() {
           </TabsContent>
           <TabsContent value="knowledge" className="mt-0">
             <Knowledge payload={data.payload} override={data.override} selected={route.entity} kind={route.kind} graph={route.section === "knowledge" && route.graph === "graph"}
-              onEntity={id => go({ section: "knowledge", entity: id })} onKind={k => go({ section: "knowledge", kind: k })} onGo={goTo} />
+              onEntity={id => go({ section: "knowledge", entity: id, kind: route.kind })} onKind={k => go({ section: "knowledge", kind: k })} onGo={goTo} />
           </TabsContent>
           <TabsContent value="ontology" className="mt-0">
             <Tabs value={route.view} onValueChange={v => go({ section: "ontology", view: v as OntologyView, klass: v === "lexicon" ? null : route.klass })} className="mb-6">
@@ -133,6 +142,7 @@ export function App() {
                 <TabsTrigger value="rules">Rules</TabsTrigger>
                 <TabsTrigger value="lexicon">Lexicon</TabsTrigger>
                 <TabsTrigger value="versions">Versions{data.payload?.ontology?.versions?.since_accepted?.bump_needed ? <span className="ml-1.5 rounded-full bg-attention/15 px-1.5 text-xs text-attention">!</span> : null}</TabsTrigger>
+                <TabsTrigger value="questions">Questions{s ? <span className="ml-1.5 font-mono text-xs text-muted-foreground">{s.vocabulary.questions.filter(q => q.answered).length}/{s.vocabulary.questions.length}</span> : null}</TabsTrigger>
                 <TabsTrigger value="dependencies">Dependencies{data.payload?.graphs?.counts.near_duplicates ? <span className="ml-1.5 rounded-full bg-attention/15 px-1.5 text-xs text-attention">{data.payload.graphs.counts.near_duplicates}</span> : null}</TabsTrigger>
               </TabsList>
             </Tabs>
@@ -141,6 +151,8 @@ export function App() {
                 onPick={k => go({ section: "ontology", view: "rules", klass: k })} onClass={k => go({ section: "ontology", klass: k })} />
             ) : route.view === "versions" ? (
               <Versions model={data.payload?.ontology || null} live={data.live} />
+            ) : route.view === "questions" ? (
+              <Questions questions={s ? s.vocabulary.questions : null} />
             ) : route.view === "dependencies" ? (
               <Dependencies model={data.payload?.graphs || null} ontology={data.payload?.ontology || null} selected={route.graph}
                 onPick={id => go({ section: "ontology", view: "dependencies", graph: id })} onClass={k => go({ section: "ontology", klass: k })} />

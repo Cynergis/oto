@@ -115,7 +115,9 @@ Exercises: ontologies merged, the interview, import from a file, the lock, diff,
 rationale.
 
 Open the project in Claude Code with the plugin (`/plugin marketplace add Cynergis/oto` then
-`/plugin install oto@oto`, or `claude --plugin-dir <a clone of the engine>`). Try each way at
+`/plugin install oto@cynergis-engine`, or `claude --plugin-dir <a clone of the engine>`; the packs come
+from the registry's marketplace, `/plugin marketplace add Cynergis/oto-registry`, which lists no engine:
+ADR-0009). Try each way at
 least once:
 
 1. Two ontologies merged: `oto init --ontology software-architecture,organization-process ...`

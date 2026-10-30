@@ -102,9 +102,12 @@ pip install "oto-kg[otel] @ git+https://github.com/Cynergis/oto"      # tracing:
 To test everything end to end, in the order a real project goes through it, follow
 [docs/E2E-TESTING.md](docs/E2E-TESTING.md): seventeen stages, each with its commands and what pass looks like.
 
-In Claude Code, install the plugin and the engine comes with it: `/plugin marketplace add Cynergis/oto`
-then `/plugin install oto@oto`, or `claude --plugin-dir <a clone of this repository>`. The plugin's
-server and hook run the engine through `uvx`, so uv is the only prerequisite.
+In Claude Code, install the plugin from this repository's own marketplace, `cynergis-engine`:
+`/plugin marketplace add Cynergis/oto` then `/plugin install oto@cynergis-engine`, or
+`claude --plugin-dir <a clone of this repository>`. The plugin's server and hook run the engine through
+`uvx`, so uv is the only prerequisite. The packs come from the registry, [Cynergis/oto-registry](https://github.com/Cynergis/oto-registry)
+(`/plugin marketplace add Cynergis/oto-registry`, then `/plugin install <pack>@cynergis`), which carries
+extensions and packs of the engine, never the engine itself ([ADR-0009](docs/adr/0009-the-registry-carries-no-engine.md)).
 
 ## Getting started
 

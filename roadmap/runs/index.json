@@ -47,6 +47,12 @@
     "sha256": "3eda259e6839ec32fe6e63430fbadbc6bc069ec45dabfc27ec7d4059adcb160c",
     "slug": "0008-a-framework-is-a-pack-of-the-registry"
   },
+  "0009-the-registry-carries-no-engine.md": {
+    "archived_at": "2026-10-29T20:27:55",
+    "run_id": "20261029-202754",
+    "sha256": "7451e101a07eed88e9e9109ab6ffd7f583315b3d4808907be669d15dd30e97fc",
+    "slug": "0009-the-registry-carries-no-engine"
+  },
   "OTO Roadmap 2.0.md": {
     "archived_at": "2026-10-25T16:56:01",
     "run_id": "20261025-165359",

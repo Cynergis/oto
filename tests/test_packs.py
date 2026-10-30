@@ -42,7 +42,8 @@ def test_new_embeds_the_ontology_and_its_bases_and_generates_the_plugin_files(ho
     assert manifest["ontology"]["source"] == "built-in" and manifest["ontology"]["embedded_at"]
     assert manifest["engine"].startswith(">=")
     plugin = json.load(open(os.path.join(directory, ".claude-plugin", "plugin.json"), encoding="utf-8"))
-    assert plugin["name"] == "arch" and plugin["version"] == "1.0.0" and plugin["dependencies"] == ["oto"]
+    assert plugin["name"] == "arch" and plugin["version"] == "1.0.0" and plugin["dependencies"] == ["oto@cynergis-engine"], \
+        "a pack depends on the engine plugin from the engine's own marketplace: a registry carries no engine (ADR-0009)"
     assert plugin["author"]["name"] == "Cynergis" and "software" in plugin["keywords"]
     skill = open(os.path.join(directory, "skills", "start", "SKILL.md"), encoding="utf-8").read()
     assert skill.startswith("---\nname: start\n")
@@ -224,7 +225,7 @@ def test_the_shipped_ontologies_declare_a_domain_and_the_listing_groups_by_it(ca
 from test_registry import _empty_registry, _git  # noqa: E402
 
 
-def test_publish_a_pack_creates_the_registry_with_the_engine_first_in_the_marketplace(home, capsys):
+def test_publish_a_pack_creates_the_registry_whose_marketplace_lists_the_packs_and_no_engine(home, capsys):
     from oto.model import registry
     bare = _empty_registry(home, name="market")
     assert main(["pack", "new", "arch", "--ontology", "software-architecture", "--maintainer", "Cynergis"]) == 0
@@ -232,7 +233,7 @@ def test_publish_a_pack_creates_the_registry_with_the_engine_first_in_the_market
                  "--engine", "https://github.com/Cynergis/oto"]) == 0
     out = capsys.readouterr().out
     assert "published pack arch @1" in out and "tagged arch--v1.0.0" in out and "the registry was created" in out
-    assert "marketplace lists the engine plugin and 1 pack(s): arch" in out
+    assert "marketplace lists 1 plugin(s): arch (the engine plugin comes from its own marketplace, cynergis-engine)" in out
     work = os.path.join(home, "market-check")
     _git(["clone", "--quiet", bare, work], home)
     index = json.load(open(os.path.join(work, "registry.json"), encoding="utf-8"))
@@ -242,12 +243,14 @@ def test_publish_a_pack_creates_the_registry_with_the_engine_first_in_the_market
     published = packs.read(os.path.join(work, "packs", "arch"))
     assert published["release"] == 1 and published["changelog"][0]["note"] == "first" and "fetched_at" not in published
     plugin = json.load(open(os.path.join(work, "packs", "arch", ".claude-plugin", "plugin.json"), encoding="utf-8"))
-    assert plugin["version"] == "1.0.0" and plugin["dependencies"] == ["oto"]
+    assert plugin["version"] == "1.0.0" and plugin["dependencies"] == ["oto@cynergis-engine"]
     market = json.load(open(os.path.join(work, ".claude-plugin", "marketplace.json"), encoding="utf-8"))
-    assert [p["name"] for p in market["plugins"]] == ["oto", "arch"]
-    assert market["plugins"][0]["source"] == {"source": "github", "repo": "Cynergis/oto"}
-    assert market["plugins"][1] == {"name": "arch", "source": "./packs/arch", "description": published["summary"],
+    assert [p["name"] for p in market["plugins"]] == ["arch"], "no engine in a registry's marketplace (ADR-0009)"
+    assert market["allowCrossMarketplaceDependenciesOn"] == ["cynergis-engine"], "the packs' dependency on oto@cynergis-engine is allowed to cross"
+    assert market["plugins"][0] == {"name": "arch", "source": "./packs/arch", "description": published["summary"],
                                     "version": "1.0.0", "category": "software"}
+    readme = open(os.path.join(work, "README.md"), encoding="utf-8").read()
+    assert "/plugin marketplace add Cynergis/oto" in readme and "oto@cynergis-engine" in readme and "never the engine" in readme
     workflow = open(os.path.join(work, ".github", "workflows", "oto-registry-check.yml"), encoding="utf-8").read()
     assert "packs.check(entry" in workflow and "oto registry check ." in workflow
     assert "ontologies and packs" in open(os.path.join(work, "README.md"), encoding="utf-8").read()
@@ -261,13 +264,13 @@ def test_publish_a_pack_creates_the_registry_with_the_engine_first_in_the_market
     assert published["release"] == 2 and [e["note"] for e in published["changelog"]] == ["again", "first"]
     plugin = json.load(open(os.path.join(work, "packs", "arch", ".claude-plugin", "plugin.json"), encoding="utf-8"))
     assert plugin["version"] == "2.0.0"
-    assert json.load(open(os.path.join(work, ".claude-plugin", "marketplace.json"), encoding="utf-8"))["plugins"][1]["version"] == "2.0.0"
+    assert json.load(open(os.path.join(work, ".claude-plugin", "marketplace.json"), encoding="utf-8"))["plugins"][0]["version"] == "2.0.0", "the pack is the marketplace's first entry: no engine before it"
     # an ontology published into the same registry keeps the packs list and the marketplace
     assert main(["ontology", "publish", "--from", "oto-core", "--to", bare]) == 0
     _git(["pull", "-q"], work)
     index = json.load(open(os.path.join(work, "registry.json"), encoding="utf-8"))
     assert [e["name"] for e in index["ontologies"]] == ["oto-core"] and [e["name"] for e in index["packs"]] == ["arch"]
-    assert [p["name"] for p in json.load(open(os.path.join(work, ".claude-plugin", "marketplace.json"), encoding="utf-8"))["plugins"]] == ["oto", "arch"]
+    assert [p["name"] for p in json.load(open(os.path.join(work, ".claude-plugin", "marketplace.json"), encoding="utf-8"))["plugins"]] == ["arch"]
     assert main(["registry", "check", work]) == 0
 
 
@@ -488,7 +491,7 @@ def test_a_pack_that_replaces_a_plugin_takes_its_place_and_continues_its_version
     assert [p["name"] for p in index["plugins"]] == ["tool"]
     assert [(p["name"], p["release"]) for p in index["packs"]] == [("arch", 3)]
     market = json.load(open(os.path.join(work, ".claude-plugin", "marketplace.json"), encoding="utf-8"))["plugins"]
-    assert [(p["name"], p.get("version")) for p in market] == [("oto", None), ("tool", "0.4.0"), ("arch", "3.0.0")]
+    assert [(p["name"], p.get("version")) for p in market] == [("tool", "0.4.0"), ("arch", "3.0.0")], "the listed plugins, then the packs; no engine (ADR-0009)"
     assert [(e["release"], e["note"]) for e in packs.read(os.path.join(work, "packs", "arch"))["changelog"]] == [(3, "the studio as a pack")]
     assert main(["registry", "check", work]) == 0
     # the next publish goes on from the pack's own release

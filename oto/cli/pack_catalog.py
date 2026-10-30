@@ -65,7 +65,9 @@ def run(args):
                 print("  replaces the plugin %s listed from %s at %s; the pack continues its versions at %d.0.0"
                       % (result["name"], result["replaced"].get("repo") or result["replaced"].get("url") or "its repository",
                          result["replaced"].get("version") or "no version", result["release"]))
-            print("  marketplace lists the engine plugin and %d pack(s): %s" % (len(result["plugins"]), ", ".join(result["plugins"])))
+            from ..model.packs import ENGINE_MARKETPLACE
+            print("  marketplace lists %d plugin(s): %s (the engine plugin comes from its own marketplace, %s)"
+                  % (len(result["plugins"]), ", ".join(result["plugins"]), ENGINE_MARKETPLACE))
             if result["cached"]:
                 print("  the local copy of the registry index was refreshed")
             print("  in Claude Code: /plugin marketplace add %s, then /plugin install %s@%s" % (args.to, result["name"], result["registry"]))

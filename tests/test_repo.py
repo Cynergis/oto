@@ -95,7 +95,7 @@ def test_the_author_workflow_runs_the_agent_with_the_plugin_and_opens_the_pull_r
     assert 'git checkout -b "oto/run-${{ steps.run.outputs.id }}"' in author
     assert "uses: anthropics/claude-code-action@v1" in author
     assert "anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}" in author
-    assert "plugin_marketplaces:" in author and "oto@oto" in author, "the pipeline agent gets the same skills"
+    assert "plugin_marketplaces:" in author and "oto@cynergis-engine" in author, "the pipeline agent gets the same skills"
     assert '--allowedTools "Bash(oto:*)' in author and "Bash(git:*)" not in author.split("prompt:")[0].split("claude_args")[1], \
         "the authoring agent never commits; the workflow does"
     assert "references/pipeline-run.md" in author and "BLOCKED:" in author
@@ -112,7 +112,7 @@ def test_the_review_workflow_answers_claude_mentions_on_pull_requests():
     assert "issue_comment:" in review and "pull_request_review_comment:" in review
     assert "contains(github.event.comment.body, '@claude')" in review
     assert "github.event.issue.pull_request" in review, "only pull requests, not plain issues"
-    assert "oto@oto" in review and "prompt:" not in review, "the mention is the prompt"
+    assert "oto@cynergis-engine" in review and "prompt:" not in review, "the mention is the prompt"
     assert "Bash(git:*)" in review, "the action pushes the revision itself"
 
 

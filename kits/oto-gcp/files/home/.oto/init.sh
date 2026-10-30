@@ -6,8 +6,11 @@ log=/tmp/oto-init.log
   git config --global --get-all url."https://github.com/".insteadOf | grep -q "git@github.com:" || {
     git config --global --add url."https://github.com/".insteadOf git@github.com:
     git config --global --add url."https://github.com/".insteadOf ssh://git@github.com/; }
-  claude plugin marketplace list 2>/dev/null | grep -q cynergis || claude plugin marketplace add Cynergis/oto-registry
+  markets=$(claude plugin marketplace list 2>/dev/null)
+  echo "$markets" | grep -q "(Cynergis/oto)" || claude plugin marketplace add Cynergis/oto                    # the engine plugin's own marketplace, cynergis-engine
+  echo "$markets" | grep -q "(Cynergis/oto-registry)" || claude plugin marketplace add Cynergis/oto-registry   # the packs (ADR-0009: the registry carries no engine)
   have=$(claude plugin list 2>/dev/null)
+  echo "$have" | grep -q "oto@cynergis-engine" || claude plugin install "oto@cynergis-engine"
   for p in product software-architecture calm product-report report flow medallion report-medallion platform work pdf-to-template; do
     echo "$have" | grep -q "$p@cynergis" || claude plugin install "$p@cynergis"
   done

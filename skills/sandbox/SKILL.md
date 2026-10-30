@@ -12,8 +12,9 @@ description: >-
 # Sandbox
 
 A sandbox is a small virtual machine on the person's computer, made by Docker Sandboxes (`sbx`)
-from OTO's kit. It holds Claude Code, OTO's marketplace and plugins, the engine, the Google Cloud
-tools, LibreOffice and Chromium, and may reach only what the kit allows. It works on two folders
+from OTO's kit. It holds Claude Code, the engine plugin, the OTO registry as a marketplace (its packs turned on
+per project with the packs skill), the engine, the Google Cloud tools, LibreOffice and Chromium, and
+may reach only what the kit allows. It works on two folders
 of the computer, `project` and `code`, so the person opens the files it writes as usual. Claude
 Desktop's Code tab drives it over SSH; a terminal drives it with `sbx run`.
 
@@ -115,9 +116,11 @@ Say the steps from `next`, in words, once:
    host `<name>.sbx`, the port and the identity file left empty.
 3. Choose that connection, then the folder, which is their `project` folder.
 
-In that session Claude runs inside the sandbox, with OTO's plugins. If it asks to sign in once, they
-do (`/login`); if it asks at every message, the approval is missing: §2, then `up --recreate`.
-From a terminal instead: `sbx run --name <name>`.
+In that session Claude runs inside the sandbox, with the engine plugin alone: the packs the work
+needs are chosen there, from a checklist or on advice, with the packs skill (`/oto:packs`), which
+turns them on for the project. If it asks to sign in once, they do (`/login`); if it asks at every
+message, the approval is missing: §2, then `up --recreate`. From a terminal instead:
+`sbx run --name <name>`.
 
 Later, `oto sandbox status` says whether it is still ready; `oto sandbox up` starts it again after a
 restart of the computer.

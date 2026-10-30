@@ -210,7 +210,7 @@ API key (`sbx secret set anthropic`) is added on the way out, never inside. A Cl
 once inside (`/login`). `oto lock` keeps both files in step with the lock.
 
 `oto sandbox up` starts a sandbox from OTO's published kit instead, with no project files: Claude Code,
-OTO's marketplace and plugins, the engine and the Google Cloud tools, ready to drive from Claude
+the OTO engine plugin, the registry as a marketplace (packs turned on per project with `/oto:packs`), the engine and the Google Cloud tools, ready to drive from Claude
 Desktop's Code tab over SSH or from a terminal. It checks the computer (the `sbx` CLI, the Docker
 sign-in, a network policy), lets `sbx` run the kit, records the person's approval for the kit to use
 their Anthropic sign-in when they give it (`--approve-anthropic`), creates the project and code folders

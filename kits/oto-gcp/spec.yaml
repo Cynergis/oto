@@ -5,7 +5,7 @@ name: oto-gcp
 version: "0.14.3"
 displayName: OTO on Google Cloud
 description: >-
-  Claude Code with OTO's marketplace and plugins, the OTO engine 0.14.3, the Google Cloud CLI, LibreOffice
+  Claude Code with the OTO engine plugin and the OTO registry as a marketplace (packs turned on per project), the OTO engine 0.14.3, the Google Cloud CLI, LibreOffice
   and Chromium, for building OTO products that run on Google Cloud.
 sourceURL: https://github.com/Cynergis/oto/tree/main/kits/oto-gcp
 licenses: [Apache-2.0]

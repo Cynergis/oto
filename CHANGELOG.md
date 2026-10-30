@@ -4,6 +4,26 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.14.5 — 2026-10-30
+
+**A graph served in the sandbox opens in the computer's browser.** One pull request (126).
+
+- **Inside the kit, `oto serve` binds all interfaces and needs no token.** The engine knows it runs inside a
+  sandbox made from OTO's kit (the kit sets `OTO_SANDBOX`; its files are under `~/.oto`). There, `oto serve
+  --http 8798` listens on all interfaces, the start-up message says to open `http://localhost:8798/` on the
+  computer, and no token is asked for: the sandbox tool publishes a port to the computer's loopback only, so
+  all interfaces inside is the computer and nothing beyond it. Everywhere else the rule is unchanged: a bind
+  beyond loopback needs `OTO_SERVE_TOKEN`. A server on the sandbox's own loopback is unreachable from the
+  computer, which is what made the served graph invisible before.
+- **`oto sandbox up` publishes ports 8798 and 8799** to the computer's localhost when it creates a sandbox
+  (`--publish <port>` chooses others, `--publish 0` none); on an existing sandbox it publishes what is missing
+  and says that a port added to a running sandbox forwards from its next start. `oto sandbox status` lists the
+  published ports; `up` says what to run inside and what to open.
+
+**Migration.** A sandbox made from an earlier kit publishes no port: `oto sandbox up` on it publishes both,
+then `sbx stop <name>` and the next connection starts it with the forward in place. The engine inside such a
+sandbox detects the kit from its files, so serving works as soon as the ports are there.
+
 ## 0.14.4 — 2026-10-30
 
 **A sandbox starts with the engine alone, and two skills look after it.** Two pull requests (123 and 124).

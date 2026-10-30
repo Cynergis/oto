@@ -160,20 +160,6 @@ function Vocabulary({ s, onType }: { s: Snapshot; onType: (t: string) => void })
             {v.parts.map(p => <div key={p.name} className="flex justify-between gap-3"><span className="font-mono">{p.name}</span><span className="text-muted-foreground">{[p.release && "@" + p.release, p.origin].filter(Boolean).join(" · ")}</span></div>)}
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex-row items-baseline justify-between"><CardTitle>Questions it must answer</CardTitle>
-            <span className="text-sm font-semibold text-done">{v.questions.filter(q => q.answered).length} of {v.questions.length}</span></CardHeader>
-          <CardContent>
-            <ul className="flex flex-col gap-2 text-sm">
-              {v.questions.map(q => (
-                <li key={q.id} className="flex gap-3">
-                  <span className="min-w-9 pt-0.5 font-mono text-xs text-muted-foreground">{q.id}</span>
-                  <span className={q.answered ? "" : "text-attention"}>{q.question}{q.answered ? "" : " (not answered)"}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

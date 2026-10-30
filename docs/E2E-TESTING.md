@@ -245,7 +245,8 @@ oto query --project acme count --type DecisionRecord
 oto query --project acme group status --type Requirement
 oto serve --project acme        # then paste a JSON-RPC tools/list request on stdin
 oto serve --project acme --http 8765     # then open http://127.0.0.1:8765/ (the workbench) and /api/entity?term=<label>
-#   Knowledge: Browse (the graph as pages: by kind, search, one thing with its history and evidence) and Graph; Ontology; Project
+#   Overview; Project (the stations); Ontology (classes, rules, lexicon, questions, versions, dependencies); Knowledge: Browse (the graph
+#   as pages: by kind, search, one thing with its history and evidence, the kind's list kept beside it) and Graph
 oto query --project acme pending                     # what is on its way in, by station
 oto serve --project acme --http 8765 --watch        # the preview, rebuilt on every change while you author
 oto build --project acme --target site   # build/site/: the workbench and data.json, to open from disk or host anywhere

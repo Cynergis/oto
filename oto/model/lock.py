@@ -129,14 +129,27 @@ def packs_of(ontology, root, prefer=()):
     return (preferred or owners or [None])[0]
 
 
+def engine_plugin_id(prefer=()):
+    """`oto@<marketplace>` for the engine plugin as this machine can install it: from a marketplace in
+    `prefer` that lists it, else from any marketplace Claude Code knows that does (the engine's own,
+    `cynergis-engine`, since a registry carries no engine: ADR-0009). None when no marketplace lists it."""
+    known = _read_json(os.path.join(_claude_dir(), "plugins", "known_marketplaces.json"), {}) or {}
+    names = [m for m in prefer if m in known] + sorted(m for m in known if m not in prefer)
+    for market in names:
+        if _listed_from(market, ENGINE_PLUGIN) is not None:
+            return "%s@%s" % (ENGINE_PLUGIN, market)
+    return None
+
+
 def declare(root, ids):
     """Add plugins to the project's Claude Code declaration (.claude/settings.json), as `claude plugin
-    install --scope project` does: each enabled, its marketplace known, and the engine plugin of each
-    marketplace that lists one. Everything else in the file is kept. Returns the ids it added."""
+    install --scope project` does: each enabled, its marketplace known, and the engine plugin from the
+    marketplace that lists it (the engine's own, unless the pack's registry lists one). Everything else
+    in the file is kept. Returns the ids it added."""
     wanted = list(ids)
-    for market in sorted({key.split("@", 1)[1] for key in ids if "@" in key}):
-        engine_id = "%s@%s" % (ENGINE_PLUGIN, market)
-        if engine_id not in wanted and _listed_from(market, ENGINE_PLUGIN) is not None:
+    if not any(key.split("@", 1)[0] == ENGINE_PLUGIN for key in wanted):
+        engine_id = engine_plugin_id(prefer=[key.split("@", 1)[1] for key in ids if "@" in key])
+        if engine_id:
             wanted.append(engine_id)
     path = os.path.join(root, SETTINGS)
     settings = _read_json(path, {})
@@ -217,7 +230,7 @@ def _is_oto(key, entry):
     if os.path.exists(os.path.join(path, "manifest.json")) and os.path.isdir(os.path.join(path, "ontology")):
         return True
     plugin = _read_json(os.path.join(path, ".claude-plugin", "plugin.json"), {}) or {}
-    return ENGINE_PLUGIN in (plugin.get("dependencies") or [])
+    return any(str(d).split("@", 1)[0] == ENGINE_PLUGIN for d in (plugin.get("dependencies") or []))   # "oto" or "oto@<its marketplace>"
 
 
 def used(root):

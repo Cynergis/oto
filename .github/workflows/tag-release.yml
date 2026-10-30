@@ -1,9 +1,10 @@
 name: tag release
 
 # Every version that reaches main gets its tag, v<version>, so a project's oto.lock.json can pin the
-# engine it was built with: `oto lock --script` installs oto-kg from that tag. A new tag then opens the
-# registry pull request that moves the engine's pin to it (registry-pin.yml): a tag pushed by this
-# workflow starts no other workflow, so that is a job here, not a workflow on tags. The same tag
+# engine it was built with: `oto lock --script` installs oto-kg from that tag, and Claude Code installs
+# the engine plugin from this repository's own marketplace (cynergis-engine), which needs no pin: the
+# registry carries packs and extensions, never the engine (ADR-0009). A tag pushed by this workflow
+# starts no other workflow, so what follows the tag is a job here, not a workflow on tags: the same tag
 # publishes the sandbox kit at that version (kit-publish.yml).
 
 on:
@@ -40,20 +41,6 @@ jobs:
             echo "tagged $tag"
             echo "created=true" >> "$GITHUB_OUTPUT"
           fi
-
-  pin:
-    needs: tag
-    if: needs.tag.outputs.created == 'true'
-    uses: ./.github/workflows/registry-pin.yml
-    with:
-      plugin: oto
-      repo: Cynergis/oto
-      tag: ${{ needs.tag.outputs.tag }}
-      version: ${{ needs.tag.outputs.version }}
-      changelog: CHANGELOG.md
-      engine_ref: ${{ needs.tag.outputs.tag }}
-    secrets:
-      OTO_REGISTRY_TOKEN: ${{ secrets.OTO_REGISTRY_TOKEN }}
 
   kit:
     needs: tag

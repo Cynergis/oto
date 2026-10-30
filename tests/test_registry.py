@@ -387,8 +387,9 @@ def test_publish_scaffolds_the_registry_and_carries_the_domain(home, capsys):
 
 
 def test_a_plugin_in_its_own_repository_is_listed_in_the_marketplace_and_the_engine_can_be_pinned(home, capsys):
-    """A studio or a tool that depends on `oto` must be in the same marketplace as the engine, or its
-    dependency does not resolve; `oto registry plugin` lists it there, and names the engine's branch."""
+    """A studio or a tool that lives in its own repository is listed by `oto registry plugin`; a registry
+    that names `oto` among its plugins lists the engine too, from the branch it names (a registry under
+    test), where a registry without it lists no engine at all (ADR-0009)."""
     bare = _empty_registry(home, name="market")
     assert main(["registry", "plugin", "studio", "--to", bare, "--repo", "Cynergis/studio", "--version", "2.0.0",
                  "--category", "product", "--description", "The studio.", "--registry-name", "market"]) == 0
@@ -402,6 +403,8 @@ def test_a_plugin_in_its_own_repository_is_listed_in_the_marketplace_and_the_eng
     plugins = json.load(open(os.path.join(work, ".claude-plugin", "marketplace.json"), encoding="utf-8"))["plugins"]
     assert plugins[0] == {"name": "oto", "source": {"source": "github", "repo": "Cynergis/oto", "ref": "semantic-layer"},
                           "description": plugins[0]["description"], "version": "0.11.0"}
+    market = json.load(open(os.path.join(work, ".claude-plugin", "marketplace.json"), encoding="utf-8"))
+    assert "allowCrossMarketplaceDependenciesOn" not in market, "a registry that lists the engine itself needs no cross-marketplace allowance"
     assert plugins[1]["source"] == {"source": "github", "repo": "Cynergis/studio"} and plugins[1]["category"] == "product"
     assert registry.index_problems(index, work) == []
     assert any("needs a `repo`" in p for p in registry.index_problems(dict(index, plugins=[{"name": "x"}]), work))

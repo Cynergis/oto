@@ -1,0 +1,64 @@
+{
+  "source_doc": "0009-the-registry-carries-no-engine",
+  "as_of": "2026-10-29",
+  "nodes": [
+    {
+      "id": "decision.adr-0009",
+      "type": "Decision",
+      "label": "The registry carries extensions and packs; the engine comes from its own marketplace",
+      "summary": "The engine plugin is installed from the engine repository's own marketplace, `cynergis-engine`; a registry carries extensions and packs of the engine and never the engine itself, and every pack names the engine as `oto@cynergis-engine`, which the registry's marketplace allows to cross.",
+      "attributes": {
+        "status": "accepted",
+        "decided_on": "2026-10-29",
+        "rationale": "The engine plugin is installed from the engine repository's own marketplace, `cynergis-engine`; a registry carries extensions and packs of the engine and never the engine itself, and every pack names the engine as `oto@cynergis-engine`, which the registry's marketplace allows to cross."
+      },
+      "valid_from": "2026-10-29",
+      "evidence": [
+        {
+          "doc": "0009-the-registry-carries-no-engine",
+          "where": "Decision",
+          "quote": "The engine plugin is installed from the engine repository's own marketplace, `cynergis-engine`; a registry carries extensions and packs of the engine and never the engine itself, and every pack names the engine as `oto@cynergis-engine`, which the registry's marketplace allows to cross."
+        },
+        {
+          "doc": "0009-the-registry-carries-no-engine",
+          "where": "frontmatter",
+          "quote": "decided_on: 2026-10-29"
+        }
+      ]
+    },
+    {
+      "id": "document.0009-the-registry-carries-no-engine",
+      "type": "Document",
+      "label": "The registry carries extensions and packs; the engine comes from its own marketplace",
+      "summary": "ADR ADR-0009, the record of this decision.",
+      "attributes": {
+        "kind": "adr"
+      },
+      "valid_from": "2026-10-29",
+      "evidence": [
+        {
+          "doc": "0009-the-registry-carries-no-engine",
+          "where": "title",
+          "quote": "The registry carries extensions and packs; the engine comes from its own marketplace"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "decision.adr-0009",
+      "rel": "documented_in",
+      "to": "document.0009-the-registry-carries-no-engine"
+    },
+    {
+      "from": "decision.adr-0009",
+      "rel": "governs",
+      "to": "workitem.epic-l"
+    },
+    {
+      "from": "decision.adr-0009",
+      "rel": "decided_by",
+      "to": "person.chiheb-dkhil"
+    }
+  ]
+}

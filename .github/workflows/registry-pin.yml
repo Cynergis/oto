@@ -1,8 +1,9 @@
 name: registry pin
 
 # When a plugin listed in the OTO registry releases a version, open the registry pull request that
-# moves its pin to the new tag. Called by the release workflow of the engine and of any listed plugin
-# (pdf-to-template), right after it tags; it can also be run by hand from the Actions tab.
+# moves its pin to the new tag. Called by the release workflow of any listed plugin (pdf-to-template,
+# oto-factory), right after it tags; it can also be run by hand from the Actions tab. The engine itself
+# is not listed in the registry (ADR-0009): its plugin comes from this repository's own marketplace.
 #
 # It needs the secret OTO_REGISTRY_TOKEN: a token that can push a branch to the registry and open a
 # pull request there (a fine-grained token on Cynergis/oto-registry with Contents and Pull requests
@@ -25,8 +26,8 @@ on:
       OTO_REGISTRY_TOKEN: { required: false }
   workflow_dispatch:
     inputs:
-      plugin: { description: "the plugin's name in the registry", required: true, default: "oto" }
-      repo: { description: "the plugin's repository, owner/name", required: true, default: "Cynergis/oto" }
+      plugin: { description: "the plugin's name in the registry (pdf-to-template, oto-factory)", required: true }
+      repo: { description: "the plugin's repository, owner/name", required: true }
       tag: { description: "the release tag, v<version>", required: true }
       version: { description: "the version, without the v", required: true }
       changelog: { description: "the plugin's changelog (path in the repository)", required: false, default: "CHANGELOG.md" }

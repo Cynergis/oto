@@ -33,6 +33,13 @@ def scrub(remote):
     return re.sub(r"^([a-z]+://)[^/@]+@", r"\1", remote.strip())
 
 
+def engine_install(index):
+    """The two lines that install the engine plugin from its own marketplace, before the packs: a
+    registry carries no engine (ADR-0009). From the index's `engine` repository."""
+    from .model import packs as _p, registry as _r
+    return "/plugin marketplace add %s\n/plugin install %s" % (_e(_r._engine_repo(index.get("engine"))), _e(_p.ENGINE_DEPENDENCY))
+
+
 def registry_address(work, url=None):
     """(what to type in Claude Code, what to type at a terminal) for the registry: from `url`, else
     the checkout's git remote; a GitHub remote becomes the `owner/repo` shorthand Claude Code takes.
@@ -284,11 +291,11 @@ def _pack_page(entry, pack_dir, registry_name, drawn, address, look=None):
                " · ".join(x for x in [("by " + _e(manifest["maintainer"])) if manifest.get("maintainer") else "",
                                       "embeds the ontology <code>%s@%s</code>" % (_e(onto.get("name")), _e(onto.get("release"))),
                                       "engine %s" % _e(manifest["engine"]) if manifest.get("engine") else ""] if x)),
-            "<section><h2>Install</h2><pre><code>/plugin marketplace add %s\n/plugin install %s@%s</code></pre>"
-            "<p>The engine plugin <code>oto</code> comes with it. Then the pack's <code>start</code> skill begins a project from the installed copy: "
+            "<section><h2>Install</h2><pre><code>%s\n/plugin marketplace add %s\n/plugin install %s@%s</code></pre>"
+            "<p>The engine plugin comes from its own marketplace, first; this registry carries packs and extensions, never the engine. Then the pack's <code>start</code> skill begins a project from the installed copy: "
             "<code>oto init --name \"&lt;project&gt;\" --pack \"${CLAUDE_PLUGIN_ROOT}\" --project &lt;root&gt;</code>. "
             "At a terminal: <code>oto registry add %s</code>, <code>oto pack add %s</code>, <code>oto init --pack %s</code>.</p></section>"
-            % (address[0], _e(manifest["name"]), _e(registry_name), address[1], _e(manifest["name"]), _e(manifest["name"]))]
+            % (address[2], address[0], _e(manifest["name"]), _e(registry_name), address[1], _e(manifest["name"]), _e(manifest["name"]))]
     counts = sections["counts"]
     body.append("<section><h2>The ontology</h2><p><code>%s@%s</code>: %d classes, %d relations, %d rules, %d tools%s.</p>%s%s</section>"
                 % (_e(onto.get("name")), _e(onto.get("release")), counts[0], counts[1], counts[2], counts[3],
@@ -343,10 +350,10 @@ def _index_page(index, pack_notes, registry_name, address, look=None):
     body = ["<div class=\"hero\"><div><div class=\"eyebrow\">OTO registry · %s</div><h1>%s</h1><p class=\"lede\">%s</p>"
             "<div class=\"counts\"><span><b>%d</b> packs</span><span><b>%d</b> ontologies</span><span><b>%d</b> domains</span></div>"
             "<p class=\"muted\" style=\"margin-top:14px;font-size:.93rem\">%d packs, %d ontologies. A pack is what you install: an ontology, its skills and its views. An ontology is what a project starts from.</p></div>"
-            "<div class=\"install\"><div class=\"t\">Install in Claude Code</div><pre><code>/plugin marketplace add %s\n/plugin install &lt;pack&gt;@%s</code></pre>"
+            "<div class=\"install\"><div class=\"t\">Install in Claude Code</div><pre><code>%s\n/plugin marketplace add %s\n/plugin install &lt;pack&gt;@%s</code></pre>"
             "<p>At a terminal: <code>oto registry add %s</code>, then <code>oto pack add &lt;pack&gt;</code> or <code>oto ontology add &lt;ontology&gt;</code>.</p></div></div>"
             % (_e(registry_name), _e(look["title"]), _e(look["tagline"] or index.get("summary") or ""), len(packs), len(ontos),
-               len({e.get("domain") for e in packs + ontos if e.get("domain")}), len(packs), len(ontos), address[0], _e(registry_name), address[1])]
+               len({e.get("domain") for e in packs + ontos if e.get("domain")}), len(packs), len(ontos), address[2], address[0], _e(registry_name), address[1])]
     domains = sorted({e.get("domain") for e in packs + ontos if e.get("domain")})
     body.append("<div class=\"filters\"><span class=\"eyebrow\" style=\"margin-right:6px\">Show</span><button class=\"f on\" data-kind=\"all\" type=\"button\">Everything</button>"
                 "<button class=\"f\" data-kind=\"pack\" type=\"button\">Packs</button><button class=\"f\" data-kind=\"ontology\" type=\"button\">Ontologies</button>"
@@ -386,7 +393,7 @@ def write(work, out=None, url=None):
         shutil.rmtree(out)
     os.makedirs(out)
     registry_name = index["name"]
-    address = registry_address(work, url)
+    address = tuple(registry_address(work, url)) + (engine_install(index),)
     look = brand(work, index)
     if look.get("logo"):
         src = os.path.join(work, look["logo"])

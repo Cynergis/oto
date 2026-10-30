@@ -486,7 +486,7 @@ jobs:
           plugin_marketplaces: |
             ${{ vars.OTO_ENGINE || '@ENGINE@' }}.git
           plugins: |
-            oto@oto
+            oto@cynergis-engine
           claude_args: |
             --model "${{ vars.OTO_MODEL || 'claude-opus-5' }}"
             --allowedTools "Bash(oto:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(grep:*),Bash(find:*),Bash(wc:*),Bash(diff:*),Edit,Write,Read,Glob,Grep"
@@ -832,7 +832,7 @@ jobs:
           plugin_marketplaces: |
             ${{ vars.OTO_ENGINE || '@ENGINE@' }}.git
           plugins: |
-            oto@oto
+            oto@cynergis-engine
           claude_args: |
             --model "${{ vars.OTO_MODEL || 'claude-opus-5' }}"
             --allowedTools "Bash(oto:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(grep:*),Bash(find:*),Bash(wc:*),Bash(diff:*),Bash(git:*),Edit,Write,Read,Glob,Grep"

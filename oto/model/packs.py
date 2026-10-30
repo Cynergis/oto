@@ -44,6 +44,8 @@ SKILLS_DIR = "skills"
 PLUGIN_DIR = ".claude-plugin"
 START_SKILL = "start"
 ENGINE_PLUGIN = "oto"
+ENGINE_MARKETPLACE = "cynergis-engine"           # the engine's own marketplace (Cynergis/oto, .claude-plugin/marketplace.json)
+ENGINE_DEPENDENCY = "%s@%s" % (ENGINE_PLUGIN, ENGINE_MARKETPLACE)   # how a pack names it: a registry carries no engine (ADR-0009)
 NAME_OK = re.compile(r"^[a-z][a-z0-9-]*$")
 DATE_OK = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 FIELDS = ("name", "title", "release", "domain", "product_type", "pattern", "playbook", "binding", "summary", "ontology", "engine", "maintainer",
@@ -295,7 +297,7 @@ def plugin_files(directory, registry_name=None):
               "description": (manifest.get("summary") or "").strip() or "An OTO pack: an ontology, its skills and its views.",
               "version": "%d.0.0" % int(manifest["release"]),
               "author": {"name": manifest.get("maintainer") or registry_name or "OTO"},
-              "dependencies": [ENGINE_PLUGIN]}
+              "dependencies": [ENGINE_DEPENDENCY]}
     if manifest.get("license"):
         plugin["license"] = manifest["license"]
     if manifest.get("domain"):
@@ -621,8 +623,8 @@ def check(directory):
                 problems.append("plugin.json names %r, the pack is %r" % (plugin.get("name"), manifest["name"]))
             if plugin.get("version") != "%d.0.0" % int(manifest["release"]):
                 problems.append("plugin.json version %r is not release %s (oto pack refresh)" % (plugin.get("version"), manifest["release"]))
-            if ENGINE_PLUGIN not in (plugin.get("dependencies") or []):
-                problems.append("plugin.json must depend on the engine plugin %r" % ENGINE_PLUGIN)
+            if not any(str(d).split("@", 1)[0] == ENGINE_PLUGIN for d in (plugin.get("dependencies") or [])):
+                problems.append("plugin.json must depend on the engine plugin %r (as %r: it comes from the engine's own marketplace)" % (ENGINE_PLUGIN, ENGINE_DEPENDENCY))
         except ValueError as exc:
             problems.append("plugin.json is not valid JSON: %s" % exc)
     problems += publishability_problems(directory)

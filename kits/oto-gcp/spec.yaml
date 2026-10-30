@@ -16,6 +16,9 @@ environment:
     # Only the plugins installed in the sandbox load; `allowed` (oto sandbox up --allow-outside-plugins)
     # lets those of the person's computer, Claude Desktop and claude.ai account load too.
     OTO_OUTSIDE_PLUGINS: blocked
+    # The engine knows it runs inside the kit: `oto serve --http <port>` binds all interfaces, no token
+    # needed, so the port `oto sandbox up` publishes to the computer's localhost reaches it.
+    OTO_SANDBOX: kit
 permissions:
   network:
     allow:

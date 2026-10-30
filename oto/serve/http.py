@@ -63,12 +63,33 @@ def token_from_env(environ=None):
     return ((environ if environ is not None else os.environ).get(TOKEN_ENV) or "").strip() or None
 
 
-def check_bind(host, token):
-    """Raise BindError when `host` reaches beyond this machine and there is no token."""
+def inside_sandbox():
+    """True inside a sandbox made from OTO's kit (oto.sandbox.inside_kit): there, a bind to all interfaces
+    reaches only the person's computer, through the port the sandbox tool publishes to its loopback."""
+    from .. import sandbox as _sandbox
+    return _sandbox.inside_kit()
+
+
+def check_bind(host, token, inside=None):
+    """Raise BindError when `host` reaches beyond this machine and there is no token. Inside an OTO
+    sandbox (`inside`, read from the kit when not given) the bind is allowed without one: the sandbox
+    tool publishes a port to the computer's loopback only, so all interfaces there is this computer."""
     if host not in LOOPBACK and not token:
+        if inside is None:
+            inside = inside_sandbox()
+        if inside:
+            return
         raise BindError("binding to %s would expose the store beyond this machine and nothing would authenticate "
                         "callers; set %s in the environment (never in a file) and pass it as a bearer token, "
                         "or bind to 127.0.0.1" % (host, TOKEN_ENV))
+
+
+def default_host(inside=None):
+    """Where a bare port binds: this machine's loopback, or all interfaces inside an OTO sandbox, where
+    the published port on the computer forwards only to a server that listens beyond the sandbox's loopback."""
+    if inside is None:
+        inside = inside_sandbox()
+    return "0.0.0.0" if inside else "127.0.0.1"
 
 
 def parse_bind(text, default_host="127.0.0.1"):
@@ -535,8 +556,11 @@ class Server:
 
 
 def serve(engine, bind, app_dir=None, project_root=None, identity=None, token=None, cors=(), mounts=None, catalog=None):
-    """Run the front end until interrupted. Raises BindError for a bind beyond this machine with no token."""
-    host, port = parse_bind(bind)
+    """Run the front end until interrupted. Raises BindError for a bind beyond this machine with no token.
+    Inside an OTO sandbox a bare port binds all interfaces, so the port the sandbox publishes reaches it
+    from the person's computer, and the message says the address to open there."""
+    inside = inside_sandbox()
+    host, port = parse_bind(bind, default_host=default_host(inside))
     server = Server(engine, host, port, app_dir=app_dir, project_root=project_root, identity=identity, token=token, cors=cors,
                     mounts=mounts, catalog=catalog)
     engine.log("http: serving on %s%s%s%s" % (server.url, (" with app %s" % app_dir) if app_dir else "",
@@ -547,7 +571,11 @@ def serve(engine, bind, app_dir=None, project_root=None, identity=None, token=No
         else (", GET / for the app" if app_dir else ""),
         "\n  a token is required on every call: Authorization: Bearer <%s>, or open /?%s=<token> once in a browser"
         % (TOKEN_ENV, COOKIE) if token else ""), file=sys.stderr, flush=True)
-    if host not in LOOPBACK:
+    if inside:
+        print("  in this sandbox the server listens on all interfaces; on your computer, open http://localhost:%d/ "
+              "(the port the sandbox publishes: oto sandbox status lists them)" % server.address[1], file=sys.stderr, flush=True)
+        engine.log("http: inside an OTO sandbox, bound to %s: reachable from the computer through the published port" % host)
+    elif host not in LOOPBACK:
         engine.log("WARNING: bound to %s, reachable beyond this machine; every call must carry the token" % host)
     server.serve_forever()
     return server

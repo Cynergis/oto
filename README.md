@@ -162,7 +162,9 @@ oto serve --project claims --http 8765 --watch      # the preview: the graph as 
      # store is never touched, and `oto query pending` lists what is on its way in, by station
 oto build --project claims --target site            # or as a static site under build/site/, to host anywhere
 OTO_SERVE_TOKEN=... oto serve --project claims --http 0.0.0.0:8765   # beyond this machine only with a token,
-     # sent as a bearer header (a browser opens /?oto_token=... once); --cors <origin> for a hosted app
+     # sent as a bearer header (a browser opens /?oto_token=... once); --cors <origin> for a hosted app.
+     # Inside an OTO sandbox a bare port binds all interfaces with no token: the sandbox tool forwards it to
+     # this computer's localhost only, so http://localhost:8798/ in your browser is the server in the sandbox
 oto status --project claims             # at any point: where the project is, and what comes next
      # or ask the concierge skill: it quotes this, explains the station, offers the options, names the playbook
 oto actions list --project claims           # what can be done here: the actions the graph declares, ready on which
@@ -213,6 +215,7 @@ once inside (`/login`). `oto lock` keeps both files in step with the lock.
 the OTO engine plugin, the registry as a marketplace (packs turned on per project with `/oto:packs`), the engine and the Google Cloud tools, ready to drive from Claude
 Desktop's Code tab over SSH or from a terminal. `oto sandbox ls` lists every sandbox on the computer with
 its last use and Desktop's SSH connections to them, `oto sandbox stop` and `rm` clean up (the folders stay).
+`up` publishes ports 8798 and 8799 to this computer's localhost, so `oto serve` inside is a browser tab here.
 It checks the computer (the `sbx` CLI, the Docker
 sign-in, a network policy), lets `sbx` run the kit, records the person's approval for the kit to use
 their Anthropic sign-in when they give it (`--approve-anthropic`), creates the project and code folders

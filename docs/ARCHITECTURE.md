@@ -294,7 +294,12 @@ writes the same payload and the same app into `build/site/` for static hosting. 
 
 Beyond one machine, the rules are few and firm. The server binds to localhost unless a host is
 given, and any other host requires `OTO_SERVE_TOKEN` in the environment or the server refuses to
-start, saying so. With a token, every call must carry it as `Authorization: Bearer <token>`; a
+start, saying so. One place is the exception, by construction: inside a sandbox made from OTO's kit
+(`oto.sandbox.inside_kit`: the kit sets `OTO_SANDBOX`, and its files are under `~/.oto`) a bare port
+binds all interfaces and needs no token, because the sandbox tool publishes a port to the computer's
+loopback only, and a server on the sandbox's own loopback is unreachable from the computer; the
+message says which address to open there. `oto sandbox up` publishes 8798 and 8799 at creation
+(`-p` on `sbx create`; a port published to a running sandbox forwards from its next start). With a token, every call must carry it as `Authorization: Bearer <token>`; a
 browser that opens the app carries it once, as `/?oto_token=<token>`, and gets an HttpOnly cookie
 and a redirect to the plain address, so the token never sits in the page's URL. The token is
 compared in constant time, never written to a file, and replaced in the server's log. Cross-origin
@@ -921,7 +926,8 @@ None are needed for ordinary use.
 | `CLAUDE_CONFIG_DIR` | Claude Code's own: where its list of installed plugins is, so the ontologies an installed pack embeds resolve by name. Default `~/.claude`. |
 | `OTO_REGISTRY_TOKEN`, `OTO_QUERY_REPO_TOKEN`, `OTO_ENGINE_TOKEN` | Tokens for private ontology registries, the query repository, and the engine repository in workflows. |
 | `OTO_TRACE`, `OTEL_EXPORTER_OTLP_ENDPOINT` | Tracing (`oto-kg[otel]`): `console` prints spans to stderr; `1` with an OTLP endpoint sends them to a collector over OTLP/HTTP, the SDK reading the `OTEL_*` variables itself. Unset: no span. |
-| `OTO_SERVE_TOKEN` | The bearer token `oto serve --http` requires from every caller when it is set, and demands before binding beyond localhost. |
+| `OTO_SERVE_TOKEN` | The bearer token `oto serve --http` requires from every caller when it is set, and demands before binding beyond localhost (not inside an OTO sandbox, where a bind to all interfaces reaches only the computer). |
+| `OTO_SANDBOX` | Set by the kit: the engine runs inside an OTO sandbox, so `oto serve` binds all interfaces by default and needs no token. |
 | `PYTHON` | Which interpreter `tools/run_gates.sh` uses. |
 
 ## Dependencies, on purpose

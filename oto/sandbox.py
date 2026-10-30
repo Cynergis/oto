@@ -48,6 +48,22 @@ POLICIES = ("balanced", "deny-all", "allow-all")
 READY = "OTO ready"
 #: the kit's switch for the plugin lock: `allowed` keeps outside plugins, anything else blocks them
 OUTSIDE = "OTO_OUTSIDE_PLUGINS"
+#: set by the kit's environment (spec.yaml): the engine runs inside an OTO sandbox
+INSIDE_ENV = "OTO_SANDBOX"
+#: the ports `oto sandbox up` publishes to the computer's loopback: the explorer, and a second view
+DEFAULT_PORTS = (8798, 8799)
+
+
+def inside_kit(environ=None, home=None):
+    """True inside a sandbox made from OTO's kit: the kit's environment says so (OTO_SANDBOX), or its
+    files are in the home folder (init.sh and lock-plugins under ~/.oto). What this changes: `oto serve`
+    binds all interfaces by default and needs no token, since the sandbox tool publishes a port to the
+    computer's loopback only, and a server on the sandbox's loopback is unreachable from the computer."""
+    env = environ if environ is not None else os.environ
+    if (env.get(INSIDE_ENV) or "").strip():
+        return True
+    base = os.path.join(home or os.path.expanduser("~"), ".oto")
+    return os.path.isfile(os.path.join(base, "init.sh")) and os.path.isfile(os.path.join(base, "lock-plugins"))
 
 #: Run inside the sandbox by `plugin_lock`: reads what the kit's lock-plugins writes, changes nothing.
 #: Read on its own, so it also answers for a sandbox made before the kit carried the lock.
@@ -292,6 +308,17 @@ def remove_sandboxes(names, stop_only=False):
     return out
 
 
+def published_ports(sbx, name):
+    """The sandbox ports published to this computer, from `sbx ports <name> --json`: [{port, host_port, host}]."""
+    code, out, err = sbx("ports", name, "--json")
+    try:
+        listed = json.loads(out) if code == 0 else []
+    except ValueError:
+        listed = []
+    return [{"port": int(e["sandbox_port"]), "host_port": int(e["host_port"]), "host": e.get("host_ip") or "127.0.0.1"}
+            for e in listed if isinstance(e, dict) and e.get("sandbox_port") is not None]
+
+
 def _ssh_ready(name):
     ssh = _tool("OTO_SSH", "ssh")
     if not ssh:
@@ -306,7 +333,7 @@ def status(name=DEFAULT_NAME):
     out = {"name": name, "kit": kit_ref(), "credentials": credentials_path(), "sbx": None, "signed_in": False,
            "policy": False, "kit_allowed": False, "anthropic_approved": anthropic_bound(), "anthropic_signed_in": False,
            "sandbox": None, "made_from": None, "from_kit": False, "folders": [], "oto": None, "outside_plugins": None, "outside_plugins_summary": None,
-           "ssh": False}
+           "ssh": False, "ports": []}
     if not sbx.path:
         return out
     out["sbx"] = _version(sbx) or "unknown"
@@ -319,6 +346,7 @@ def status(name=DEFAULT_NAME):
     found = _sandboxes(sbx).get(name)
     if found:
         out["sandbox"], out["folders"], out["made_from"] = found["status"], found["folders"], found["agent"]
+        out["ports"] = published_ports(sbx, name)
         out["from_kit"] = found["agent"] == _kit_name(out["kit"])
         if found["status"] == "running":     # `sbx exec` would start a stopped one
             out["oto"] = _oto_line(sbx, name, wait=0)
@@ -445,7 +473,7 @@ def describe_lock(lock, next_session=()):
 
 
 def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=False, init_policy=None,
-       recreate=False, check=False, wait=600, say=None, allow_outside=False):
+       recreate=False, check=False, wait=600, say=None, allow_outside=False, publish=None):
     """Make the sandbox ready. Returns a report: what was found, what was done, what is next.
     Raises SandboxError, with what the person does about it, when a step cannot go on."""
     say = say or (lambda line: None)
@@ -455,7 +483,9 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
     directory_given = bool(directory)
     directory = os.path.abspath(os.path.expanduser(directory or os.path.join("~", name)))
     project_dir, code_dir = os.path.join(directory, "project"), os.path.join(directory, "code")
-    report = {"name": name, "kit": kit, "project": project_dir, "code": code_dir, "done": [], "warnings": [], "check": check}
+    ports = [int(p) for p in (DEFAULT_PORTS if publish is None else publish)]
+    report = {"name": name, "kit": kit, "project": project_dir, "code": code_dir, "done": [], "warnings": [], "check": check,
+              "ports": [{"port": p, "host_port": p, "host": "127.0.0.1"} for p in ports]}
 
     sbx = Sbx()
     if not sbx.path:
@@ -523,6 +553,8 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
             os.makedirs(folder, exist_ok=True)
         say("creating the sandbox %s from %s: about a minute the first time" % (name, kit))
         args = ["create", kit, project_dir, code_dir, "--name", name, "--no-progress"]
+        for port in ports:                   # published at creation, so the forward is live from the first start
+            args += ["-p", "%d:%d" % (port, port)]
         if project_id:
             args += ["-e", "PROJECT=%s" % project_id]
         if allow_outside:
@@ -531,6 +563,9 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         if code != 0:
             raise SandboxError("sbx could not create the sandbox: %s" % (err or out).strip()[-600:])
         report["done"].append("created the sandbox %s from %s" % (name, kit))
+        if ports:
+            report["done"].append("published port%s %s to this computer's localhost, for oto serve inside"
+                                  % ("" if len(ports) == 1 else "s", " and ".join(str(p) for p in ports)))
     say("waiting for OTO to be ready inside it")
     line = _oto_line(sbx, name, wait=wait)
     report["oto"] = line
@@ -539,6 +574,23 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         if out.strip() != project_id:
             report["warnings"].append("the sandbox %s has %s as its Google Cloud project, not %s: run again with "
                                       "--recreate to change it" % (name, out.strip() or "no project", project_id))
+    if existing and ports:
+        have = {e["port"] for e in published_ports(sbx, name)}
+        added = []
+        for port in ports:
+            if port in have:
+                continue
+            code, out, err = sbx("ports", name, "--publish", "%d:%d" % (port, port))
+            if code == 0:
+                added.append(port)
+            else:
+                report["warnings"].append("port %d could not be published: %s" % (port, (err or out).strip()[-200:]))
+        if added:
+            report["done"].append("published port%s %s to this computer's localhost" % ("" if len(added) == 1 else "s", " and ".join(str(p) for p in added)))
+            if existing["status"] == "running":
+                report["warnings"].append("a port published to a running sandbox forwards from its next start: `sbx stop %s`, "
+                                          "then the next connection starts it" % name)
+        report["ports"] = published_ports(sbx, name)
     if existing and allow_outside:
         code, out, err = sbx("exec", name, "--", "printenv", OUTSIDE)
         if out.strip().lower() != "allowed":
@@ -574,7 +626,13 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
 def next_steps(report):
     """What the person does next, in Claude Desktop or a terminal."""
     name = report["name"]
-    return ["In Claude Desktop: the Code tab, a new session, then the environment menu: SSH, Add SSH connection.",
-            "  Name: OTO (%s). SSH host: %s.sbx. Leave the port and the identity file empty." % (name, name),
-            "  Choose that connection, then the folder %s." % (report["project"] or "you work in"),
-            "Or in a terminal: sbx run --name %s" % name]
+    lines = ["In Claude Desktop: the Code tab, a new session, then the environment menu: SSH, Add SSH connection.",
+             "  Name: OTO (%s). SSH host: %s.sbx. Leave the port and the identity file empty." % (name, name),
+             "  Choose that connection, then the folder %s." % (report["project"] or "you work in"),
+             "Or in a terminal: sbx run --name %s" % name]
+    ports = [e["port"] for e in report.get("ports") or []]
+    if ports:
+        lines += ["To see a served graph: in the sandbox, oto serve --project . --http %d (it binds all interfaces there, no token needed);"
+                  % ports[0],
+                  "  on this computer, open http://localhost:%d/%s" % (ports[0], (" (and %s for a second view)" % ", ".join("%d" % p for p in ports[1:])) if ports[1:] else "")]
+    return lines

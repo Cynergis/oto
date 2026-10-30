@@ -140,7 +140,7 @@ def test_what_the_published_snapshot_keeps_is_scanned_and_a_credential_refuses_i
     assert snapshot.refusals(snapshot.published(s)), "a credential in a kept note refuses the snapshot"
 
 
-def test_a_site_built_with_the_workbench_carries_the_published_snapshot_and_the_explorer_none(tmp_path):
+def test_a_site_built_with_the_workbench_carries_the_published_snapshot(tmp_path):
     root = str(tmp_path / "acme")
     with contextlib.redirect_stdout(io.StringIO()):
         init(root, slug="acme", name="Acme", ontology="software-architecture")
@@ -152,8 +152,8 @@ def test_a_site_built_with_the_workbench_carries_the_published_snapshot_and_the_
     assert published["published"] is True and published["project"]["name"] == "Acme"
     assert os.path.exists(os.path.join(site, "data.json")) and os.path.exists(os.path.join(site, "workbench.js"))
     assert "published snapshot" in out
-    code, out = _cli("build", "--project", root, "--target", "site", "--view", "explorer")
-    assert code == 0 and not os.path.exists(os.path.join(site, "snapshot.json")), "only a view that asks for it"
+    code, out = _cli("build", "--project", root, "--target", "site")
+    assert code == 0 and os.path.exists(os.path.join(site, "snapshot.json")), "the workbench is the default view, and it asks for the snapshot"
 
 
 def test_the_generated_deploy_workflow_builds_the_site_with_flags_oto_build_accepts():

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """The catalog: a static site from a registry checkout, one page per pack with its sample
-drawn by the explorer, one per ontology, grouped by domain on the index."""
+drawn by the workbench, one per ontology, grouped by domain on the index."""
 import json
 import os
 import shutil
@@ -49,11 +49,11 @@ def test_the_catalog_has_a_page_per_pack_and_per_ontology_and_draws_the_sample(h
     page = open(os.path.join(out, "packs", "arch", "index.html"), encoding="utf-8").read()
     for expected in ("<h1>arch", "/plugin install arch@market", "oto init --name", "${CLAUDE_PLUGIN_ROOT}",
                      "<code>software-architecture@12</code>", "<strong>System</strong>", "which product provides each",
-                     "<code>depends_on</code>", "The sample, drawn", 'src="explorer/index.html"', "tool.check-repository",
+                     "<code>depends_on</code>", "The sample, drawn", 'src="sample/index.html#/knowledge/graph"', "tool.check-repository",
                      "<code>/arch:start</code>", "The guide", "<strong>@1</strong>", "by Cynergis"):
         assert expected in page, expected
-    assert os.path.exists(os.path.join(out, "packs", "arch", "explorer", "index.html"))
-    data = json.load(open(os.path.join(out, "packs", "arch", "explorer", "data.json"), encoding="utf-8"))
+    assert os.path.exists(os.path.join(out, "packs", "arch", "sample", "index.html")) and os.path.exists(os.path.join(out, "packs", "arch", "sample", "workbench.js"))
+    data = json.load(open(os.path.join(out, "packs", "arch", "sample", "data.json"), encoding="utf-8"))
     assert data["nodes"] and data["edges"] and "System" in data["vocabulary"]["classes"]
     onto = open(os.path.join(out, "ontologies", "software-architecture", "index.html"), encoding="utf-8").read()
     assert "<h1>software-architecture" in onto and "oto init --ontology software-architecture" in onto and "<strong>Component</strong>" in onto
@@ -97,15 +97,11 @@ def test_the_small_markdown_renderer_covers_what_the_engine_writes():
     assert "<script>" not in catalog._markdown("<script>alert(1)</script>")
 
 
-def test_the_embedded_explorer_can_expand_to_the_parent_window():
-    """The explorer inside the catalog's frame tells the parent page when it expands, and the
-    page grows the frame to the full window; the bundle carries the message and the page the
-    listener."""
-    bundle = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "oto", "ui", "explorer", "explorer.js"), encoding="utf-8").read()
-    assert 'oto:"explorer"' in bundle and "postMessage" in bundle
-    page = catalog._pack_page.__code__.co_consts
-    assert any(isinstance(c, str) and "addEventListener('message'" in c and "classList.toggle('expanded'" in c for c in page)
-    assert "iframe.expanded{position:fixed;inset:0" in catalog.STYLE
+def test_the_embedded_sample_opens_the_workbench_on_its_graph():
+    """The catalog frames the workbench's Knowledge page on its Graph tab, the address the workbench
+    reads as #/knowledge/graph; the explorer's own window is gone."""
+    bundle = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "oto", "ui", "workbench", "workbench.js"), encoding="utf-8").read()
+    assert '"graph"' in bundle and "explorer.json" in bundle
 
 
 def test_the_registry_can_brand_its_catalog(home):

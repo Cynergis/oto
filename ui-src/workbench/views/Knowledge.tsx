@@ -13,7 +13,7 @@ import { Explorer } from "../../explorer/explorer.jsx";
 import adapter from "../../explorer/adapter.js";
 import defaults from "../../explorer/defaults.js";
 
-type Props = { payload: Payload | null; selected: string | null; kind: string | null; onEntity: (id: string | null) => void; onKind: (k: string | null) => void; onGo?: (target: LinkTarget) => void };
+type Props = { payload: Payload | null; override?: Record<string, unknown>; graph?: boolean; selected: string | null; kind: string | null; onEntity: (id: string | null) => void; onKind: (k: string | null) => void; onGo?: (target: LinkTarget) => void };
 
 function words(name: string) {
   return name.replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2").replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").toLowerCase();
@@ -25,7 +25,7 @@ function fmt(v: unknown): string {
   return String(v);
 }
 
-export function Knowledge({ payload, selected, kind, onEntity, onKind, onGo }: Props) {
+export function Knowledge({ payload, override, graph: graphFirst, selected, kind, onEntity, onKind, onGo }: Props) {
   const [query, setQuery] = React.useState("");
   const index = React.useMemo(() => {
     const byId: Record<string, GraphNode> = {};
@@ -34,7 +34,7 @@ export function Knowledge({ payload, selected, kind, onEntity, onKind, onGo }: P
     for (const e of payload?.edges || []) { (out[e.from] ||= []).push(e); (inn[e.to] ||= []).push(e); }
     return { byId, out, inn };
   }, [payload]);
-  const graph = React.useMemo(() => payload ? { full: adapter.toGraph(payload), d: defaults.fromVocabulary(payload.vocabulary, {}) } : null, [payload]);
+  const graph = React.useMemo(() => payload ? { full: adapter.toGraph(payload), d: defaults.fromVocabulary(payload.vocabulary, override || {}) } : null, [payload, override]);
 
   if (!payload) return <Empty>No graph to read: build the project first, then serve or export it.</Empty>;
 
@@ -47,7 +47,7 @@ export function Knowledge({ payload, selected, kind, onEntity, onKind, onGo }: P
   const node = selected ? index.byId[selected] : null;
 
   return (
-    <Tabs defaultValue="browse">
+    <Tabs key={graphFirst ? "graph" : "browse"} defaultValue={graphFirst ? "graph" : "browse"}>
       <TabsList><TabsTrigger value="browse">Browse</TabsTrigger><TabsTrigger value="graph">Graph</TabsTrigger></TabsList>
       <TabsContent value="browse">
         <div className="flex flex-wrap items-start gap-6">

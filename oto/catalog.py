@@ -5,8 +5,8 @@
 
 One page for the registry, one page per pack and one per ontology, all plain HTML with no
 external assets, so the directory can be hosted anywhere static; the registry's Pages workflow
-publishes it on every push. A pack's page draws its sample graph with the explorer: a throwaway
-project is started from the pack, built, and exported as the explorer's static site under the
+publishes it on every push. A pack's page draws its sample graph with the workbench: a throwaway
+project is started from the pack, built, and exported as the workbench's static site under the
 page. Nothing here writes into the registry checkout except the output directory.
 """
 import contextlib
@@ -215,11 +215,11 @@ def _grouped(entries):
     return [(k, sorted(groups[k], key=lambda e: e["name"])) for k in keys]
 
 
-# ---- the explorer on a pack's sample ----
+# ---- the workbench on a pack's sample ----
 
-def _export_explorer(pack_dir, out_dir):
-    """Start a throwaway project from the pack, build it, export the explorer. Returns the node
-    and edge counts, or None with the reason when it cannot be drawn."""
+def _export_sample(pack_dir, out_dir):
+    """Start a throwaway project from the pack, build it, export the workbench (its Knowledge page opens
+    on the graph). Returns the node and edge counts, or None with the reason when it cannot be drawn."""
     from .builder import build as _build
     from .project import Project
     from .scaffold import init as _init
@@ -232,7 +232,7 @@ def _export_explorer(pack_dir, out_dir):
             _init(work, slug="sample", name=manifest.get("summary") or manifest["name"], pack=pack_dir)
             project = Project.standard(work)
             _build(project)
-            site, payload = _site.write(project, app_dir=_apps.resolve("explorer"), passages=False)
+            site, payload = _site.write(project, app_dir=_apps.resolve(_apps.BUILTIN), passages=False)
         if os.path.exists(out_dir):
             shutil.rmtree(out_dir)
         shutil.copytree(site, out_dir)
@@ -302,16 +302,15 @@ def _pack_page(entry, pack_dir, registry_name, drawn, address, look=None):
                    (", extends " + ", ".join("<code>%s</code>" % _e(p) for p in sections["parts"][:-1])) if len(sections["parts"]) > 1 else "",
                    sections["classes"], sections["relations"]))
     if drawn and drawn[0]:
-        body.append("<section><h2>The sample, drawn</h2><p class=\"muted\">The pack's sample graph, %d nodes and %d edges, in the explorer every project gets: "
-                    "<a href=\"explorer/index.html\">open it full size</a>.</p><iframe src=\"explorer/index.html\" title=\"the sample graph\" loading=\"lazy\"></iframe>"
-                    "<script>window.addEventListener('message',function(e){if(!e.data||e.data.oto!=='explorer')return;var f=document.querySelector('iframe');if(!f||e.source!==f.contentWindow)return;f.classList.toggle('expanded',!!e.data.expanded);document.body.style.overflow=e.data.expanded?'hidden':'';});</script></section>"
+        body.append("<section><h2>The sample, drawn</h2><p class=\"muted\">The pack's sample graph, %d nodes and %d edges, in the workbench every project gets: "
+                    "<a href=\"sample/index.html#/knowledge/graph\">open it full size</a>.</p><iframe src=\"sample/index.html#/knowledge/graph\" title=\"the sample graph\" loading=\"lazy\"></iframe></section>"
                     % (drawn[0]["nodes"], drawn[0]["edges"]))
     elif drawn:
         body.append("<section><h2>The sample, drawn</h2><p class=\"muted\">Could not be drawn: %s</p></section>" % _e(drawn[1]))
     if sections["actions"]:
         body.append("<section><h2>Tools it ships</h2><p class=\"muted\">OTO lists them; the caller invokes.</p><ul>%s</ul></section>" % sections["actions"])
     body.append("<section><h2>Skills</h2>%s</section>" % ("".join(skills) or "<p class=\"muted\">none</p>"))
-    body.append("<section><h2>Views</h2>%s</section>" % (("<ul>%s</ul>" % views) if views else "<p class=\"muted\">None yet: the explorer and the reader every project has.</p>"))
+    body.append("<section><h2>Views</h2>%s</section>" % (("<ul>%s</ul>" % views) if views else "<p class=\"muted\">None yet: the workbench every project has.</p>"))
     if sections["guide"]:
         body.append("<section><h2>The guide</h2><div class=\"md\">%s</div></section>" % _markdown(sections["guide"]))
     if changelog:
@@ -409,7 +408,7 @@ def write(work, out=None, url=None):
         pack_dir = os.path.join(work, entry["path"])
         page_dir = os.path.join(out, "packs", entry["name"])
         os.makedirs(page_dir, exist_ok=True)
-        drawn = _export_explorer(pack_dir, os.path.join(page_dir, "explorer"))
+        drawn = _export_sample(pack_dir, os.path.join(page_dir, "sample"))
         if drawn[0]:
             report["drawn"] += 1
         else:

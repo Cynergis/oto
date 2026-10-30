@@ -6,7 +6,7 @@
 import type { Payload, Snapshot } from "./types";
 import { SNAPSHOT } from "./types";
 
-export interface Loaded { snapshot: Snapshot | null; payload: Payload | null; live: boolean; problem: string | null }
+export interface Loaded { snapshot: Snapshot | null; payload: Payload | null; override: Record<string, unknown>; live: boolean; problem: string | null }
 
 async function json<T>(url: string): Promise<T> {
   const r = await fetch(url, { cache: "no-store" });
@@ -28,7 +28,10 @@ export async function load(): Promise<Loaded> {
     snapshot = null;
   }
   const payload = await json<Payload>("data.json").catch(() => null);
-  return { snapshot, payload, live, problem };
+  /* explorer.json: an ontology's or a project's tuning of the graph (columns, colours, icons, threshold, title),
+     served and exported beside the page when present; nothing to read is the common case. */
+  const override = await json<Record<string, unknown>>("explorer.json").catch(() => ({}));
+  return { snapshot, payload, override, live, problem };
 }
 
 /* Calls `changed` when the build or the snapshot moves; stops when the page is static. */

@@ -8,11 +8,11 @@ writes `build/site/`:
     snapshot.json       for a view whose app.json says `"snapshot": "published"` (the workbench): the
                         published project snapshot (snapshot.py), what the site may show of the project
     <the app's files>   copied as they are: `"site": {"view": "<name or path>"}` in project.config.json,
-                        `oto build --target site --view <name or path>`, or the built-in explorer
+                        `oto build --target site --view <name or path>`, or the built-in workbench
 
 With the view `all`, the default when the project has views of its own (installed from its packs),
 the site is a home page (`index.html`, `views.json`) and each view in its own folder beside it,
-`<name>/`, the built-in explorer among them: one site for every view the project's packs bring.
+`<name>/`, the built-in workbench among them: one site for every view the project's packs bring.
 
 Opening the app from disk or hosting the directory anywhere static gives a reader with no server
 and no credentials. Passages are included unless `"site": {"passages": false}`; a large corpus

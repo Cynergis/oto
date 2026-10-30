@@ -5,6 +5,8 @@ import json
 import os
 import tempfile
 
+import pytest
+
 from oto.apps import manifest as apps
 from oto.builder import build
 from oto.project import Project
@@ -17,12 +19,16 @@ ROOT = os.path.dirname(HERE)
 WORKBENCH = os.path.join(ROOT, "oto", "ui", "workbench")
 
 
-def test_the_workbench_is_a_valid_built_app_beside_the_others():
+def test_the_workbench_is_the_one_built_in_app():
     from oto.model import ontologies
     vocabulary, _s, _r = ontologies.load("software-architecture")
     assert apps.problems(WORKBENCH, vocabulary) == []
     assert apps.resolve("workbench") == WORKBENCH
-    assert apps.resolve("explorer").endswith("explorer") and apps.resolve("reader").endswith("reader"), "both kept"
+    assert apps.BUILTIN == "workbench" and apps.default_view(tempfile.gettempdir()) == "workbench"
+    for gone in ("explorer", "reader"):
+        with pytest.raises(apps.AppError):
+            apps.resolve(gone)
+    assert apps.read(WORKBENCH)["overrides"] == ["explorer.json"], "the graph's tuning file applies to the workbench's Graph tab"
     for name in ("index.html", "workbench.js", "workbench.css", "app.json"):
         assert os.path.exists(os.path.join(WORKBENCH, name)), name
     with open(os.path.join(WORKBENCH, "workbench.js"), encoding="utf-8") as f:

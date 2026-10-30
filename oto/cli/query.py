@@ -171,5 +171,6 @@ def register(sub):
     serve.add_argument("--view", default=None,
                        help="with --http: the view to serve at /, by name or directory, or `all`: a home page at / and "
                             "each of the project's views at /<name>/ (the default when the project has views of its own; "
-                            "otherwise the built-in explorer; `reader` is the other built-in); data files are generated from the graph")
+                            "otherwise the built-in workbench: the graph as pages and as a graph, the ontology, the project's stations); "
+                            "data files are generated from the graph")
     serve.set_defaults(func=cmd_serve)

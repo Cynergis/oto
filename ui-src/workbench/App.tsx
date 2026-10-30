@@ -1,5 +1,5 @@
 /* The workbench: Overview, Knowledge, Ontology, Project and, when the vocabulary has work items, Work,
- * over one snapshot and one graph. Where the reader is lives in the address (#/overview, #/knowledge/<id>,
+ * over one snapshot and one graph. Where the reader is lives in the address (#/overview, #/knowledge/<id>, #/knowledge/graph,
  * #/knowledge/kind/<Class>, #/ontology/<Class>, #/ontology/rules/<Class>, #/ontology/lexicon/<words>,
  * #/ontology/dependencies/<graph>, #/ontology/versions, #/project/<station>, #/work), so a link to a page can be shared and the browser's back button works. */
 import * as React from "react";
@@ -28,6 +28,7 @@ function parse(hash: string): Route {
   if (parts[0] === "knowledge") {
     route.section = "knowledge";
     if (parts[1] === "kind") route.kind = parts[2] || null;
+    else if (parts[1] === "graph") route.graph = "graph";
     else route.entity = parts[1] || null;
   } else if (parts[0] === "ontology") {
     route.section = "ontology";
@@ -122,7 +123,7 @@ export function App() {
             {s ? <Overview snapshot={s} onOpen={st => go({ section: "project", station: st as StationId })} /> : <Empty>No project snapshot here: this copy carries the graph only.</Empty>}
           </TabsContent>
           <TabsContent value="knowledge" className="mt-0">
-            <Knowledge payload={data.payload} selected={route.entity} kind={route.kind}
+            <Knowledge payload={data.payload} override={data.override} selected={route.entity} kind={route.kind} graph={route.section === "knowledge" && route.graph === "graph"}
               onEntity={id => go({ section: "knowledge", entity: id })} onKind={k => go({ section: "knowledge", kind: k })} onGo={goTo} />
           </TabsContent>
           <TabsContent value="ontology" className="mt-0">

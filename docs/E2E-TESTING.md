@@ -244,11 +244,11 @@ oto query --project acme by-type Risk
 oto query --project acme count --type DecisionRecord
 oto query --project acme group status --type Requirement
 oto serve --project acme        # then paste a JSON-RPC tools/list request on stdin
-oto serve --project acme --http 8765     # then open http://127.0.0.1:8765/ (the explorer) and /api/entity?term=<label>
-oto serve --project acme --http 8765 --view reader   # the page-shaped reader instead
+oto serve --project acme --http 8765     # then open http://127.0.0.1:8765/ (the workbench) and /api/entity?term=<label>
+#   Knowledge: Browse (the graph as pages: by kind, search, one thing with its history and evidence) and Graph; Ontology; Project
 oto query --project acme pending                     # what is on its way in, by station
 oto serve --project acme --http 8765 --watch        # the preview, rebuilt on every change while you author
-oto build --project acme --target site   # build/site/: the explorer and data.json, to open from disk or host anywhere
+oto build --project acme --target site   # build/site/: the workbench and data.json, to open from disk or host anywhere
 oto serve --project acme --http 0.0.0.0:8765                     # refused: no token
 OTO_SERVE_TOKEN=$(openssl rand -hex 16) oto serve --project acme --http 0.0.0.0:8765   # then, from another
      # machine: curl -H "Authorization: Bearer <token>" http://<host>:8765/api/status, and in a browser
@@ -262,12 +262,12 @@ rebuild. Ask a global question ("what is this organisation most concerned with")
 answer as `notes/themes/<slug>.md`. Rebuild while the server is running.
 
 Pass when the host lists seventeen `kg_*` tools, a proposal dropped into `proposals/` shows in `pending`
-and, with `--watch`, appears in the explorer dotted with its station within a few seconds and disappears
-from the lane once applied and built, `/api/entity` over HTTP returns the same text as the CLI
-plus the rows as JSON, the explorer at `/` draws the graph in columns, lights a neighbourhood on hover,
-shows an entity's provenance, evidence and a derived edge with its rule in the panel, and says "live";
-the reader shows the home map, an entity card and a document page; `build/site/index.html`
-opened from disk shows the same and says "static"; `/api/graph` and `build/site/data.json` are the same object, every answer cites entity ids and sources with dates,
+and, with `--watch`, appears in the workbench's graph dotted with its station within a few seconds and
+disappears from the lane once applied and built, `/api/entity` over HTTP returns the same text as the CLI
+plus the rows as JSON, the workbench at `/` draws the graph in columns on its Graph tab, lights a
+neighbourhood on hover, shows an entity's provenance, evidence and a derived edge with its rule in the
+panel, and says "live"; its Browse tab lists things by kind, finds them by search and opens one with its
+history and evidence; `build/site/index.html` opened from disk shows the same and says "static"; `/api/graph` and `build/site/data.json` are the same object, every answer cites entity ids and sources with dates,
 `resolve` maps jargon to ids and says plainly when a thing is not ingested, a global answer is
 labelled as a synthesis and names the facts it rests on, the theme note is found by `search`
 after the next build, the running server answers from the new build on the next call with no

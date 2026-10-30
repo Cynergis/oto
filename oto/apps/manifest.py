@@ -241,9 +241,12 @@ ALL = "all"
 HOME_DIR = os.path.join(UI_DIR, "home")
 
 
+BUILTIN = "workbench"
+
+
 def project_views(project_root):
     """The views a project's home page lists, [(name, directory)]: those in its `views/` folder
-    (installed from its packs by `oto init` and `oto lock --use`), then the built-in explorer."""
+    (installed from its packs by `oto init` and `oto lock --use`), then the built-in workbench."""
     out = []
     base = os.path.join(project_root, "views") if project_root else None
     if base and os.path.isdir(base):
@@ -252,14 +255,15 @@ def project_views(project_root):
             if os.path.isdir(path) and (os.path.exists(os.path.join(path, MANIFEST_NAME))
                                         or os.path.exists(os.path.join(path, "index.html"))):
                 out.append((name, path))
-    if "explorer" not in [name for name, _path in out]:
-        out.append(("explorer", os.path.join(UI_DIR, "explorer")))
+    if BUILTIN not in [name for name, _path in out]:
+        out.append((BUILTIN, os.path.join(UI_DIR, BUILTIN)))
     return out
 
 
 def default_view(project_root):
-    """`all` (the home page and every view) when the project has views of its own, else the explorer."""
-    return ALL if len(project_views(project_root)) > 1 else "explorer"
+    """`all` (the home page and every view) when the project has views of its own, else the workbench,
+    the one built-in view: the graph as pages and as a graph, the ontology, the project's stations."""
+    return ALL if len(project_views(project_root)) > 1 else BUILTIN
 
 
 def catalog(views, identity=None):

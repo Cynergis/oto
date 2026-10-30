@@ -154,9 +154,9 @@ oto curate apply --project claims && oto build --project claims
 oto bench add --project claims --from claims/proposals/handbook.questions.json   # evaluate skill
 oto ingest complete --project claims    # the graph holds the run: processing/ -> archive/
 oto serve --project claims              # eighteen kg_* tools over JSON-RPC 2.0, for an MCP host
-oto serve --project claims --http 8765              # the same over HTTP, the graph explorer at /, the whole
-     # graph at /api/graph; --view reader for the page-shaped reader; --view <name|dir> serves your own
-     # web app instead, its data files generated from the graph as its app.json projections say
+oto serve --project claims --http 8765              # the same over HTTP, the workbench at /: the graph as pages and
+     # as a graph, the ontology, the project's stations; the whole graph at /api/graph; --view <name|dir> serves
+     # your own web app instead, its data files generated from the graph as its app.json projections say
 oto serve --project claims --http 8765 --watch      # the preview: the graph as it would be with every proposal
      # and the candidate in, rebuilt on each change while you author; --preview builds it once; the live
      # store is never touched, and `oto query pending` lists what is on its way in, by station

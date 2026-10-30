@@ -228,7 +228,7 @@ def test_a_partial_build_keeps_what_the_other_stages_wrote():
         assert generated_paths(project, {"site"}) == [project.layout.site]
         assert generated_paths(project, {"neo4j"}) == []
         assert set(generated_paths(project, {"knowledge", "rules"})) < set(generated_paths(project))
-        project.options = {"targets": {"site"}, "view": "explorer", "verify": False}
+        project.options = {"targets": {"site"}, "view": "workbench", "verify": False}
         assert build(project, only={"site"}) == ["site"]
         assert os.path.exists(os.path.join(project.layout.site, "index.html"))
         assert os.stat(db).st_mtime_ns == before and os.path.exists(os.path.join(project.layout.graph, "knowledge-graph.json"))

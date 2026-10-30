@@ -1,6 +1,6 @@
 {
   "name": "workbench",
-  "summary": "One app for a project: what the knowledge base knows (Overview, Knowledge, with the explorer's graph) and where the project is (Project: its stations). Read-only; served live beside the agent, it follows every change.",
+  "summary": "The one built-in view: what the knowledge base knows (Overview; Knowledge: the graph as pages to browse and search, each thing with its history and evidence, and as a graph), the ontology (classes, rules, lexicon, dependencies, versions), where the project is (Project: its stations) and the work. Read-only; served live beside the agent, it follows every change.",
   "entry": "index.html",
   "engine": ">=0.11.31",
   "data": [
@@ -15,5 +15,8 @@
   "requires": {},
   "title": "The workbench",
   "place": "technical",
-  "snapshot": "published"
+  "snapshot": "published",
+  "overrides": [
+    "explorer.json"
+  ]
 }

@@ -59,9 +59,9 @@ def test_a_class_knows_its_parents_children_relations_and_attributes():
 
 
 def test_a_decision_attribute_and_a_required_one_are_marked():
-    m = _ontology.model(_vocabulary("data"))
+    m = _ontology.model(_vocabulary("architecture"))
     by = {c["name"]: c for c in m["classes"]}
-    status = next(a for a in by["Column"]["attributes"] if a["name"] == "description_status")
+    status = next(a for a in by["Contract"]["attributes"] if a["name"] == "status")
     assert status["decision"] is True and status["default"] == "draft"
     m = _ontology.model(_vocabulary("architecture"))
     sha = next(a for a in {c["name"]: c for c in m["classes"]}["Commit"]["attributes"] if a["name"] == "sha")

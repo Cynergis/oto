@@ -19,14 +19,13 @@ import types
 import pytest
 
 from oto import connectors, deploy
-from oto.packs import data
 from oto.cli import main
 from oto.connectors import conformance
 from oto.project import Project
 from oto.scaffold import init
 
 from test_apps import _engine, _get
-from test_overlay import LEDGER_SQL, _seed_store
+from test_overlay import LEDGER_SQL
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FIXTURES = os.path.join(ROOT, "tests", "fixtures", "overlay")
@@ -196,7 +195,7 @@ def test_postgres_settings_come_from_the_config_or_the_environment_never_a_passw
     pg = connectors.get("postgres")
     root = str(tmp_path / "p")
     with contextlib.redirect_stdout(io.StringIO()):
-        init(root, slug="p", name="P", ontology="data", empty=True)
+        init(root, slug="p", name="P", ontology="software-architecture", empty=True)
     project = Project.standard(root)
     monkeypatch.delenv("OTO_POSTGRES_DSN", raising=False)
     with pytest.raises(Exception) as caught:
@@ -214,20 +213,6 @@ def test_postgres_settings_come_from_the_config_or_the_environment_never_a_passw
     assert parts == {"user": "ledger", "password": "secret", "host": "db.internal", "port": 5433, "database": "ledger", "ssl": True}
 
 
-def test_the_postgres_catalog_flows_into_a_schema_proposal(tmp_path):
-    root = str(tmp_path / "pgdata")
-    with contextlib.redirect_stdout(io.StringIO()):
-        init(root, slug="pgdata", name="The ledger in Postgres", ontology="data", empty=True)
-    _seed_store(root, "datastore.ledger", "Ledger database")
-    fake = FakePostgres(_fixture("postgres-ledger.json"))
-    done = data.introspect(Project.standard(root), connector_name="postgres", store_id="datastore.ledger", at="2026-10-26",
-                           settings={"connection": fake, "schema": "public", "name": "ledger"})
-    assert done["tables"] == 3 and done["columns"] == 9
-    with open(done["proposal"], encoding="utf-8") as f:
-        proposal = json.load(f)
-    column = next(n for n in proposal["nodes"] if n["id"] == "column.ledger-postings-posted-at")
-    assert column["attributes"] == {"type": "timestamp without time zone", "nullable": True}
-    assert "Read from the postgres catalog" in open(done["document"], encoding="utf-8").read()
 
 
 # ---- BigQuery ----
@@ -271,7 +256,7 @@ def test_bigquery_settings_name_the_project_and_dataset(tmp_path, monkeypatch):
     bq = connectors.get("bigquery")
     root = str(tmp_path / "b")
     with contextlib.redirect_stdout(io.StringIO()):
-        init(root, slug="b", name="B", ontology="data", empty=True)
+        init(root, slug="b", name="B", ontology="software-architecture", empty=True)
     project = Project.standard(root)
     monkeypatch.delenv("OTO_BIGQUERY_PROJECT", raising=False)
     monkeypatch.delenv("OTO_BIGQUERY_DATASET", raising=False)
@@ -289,7 +274,7 @@ def test_bigquery_settings_name_the_project_and_dataset(tmp_path, monkeypatch):
 def test_the_kit_runs_its_overlay_half_against_the_session_the_caller_opens(tmp_path):
     root = str(tmp_path / "k")
     with contextlib.redirect_stdout(io.StringIO()):
-        init(root, slug="k", name="K", ontology="data")
+        init(root, slug="k", name="K", ontology="software-architecture")
     code, out = _cli("build", "--project", root)
     assert code == 0, out
     pg = connectors.get("postgres")
@@ -317,7 +302,7 @@ def _deploy_config(root, overlay):
 def served(tmp_path):
     root = str(tmp_path / "served")
     with contextlib.redirect_stdout(io.StringIO()):
-        init(root, slug="served", name="Served", ontology="data")
+        init(root, slug="served", name="Served", ontology="software-architecture")
     code, out = _cli("build", "--project", root)
     assert code == 0, out
     ledger = str(tmp_path / "ledger.sqlite")
@@ -410,7 +395,7 @@ def test_the_postgres_overlay_against_a_live_store(tmp_path):
         pg.close(s)
     root = str(tmp_path / "live")
     with contextlib.redirect_stdout(io.StringIO()):
-        init(root, slug="live", name="Live", ontology="data")
+        init(root, slug="live", name="Live", ontology="software-architecture")
     code, out = _cli("build", "--project", root)
     assert code == 0, out
     result = conformance.run(pg, Project.standard(root), lambda name: pg.connect(settings))

@@ -23,8 +23,8 @@ authoring under the gates, time, query and serve, evaluation, Neo4j, repository 
 repository, specs and decisions, an ontology of your own, tools, deploy, audit and tracing, graphs
 that know each other, the engine's own CI, the ontology explorer, and the pack seams. Drive these first: they are
 the product, and they need no pack. The **packs**, each an ontology with the tools that work on it,
-are sections 18 (work and communication, the registry's `work` pack since [ADR-0010](adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), 21 (data), 22 (architecture; CALM, the first framework
-adapter, is the registry's `calm` pack, [ADR-0008](adr/0008-a-framework-is-a-pack-of-the-registry.md); the domain model is the registry's `ddd` pack, [ADR-0010](adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), 28 to 30 and 32 (policy, the snapshot and guards, the generated IAM) and 31
+are sections 18 (work and communication, the registry's `work` pack since [ADR-0010](adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), 21 (data, the registry's `data` pack), 22 (architecture; CALM, the first framework
+adapter, is the registry's `calm` pack, [ADR-0008](adr/0008-a-framework-is-a-pack-of-the-registry.md); the domain model is the registry's `ddd` pack, [ADR-0010](adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), 28 to 30 and 32 (policy, the snapshot and guards, the generated IAM; the registry's `policy` pack) and 31
 (the inbox and reminders). Each is optional: a project that does not compose the pack never sees
 its commands or its build stages.
 
@@ -705,6 +705,7 @@ reach does not answer.
 Exercises: the `data` ontology on `software-architecture`, its shapes, DT1 to DT6, the `draft` default.
 
 ```bash
+oto pack add data                                                       # the data layer is the registry's data pack; in Claude Code, /plugin install data@cynergis
 oto init --name "The ledger, described" --slug ledger --ontology data --project ledger
 oto build --project ledger
 oto query --project ledger ask DT1 TABLE=table.ledger-postings        # columns, types, keys, meaning, confirmed or draft
@@ -1135,6 +1136,7 @@ Epic E opens (E1, E2): access policy as facts on the data layer, and the active 
 a bundle the deploy pipeline carries. ADR-0004 records the choice of Cedar.
 
 ```bash
+oto pack add policy                                                             # once on the machine: the registry's policy pack brings oto policy, the stages and the hooks; in Claude Code, /plugin install policy@cynergis
 oto init --ontology policy --project ledger && oto build --project ledger      # "policy: 3 rule(s) compiled into build/policy (cedar + json), unsigned"
 ls ledger/build/policy                                                          # manifest.json policies.cedar policies.json
 oto policy list --project ledger                                                # every rule: status, effect, priority, who may do what on which resources, why
@@ -1331,7 +1333,7 @@ ADR-0006, step 2: a pack's manifest declares what it provides beyond its vocabul
 loads it only for a project that composes the pack. The core names no pack.
 
 ```bash
-python3 -c "import json; print(json.dumps(json.load(open('oto/ontologies/policy/manifest.json'))['provides'], indent=1))"   # stages policy and iam, the command, the write hook
+oto ontology show policy                                                        # the registry's policy pack, installed first (oto pack add policy): its manifest provides the stages policy and iam, the command, the write and read hooks
 oto --help                                                                      # core commands, then each pack command under its pack, from the manifests
 oto init --ontology data --project plain && oto build --project plain           # no "policy:" or "iam:" line: the stages belong to a pack the project does not compose
 oto init --ontology policy --project ledger && oto build --project ledger       # "policy: 4 rule(s) ..." then "iam: 4 binding(s) ...": the pack's stages, before the site

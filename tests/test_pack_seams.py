@@ -40,19 +40,14 @@ def _cli(*args):
 # ---- what the shipped packs declare ----
 
 def test_the_shipped_packs_declare_what_they_provide_and_the_core_names_none_of_them():
-    policy = ontologies.manifest_for("policy")["provides"]
-    assert [s["name"] for s in policy["stages"]] == ["policy", "iam"]
-    assert policy["stages"][0]["module"] == "oto.packs.policy.bundle_stage" and policy["stages"][0]["owns"] == ["policy"]
-    assert policy["stages"][1]["module"] == "oto.packs.policy.iam_stage" and policy["stages"][1]["owns"] == ["iam"]
-    assert policy["commands"] == [{"name": "policy", "module": "oto.packs.policy.cli", "label": "policy"}]
-    assert policy["write_hooks"] == ["oto.packs.policy:enforce"] and policy["read_hooks"] == ["oto.packs.policy:police_read"]
+    for pack in ontologies.available():
+        provides = ontologies.manifest_for(pack).get("provides") or {}
+        assert not any(k in provides for k in ("stages", "write_hooks", "read_hooks", "status")), \
+            "%s: the engine ships no pack with a stage or a hook of its own (ADR-0010)" % pack
     architecture = ontologies.manifest_for("architecture")["provides"]
     assert "adapters" not in architecture and architecture["commands"] == [{"name": "arch", "module": "oto.cli.arch", "label": "architecture"}]
     for pack in ontologies.available():
         assert "adapters" not in (ontologies.manifest_for(pack).get("provides") or {}), "%s: the engine ships no framework adapter (ADR-0008)" % pack
-    for pack, command, module, label in (("data", "data", "oto.packs.data.cli", "data"),):
-        provides = ontologies.manifest_for(pack)["provides"]
-        assert provides["commands"] == [{"name": command, "module": module, "label": label}], pack
     assert [n for n, _p in builder.STAGES] == CORE_STAGES, "the core's stage list names no pack"
     with open(os.path.join(ROOT, "oto", "cli", "__init__.py"), encoding="utf-8") as f:
         cli = f.read()
@@ -176,7 +171,6 @@ def test_a_pack_carries_its_own_code_and_the_engine_puts_it_on_the_path_when_it_
     """A pack from outside the engine (the user's directory, an installed plugin) brings its modules in
     its own code/ folder; nothing has to be installed on the machine's Python path for it to plug in."""
     assert extensions.code_dir("toy") == os.path.join(toy, "code")
-    assert extensions.code_dir("policy") is None, "the engine's own packs import from the engine; they carry no code/"
     assert "code" in ontologies.manifest_for("toy")["carries"] and ontology_manifest.problems(toy) == []
     before = list(sys.path)
     assert os.path.join(toy, "code") not in before
@@ -193,11 +187,9 @@ def test_a_pack_carries_its_own_code_and_the_engine_puts_it_on_the_path_when_it_
 def test_a_pack_is_composed_when_its_own_classes_are_in_the_vocabulary(toy, tmp_path):
     assert ontologies.self_check("toy") == [], ontologies.self_check("toy")
     toys = _project(tmp_path, "toy", "toys")
-    plain = _project(tmp_path, "data", "plain")
+    plain = _project(tmp_path, "agent", "plain")
     assert "toy" in extensions.composed(Project.standard(toys)) and "toy" not in extensions.composed(Project.standard(plain))
-    assert "data" in extensions.composed(Project.standard(plain)) and "policy" not in extensions.composed(Project.standard(plain))
-    ledger = _project(tmp_path, "policy", "ledger")
-    assert {"policy", "data", "agent"} <= set(extensions.composed(Project.standard(ledger))), "a pack and what it extends"
+    assert {"agent", "software-architecture"} <= set(extensions.composed(Project.standard(plain))), "a pack and what it extends"
 
 
 def test_a_composed_pack_s_stages_run_in_the_build_and_own_their_output(toy, tmp_path):
@@ -208,23 +200,19 @@ def test_a_composed_pack_s_stages_run_in_the_build_and_own_their_output(toy, tmp
     code, out = _cli("build", "--project", toys)
     assert code == 0 and "toy: wrote the marker" in out, out
     assert os.path.exists(os.path.join(project.layout.src, "toy", "marker.json"))
-    plain = _project(tmp_path, "data", "plain")
+    plain = _project(tmp_path, "agent", "plain")
     code, out = _cli("build", "--project", plain)
     assert code == 0 and "toy" not in out and "iam:" not in out and "policy:" not in out, "a project without the pack never sees its stages: " + out
-    ledger = _project(tmp_path, "policy", "ledger")
-    assert [n for n, _m in extensions.stages(Project.standard(ledger))] == CORE_STAGES[:-1] + ["policy", "iam", "site"]
-    code, out = _cli("build", "--project", ledger)
-    assert code == 0 and "policy: 4 rule(s)" in out and "iam: 4 binding(s)" in out, out
-    paths = builder.generated_paths(Project.standard(ledger))
-    assert Project.standard(ledger).layout.policy in paths and Project.standard(ledger).layout.iam in paths, "the stash knows what a pack's stage owns"
+    paths = builder.generated_paths(project)
+    assert os.path.join(project.layout.src, "toy") in paths or any("toy" in p for p in paths), "the stash knows what a pack's stage owns"
     assert Project.standard(plain).layout.policy not in builder.generated_paths(Project.standard(plain))
 
 
 def test_a_pack_s_command_is_discovered_and_the_help_groups_it_under_its_pack(toy, tmp_path):
     found = {c["name"]: c for c in extensions.commands()}
     assert found["toy"]["module"] == "toy_ext" and found["toy"]["pack"] == "toy" and found["toy"]["label"] == "toys"
-    assert {"policy", "data", "arch"} <= set(found)
-    assert not {"ddd", "work"} & set(found), "the domain model and the plan are packs of the registry (ADR-0010): the engine alone has neither command"
+    assert "arch" in found
+    assert not {"ddd", "work", "data", "policy"} & set(found), "the domain features are packs of the registry (ADR-0010): the engine alone has none of their commands"
     code, out = _cli("toy", "--project", "somewhere")
     assert code == 0 and "toy says hello from somewhere" in out, out
     code, out = _cli("--help")
@@ -238,7 +226,7 @@ def test_a_composed_pack_s_write_hook_runs_before_apply_decide_and_promote(toy, 
     ext.CALLS.clear()
     note = extensions.before_write(project, "curate apply", "Ada")
     assert note == "toy saw curate apply by Ada" and ext.CALLS == [("curate apply", "Ada")]
-    plain = Project.standard(_project(tmp_path, "data", "plain"))
+    plain = Project.standard(_project(tmp_path, "software-architecture", "plain"))
     assert extensions.before_write(plain, "curate apply", "Ada") is None and len(ext.CALLS) == 1, "a project without the pack calls no hook"
     code, out = _cli("curate", "start", "--project", toys)
     assert code == 0, out

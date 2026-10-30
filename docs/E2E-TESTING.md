@@ -23,7 +23,7 @@ authoring under the gates, time, query and serve, evaluation, Neo4j, repository 
 repository, specs and decisions, an ontology of your own, tools, deploy, audit and tracing, graphs
 that know each other, the engine's own CI, the ontology explorer, and the pack seams. Drive these first: they are
 the product, and they need no pack. The **packs**, each an ontology with the tools that work on it,
-are sections 18 (work and communication), 21 (data), 22 (architecture; CALM, the first framework
+are sections 18 (work and communication, the registry's `work` pack since [ADR-0010](adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), 21 (data), 22 (architecture; CALM, the first framework
 adapter, is the registry's `calm` pack, [ADR-0008](adr/0008-a-framework-is-a-pack-of-the-registry.md); the domain model is the registry's `ddd` pack, [ADR-0010](adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), 28 to 30 and 32 (policy, the snapshot and guards, the generated IAM) and 31
 (the inbox and reminders). Each is optional: a project that does not compose the pack never sees
 its commands or its build stages.
@@ -574,12 +574,13 @@ approver's kind.
 
 Exercises: the `work` ontology and `communication` on top of it, `oto work set`, the derived
 state, the block's shape, `oto work board` and the snapshot's `work` section, the workbench's Work
-page, `oto work notify`, `oto work inbox` (what a session opens with, through the plugin's
+page, `oto work notify`, `oto work inbox` (what a session opens with, through the work pack's
 SessionStart hook), `oto work reply --resolve`, `oto work event merged-pr`, the board's questions
 and the history; the scenario `tests/scenarios/roadmap` plays the same story with this roadmap's
 epics.
 
 ```bash
+oto pack add work                                                   # the plan is the registry's work pack; in Claude Code, /plugin install work@cynergis
 oto init --name "Plan" --ontology communication --project plan && oto build --project plan
 oto query --project plan ask WK12                                   # deployed, and where: the sample's checkout epic, prod
 oto work set "Daily settlement batch" --state blocked --reason "the acquirer's file format is not published" \
@@ -1253,6 +1254,7 @@ them, an unanswered blocker gets a reminder on its due date and every day after,
 nudges people who are not in a session, and the phase 6 milestone is reached by a named person.
 
 ```bash
+oto pack add work                                                               # once on the machine: the work pack brings oto work
 oto init --ontology communication --project comms
 OTO_PRINCIPAL="Mina Okafor" oto work inbox --project comms                     # 1 pending for Mina Okafor
 OTO_PRINCIPAL="Mina Okafor" oto work inbox --as "Payments team" --project comms; echo $?   # 1: a user sees only the messages addressed to them

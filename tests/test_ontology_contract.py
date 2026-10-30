@@ -414,9 +414,9 @@ def test_the_shipped_ontologies_extend_oto_core_and_keep_their_vocabulary():
     core = ontologies.load_raw("oto-core")["config"]
     assert set(core["classes"]) == {"Document", "Tool", "Graph"} and "temporal" in core
     chain = {"portfolio": ["oto-core"], "product": ["portfolio"], "software-architecture": ["product"], "architecture": ["software-architecture"],
-             "agent": ["software-architecture"], "platform": ["software-architecture"], "work": ["software-architecture"],
+             "agent": ["software-architecture"], "platform": ["software-architecture"],
              "data": ["software-architecture"]}
-    for name in ("auto-claims", "organization-process", "professional-services", "portfolio", "product", "software-architecture", "architecture", "agent", "platform", "work", "data"):
+    for name in ("auto-claims", "organization-process", "professional-services", "portfolio", "product", "software-architecture", "architecture", "agent", "platform", "data"):
         raw = ontologies.load_raw(name)
         assert raw["manifest"]["extends"] == chain.get(name, ["oto-core"]), name
         assert "temporal" not in raw["config"], name

@@ -3,8 +3,8 @@ software from the graph is something one does with a knowledge graph, not a know
 the factory (its plugin, the factory-run pack, its code, its tests, its E2E) lives in
 Cynergis/oto-factory as a pack that reaches the engine through the seams and a pack's code/, and
 the engine's repository forgets it: no folder, no pack, no command, no row, the engine plugin alone
-in its marketplace. What a factory needs from the engine stays: the work pack's verdict event, the
-policy snapshot and its reader, the architecture's measurement."""
+in its marketplace. What a factory needs from the engine stays: the policy snapshot and its reader, the
+architecture's measurement; the work pack's verdict event comes with the registry's work pack (ADR-0010)."""
 import contextlib
 import io
 import json
@@ -70,8 +70,8 @@ def test_the_documents_point_at_the_factory_s_repository_and_name_no_factory_com
 
 
 def test_what_a_factory_needs_from_the_engine_stays():
-    code, out = _cli("work", "--help")
-    assert code == 0 and "event" in out, out
+    code, out = _cli("--help")
+    assert code == 0 and "  work " not in out, "the verdict event is the work pack's, a pack of the registry (ADR-0010)"
     code, out = _cli("policy", "--help")
     assert code == 0 and "snapshot" in out and "denials" in out, out
     code, out = _cli("arch", "--help")

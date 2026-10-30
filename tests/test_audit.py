@@ -31,7 +31,7 @@ def _cli(*args):
 def plan(tmp_path):
     root = str(tmp_path / "plan")
     with contextlib.redirect_stdout(io.StringIO()):
-        init(root, slug="plan", name="The plan", ontology="communication")
+        init(root, slug="plan", name="The plan", ontology="organization-process")
     return root
 
 
@@ -105,28 +105,6 @@ def test_no_log_verifies_as_empty(plan):
 
 # ---- every write path appends ----
 
-def test_the_work_pack_records_what_it_applied_and_what_it_refused(plan):
-    code, _ = _cli("work", "set", "workitem.s-settlement-batch", "--state", "blocked", "--reason", "r", "--waiting-on", "team.payments",
-                   "--by", "Chiheb Dkhil", "--at", "2026-10-20", "--project", plan)
-    assert code == 0
-    code, _ = _cli("work", "set", "workitem.s-settlement-batch", "--state", "blocked", "--by", "Chiheb Dkhil", "--at", "2026-10-21", "--project", plan)
-    assert code == 1
-    code, _ = _cli("work", "notify", "workitem.s-settlement-batch", "--by", "Chiheb Dkhil", "--at", "2026-10-21", "--project", plan)
-    assert code == 0
-    code, _ = _cli("work", "event", "merged-pr", "--repo", "Cynergis/oto", "--number", "7", "--item", "workitem.s-evidence-retention",
-                   "--environment", "prod", "--at", "2026-10-22", "--project", plan)
-    assert code == 0
-    records = _records(plan)
-    assert [(r["action"], r["decision"]) for r in records] == [("work set", "applied"), ("work set", "refused"), ("work notify", "applied"), ("work event", "applied")]
-    assert records[0]["principal"] == "Chiheb Dkhil" and "transition.s-settlement-batch-1" in records[0]["nodes"] and "workitem.s-settlement-batch" in records[0]["nodes"]
-    assert records[1]["nodes"] == ["workitem.s-settlement-batch"] and "--reason" in records[1]["detail"]
-    assert "message.t-ledger-replica-1" not in records[2]["nodes"] and any(n.startswith("message.") for n in records[2]["nodes"])
-    assert records[3]["principal"] == "pull request Cynergis/oto#7 merged" and records[3]["detail"].startswith("github:")
-    assert records[0]["graph"] != records[2]["graph"], "the graph's version moved between the two writes"
-    assert records[1]["graph"] == records[0]["graph"], "a refusal changes nothing"
-    assert audit.verify(Project.standard(plan))["ok"]
-    code, out = _cli("audit", "for", "workitem.s-settlement-batch", "--project", plan)
-    assert code == 0 and out.count("\n") >= 3 and "refused" in out and "Chiheb Dkhil" in out, out
 
 
 def test_curate_apply_undo_and_ingest_complete_append(plan):
@@ -159,13 +137,6 @@ def test_curate_apply_undo_and_ingest_complete_append(plan):
     assert audit.verify(project)["ok"]
 
 
-def test_the_principal_is_the_git_identity_when_nobody_is_named(plan):
-    subprocess.run(["git", "init", "-q"], cwd=plan, check=True)
-    subprocess.run(["git", "config", "user.name", "Mina Okafor"], cwd=plan, check=True)
-    subprocess.run(["git", "config", "user.email", "mina@example.com"], cwd=plan, check=True)
-    code, out = _cli("work", "reply", "message.t-ledger-replica-1", "--body", "On it.", "--at", "2026-10-07", "--project", plan)
-    assert code == 0, out
-    assert _records(plan)[0]["principal"] == "Mina Okafor <mina@example.com>"
 
 
 def test_the_cli_verifies_and_reads_the_log(plan):

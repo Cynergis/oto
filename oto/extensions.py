@@ -9,7 +9,7 @@ A pack's manifest may carry `provides`, five kinds, each a list:
       "endpoints":   ["oto.serve.policy_api"],
       "write_hooks": ["oto.packs.policy:enforce"],
       "read_hooks":  ["oto.packs.policy:police_read"],
-      "status":      ["oto.packs.work:status"],
+      "status":      ["oto_work:status"],
       "adapters":    [{"framework": "<name>", "module": "oto.packs.<name>", "import": "read_model", "export": "write_model", "migrate": "migrate"}]
     }
 

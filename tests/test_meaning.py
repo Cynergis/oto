@@ -251,7 +251,7 @@ def test_meaning_refuses_a_store_the_graph_lacks_and_a_vocabulary_without_descri
     assert code == 1 and "--at" in out, out
     plain = str(tmp_path / "plain")
     with contextlib.redirect_stdout(io.StringIO()):
-        init(plain, slug="plain", name="Plain", ontology="communication")
+        init(plain, slug="plain", name="Plain", ontology="organization-process")
     code, out = _cli("data", "meaning", "--store", "datastore.ledger", "--at", "2026-10-28", "--project", plain)
     assert code == 1 and "Table" in out, out
 
@@ -301,7 +301,7 @@ def test_a_concierge_routes_a_question_about_a_table_to_the_data_graph(described
         f.write(out)
     plan, root = str(tmp_path / "plan"), str(tmp_path / "root")
     with contextlib.redirect_stdout(io.StringIO()):
-        init(plan, slug="plan", name="The payments plan", ontology="communication")
+        init(plan, slug="plan", name="The payments plan", ontology="organization-process")
         init(root, slug="root", name="Concierge", concierge=True)
     code, out = _cli("graph", "describe", "--reach", "http://127.0.0.1:1/plan", "--project", plan)
     assert code == 0, out
@@ -318,5 +318,5 @@ def test_a_concierge_routes_a_question_about_a_table_to_the_data_graph(described
     assert not error and "graph.described" in text and "Table" in text and "LoadJob" in text, text
     error, text = _call(engine, "kg_dependencies", question="which job loads the postings table and from which feed")
     assert not error and text.index("graph.described") < text.index("graph.plan") and "ask graph.described" in text, text
-    error, text = _call(engine, "kg_dependencies", question="what is blocked on the settlement work item")
+    error, text = _call(engine, "kg_dependencies", question="which role runs the customer onboarding process")
     assert not error and text.index("graph.plan") < text.index("graph.described"), text

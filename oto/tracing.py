@@ -16,7 +16,7 @@ does not ask for tracing. With `pip install 'oto-kg[otel]'` and one of:
     tracing.configure(exporter)       a provider of the caller's (the tests use an in-memory one)
 
 spans are real. Span names: `kg.<tool>` for a tool call, `oto.build` and `oto.build.<stage>` for a
-build, `oto.work.<command>` for the work pack's writes (oto/packs/work).
+build, `oto.work.<command>` for the work pack's writes (the registry's pack).
 
 The redaction policy is data, applied to every attribute before it reaches a span:
 

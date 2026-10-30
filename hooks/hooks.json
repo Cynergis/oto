@@ -6,10 +6,6 @@
           {
             "type": "command",
             "command": "uvx --from \"${OTO_SOURCE:-oto-kg @ git+https://github.com/Cynergis/oto}\" oto status --project \"${CLAUDE_PROJECT_DIR}\" 2>/dev/null || true"
-          },
-          {
-            "type": "command",
-            "command": "uvx --from \"${OTO_SOURCE:-oto-kg @ git+https://github.com/Cynergis/oto}\" oto work inbox --hook --project \"${CLAUDE_PROJECT_DIR}\" 2>/dev/null || true"
           }
         ]
       }

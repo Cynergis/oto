@@ -1,0 +1,135 @@
+{
+  "_about": "The portfolio: what we build, who owns it, what we pursue, which capabilities we need and which product provides each, and where each product's knowledge lives. The base of the chain: product, software-architecture, ddd and work sit on it, so a role, a team, an objective and a capability are one thing at every level. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
+  "_summary": "What we build, who owns it, what we pursue: the products with their stage, domain and value stream, the roles and teams accountable, the objectives of the period and which products pursue them, the capabilities needed and provided, the dependencies between products, and where each product's knowledge base, site and packs are.",
+  "name": "Portfolio",
+  "ontology_version": 1,
+  "strict_domains": false,
+  "languages": [
+    "en"
+  ],
+  "classes": {
+    "Product": {
+      "definition": "A thing we build or run, software or not: the root every other fact about it hangs off. At the portfolio level, what it is, where it stands and where its knowledge lives; the product level says what it must do."
+    },
+    "Role": {
+      "definition": "A function accountable for something: Product Owner, Sponsor, Head of Finance Operations. Ownership and decisions attach to a role, never to a named person; the current holder is an attribute."
+    },
+    "Team": {
+      "definition": "A group that runs or builds something and can be paged: ownership of the estate and of work attaches to a team. A role is a function; a team is people on a rota."
+    },
+    "Objective": {
+      "definition": "A qualitative goal for a period, owned by a role, pursued by products and made measurable by their success criteria. Objectives support higher objectives: that is strategic alignment."
+    },
+    "Capability": {
+      "definition": "A business capability the portfolio needs: what the business must be able to do, named in its own words. A product provides it; the estate's systems enable it."
+    }
+  },
+  "properties": {
+    "owned_by": {
+      "domain": "Product|Objective|Capability",
+      "range": "Role|Team",
+      "inverse": "owns",
+      "definition": "The role or team accountable for this. Ownership sits on a role or a team, not a person, so it survives people moving. Every level widens it to what it owns."
+    },
+    "pursues": {
+      "domain": "Product",
+      "range": "Objective",
+      "inverse": "pursued_by",
+      "definition": "The objectives a product works towards. At the product level usually derived (the product offers a value proposition that serves the objective); at the portfolio level stated by the review."
+    },
+    "supports": {
+      "domain": "Objective",
+      "range": "Objective",
+      "inverse": "supported_by",
+      "definition": "A lower objective that contributes to a higher one. This is where strategic alignment is recorded."
+    },
+    "provides": {
+      "domain": "Product",
+      "range": "Capability",
+      "inverse": "provided_by",
+      "definition": "The business capability a product gives the organisation. A capability nothing provides is a gap the portfolio must fill or accept."
+    },
+    "depends_on": {
+      "domain": "Product",
+      "range": "Product",
+      "inverse": "depended_on_by",
+      "definition": "This product needs that one to deliver: data, a service, a decision. Upstream is the product depended on. The estate widens it to systems and components."
+    },
+    "member_of": {
+      "domain": "Role",
+      "range": "Team",
+      "inverse": "has_member",
+      "definition": "The team a role sits in, when it does: the product owner of the payments team."
+    }
+  },
+  "attributes": {
+    "Product": {
+      "stage": {
+        "type": "enum:idea|discovery|specified|building|live|retired",
+        "definition": "Where the product is in its life."
+      },
+      "domain": {
+        "type": "string",
+        "definition": "The business domain the product sits in."
+      },
+      "value_stream": {
+        "type": "string",
+        "definition": "The value stream it serves."
+      },
+      "store_url": {
+        "type": "string",
+        "definition": "Where the product's published knowledge base is read from (`oto sync --repo`).",
+        "label": "store URL"
+      },
+      "site_url": {
+        "type": "string",
+        "definition": "Where the product's site is read.",
+        "label": "site URL"
+      },
+      "packs": {
+        "type": "list",
+        "definition": "The packs the product's knowledge is specified, designed and run with, e.g. product-report, ddd, flow: the lineage between its levels."
+      }
+    },
+    "Role": {
+      "holder": {
+        "type": "string",
+        "definition": "Who currently holds the role. Changes by supersession."
+      },
+      "mandate": {
+        "type": "string",
+        "definition": "What the role may decide."
+      },
+      "kind": {
+        "type": "enum:owner|decider|stakeholder|contributor",
+        "definition": "What sort of role: accountable, deciding, interested, or doing."
+      }
+    },
+    "Team": {
+      "mandate": {
+        "type": "string",
+        "definition": "What the team is for, in one sentence."
+      },
+      "contact": {
+        "type": "string",
+        "definition": "How the team is reached: a channel, a rota, a pager."
+      }
+    },
+    "Objective": {
+      "period": {
+        "type": "string",
+        "definition": "The period it is set for, e.g. 2027 H1."
+      },
+      "state": {
+        "type": "enum:proposed|active|achieved|missed|dropped",
+        "definition": "Where the objective is."
+      }
+    },
+    "Capability": {
+      "state": {
+        "type": "enum:needed|provided|retiring",
+        "definition": "Whether the portfolio has it, needs it, or is letting it go."
+      }
+    }
+  }
+}

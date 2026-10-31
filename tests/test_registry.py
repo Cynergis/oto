@@ -171,12 +171,20 @@ def test_add_by_name_fetches_with_provenance_and_init_uses_it(home, capsys):
         build(Project.standard(root))
 
 
-def test_init_points_at_the_registry_and_refuses_a_wrong_pin(home):
+def test_init_fetches_what_the_registry_lists_and_refuses_an_unknown_name_and_a_wrong_pin(home, capsys):
+    """`oto init --ontology <name>` for a name not on this machine fetches it from the registry that
+    lists it, as `oto ontology add` would (ADR-0011: a domain vocabulary is a pack of the registry);
+    a name no registry lists is refused, and so is a pin this machine does not hold."""
     bare, _work = make_registry(home)
     registry.add_registry(bare)
-    with tempfile.TemporaryDirectory() as root, pytest.raises(ValueError, match="not on this machine.*oto ontology add claims"):
+    with tempfile.TemporaryDirectory() as root:
         init(root, slug="kb", name="KB", ontology="claims")
-    registry.fetch("claims")
+        assert "ontology claims is not on this machine: fetched from the registry acme (release 2)" in capsys.readouterr().out
+        record = json.load(open(os.path.join(root, "project.config.json"), encoding="utf-8"))["ontology"]
+        assert record["origin"] == ontologies.FETCHED and record["registry"] == "acme" and record["release"] == 2
+    assert ontologies.origin("claims") == ontologies.FETCHED, "on this machine now, as oto ontology add leaves it"
+    with tempfile.TemporaryDirectory() as root, pytest.raises(ValueError, match="not on this machine, and no registry this machine knows lists it"):
+        init(root, slug="kb", name="KB", ontology="no-such")
     with tempfile.TemporaryDirectory() as root, pytest.raises(ValueError, match="at release 2 on this machine, not 1: oto ontology add claims@1"):
         init(root, slug="kb", name="KB", ontology="claims@1")
 
@@ -350,9 +358,10 @@ def test_diff_reports_what_the_upstream_ontology_changed_since(home, capsys):
         assert open(os.path.join(root, "project.config.json"), "rb").read() == before, "diff never writes"
 
 
-def test_diff_against_a_built_in_ontology_and_a_merge(home, capsys):
+def test_diff_against_the_engines_own_ontology_and_a_merge(home, capsys):
+    """oto-core is the one built-in left (ADR-0011): the engine itself is its upstream; a merge has none."""
     with tempfile.TemporaryDirectory() as root:
-        init(root, slug="a", name="A", ontology="software-architecture")
+        init(root, slug="a", name="A", ontology="oto-core")
         assert main(["ontology", "diff", "--project", root]) == 0
         assert "holds the same release" in capsys.readouterr().out
         from oto.cli.status import gather

@@ -195,6 +195,8 @@ jobs:
         run: {pip}
         env:
           ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
+      - name: Install the architecture pack, whose code compiles the graph (ADR-0011)
+        run: oto pack add https://github.com/Cynergis/oto-registry.git --path packs/architecture
       - name: Compile the architecture from this merge
         run: |
           if python -c "import json,sys; sys.exit(0 if json.load(open('project.config.json')).get('arch') else 1)"; then
@@ -260,6 +262,8 @@ jobs:
       - name: Provenance
         run: oto vet --project . || echo "::warning::some facts cite documents the corpus does not hold"
       - name: Impact of the decision records this pull request changes
+        # `oto arch` is the architecture pack's command (ADR-0011): on a project that does not compose it the
+        # command is unknown, the report is empty and nothing is posted.
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{{{ github.token }}}}
@@ -840,8 +844,9 @@ jobs:
 '''
 
 
-def files(slug, name, engine=None):
-    """Path -> content for everything `--repo` adds."""
+def files(slug, name, engine=None, architecture=False):
+    """Path -> content for everything `--repo` adds. `architecture`: the project composes the architecture
+    pack (its vocabulary declares CodeModule), so the merge workflow that compiles it is written too."""
     engine = engine or ENGINE
     pip = PIP.format(engine="${ENGINE}")
     mcp = json.loads(json.dumps(MCP).replace("{slug}", slug).replace("{engine}", engine))
@@ -855,20 +860,19 @@ def files(slug, name, engine=None):
         "CLAUDE.md": CLAUDE_MD.format(name=name, engine=engine),
         os.path.join(".github", "workflows", "oto-ingest.yml"): INGEST.format(pip=pip, engine=engine),
         os.path.join(".github", "workflows", "oto-checks.yml"): CHECKS.format(pip=pip, engine=engine),
-        os.path.join(".github", "workflows", "oto-architecture.yml"): ARCHITECTURE.format(pip=pip, engine=engine),
         os.path.join(".github", "workflows", "oto-deploy.yml"): DEPLOY.format(pip=pip, engine=engine, slug=slug),
         os.path.join(".github", "workflows", "oto-author.yml"): fill(AUTHOR),
         os.path.join(".github", "workflows", "oto-review.yml"): fill(REVIEW),
         os.path.join(".github", "workflows", "oto-tools.yml"): fill(ACTIONS),
         os.path.join(".github", "scripts", "oto-tools-invoke.py"): INVOKE_SCRIPT,
-    }
+    } | ({os.path.join(".github", "workflows", "oto-architecture.yml"): ARCHITECTURE.format(pip=pip, engine=engine)} if architecture else {})
 
 
-def write(root, slug, name, engine=None, force=False, writer=None):
+def write(root, slug, name, engine=None, force=False, writer=None, architecture=False):
     """Write the repository files. Returns the paths written. `writer(path, text, force, label)`
     is the scaffold's own writer, so the same keep-or-overwrite rule applies."""
     written = []
-    for relative, text in files(slug, name, engine).items():
+    for relative, text in files(slug, name, engine, architecture=architecture).items():
         path = os.path.join(root, relative)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         if writer:

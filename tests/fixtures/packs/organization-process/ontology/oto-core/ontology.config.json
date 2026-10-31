@@ -1,0 +1,98 @@
+{
+  "_about": "The base every OTO ontology extends: the temporal fields that make supersession work, Document, the class every fact cites, Tool, what can be done about an entity, and Graph, the node every graph holds about itself and about the graphs it depends on. Extend it; do not start a domain from it alone.",
+  "_summary": "The temporal vocabulary every OTO ontology rests on, the one class every fact cites (Document), and the one node every graph holds about itself (Graph).",
+  "name": "OTO core",
+  "ontology_version": 2,
+  "strict_domains": false,
+  "languages": [
+    "en"
+  ],
+  "classes": {
+    "Document": {
+      "definition": "A source document in the corpus: the file a fact cites, with its own date."
+    },
+    "Tool": {
+      "definition": "Something that can be done about an entity, described the way an MCP server describes a tool and bound to the graph. OTO lists it; the caller invokes it; the recorded run is evidence.",
+      "was": [
+        "Action"
+      ]
+    },
+    "Graph": {
+      "definition": "A knowledge graph described from outside: what it holds (its subject and main classes) and how it is reached. Every graph holds one about itself, written at init, and one for each graph it depends on, so an agent can list a graph's dependencies, read what each holds and choose which to ask without custom modelling."
+    }
+  },
+  "properties": {
+    "cites": {
+      "domain": "Document",
+      "range": "Document",
+      "definition": "This document refers to that one, so a fact traced to it can be traced one step further."
+    },
+    "acts_on": {
+      "domain": "Tool",
+      "definition": "The entity a recorded run of this tool read or changed."
+    },
+    "executed_by": {
+      "domain": "Tool",
+      "definition": "Who is accountable for invoking this tool: a team, never a person."
+    },
+    "depends_on_graph": {
+      "domain": "Graph",
+      "range": "Graph",
+      "inverse": "depended_on_by_graph",
+      "definition": "This graph draws on that one: a question here may need an answer from there. The dependency's node is its descriptor, so the agent chooses from what it says it holds."
+    }
+  },
+  "temporal": {
+    "asOf": {
+      "type": "date",
+      "definition": "When this fact was recorded or observed (transaction time)."
+    },
+    "validFrom": {
+      "type": "date",
+      "definition": "When the fact became true in the world (valid time)."
+    },
+    "validTo": {
+      "type": "date",
+      "definition": "When the fact stopped being true. Absent means it still holds."
+    },
+    "status": {
+      "type": "string",
+      "definition": "current | superseded | proposed | intended."
+    },
+    "supersedes": {
+      "type": "ref",
+      "definition": "The fact this one replaces."
+    },
+    "supersededBy": {
+      "type": "ref",
+      "definition": "The newer fact that retired this one."
+    },
+    "sourceDoc": {
+      "type": "string",
+      "definition": "Slug of the document that introduced or changed this fact.",
+      "label": "source document"
+    }
+  },
+  "attributes": {
+    "Graph": {
+      "subject": {
+        "type": "string",
+        "definition": "What the graph is about, in one line: what a reader would ask it.",
+        "required": true
+      },
+      "classes": {
+        "type": "list",
+        "definition": "The main classes it holds, by name, so an agent can tell a products graph from a policy graph without opening either."
+      },
+      "reach": {
+        "type": "string",
+        "definition": "How to reach it: the MCP server's name, or the URL of its HTTP server or published site.",
+        "required": true
+      },
+      "slug": {
+        "type": "string",
+        "definition": "The project's slug: the stable name its ids and store derive from."
+      }
+    }
+  }
+}

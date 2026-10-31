@@ -1,0 +1,41 @@
+{
+  "name": "platform",
+  "release": 3,
+  "domain": "software",
+  "binding": {
+    "of": "software-architecture",
+    "for": "where each part of the product runs and what it is built with: the cloud and its accounts, environments, services, the stack with versions, secrets and pipelines, and who decides each choice",
+    "skill": "bind-platform"
+  },
+  "summary": "The platform binding of a product's architecture: where each part runs (platforms, accounts, environments with their region, console, logs and provisioning), what it runs on and is built with (managed services, technologies at their versions), its secrets by where they are kept, the pipelines that deploy it, and who decides each choice: a named person, or the builder within limits. Briefs stop an implementing agent that lacks any of it.",
+  "ontology": {
+    "name": "platform",
+    "release": 1,
+    "registry": null,
+    "source": "built-in",
+    "ref": null,
+    "path": null,
+    "commit": null,
+    "embedded_at": "2026-10-31"
+  },
+  "engine": ">=0.14.7",
+  "maintainer": "Cynergis",
+  "changelog": [
+    {
+      "release": 3,
+      "at": "2026-10-31",
+      "note": "Republished from the engine under ADR-0011, its bases at the engine's current releases (software-architecture 12, product 14, oto-core 7): the engine ships no domain vocabulary."
+    },
+    {
+      "release": 2,
+      "at": "2026-10-14",
+      "note": "The studio's page: Where it runs."
+    },
+    {
+      "release": 1,
+      "at": "2026-10-14",
+      "note": "The platform binding: where the product runs and who decides each choice, with briefs that stop an implementing agent on any missing detail (engine 0.11.24)."
+    }
+  ],
+  "_about": "The pack's identity: its release rises on every published change; `ontology` names the ontology embedded under ontology/ and where it came from; `domain` is the category it belongs to."
+}

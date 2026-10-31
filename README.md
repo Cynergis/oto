@@ -23,7 +23,10 @@ is a pack: an ontology with the tools that work on it, loaded only when a projec
 architecture framework is a pack plus an adapter, and a pack of the registry rather than of the engine
 ([ADR-0008](docs/adr/0008-a-framework-is-a-pack-of-the-registry.md)): CALM today (`calm@cynergis`), C4
 when someone needs it, so a framework is swapped by installing a pack, never by changing the engine, which ships none. Work, data, policy and the domain model are
-packs the same way, and leave the engine for the registry in turn ([ADR-0010](docs/adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), the domain model (`ddd@cynergis`) first; what someone builds on the graph, the software factory first, is a use case
+packs the same way, and leave the engine for the registry in turn ([ADR-0010](docs/adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), the domain model (`ddd@cynergis`) first. A domain vocabulary is a pack of the registry too
+([ADR-0011](docs/adr/0011-a-domain-vocabulary-is-a-pack-of-the-registry.md)): the engine ships one vocabulary, `oto-core`, its own schema, and no other; the estate (`portfolio`, `product`,
+`software-architecture`), the reified model (`architecture`, with `oto arch` and `arch_context` in its own code) and every other domain are installed per
+project (`oto pack add <name>`, or `/plugin install <name>@cynergis`), and `oto init --ontology <name>` composes them from the installed pack. What someone builds on the graph, the software factory first, is a use case
 and lives in a repository of its own ([ADR-0007](docs/adr/0007-a-use-case-lives-outside-the-engine.md),
 [Cynergis/oto-factory](https://github.com/Cynergis/oto-factory)). [ADR-0006](docs/adr/0006-the-core-and-the-packs.md) records the line;
 `oto --help` prints it.
@@ -134,8 +137,9 @@ plugin also registers `oto serve` as an MCP server for the open project and runs
 session start, so the agent has the query tools and knows where the project stands.
 
 ```bash
+oto registry add https://github.com/Cynergis/oto-registry    # the registry: ontologies and packs; the engine ships only its own, oto-core (ADR-0011); then
+oto pack add auto-claims                                               # a domain vocabulary is a pack of the registry, installed once per machine
 oto ontology show auto-claims                                          # what an ontology composes
-oto registry add https://github.com/Cynergis/oto-registry    # the registry: ontologies and packs; then
 oto ontology add <name>                                                # fetch an ontology, and --ontology it
 oto pack add <name> && oto init --name "Acme Claims" --pack <name> --project claims   # or a pack: its ontology, skills and views
 oto init --name "Acme Claims" --ontology auto-claims --project claims   # or two ontologies, merged
@@ -177,7 +181,8 @@ oto actions list --project claims           # what can be done here: the actions
 Start from a vocabulary rather than an empty file:
 
 ```bash
-oto ontology                                        # four starter vocabularies, plus yours
+oto ontology                                        # the engine's own vocabulary, oto-core, the packs installed here, and yours
+oto pack add auto-claims                             # the vocabulary is the registry's pack (oto registry add <url> first, once)
 oto init --slug claims --name "Acme Claims" --ontology auto-claims
 oto build --project claims                           # it builds as shipped
 oto query --project claims entity "Claim C-5001"     # a cited answer, minutes in

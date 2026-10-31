@@ -1,0 +1,26 @@
+{
+  "name": "architecture",
+  "release": 1,
+  "domain": "software",
+  "summary": "The architecture graph for implementation, framework-neutral: estate nodes carrying the id, type and payload of the framework their model was written in (CALM through the calm pack's adapter), relationships, controls and flows as nodes, requirements with budgets and the evidence that measured them, the code modules and commits that implement each component, and the change proposals evidence raised.",
+  "ontology": {
+    "name": "architecture",
+    "release": 7,
+    "registry": null,
+    "source": "built-in",
+    "ref": null,
+    "path": null,
+    "commit": null,
+    "embedded_at": "2026-10-31"
+  },
+  "engine": ">=0.14.8",
+  "maintainer": "Cynergis",
+  "changelog": [
+    {
+      "release": 1,
+      "at": "2026-10-31",
+      "note": "The architecture pack: the reified, framework-neutral architecture vocabulary at release 6, published from the engine under ADR-0011; the arch command follows in the pack's own code with the engine that ships no domain vocabulary."
+    }
+  ],
+  "_about": "The pack's identity: its release rises on every published change; `ontology` names the ontology embedded under ontology/ and where it came from; `domain` is the category it belongs to."
+}

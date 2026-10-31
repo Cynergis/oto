@@ -1,0 +1,70 @@
+{
+  "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
+  "name": "architecture",
+  "release": 7,
+  "domain": "software",
+  "summary": "The architecture graph for implementation, framework-neutral: estate nodes carrying the id, type and payload of the framework their model was written in (CALM through the calm pack's adapter), relationships, controls and flows as nodes, requirements with budgets and the evidence that measured them, the code modules and commits that implement each component, and the change proposals evidence raised.",
+  "extends": [
+    "software-architecture"
+  ],
+  "namespace": "https://cynergis.ai/ont/architecture#",
+  "engine": ">=0.14.8",
+  "carries": [
+    "vocabulary",
+    "rationale",
+    "questions",
+    "sample",
+    "readme",
+    "code"
+  ],
+  "maintainer": "OTO",
+  "changelog": [
+    {
+      "release": 7,
+      "at": "2026-10-31",
+      "note": "The arch command and the served arch_context are this pack's code, the module oto_architecture in code/, loaded through provides.commands and the engine's new provides.tools seam (ADR-0011): the engine ships its own vocabulary and no other."
+    },
+    {
+      "release": 6,
+      "at": "2026-10-28",
+      "note": "resource_uri on System, Component, DataStore and Interface, generated_by on Control and AR12 leave for the policy pack (ADR-0006, step 4): where a resource is on the platform and the derived bindings are the policy pack's terms, and the pack no longer carries anything for another pack's sake."
+    },
+    {
+      "release": 5,
+      "at": "2026-10-28",
+      "note": "Framework-neutral (ADR-0006, step 3): calm_id, calm_type, calm_metadata and calm_details become external_id, external_type and external_payload on every node a framework writes; a Document carries framework and the model's header as external_payload; a Decision's option is external_payload. CALM itself moves to the calm pack, which provides the adapter `oto arch import --framework calm` uses; `oto arch migrate --framework calm --by <who>` rewrites a graph written before this release."
+    },
+    {
+      "release": 4,
+      "at": "2026-10-27",
+      "note": "Where a node is on the platform: resource_uri on System, Component, DataStore and Interface; a Control carries generated_by when a command derived it (the policy pack's `oto policy iam` derives the generated system's IAM bindings as controls, roadmap E7); AR12 lists the generated controls and what they safeguard."
+    },
+    {
+      "release": 3,
+      "at": "2026-10-26",
+      "note": "Contract: a version of an interface, its status a decision (draft, frozen, retired), contract_of the interface, supersedes widened to it; AR10 and AR11 (roadmap I4). The sample's invoice platform builds contract-first: three frozen contracts and a scheduling API."
+    },
+    {
+      "release": 2,
+      "at": "2026-10-26",
+      "note": "What round-tripping a CALM model needs: calm_type is any string CALM allows (the nine named), calm_details on every CALM node, Role carries the actor's type, metadata and details, Decision.calm_option for an options relationship's decisions, Document.calm_header for the model's own header (roadmap H1, `oto arch import` and `export`)."
+    },
+    {
+      "release": 1,
+      "at": "2026-10-26",
+      "note": "First release (roadmap Epic H, H1): CALM 1.0 nodes, relationships, controls and flows on software-architecture; NFR, Evidence, CodeModule, Commit, ChangeProposal; AR1-AR9, awaiting confirmation."
+    }
+  ],
+  "provides": {
+    "commands": [
+      {
+        "name": "arch",
+        "module": "oto_architecture.cli",
+        "label": "architecture"
+      }
+    ],
+    "tools": [
+      "oto_architecture.served"
+    ]
+  }
+}

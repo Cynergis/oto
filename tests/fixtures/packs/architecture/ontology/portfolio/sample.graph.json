@@ -1,0 +1,327 @@
+{
+  "_about": "An invented portfolio of two products: the payments platform (the product, estate and design samples) and the fund report automation; the ids coincide with the product and estate samples so a composed project holds one graph. Replace it.",
+  "nodes": [
+    {
+      "id": "product.payments",
+      "type": "Product",
+      "label": "Merchant payments",
+      "summary": "Takes a card payment and settles it the same day.",
+      "attributes": {
+        "stage": "building",
+        "domain": "payments",
+        "value_stream": "order to cash",
+        "store_url": "https://github.com/example/payments-kg.git",
+        "packs": [
+          "product",
+          "software-architecture",
+          "ddd"
+        ]
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "portfolio-review",
+      "status": "current",
+      "sources": [
+        "portfolio-review"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "product.fund-reports",
+      "type": "Product",
+      "label": "Fund report automation",
+      "summary": "Produces the fund documents from their definitions each month.",
+      "attributes": {
+        "stage": "specified",
+        "domain": "asset management",
+        "value_stream": "client reporting",
+        "packs": [
+          "product-report",
+          "ddd",
+          "flow"
+        ]
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "portfolio-review",
+      "status": "current",
+      "sources": [
+        "portfolio-review"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "role.r-owner",
+      "type": "Role",
+      "label": "Product owner",
+      "summary": "Decides scope and accepts releases.",
+      "attributes": {
+        "kind": "owner",
+        "holder": "the head of payments",
+        "mandate": "Decide scope and accept releases."
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "portfolio-review",
+      "status": "current",
+      "sources": [
+        "portfolio-review"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "role.r-sponsor",
+      "type": "Role",
+      "label": "Sponsor",
+      "summary": "Funds the portfolio and sets its objectives.",
+      "attributes": {
+        "kind": "decider",
+        "holder": "the chief operating officer",
+        "mandate": "Set the period's objectives and fund them."
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "portfolio-review",
+      "status": "current",
+      "sources": [
+        "portfolio-review"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "team.payments",
+      "type": "Team",
+      "label": "Payments team",
+      "summary": "Owns the payments platform end to end.",
+      "attributes": {
+        "mandate": "Run the payments platform.",
+        "contact": "#payments, pager rota"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "portfolio-review",
+      "status": "current",
+      "sources": [
+        "portfolio-review"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "team.reports",
+      "type": "Team",
+      "label": "Report platform team",
+      "summary": "Runs the report platform; on call for the monthly batch.",
+      "attributes": {
+        "mandate": "Produce the fund documents on schedule.",
+        "contact": "#reports"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "portfolio-review",
+      "status": "current",
+      "sources": [
+        "portfolio-review"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "objective.o-cash",
+      "type": "Objective",
+      "label": "Cash in the merchant's account by the next morning",
+      "summary": "The period's objective for payments.",
+      "attributes": {
+        "period": "FY2026",
+        "state": "active"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "portfolio-review",
+      "status": "current",
+      "sources": [
+        "portfolio-review"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "objective.o-trust",
+      "type": "Objective",
+      "label": "Every client document right and on time",
+      "summary": "The period's objective for reporting.",
+      "attributes": {
+        "period": "FY2026",
+        "state": "active"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "portfolio-review",
+      "status": "current",
+      "sources": [
+        "portfolio-review"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "objective.o-ops",
+      "type": "Objective",
+      "label": "Operations that scale without headcount",
+      "summary": "The company objective both support.",
+      "attributes": {
+        "period": "FY2026",
+        "state": "active"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "portfolio-review",
+      "status": "current",
+      "sources": [
+        "portfolio-review"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "capability.take-payment",
+      "type": "Capability",
+      "label": "Take a customer payment",
+      "summary": "What the business must be able to do.",
+      "attributes": {
+        "state": "provided"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "portfolio-review",
+      "status": "current",
+      "sources": [
+        "portfolio-review"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "capability.report-to-clients",
+      "type": "Capability",
+      "label": "Report to clients",
+      "summary": "Regulated documents to every client, every period.",
+      "attributes": {
+        "state": "provided"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "portfolio-review",
+      "status": "current",
+      "sources": [
+        "portfolio-review"
+      ],
+      "aliases": [],
+      "tags": []
+    },
+    {
+      "id": "capability.reconcile",
+      "type": "Capability",
+      "label": "Reconcile the ledgers",
+      "summary": "Needed, and no product provides it yet.",
+      "attributes": {
+        "state": "needed"
+      },
+      "as_of": "2026-10-07",
+      "valid_from": "2026-10-07",
+      "source_doc": "portfolio-review",
+      "status": "current",
+      "sources": [
+        "portfolio-review"
+      ],
+      "aliases": [],
+      "tags": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "product.payments",
+      "rel": "owned_by",
+      "to": "role.r-owner"
+    },
+    {
+      "from": "product.fund-reports",
+      "rel": "owned_by",
+      "to": "team.reports"
+    },
+    {
+      "from": "role.r-owner",
+      "rel": "member_of",
+      "to": "team.payments"
+    },
+    {
+      "from": "product.payments",
+      "rel": "pursues",
+      "to": "objective.o-cash"
+    },
+    {
+      "from": "product.fund-reports",
+      "rel": "pursues",
+      "to": "objective.o-trust"
+    },
+    {
+      "from": "objective.o-cash",
+      "rel": "supports",
+      "to": "objective.o-ops"
+    },
+    {
+      "from": "objective.o-trust",
+      "rel": "supports",
+      "to": "objective.o-ops"
+    },
+    {
+      "from": "objective.o-cash",
+      "rel": "owned_by",
+      "to": "role.r-owner"
+    },
+    {
+      "from": "objective.o-trust",
+      "rel": "owned_by",
+      "to": "role.r-sponsor"
+    },
+    {
+      "from": "objective.o-ops",
+      "rel": "owned_by",
+      "to": "role.r-sponsor"
+    },
+    {
+      "from": "product.payments",
+      "rel": "provides",
+      "to": "capability.take-payment"
+    },
+    {
+      "from": "product.fund-reports",
+      "rel": "provides",
+      "to": "capability.report-to-clients"
+    },
+    {
+      "from": "capability.take-payment",
+      "rel": "owned_by",
+      "to": "team.payments"
+    },
+    {
+      "from": "capability.report-to-clients",
+      "rel": "owned_by",
+      "to": "team.reports"
+    },
+    {
+      "from": "capability.reconcile",
+      "rel": "owned_by",
+      "to": "role.r-sponsor"
+    },
+    {
+      "from": "product.fund-reports",
+      "rel": "depends_on",
+      "to": "product.payments"
+    }
+  ]
+}

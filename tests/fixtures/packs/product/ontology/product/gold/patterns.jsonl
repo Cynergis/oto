@@ -1,0 +1,10 @@
+{"class": "Product", "pattern": "What problem does {label} solve, and what is its vision?"}
+{"class": "Objective", "pattern": "Which success criteria measure {label}, and which higher objective does it support?"}
+{"class": "ValueProposition", "pattern": "Which persona is {label} for, and which requirements serve it?"}
+{"class": "Requirement", "pattern": "Which value proposition does {label} serve, which feature realises it, and is it in scope of the next release?"}
+{"class": "Release", "pattern": "What is in scope of {label}, and what is explicitly excluded?"}
+{"class": "Decision", "pattern": "What did {label} settle, who decided it, and which document records it?"}
+{"class": "OpenQuestion", "pattern": "Is {label} still open, and which release does it block?"}
+{"class": "Risk", "pattern": "What does {label} threaten, and what mitigates it?"}
+{"class": "Policy", "pattern": "What does {label} apply to, and who enforces it?"}
+{"class": "Term", "pattern": "What does {label} mean here, and which document defines it?"}

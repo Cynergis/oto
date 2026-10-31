@@ -243,7 +243,7 @@ def problems(directory):
     return out
 
 
-PROVIDES_KINDS = ("stages", "commands", "endpoints", "write_hooks", "read_hooks", "status", "adapters")
+PROVIDES_KINDS = ("stages", "commands", "endpoints", "tools", "write_hooks", "read_hooks", "status", "adapters")
 
 
 def provides_problems(provides):
@@ -257,7 +257,7 @@ def provides_problems(provides):
             out.append("manifest.json provides.%s is not a kind the engine loads (%s)" % (kind, ", ".join(PROVIDES_KINDS)))
             continue
         if not isinstance(entries, list):
-            shape = {"stages": "{name, module, owns}", "commands": "{name, module, label}", "endpoints": "module names",
+            shape = {"stages": "{name, module, owns}", "commands": "{name, module, label}", "endpoints": "module names", "tools": "module names",
                      "write_hooks": "module:function names", "read_hooks": "module:function names", "status": "module:function names", "adapters": "{framework, module, import, export}"}[kind]
             out.append("manifest.json provides.%s must be a list of %s" % (kind, shape))
             continue
@@ -271,7 +271,7 @@ def provides_problems(provides):
             elif kind == "commands":
                 if not isinstance(entry, dict) or not entry.get("name") or not entry.get("module"):
                     out.append("manifest.json %s needs name and module (and a label)" % where)
-            elif kind == "endpoints":
+            elif kind in ("endpoints", "tools"):
                 if not isinstance(entry, str) or not entry:
                     out.append("manifest.json %s must be a module name" % where)
             elif kind in ("write_hooks", "read_hooks", "status"):

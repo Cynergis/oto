@@ -32,7 +32,12 @@ Three things, read before showing anything:
    `description`, a `category` (software, product, reporting, data, insurance, organization,
    professional-services) and a `version`. `oto pack list` adds what kind each pack is: a *pattern of*
    the architecture (agent, ddd, medallion), a *binding* of it (platform), a *playbook* (product), a
-   *product type* (product-report), a *domain feature* with tools of its own (work, data, policy). oto-factory and pdf-to-template are plugins from their own
+   *product type* (product-report), a *domain feature* with tools of its own (work, data, policy), the
+   *estate* and the *reified model* themselves (`portfolio`, `product`, `software-architecture`,
+   `architecture`), which the pattern packs extend, and a *domain vocabulary* on `oto-core` alone
+   (`auto-claims`, `organization-process`, `professional-services`). A sandbox, or a machine with the
+   engine alone, has no domain vocabulary until a pack is turned on: the engine ships `oto-core`, its own
+   schema, and no other ([ADR-0011](../../docs/adr/0011-a-domain-vocabulary-is-a-pack-of-the-registry.md)). oto-factory and pdf-to-template are plugins from their own
    repositories, listed beside the packs.
 2. **What is on already.** `claude plugin list`: each `<name>@cynergis` with its version and whether it
    is enabled. Leave those out of the choice, or show them as "already on" in one line.
@@ -67,6 +72,7 @@ checklist (§2), ticked by default, so they confirm rather than browse:
 
 | The project | Recommend |
 |---|---|
+| describes a software estate (systems, components, interfaces, where they run) or an architecture to trace to decisions and code | `software-architecture` for the estate, or `architecture` when the model is to carry its decisions, requirements and code map (it brings the estate); then the pattern packs below |
 | composes `software-architecture` or `architecture` | the pattern packs for the parts it has: `ddd` for a domain designed with domain-driven design, `agent` for a part people talk to, `medallion` for a data pipeline; `platform` when there is a cloud; `calm` when the architecture is written as a CALM model; `oto-factory` when a component is to be built from the graph |
 | has stores to describe, or access to them to govern | `data` for a store's schema, lineage, usage and meaning as facts (its `data-meaning` skill drafts, a person confirms); `policy` on top of it when who may do what with the data is written down, compiled and held to; `work` for the plan as facts, with the inbox a session opens with |
 | is a product, from idea to knowledge base | `product` (its playbook leads the journey), `work` for the plan as facts |

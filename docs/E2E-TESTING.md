@@ -22,11 +22,15 @@ sections 1 to 17, 19, 20, 23 to 27 and 33: install, a project, documents in, the
 authoring under the gates, time, query and serve, evaluation, Neo4j, repository mode, the query
 repository, specs and decisions, an ontology of your own, tools, deploy, audit and tracing, graphs
 that know each other, the engine's own CI, the ontology explorer, and the pack seams. Drive these first: they are
-the product, and they need no pack. The **packs**, each an ontology with the tools that work on it,
+the product, and they need no pack beyond the vocabulary a section composes. The **packs**, each an ontology with the tools that work on it,
 are sections 18 (work and communication, the registry's `work` pack since [ADR-0010](adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), 21 (data, the registry's `data` pack), 22 (architecture; CALM, the first framework
 adapter, is the registry's `calm` pack, [ADR-0008](adr/0008-a-framework-is-a-pack-of-the-registry.md); the domain model is the registry's `ddd` pack, [ADR-0010](adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), 28 to 30 and 32 (policy, the snapshot and guards, the generated IAM; the registry's `policy` pack) and 31
 (the inbox and reminders). Each is optional: a project that does not compose the pack never sees
-its commands or its build stages.
+its commands or its build stages. The engine ships its own vocabulary, `oto-core`, and no other: a
+domain vocabulary (`software-architecture`, `architecture`, `auto-claims` and the rest) is a pack of
+the registry, installed once on the machine with `oto pack add <name>` before the section that
+composes it, or fetched by `oto init --ontology <name>` itself on a machine that knows the registry
+([ADR-0011](adr/0011-a-domain-vocabulary-is-a-pack-of-the-registry.md)).
 
 ## What needs your accounts
 
@@ -56,14 +60,16 @@ oto verify            # init, author, build, query on a throwaway domain
 oto ontology
 ```
 
-Pass when `version` prints, `verify` ends with `OTO VERIFY: PASS`, and four starter vocabularies
-are listed (auto-claims, organization-process, professional-services, software-architecture).
+Pass when `version` prints, `verify` ends with `OTO VERIFY: PASS`, and `ontology` lists `oto-core`,
+the engine's own vocabulary, and beside it every pack installed on the machine (none, on a fresh
+one).
 
 ## 2. A project from an ontology, built and queried
 
 Exercises: `init`, the build transaction, the six stages, the query engine on the local store.
 
 ```bash
+oto pack add software-architecture      # the estate is the registry's software-architecture pack; in Claude Code, /plugin install software-architecture@cynergis
 oto init --name "Acme Platform" --ontology software-architecture --project acme
 oto status --project acme
 cat acme/GUIDE.md                        # the ontology's guide to reading this domain's graph
@@ -120,7 +126,9 @@ from the registry's marketplace, `/plugin marketplace add Cynergis/oto-registry`
 ADR-0009). Try each way at
 least once:
 
-1. Two ontologies merged: `oto init --ontology software-architecture,organization-process ...`
+1. Two ontologies merged: `oto pack add organization-process` (the estate's pack is on the machine since
+   section 2; this one is the registry's organization-process pack; in Claude Code, `/plugin install
+   organization-process@cynergis`), then `oto init --ontology software-architecture,organization-process ...`
 2. From the documents: ask for the **ontology-interview** skill after stage 3; it reads the
    survey, asks its questions, and writes `ontology.config.json` and `ontology.rationale.json`.
 3. From a file you own: `oto ontology import --project acme --file ontology.ttl` (any OWL, RDFS or SKOS in any RDF syntax, with `oto-kg[rdf]`; or a `.csv` or `.json` vocabulary).
@@ -334,6 +342,7 @@ Exercises: `oto init --repo`, the six workflows, the Claude Code Action, the pul
 human gate, the deploy to Neo4j and the query repository.
 
 ```bash
+oto pack add software-architecture      # once on the machine: the estate is the registry's software-architecture pack
 oto init --name "Acme Platform" --ontology software-architecture --project acme-kb --repo
 cd acme-kb && git init -b main && git add -A && git commit -m "oto project"
 gh repo create <org>/acme-kb --private --source . --push
@@ -473,11 +482,11 @@ oto ontology update
 ```
 
 Pass when the export is refused if the sample would carry personal data, the new ontology is
-listed beside the shipped ones and shadows a shipped one of the same name, a project made from it
+listed beside `oto-core` and the installed packs and shadows an installed one of the same name, a project made from it
 builds and answers, the first publish creates the index and the tag `acme-arch/v1`, a publish with
 a deny term in the vocabulary is refused and pushes nothing, the fetched ontology's
-`manifest.json` records the registry, source and commit, `oto init` names the registry and the
-command when an ontology is only there, a wrong pin is refused, `status` announces the newer
+`manifest.json` records the registry, source and commit, `oto init` fetches an ontology that is only
+in a registry by itself and names `oto pack add <name>` when no registry the machine knows has it, a wrong pin is refused, `status` announces the newer
 version, `diff` classifies the change and says how many of the project's nodes it touches, and
 `update` brings the newer version, and the plugin installs in Claude Code with its skill.
 
@@ -487,8 +496,8 @@ Exercises: the tool files an ontology ships (the class Tool, called Action until
 recorded run becoming evidence through the gates, the act skill. The guided version, with a stand-in for GitHub so it needs no token, is
 [scenarios/tools.md](scenarios/tools.md).
 
-The software-architecture ontology ships `Repository`, `implemented_by`, a current sample
-repository and three tools (`tools/`): a daily repository check and a create-repository
+The registry's software-architecture pack (on the machine since section 2) ships `Repository`,
+`implemented_by`, a current sample repository and three tools (`tools/`): a daily repository check and a create-repository
 tool bound to the GitHub MCP server, and a weekly read of what an `Interface` answers. Add an
 intended repository to `graph.json` (`"status": "intended"`, `owner` and `name` attributes,
 `implemented_by` from a component) to see the create tool become ready. Or write one of your
@@ -847,8 +856,11 @@ work item.
 ## 22. The architecture pack: a framework's model as facts, the trace to code
 
 Exercises: the `architecture` ontology on `software-architecture`, framework-neutral, its shapes, AR1 to AR9; then CALM through the registry's `calm` pack, the first framework adapter (ADR-0008: the engine ships none).
+The vocabulary, the `oto arch` command and the served `arch_context` tool are the architecture pack's own
+code, installed with the pack ([ADR-0011](adr/0011-a-domain-vocabulary-is-a-pack-of-the-registry.md)).
 
 ```bash
+oto pack add architecture                                               # the reified model is the registry's architecture pack, which brings software-architecture, oto arch and arch_context; in Claude Code, /plugin install architecture@cynergis
 oto init --name "Invoice approval, as architecture" --slug invoice --ontology architecture --project invoice
 oto build --project invoice
 oto query --project invoice ask AR1 NODE=component.invoice-intake      # what it connects to: the database over JDBC, the policy over AMQP via the events exchange
@@ -885,7 +897,7 @@ oto query --project trading ask SA1 SYSTEM=system.trading-system           # the
 oto arch export --framework calm --out trading.exported.json --project trading       # equals the input, up to empty containers
 ```
 
-Pass when, with the engine alone, import names the framework it has no adapter for and says the packs provide none; with the pack, import reports 13 nodes, 8 interfaces, 18 relationships, 2 controls and 7 flows, names
+Pass when, with the architecture pack alone, import names the framework it has no adapter for and says the packs provide none; with the calm pack, import reports 13 nodes, 8 interfaces, 18 relationships, 2 controls and 7 flows, names
 what the model does not say (nothing deployed anywhere: `--environment` supplies it), the document
 has a line per fact and every quote holds at `curate check`, the gates apply, AR1 and SA1 answer, and
 the exported model equals the input once empty interface and control lists are dropped; a model
@@ -916,8 +928,9 @@ cannot trace are proposed without `implemented_by` and AR9 lists them, each modu
 `Commit` that `touches` it, mapping again after a new commit adds one node and changes no module,
 `compile` imports and maps what the config declares, applies with the note in the audit log and
 builds, a compile the gates refuse leaves no candidate and names the finding, a project with no
-`arch` section is refused in words, and the workflow file runs `oto arch compile` on every push to
-`main`, commits the graph as "oto architecture" and skips its own commits.
+`arch` section is refused in words, and the workflow file installs the architecture pack and runs
+`oto arch compile` on every push to `main`, commits the graph as "oto architecture" and skips its own
+commits.
 
 Then what an agent reads before it edits, and what a change reaches (H3, H4), on the pack's sample:
 
@@ -1017,6 +1030,7 @@ Phase 6 of the roadmap (Epic D) shows the ontology itself, not the instances it 
 is the class model (D1): a class with its parents, children, relations with cardinality and attributes.
 
 ```bash
+oto pack add architecture                                                                        # once on the machine: the registry's architecture pack; in Claude Code, /plugin install architecture@cynergis
 oto init --ontology architecture --project arch && oto build --project arch
 oto serve --project arch --http 8765 --view workbench &
 curl -s localhost:8765/api/ontology | python3 -c "import json,sys; m=json.load(sys.stdin); print(m['counts'])"
@@ -1041,6 +1055,7 @@ The second cut of the ontology explorer (D2, D3): the rules read by the class th
 vocabulary searched by any word in any declared language, each hit landing on the element it names.
 
 ```bash
+oto pack add architecture                                                                        # once on the machine: the registry's architecture pack
 oto init --ontology architecture --project arch && oto build --project arch
 oto serve --project arch --http 8765 --view workbench &
 curl -s localhost:8765/api/rules | python3 -c "import json,sys; m=json.load(sys.stdin); print(m['counts'], m['by_class']['Component'])"
@@ -1070,6 +1085,8 @@ The third cut of the ontology explorer (D4, D5): the graph descriptors as a page
 flagged, and cross-artifact navigation from any entity.
 
 ```bash
+oto pack add architecture                                                                        # once on the machine: the registry's architecture pack
+oto pack add auto-claims                                                                         # the claims vocabulary is the registry's auto-claims pack; in Claude Code, /plugin install auto-claims@cynergis
 oto init --ontology architecture --project arch && oto build --project arch
 oto init --name "Claims policy" --slug policy --ontology auto-claims --project policy
 oto init --name "Claims policy, the copy" --slug policy-2 --ontology auto-claims --project policy-2
@@ -1105,6 +1122,7 @@ The fourth cut of the ontology explorer (D6): what changed between two versions 
 from the command line, from the served route, on the workbench, and on every pull request.
 
 ```bash
+oto pack add software-architecture                               # once on the machine: the estate is the registry's software-architecture pack
 oto init --ontology software-architecture --project estate && (cd estate && git init -q -b main && git add -A && git commit -q -m first)
 oto build --project estate
 # edit estate/ontology.config.json: remove the class Runbook, add a relation, reword a definition
@@ -1305,7 +1323,7 @@ oto query --project ledger ask PL8 PRINCIPAL=principal.ops-clerk                
 oto policy iam --project ledger --out /tmp/iam --at 2026-10-27                  # anywhere, the same bundle; the document lands in build/documents/iam-bindings.md; next: curate add --from ..., or --apply
 oto policy iam --project ledger --apply --by "<you>" --at 2026-10-27            # applied by <you>: 3 binding node(s) in the graph, built
 oto query --project ledger ask PL9 RESOURCE=table.ledger-postings               # the binding node on the postings table: provider, address, bindings, withheld, the rules behind it
-# with the registry's calm pack installed and composed too (oto pack add calm; oto init --ontology policy,calm), its adapter exports a binding node as a control on the component that runs as the granted principal:
+# with the registry's calm pack installed and composed too (oto pack add calm, which brings the architecture pack and its oto arch; oto init --ontology policy,calm), its adapter exports a binding node as a control on the component that runs as the granted principal:
 oto arch export --framework calm --out /tmp/ledger.calm.json --project ledger && python3 -c "import json; n=[n for n in json.load(open('/tmp/ledger.calm.json'))['nodes'] if n['unique-id']=='invoice-intake'][0]; print(list(n['controls']))"   # ['iam-table-invoices']
 oto policy iam --project ledger --apply --at 2026-10-27; echo $?               # 1: --apply takes --by
 python3 - <<'PY'
@@ -1337,18 +1355,21 @@ oto ontology show policy                                                        
 oto --help                                                                      # core commands, then each pack command under its pack, from the manifests
 oto init --ontology data --project plain && oto build --project plain           # no "policy:" or "iam:" line: the stages belong to a pack the project does not compose
 oto init --ontology policy --project ledger && oto build --project ledger       # "policy: 4 rule(s) ..." then "iam: 4 binding(s) ...": the pack's stages, before the site
-oto arch export --framework calm --project <an architecture project>            # the adapter the registry's calm pack provides, once installed (oto pack add calm); the engine ships none (ADR-0008)
-oto arch export --framework c4 --project <an architecture project>; echo $?     # 1: no adapter for framework 'c4': the packs on this machine provide calm (or none, with the engine alone)
+oto arch export --framework calm --project <an architecture project>            # the adapter the registry's calm pack provides, once installed (oto pack add calm); the command is the architecture pack's, which calm brings (ADR-0011); the engine ships neither (ADR-0008)
+oto arch export --framework c4 --project <an architecture project>; echo $?     # 1: no adapter for framework 'c4': the packs on this machine provide calm (or none, with the architecture pack alone)
 oto arch migrate --framework calm --by "<you>" --project <a project built before architecture release 5>   # calm_* become external_id, external_type, external_payload, framework, in the graph and in the project's vocabulary and questions; then oto build
 # a pack of your own: a directory under $OTO_ONTOLOGIES with a manifest whose `provides` names your modules, which live in its code/ folder (carries: ["code", ...]); nothing to install
 #   {"provides": {"stages": [{"name": "mine", "module": "mine_ext", "owns": []}], "commands": [{"name": "mine", "module": "mine_ext", "label": "mine"}],
-#                 "endpoints": ["mine_ext"], "write_hooks": ["mine_ext:before_write"], "adapters": [{"framework": "mine", "module": "mine_ext", "import": "read_model", "export": "write_model"}]}}
+#                 "endpoints": ["mine_ext"], "tools": ["mine_ext"], "write_hooks": ["mine_ext:before_write"], "adapters": [{"framework": "mine", "module": "mine_ext", "import": "read_model", "export": "write_model"}]}}
+#   tools: a module whose TOOLS are served beside the engine's kg_* tools for a project that composes the pack (the architecture pack's arch_context)
 oto ontology check --project <a project on it>                                  # the manifest checker holds the shapes of `provides`
 ```
 
 Pass when a project without a pack never runs its stages, sees its routes or calls its write hook;
 a project with the pack runs its stages after the core's targets and before the site, with their
 outputs stashed by a partial build; the pack's command is in `oto --help` under its pack; an
-endpoint the pack provides answers under `/api/` and is listed by `/api/tools`; the write hook's note
+endpoint the pack provides answers under `/api/` and is listed by `/api/tools`; a tool the pack
+provides (`arch_context`) is mounted beside the `kg_*` tools for a served project that composes the
+pack and not for one that does not; the write hook's note
 lands in the audit record of `curate apply`; an unknown framework is refused by name with the known
 ones listed; and a manifest whose `provides` is the wrong shape is named by the checker.

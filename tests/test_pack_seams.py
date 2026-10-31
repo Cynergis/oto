@@ -44,8 +44,9 @@ def test_the_shipped_packs_declare_what_they_provide_and_the_core_names_none_of_
         provides = ontologies.manifest_for(pack).get("provides") or {}
         assert not any(k in provides for k in ("stages", "write_hooks", "read_hooks", "status")), \
             "%s: the engine ships no pack with a stage or a hook of its own (ADR-0010)" % pack
-    architecture = ontologies.manifest_for("architecture")["provides"]
-    assert "adapters" not in architecture and architecture["commands"] == [{"name": "arch", "module": "oto.cli.arch", "label": "architecture"}]
+    architecture = ontologies.manifest_for("architecture")["provides"]      # the registry's pack, carried under tests/fixtures/packs (ADR-0011)
+    assert "adapters" not in architecture and architecture["commands"] == [{"name": "arch", "module": "oto_architecture.cli", "label": "architecture"}]
+    assert architecture["tools"] == ["oto_architecture.served"], "arch_context is the architecture pack's served tool, mounted through provides.tools"
     for pack in ontologies.available():
         assert "adapters" not in (ontologies.manifest_for(pack).get("provides") or {}), "%s: the engine ships no framework adapter (ADR-0008)" % pack
     assert [n for n, _p in builder.STAGES] == CORE_STAGES, "the core's stage list names no pack"
@@ -211,7 +212,8 @@ def test_a_composed_pack_s_stages_run_in_the_build_and_own_their_output(toy, tmp
 def test_a_pack_s_command_is_discovered_and_the_help_groups_it_under_its_pack(toy, tmp_path):
     found = {c["name"]: c for c in extensions.commands()}
     assert found["toy"]["module"] == "toy_ext" and found["toy"]["pack"] == "toy" and found["toy"]["label"] == "toys"
-    assert "arch" in found
+    assert found["arch"]["pack"] == "architecture" and found["arch"]["module"] == "oto_architecture.cli", \
+        "the arch command is the architecture pack's, loaded from its code/ (ADR-0011); the fixture packs make it this machine's"
     assert not {"ddd", "work", "data", "policy"} & set(found), "the domain features are packs of the registry (ADR-0010): the engine alone has none of their commands"
     code, out = _cli("toy", "--project", "somewhere")
     assert code == 0 and "toy says hello from somewhere" in out, out

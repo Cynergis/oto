@@ -136,6 +136,8 @@ def test_a_pack_may_supply_the_override(monkeypatch, capsys):
     from oto.model import packs
     with tempfile.TemporaryDirectory() as home:
         monkeypatch.setenv(packs.USER_DIR_ENV, os.path.join(home, "packs"))
+        # the engine ships no software-architecture (ADR-0011): the pack the suite carries for it, installed here
+        shutil.copytree(os.path.join(ROOT, "tests", "fixtures", "packs", "software-architecture"), os.path.join(home, "packs", "software-architecture"))
         assert main(["pack", "new", "arch-tuned", "--ontology", "software-architecture"]) == 0
         base = packs.dir_for("arch-tuned")
         os.makedirs(os.path.join(base, "views"))

@@ -2,6 +2,7 @@
 ontologies it started from, recorded at init; a machine checked against it; a script that rebuilds it."""
 import json
 import os
+import shutil
 import subprocess
 
 import pytest
@@ -11,6 +12,8 @@ from oto.model import lock as lockfile, ontologies
 from oto.project import Project
 from oto.scaffold import init
 
+FIXTURE_PACKS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "packs")
+
 
 def _git(args, cwd):
     subprocess.run(["git"] + args, cwd=cwd, check=True, capture_output=True)
@@ -19,11 +22,15 @@ def _git(args, cwd):
 @pytest.fixture
 def claude(tmp_path, monkeypatch):
     """A Claude Code profile: a marketplace cloned from git, the engine plugin, a pack, a plugin
-    that depends on the engine, a plugin listed from its own repository, and an unrelated one."""
+    that depends on the engine, a plugin listed from its own repository, and an unrelated one; and the
+    domain vocabularies these tests compose, installed as the registry's packs the way `oto pack add`
+    leaves them, since the engine ships none (ADR-0011)."""
     config = tmp_path / "claude"
     monkeypatch.setenv(ontologies.CLAUDE_CONFIG_ENV, str(config))
     monkeypatch.setenv(ontologies.USER_DIR_ENV, str(tmp_path / "ontologies"))
     monkeypatch.setenv("OTO_PACKS", str(tmp_path / "packs"))
+    for name in ("auto-claims", "organization-process", "software-architecture"):
+        shutil.copytree(os.path.join(FIXTURE_PACKS, name), str(tmp_path / "packs" / name))
     monkeypatch.delenv("OTO_SOURCE", raising=False)
     market = tmp_path / "market"
     (market / ".claude-plugin").mkdir(parents=True)
@@ -231,14 +238,16 @@ def test_without_claude_code_installs_nothing_is_declared(tmp_path, monkeypatch)
     assert lockfile.read(Project.standard(root))["plugins"] == []
 
 
-def test_a_shipped_ontology_with_an_installed_pack_declares_the_pack_for_its_skills(claude):
-    """organization-process ships with the engine, and a pack that embeds it brings its skills: naming it declares the pack."""
+def test_a_pack_ontology_with_a_plugin_that_embeds_it_declares_the_plugin_for_its_skills(claude):
+    """organization-process is an installed pack's vocabulary, not the engine's (ADR-0011), and a plugin
+    Claude Code installed that embeds it brings its skills: naming it declares that plugin, wherever
+    the vocabulary was read from."""
     assert main(["pack", "new", "orgs", "--ontology", "organization-process", "--to", str(claude["tmp"] / "cache" / "orgs")]) == 0
     _installed_pack(claude, "orgs@acme", claude["tmp"] / "cache" / "orgs" / "orgs")
     _installed_pack(claude, "orgs@elsewhere", claude["tmp"] / "cache" / "orgs" / "orgs")
     root = str(claude["tmp"] / "project")
     init(root, slug="p", name="P", ontology="organization-process", empty=True)
-    assert ontologies.origin("organization-process") == ontologies.BUILTIN
+    assert ontologies.origin("organization-process") == ontologies.PACK
     assert _settings(Project.standard(root))["enabledPlugins"] == {"orgs@acme": True, "oto@acme": True}
 
 

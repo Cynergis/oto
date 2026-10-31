@@ -24,6 +24,11 @@ matches its description.
 | data-meaning (the registry's `data` pack) | What a table or a column is about: draft a one-sentence description per node from the schema, the lineage and the usage (`oto data meaning`), take the drafts through the gates, and hand the person the `oto data confirm` command for each; the agent drafts, never confirms. The skill and the data commands come with the pack, `/plugin install data@cynergis` ([ADR-0010](../docs/adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)). |
 | [spec](spec/SKILL.md) | A product spec, ADR or design brief drawn from the graph, every claim cited, and its decisions recorded back as `Decision` facts ([the convention](spec/references/decisions.md)). |
 
+A pack's skills come with the pack, not with the engine, as the work and data rows say: the agent
+pack's `design-agent`, the product pack's `atlas` and `prd-build`, and each domain vocabulary's `start`
+skill arrive with `/plugin install <pack>@cynergis`, since a domain vocabulary is itself a pack of the
+registry ([ADR-0011](../docs/adr/0011-a-domain-vocabulary-is-a-pack-of-the-registry.md)). The engine's own skills are the ones listed here.
+
 They are discovered two ways: as a Claude Code plugin (`claude --plugin-dir <this repo>`, via the
 manifest in `.claude-plugin/`), or project-locally through the symlinks under `.claude/skills/`
 when Claude Code is opened in this repository. Each is also a slash command, `/oto:<name>`:

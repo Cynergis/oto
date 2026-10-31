@@ -1,0 +1,26 @@
+{
+  "name": "portfolio",
+  "release": 1,
+  "domain": "product",
+  "summary": "What we build, who owns it, what we pursue: the products with their stage, domain and value stream, the roles and teams accountable, the objectives of the period and which products pursue them, the capabilities needed and provided, the dependencies between products, and where each product's knowledge base, site and packs are.",
+  "ontology": {
+    "name": "portfolio",
+    "release": 1,
+    "registry": null,
+    "source": "built-in",
+    "ref": null,
+    "path": null,
+    "commit": null,
+    "embedded_at": "2026-10-31"
+  },
+  "engine": ">=0.14.7",
+  "maintainer": "Cynergis",
+  "changelog": [
+    {
+      "release": 1,
+      "at": "2026-10-31",
+      "note": "The portfolio pack: the portfolio vocabulary at release 1, published from the engine under ADR-0011 (the engine ships no domain vocabulary)."
+    }
+  ],
+  "_about": "The pack's identity: its release rises on every published change; `ontology` names the ontology embedded under ontology/ and where it came from; `domain` is the category it belongs to."
+}

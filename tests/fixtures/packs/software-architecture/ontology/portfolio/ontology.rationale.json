@@ -1,0 +1,55 @@
+{
+  "_about": "Why each term exists and who confirmed it. The eight executive's questions were confirmed by Chiheb Dkhil on 2026-10-07 (B6); Product, Role and Objective were confirmed at the product level on 2026-09-27 and moved here so every level shares them.",
+  "classes": {
+    "Product": {
+      "question": "Which products do we build, where do they stand, and where is their knowledge? (PF1, PF7, PF8)",
+      "why": "The root at every level. Declared here so the portfolio can list products without the product level's twenty classes.",
+      "alternatives": "Declaring Product only in `product`: rejected because a portfolio project would then compose the whole product level to name one.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)"
+    },
+    "Role": {
+      "question": "Who owns it and who decides? (PF1, PF5, PF6)",
+      "why": "Ownership questions are answered better by a role than a person, because roles are stable while people move; one Role at every level.",
+      "alternatives": "Role plus Person: rejected, no question needs a named individual's decisions traced.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)"
+    },
+    "Team": {
+      "question": "Which teams exist, what does each own, with what mandate? (PF6)",
+      "why": "The estate and the work are owned by teams; the product by roles. Declared once here so a project composing four packs has one Team.",
+      "alternatives": "Team as a kind of Role: rejected, a function and a group of people answer different pages.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)"
+    },
+    "Objective": {
+      "question": "What are we trying to achieve this period, and which products pursue it? (PF2)",
+      "why": "The executive's objective and the product's are one thing; the product's success criteria measure it.",
+      "alternatives": "A separate company objective class: rejected, `supports` already records the alignment between levels of objective.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)"
+    },
+    "Capability": {
+      "question": "Which capabilities do we need, which product provides each, and which has no product? (PF4)",
+      "why": "What the business asks about in its own words; the gap between needed and provided is the portfolio's finding.",
+      "alternatives": "Keeping Capability in the estate only: rejected, a capability is needed before any system enables it.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)"
+    }
+  },
+  "properties": {
+    "provides": {
+      "question": "Which product provides this capability?",
+      "why": "The portfolio's answer to a gap: a capability nothing provides.",
+      "alternatives": "The estate's `enables` (system to capability): kept beside it; a product provides, its systems enable.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)"
+    },
+    "depends_on": {
+      "question": "Which products depend on which?",
+      "why": "A late upstream product is a risk to every downstream one; the executive asks it first.",
+      "alternatives": "",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)"
+    },
+    "member_of": {
+      "question": "Which team does this role sit in?",
+      "why": "A role's team is who to page when the holder is away.",
+      "alternatives": "",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)"
+    }
+  }
+}

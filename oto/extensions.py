@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """The pack seams (ADR-0006): what a pack provides beyond its vocabulary, and when the engine loads it.
 
-A pack's manifest may carry `provides`, five kinds, each a list:
+A pack's manifest may carry `provides`, eight kinds, each a list:
 
     "provides": {
       "stages":      [{"name": "policy", "module": "oto.targets.policy", "owns": ["policy"]}],
       "commands":    [{"name": "policy", "module": "oto.cli.policy", "label": "policy"}],
       "endpoints":   ["oto.serve.policy_api"],
+      "tools":       ["oto_architecture.served"],
       "write_hooks": ["oto_policy:enforce"],
       "read_hooks":  ["oto_policy:police_read"],
       "status":      ["oto_work:status"],
@@ -16,7 +17,11 @@ A pack's manifest may carry `provides`, five kinds, each a list:
 A stage module exposes `run(project)` and runs after the core's targets, before the site, owning the
 layout attributes it names, so a partial build stashes them. A command module exposes `register(sub)`
 as the core's do. An endpoint module exposes `routes(project)`, {"/api/<path>": fn(args) -> (status,
-object)}, served beside the core's routes. A write hook, `module:function`, is called as
+object)}, served beside the core's routes. A tools module exposes `TOOLS`, entries shaped as the
+engine's own served tools ({name, description, inputSchema, fn}, with `route`, the GET path under
+/api/, and `forwardable` when a dependency's graph may be asked for it through kg_call), mounted
+beside the kg_* tools when the served project composes the pack (the architecture pack's `arch_context`,
+ADR-0011). A write hook, `module:function`, is called as
 `fn(project, action, by)` before `curate apply`, `decide` and `promote`, returns a note for the audit
 record or None, and refuses by raising a ProjectError. A read hook, `module:function`, is called as
 `fn(project, graph, caller, sql)` before the served native read and refuses by raising. A status hook,
@@ -45,7 +50,7 @@ import sys
 from .model import ontologies as _ontologies
 from .project import ProjectError
 
-KINDS = ("stages", "commands", "endpoints", "write_hooks", "read_hooks", "status", "adapters")
+KINDS = ("stages", "commands", "endpoints", "tools", "write_hooks", "read_hooks", "status", "adapters")
 BEFORE = "site"                     # contributed stages run before this core stage
 
 
@@ -165,6 +170,20 @@ def routes(project):
             found = getattr(mod, "routes", None)
             if callable(found):
                 out.update(found(project) or {})
+    return out
+
+
+# ---- served tools ----
+
+def tools(project):
+    """The served tools the packs composed in the project provide, [{name, description, inputSchema, fn,
+    route?, forwardable?}], in pack then module order: what the server mounts beside its own."""
+    out = []
+    for name in composed(project):
+        for module in provides(name).get("tools") or []:
+            mod = _load(module, name)
+            for tool in getattr(mod, "TOOLS", None) or []:
+                out.append(dict(tool, pack=name))
     return out
 
 

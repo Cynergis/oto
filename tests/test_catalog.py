@@ -16,12 +16,17 @@ from oto.model import ontologies, packs
 from test_registry import _empty_registry, _git
 
 
+FIXTURE_PACKS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "packs")
+
+
 @pytest.fixture
 def home(monkeypatch):
+    """A machine of its own, with the software-architecture pack installed: the engine ships no domain vocabulary (ADR-0011)."""
     with tempfile.TemporaryDirectory() as root:
         monkeypatch.setenv(packs.USER_DIR_ENV, os.path.join(root, "packs"))
         monkeypatch.setenv(ontologies.USER_DIR_ENV, os.path.join(root, "ontologies"))
         monkeypatch.setenv("OTO_REGISTRIES", os.path.join(root, "registries.json"))
+        shutil.copytree(os.path.join(FIXTURE_PACKS, "software-architecture"), os.path.join(root, "packs", "software-architecture"))
         yield root
 
 

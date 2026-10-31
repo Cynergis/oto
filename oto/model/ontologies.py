@@ -35,7 +35,7 @@ cited answer come back, understands what they are building. A team staring at an
 Ontologies come from these places, and a project can be turned into one:
 
     ~/.oto/ontologies/<name>/    yours, written by `oto ontology export` (OTO_ONTOLOGIES overrides)
-    oto/ontologies/<name>/       shipped with the package
+    oto/ontologies/<name>/       shipped with the engine: its own vocabulary, oto-core, and no other (ADR-0011)
     <pack>/ontology/<name>/      embedded in an installed pack: under ~/.oto/packs (OTO_PACKS
                                  overrides), or a plugin Claude Code installed
     any directory path          passed directly to `oto init --ontology <path>`
@@ -129,15 +129,23 @@ def _pack_roots():
 
 
 def _in_packs(name):
-    """The highest release of `name` embedded in an installed pack, or None."""
+    """The highest release of `name` embedded in an installed pack, or None. Two packs at the same
+    release: the one whose own vocabulary it is wins over a pack that embeds it as a base, so a
+    project from `software-architecture` records the software-architecture pack, not the first pack
+    alphabetically that extends it (ADR-0011)."""
+    from . import packs as _packs        # here, not at the top: packs imports this module
     best = None
     for root in _pack_roots():
         path = os.path.join(root, name)
         if _is_ontology_dir(path):
             release = int(_manifest.read(path).get("release") or 0)
-            if best is None or release > best[0]:
-                best = (release, path)
-    return best[1] if best else None
+            try:
+                own = (_packs.read(os.path.dirname(root)).get("ontology") or {}).get("name") == name
+            except Exception:                                   # noqa: BLE001 - a pack whose manifest cannot be read embeds it as a base
+                own = False
+            if best is None or (release, own) > (best[0], best[1]):
+                best = (release, own, path)
+    return best[2] if best else None
 
 
 def _home(name, roots=None):

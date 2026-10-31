@@ -4,6 +4,20 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.15.1 — 2026-10-31
+
+**A vocabulary the registry lists as a pack is fetched by `oto init`, and a marketplace counts as a registry.**
+Two gaps the 0.15.0 test drive found in the sandbox (pull request 138), both consequences of ADR-0011.
+
+- **`oto init --ontology <name>` falls back to the pack.** The registry lists every vocabulary as a pack
+  now, so a name no registry lists as a standalone ontology is looked up as a pack, fetched as `oto pack
+  add` would, and the project records the pack as its origin; the line printed says which was fetched.
+- **A registry Claude Code knows as a marketplace is found by name.** `oto registry list` and `oto pack
+  list` showed its packs, but `oto pack add <name>` and the fetch on `oto init` read only the registries
+  added with `oto registry add`. They read the same records now, and a marketplace record carries the
+  URL a fetch clones (the repository the marketplace came from, else Claude Code's copy). A machine set up
+  from the sandbox kit, which knows the Cynergis registry as a marketplace, needs no `oto registry add`.
+
 ## 0.15.0 — 2026-10-31
 
 **The engine ships its own vocabulary and no other.** Engine pull request 136 and registry pull requests 34 and 35

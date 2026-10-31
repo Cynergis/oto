@@ -4,6 +4,36 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.14.8 — 2026-10-30
+
+**The engine ships no pack with tools of its own.** Three pull requests (132, 133, 134) under
+[ADR-0010](docs/adr/0010-a-domain-feature-is-a-pack-of-the-registry.md): a domain feature is a pack of the
+registry, its tools in its own `code/` and its tests beside it.
+
+- **The domain model, the plan, the data layer and the access policy leave the engine.** `ddd`, `work` with
+  `communication`, `data` and `policy` are packs of Cynergis/oto-registry (`ddd@cynergis` 7, `work@cynergis` 8,
+  `data@cynergis` 1, `policy@cynergis` 1), each carrying its ontology, its commands (`oto ddd storm`, `oto work`,
+  `oto data`, `oto policy`), the work pack's status hook and SessionStart inbox hook, the policy pack's two build
+  stages and its write and read hooks, its skills (`work`, `data-meaning`) and the engine's former tests. The
+  engine ships ten ontologies, none with code; `oto/packs` is gone; on a bare install `oto --help` lists only
+  `arch` under packs, and a pack's command appears once the pack is installed.
+- **A build stage from a pack's `code/` loads.** The stage seam now puts a pack's code on the import path when it
+  lists the stage, as the command, hook and adapter seams already did; the policy stages are the first to use it.
+- **The engine plugin's SessionStart hook runs `oto status` alone.** The inbox is the work pack's hook, so a
+  session opens with it only where the pack is installed. The guard that holds a session to a policy snapshot
+  (`hooks/policy_guard.py`, with the reader any plugin copies) stays the engine plugin's, plain Python that reads
+  the file the policy pack writes.
+- **The reminder workflow** installs the work pack beside the engine before `oto work remind`; the roadmap project
+  stays in the repository on its own copy of the vocabulary and builds without the pack.
+
+**Migration.** A project that composes `ddd`, `work`, `communication`, `data` or `policy` keeps its own copy of the
+vocabulary and builds, queries and passes its gates as before; the pack's commands, stages, hooks and skills come
+back once the pack is installed on the machine: `oto pack add <name>` (or `/plugin install <name>@cynergis`, or the
+`/oto:packs` skill in a sandbox), the engine first. `oto init --ontology <name>` names the pack to install when it
+is not there. A CI that runs a pack's command installs the pack after the engine, the way the reminder workflow
+does. A sandbox made from an earlier kit keeps working; a new one starts with the engine alone and turns packs on
+per project.
+
 ## 0.14.7 — 2026-10-30
 
 **The workbench in a reader's order.** One pull request (130), nothing to the engine.

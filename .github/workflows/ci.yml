@@ -180,8 +180,8 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           : > ontology-diff.md
-          for path in $(git diff --name-only "$BASE"...HEAD -- '*ontology.config.json' 'ontology.config.json'); do
-            if [ -f "$path" ]; then
+          for path in $(git diff --name-only "$BASE"...HEAD -- '*ontology.config.json' 'ontology.config.json' ':!tests/fixtures/**'); do
+            if [ -f "$path" ]; then                      # the suite's fixture packs are the registry's vocabularies, not this repository's (ADR-0011)
               echo "<details open><summary><code>$path</code></summary>" >> ontology-diff.md
               echo >> ontology-diff.md
               if git cat-file -e "$BASE:$path" 2>/dev/null; then

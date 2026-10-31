@@ -1,0 +1,61 @@
+{
+  "name": "auto-claims",
+  "release": 8,
+  "domain": "insurance",
+  "summary": "Motor vehicle claims: policy, coverage, claim, incident, handling, money in and out.",
+  "ontology": {
+    "name": "auto-claims",
+    "release": 5,
+    "registry": null,
+    "source": "built-in",
+    "ref": null,
+    "path": null,
+    "commit": null,
+    "embedded_at": "2026-10-31"
+  },
+  "engine": ">=0.14.7",
+  "maintainer": "Cynergis",
+  "changelog": [
+    {
+      "release": 8,
+      "at": "2026-10-31",
+      "note": "Republished from the engine under ADR-0011, oto-core at release 7: the engine ships no domain vocabulary."
+    },
+    {
+      "release": 7,
+      "at": "2026-10-14",
+      "note": "Every conversation in plain language: no codes, ids or engine output, technical details only when asked (engine 0.11.22)."
+    },
+    {
+      "release": 6,
+      "at": "2026-10-13",
+      "note": "Refreshed on engine 0.11.10: today's oto-core and bases."
+    },
+    {
+      "release": 5,
+      "at": "2026-10-06",
+      "note": "Embeds the ontology at the release that declares its shapes."
+    },
+    {
+      "release": 4,
+      "at": "2026-10-06",
+      "note": "Embeds the ontology at the release that ships its competency questions."
+    },
+    {
+      "release": 3,
+      "at": "2026-10-06",
+      "note": "Remade from the ontology rewritten for the semantic layer."
+    },
+    {
+      "release": 2,
+      "at": "2026-09-26",
+      "note": "Embeds auto-claims @2: a Role performs a Procedure."
+    },
+    {
+      "release": 1,
+      "at": "2026-09-24",
+      "note": "The first pack: the auto-claims ontology, its start skill, no views yet."
+    }
+  ],
+  "_about": "The pack's identity: its release rises on every published change; `ontology` names the ontology embedded under ontology/ and where it came from; `domain` is the category it belongs to."
+}

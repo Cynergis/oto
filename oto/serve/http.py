@@ -46,7 +46,8 @@ ROUTES = {"entity": "kg_entity", "neighbors": "kg_neighbors", "search": "kg_sear
           "by-type": "kg_by_type", "count": "kg_count", "group": "kg_group_by", "explain": "kg_explain",
           "policy": "kg_policy", "overview": "kg_overview", "stale": "kg_stale", "resolve": "kg_resolve",
           "docs": "kg_docs", "pending": "kg_pending", "tools": "kg_tools", "actions": "kg_actions", "define": "kg_define",
-          "questions": "kg_questions", "ask": "kg_ask", "brief": "kg_brief", "dependencies": "kg_dependencies", "call": "kg_call", "read": "kg_read", "arch-context": "arch_context"}
+          "questions": "kg_questions", "ask": "kg_ask", "brief": "kg_brief", "dependencies": "kg_dependencies", "call": "kg_call", "read": "kg_read"}
+#: A composed pack's served tools add their own (engine.PACK_ROUTES, `provides.tools`): the architecture pack's arch-context (ADR-0011).
 INTEGER_ARGS = {"n", "limit"}
 BOOLEAN_ARGS = {"history", "ready", "due"}
 LOOPBACK = ("127.0.0.1", "localhost", "::1")
@@ -317,7 +318,7 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
                     return self._api(rest, args)
             if mount is None:
                 return self._json(404, {"error": "no app mounted; the routes are under /api/ and POST /rpc",
-                                        "tools": sorted(ROUTES)})
+                                        "tools": sorted(list(ROUTES) + list(engine.PACK_ROUTES))})
             rel = posixpath.normpath(urllib.parse.unquote(rest)).lstrip("/")
             if rel in mount["data"]:
                 with _STORE_LOCK:
@@ -368,6 +369,7 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
                 return self._json(status, obj)
             if path == "/api/tools":
                 routes = {"/api/%s" % r: t for r, t in sorted(ROUTES.items())}
+                routes.update({"/api/%s" % r: t for r, t in sorted(engine.PACK_ROUTES.items())})
                 routes.update({p: "provided by a pack" for p in sorted(extra_routes)})
                 routes.update({"/api/graph": "the whole graph as data", "/api/ontology": "the ontology as a model (?class=<Name> for one class)",
                                "/api/ontology/diff": "the vocabulary at a git ref against the working tree or another ref (?from=<ref>&to=<ref>)",
@@ -459,9 +461,9 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
                     return self._json(200, {"query": str(args["q"]), "hits": _lexicon.search(m, str(args["q"]))})
                 return self._json(200, m)
             route = path[len("/api/"):]
-            tool = ROUTES.get(route)
+            tool = ROUTES.get(route) or engine.PACK_ROUTES.get(route)
             if not tool:
-                return self._json(404, {"error": "no such route", "routes": sorted("/api/%s" % r for r in ROUTES)})
+                return self._json(404, {"error": "no such route", "routes": sorted("/api/%s" % r for r in list(ROUTES) + list(engine.PACK_ROUTES))})
             if tool == "kg_by_type" and "type_" in args:
                 args["type"] = args.pop("type_")
             msg = engine.respond({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": tool, "arguments": args}}, caller=self._caller())

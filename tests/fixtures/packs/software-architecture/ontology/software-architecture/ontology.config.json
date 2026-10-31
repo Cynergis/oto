@@ -1,0 +1,193 @@
+{
+  "_about": "How a product's solution is shaped: the systems, components, interfaces, stores and environments that satisfy its requirements, who runs them, what threatens them, and why they are the way they are. Sits on `product`: a requirement, a risk, a decision or a document is the product's, never a second copy. A relation is {domain, range, inverse, definition}. Use A|B for a union.",
+  "_summary": "Software estate on a product: systems, components, interfaces, data, environments; what satisfies which requirement, who owns and operates it, what threatens it, which decision shaped it.",
+  "name": "Software architecture",
+  "ontology_version": 2,
+  "strict_domains": false,
+  "languages": [
+    "en"
+  ],
+  "classes": {
+    "Asset": {
+      "definition": "Anything the estate runs or stores and a team can be accountable for: a system, a component, an interface, a data store. A question about assets covers all four."
+    },
+    "System": {
+      "definition": "A named application or platform that a team owns and a user or another system consumes.",
+      "subclass_of": [
+        "Asset"
+      ]
+    },
+    "Component": {
+      "definition": "A part of a system deployed or released as a unit: a service, a job, a library, a front end.",
+      "subclass_of": [
+        "Asset"
+      ],
+      "requires": [
+        "part_of"
+      ]
+    },
+    "Interface": {
+      "definition": "A contract others depend on: an API, an event topic, a file feed, a database view.",
+      "subclass_of": [
+        "Asset"
+      ]
+    },
+    "DataStore": {
+      "definition": "A place data lives: a database, a bucket, a queue, a cache, a warehouse table.",
+      "subclass_of": [
+        "Asset"
+      ]
+    },
+    "Environment": {
+      "definition": "A place components run: production, staging, a region, a tenant."
+    },
+    "Runbook": {
+      "definition": "The documented way to operate or recover something."
+    },
+    "Repository": {
+      "definition": "Where a component's code lives: a source repository, recorded before it exists (intended) and observed once it does."
+    }
+  },
+  "properties": {
+    "part_of": {
+      "domain": "Feature|JourneyStep|Component|Interface|DataStore",
+      "range": "Product|Feature|UserJourney|System",
+      "inverse": "contains",
+      "definition": "This belongs to that: a feature to its product or parent feature, a step to its journey. Widened to the estate: a component, interface or store belongs to one system.",
+      "max": 1
+    },
+    "owned_by": {
+      "domain": "Product|Objective|Capability|Feature|SuccessCriterion|Risk|Requirement|Release|System|Component|Interface|DataStore",
+      "range": "Role|Team",
+      "inverse": "owns",
+      "definition": "The role or team accountable for this. Ownership sits on a role, not a person, so it survives people moving. Widened from the portfolio to what a product specifies. Widened to the estate: an asset is owned by a team or a role."
+    },
+    "exposes": {
+      "domain": "System|Component",
+      "range": "Interface",
+      "definition": "The contract something publishes.",
+      "inverse": "exposed_by"
+    },
+    "consumes": {
+      "domain": "System|Component",
+      "range": "Interface",
+      "definition": "A contract something depends on. This is where coupling lives.",
+      "inverse": "consumed_by"
+    },
+    "depends_on": {
+      "domain": "Product|System|Component",
+      "range": "Product|System|Component",
+      "inverse": "depended_on_by",
+      "definition": "This product needs that one to deliver: data, a service, a decision. Upstream is the product depended on. The estate widens it to systems and components. Widened to the estate: the consumer needs the provider to work; usually derived from consumes and exposes, and stated only when a document says so."
+    },
+    "reads_from": {
+      "domain": "Component",
+      "range": "DataStore",
+      "definition": "A component reading this store.",
+      "inverse": "read_by"
+    },
+    "writes_to": {
+      "domain": "Component",
+      "range": "DataStore",
+      "definition": "A component writing this store. Two writers to one store is worth knowing about.",
+      "inverse": "written_by"
+    },
+    "runs_in": {
+      "domain": "Component|DataStore",
+      "range": "Environment",
+      "definition": "Where something runs.",
+      "inverse": "hosts",
+      "min": 1
+    },
+    "enables": {
+      "domain": "System|Component|Capability",
+      "range": "Capability",
+      "definition": "The business capability this makes possible; a capability enables the broader one it is part of. Named `enables` because the product's `supports` is objective to objective.",
+      "inverse": "enabled_by"
+    },
+    "satisfies": {
+      "domain": "System|Component|Interface",
+      "range": "Requirement",
+      "definition": "The requirement of the product this asset meets. The trace from the design back to the specification: a requirement nothing satisfies is open design work.",
+      "inverse": "satisfied_by"
+    },
+    "about": {
+      "domain": "Decision|OpenQuestion",
+      "range": "Product|ValueProposition|Objective|SuccessCriterion|Requirement|Release|Feature|UserJourney|JourneyStep|Scenario|Constraint|Policy|Risk|Persona|System|Component|Interface|DataStore",
+      "inverse": "subject_of",
+      "definition": "What a decision settles, or what an open question concerns. Widened to the estate: a decision that shaped an asset, an open question on one."
+    },
+    "supersedes": {
+      "domain": "Interface|Component|System",
+      "range": "Interface|Component|System",
+      "definition": "This replaced that. Use with the temporal fields, never by overwriting.",
+      "inverse": "superseded_by"
+    },
+    "threatens": {
+      "domain": "Risk",
+      "range": "Product|Release|Requirement|Feature|SuccessCriterion|System|Component|Interface|DataStore|Capability",
+      "inverse": "at_risk_from",
+      "definition": "What a risk applies to. Widened to the estate: what a risk applies to."
+    },
+    "mitigated_by": {
+      "domain": "Risk",
+      "range": "Decision|Requirement|Feature|Runbook|Component",
+      "inverse": "mitigates",
+      "definition": "What reduces a risk. Widened to the estate: a runbook or a component may mitigate."
+    },
+    "operated_by": {
+      "domain": "System|Component",
+      "range": "Runbook",
+      "definition": "The runbook for something.",
+      "inverse": "operates"
+    },
+    "documented_in": {
+      "domain": "Product|Role|Persona|ValueProposition|Objective|SuccessCriterion|Requirement|Release|Feature|UserJourney|JourneyStep|Scenario|Constraint|Policy|Assumption|Risk|Decision|OpenQuestion|Term|System|Component|Interface|DataStore|Runbook",
+      "range": "Document",
+      "inverse": "documents",
+      "definition": "The artifact that formally specifies this: a brief, a PRD, a UX spec. Distinct from source_doc, which is provenance: the document that introduced the fact into the graph, possibly a transcript. Widened to the estate: a design, a review, a standard."
+    },
+    "implemented_by": {
+      "domain": "Component",
+      "range": "Repository",
+      "definition": "The repository that holds this component's code.",
+      "inverse": "implements"
+    },
+    "governs": {
+      "domain": "Decision",
+      "range": "Product|Requirement|Feature|Release|Policy|Constraint|SuccessCriterion|System|Component|Interface|DataStore|Environment",
+      "inverse": "governed_by",
+      "definition": "What the decision shaped: the thing that is the way it is because this was decided. Widened to the estate: a component, an interface, a data store or an environment shaped by an architecture decision."
+    }
+  },
+  "attributes": {
+    "Repository": {
+      "owner": {
+        "type": "string",
+        "definition": "The organisation or account that owns the repository.",
+        "required": true
+      },
+      "name": {
+        "type": "string",
+        "definition": "The repository's name within its owner.",
+        "required": true
+      },
+      "url": {
+        "type": "string",
+        "definition": "Where a person opens it.",
+        "label": "URL"
+      },
+      "default_branch": {
+        "type": "string",
+        "definition": "The branch a checkout lands on."
+      }
+    },
+    "Interface": {
+      "url": {
+        "type": "string",
+        "definition": "The base URL a caller reaches the interface at, when it has one.",
+        "label": "URL"
+      }
+    }
+  }
+}

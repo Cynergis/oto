@@ -1,0 +1,63 @@
+{
+  "_about": "Rules over the estate. `derive` adds facts marked as derived, with the rule and the premises. The policy on documented decisions is the product's.",
+  "rules": [
+    {
+      "id": "risk-reaches-system",
+      "kind": "derive",
+      "when": [
+        {
+          "edge": [
+            "r",
+            "threatens",
+            "c"
+          ]
+        },
+        {
+          "edge": [
+            "c",
+            "part_of",
+            "s"
+          ]
+        }
+      ],
+      "then": {
+        "edge": [
+          "r",
+          "threatens",
+          "s"
+        ]
+      },
+      "why": "A risk to a component is a risk to its system, and documents state only the component. Impact questions need the system.",
+      "validated_by": ""
+    },
+    {
+      "id": "consumer-depends-on-provider",
+      "kind": "derive",
+      "when": [
+        {
+          "edge": [
+            "a",
+            "consumes",
+            "i"
+          ]
+        },
+        {
+          "edge": [
+            "b",
+            "exposes",
+            "i"
+          ]
+        }
+      ],
+      "then": {
+        "edge": [
+          "a",
+          "depends_on",
+          "b"
+        ]
+      },
+      "why": "Change-impact questions need the dependency between components; documents state the interface each side touches, not the dependency.",
+      "validated_by": ""
+    }
+  ]
+}

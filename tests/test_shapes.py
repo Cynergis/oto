@@ -14,7 +14,8 @@ from oto.reason import shapes
 from oto.scaffold import init
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ARCH = os.path.join(REPO, "oto", "ontologies", "auto-claims")
+# The engine ships no auto-claims (ADR-0011): the suite carries it as the registry's pack.
+ARCH = os.path.join(REPO, "tests", "fixtures", "packs", "auto-claims", "ontology", "auto-claims")
 
 
 def _vocabulary():
@@ -27,7 +28,7 @@ def _sample():
         return json.load(f)
 
 
-def test_the_shipped_claims_vocabulary_declares_shapes_its_sample_satisfies():
+def test_the_claims_packs_vocabulary_declares_shapes_its_sample_satisfies():
     vocabulary, sample = _vocabulary(), _sample()
     rows = shapes.declared(vocabulary)
     assert {"kind": "min", "class": "Claim", "subject": "claims_under", "count": 1} in rows

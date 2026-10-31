@@ -1,0 +1,91 @@
+{
+  "_about": "Why each class and relation exists, and who confirmed it. Release 9 (2026-10-07) sits the estate on `product`: the requirement, risk, decision and document are the product's. `validated_by` is empty until a person who knows the domain has confirmed the entry; leave it empty rather than guessing.",
+  "classes": {
+    "Asset": {
+      "alternatives": "Naming the four classes in every question and rule; rejected because a question such as \"what does the payments team own\" has to be asked four times, and a rule about ownership written four times.",
+      "question": "What do we run, and who is accountable for it?",
+      "validated_by": "",
+      "why": "Ownership, risk and environment questions are asked about anything the estate runs or stores, not about one class at a time; the parent is what lets one question or one rule cover all of them."
+    },
+    "Component": {
+      "alternatives": "Considered only having System; rejected because it cannot answer what breaks if this is redeployed.",
+      "question": "What actually gets deployed, and what does it touch?",
+      "validated_by": "",
+      "why": "Change and failure happen at the deployable unit, not at the system, so impact questions need this level."
+    },
+    "DataStore": {
+      "alternatives": "",
+      "question": "Where does this data live, and who writes it?",
+      "validated_by": "",
+      "why": "Two writers to one store is the commonest quiet cause of inconsistency, and it is only visible if the store is a node."
+    },
+    "Environment": {
+      "alternatives": "",
+      "question": "Where does this run, and is the answer the same in production?",
+      "validated_by": "",
+      "why": "Topology differs between environments, and an answer that ignores that is misleading in an incident."
+    },
+    "Interface": {
+      "alternatives": "Considered a direct component-to-component dependency; rejected because it hides what the dependency is on.",
+      "question": "If we change this, who breaks?",
+      "validated_by": "",
+      "why": "Coupling lives in the contracts others depend on, so the contract must be a node that both sides can point at."
+    },
+    "Repository": {
+      "alternatives": "A url attribute on Component. It could not be intended, checked, or acted on as a thing of its own.",
+      "question": "Where is the code?",
+      "validated_by": "",
+      "why": "A component without a repository cannot be changed, and an architecture graph that cannot say where the code lives cannot be acted on. Recorded as intended before the repository exists, it is the fact a tool realises."
+    },
+    "Runbook": {
+      "alternatives": "",
+      "question": "How do I operate or recover this at three in the morning?",
+      "validated_by": "",
+      "why": "The operating procedure is a distinct artifact with its own currency, and it is the thing an incident needs."
+    },
+    "System": {
+      "alternatives": "",
+      "question": "What is this thing, and who owns it?",
+      "validated_by": "",
+      "why": "A system is the unit people name in conversation and the unit ownership attaches to, so it has to exist even though it is coarse."
+    }
+  },
+  "properties": {
+    "consumes": {
+      "alternatives": "",
+      "question": "If we change this interface, who breaks?",
+      "validated_by": "",
+      "why": "This is the edge the impact question runs on, which is why interfaces are modelled at all."
+    },
+    "depends_on": {
+      "alternatives": "",
+      "question": "If this component changes, what else must change?",
+      "validated_by": "",
+      "why": "Mostly derived by a rule from consumes and exposes; declared so a document that states a dependency outright can be recorded."
+    },
+    "implemented_by": {
+      "alternatives": "",
+      "question": "Which repository holds this component's code?",
+      "validated_by": "",
+      "why": "Change impact ends in code; the edge is how a reader gets from the box to the checkout."
+    },
+    "writes_to": {
+      "alternatives": "Considered a single accesses relation; rejected because it cannot answer the question that matters.",
+      "question": "Who writes this store?",
+      "validated_by": "",
+      "why": "Kept separate from reading so more than one writer is visible as a query rather than as folklore."
+    },
+    "satisfies": {
+      "question": "Which requirement does this asset meet, and which requirement does nothing meet?",
+      "why": "The one edge from the design to the specification. With it, the gap between what the product must do and what is built is a query (SA17), not a review meeting.",
+      "alternatives": "A `realises` from Feature (the product's): kept for features; an asset satisfies a requirement directly because a component is not a feature.",
+      "validated_by": ""
+    },
+    "about": {
+      "question": "Why is this asset the way it is?",
+      "why": "The product's Decision, widened to the estate, replaces the estate's own DecisionRecord: one record of why, whether it settles scope or a store.",
+      "alternatives": "A separate DecisionRecord with decided_by: rejected on 2026-10-07 because two decision classes in one project is two places to look.",
+      "validated_by": ""
+    }
+  }
+}

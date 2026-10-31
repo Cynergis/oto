@@ -1,12 +1,25 @@
 """A framework adapter the engine's tests carry (ADR-0008: the engine ships none). The `plain`
 framework's model is already the architecture pack's reified model: a JSON file holding the
-document an adapter writes and the proposal it makes, as `tests/fixtures/arch/*.model.json`. What
-the engine does with any framework's model (the corpus, the proposal, the gates, compile on merge,
-the code map beside it) is tested through this one; what CALM is, is the calm pack's own tests."""
+document an adapter writes and the proposal it makes. The adapter seam is the engine's (discovery,
+the module loaded from the pack's code/, import and export chosen by name), and this adapter proves
+it; what `oto arch import` does with the model it writes is the architecture pack's, tested beside
+that pack in the registry (ADR-0011), as CALM is tested beside the calm pack. The reified model's
+names this adapter uses are the architecture pack's; it states the ones it needs rather than import
+a module the engine no longer ships."""
 import json
 import os
+import re
 
-from oto.arch import ArchError, CONTROL, FLOW, INTERFACE, ISO_DATE, PREFIX, RELATIONSHIP
+from oto.project import ProjectError
+
+PREFIX = {"System": "system", "Component": "component", "DataStore": "datastore", "Environment": "environment", "Role": "role"}
+RELATIONSHIP, CONTROL, FLOW, INTERFACE = "Relationship", "Control", "Flow", "Interface"
+ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+class ArchError(ProjectError):
+    """A refusal, in words the person can act on."""
+
 
 FRAMEWORK = "plain"
 

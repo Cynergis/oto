@@ -31,6 +31,7 @@ import json
 import os
 import re
 import shutil
+import tempfile
 
 from .. import __version__
 from . import ontologies as _ontologies
@@ -260,14 +261,27 @@ def embed(directory, ontology):
     if problems:
         raise ValueError("ontology %r is not usable: %s" % (given, "; ".join(problems[:5])))
     root = embedded_root(directory)
-    if os.path.exists(root):
-        shutil.rmtree(root)
-    os.makedirs(root)
+    # The sources are resolved and copied aside before anything under ontology/ is removed: when the
+    # ontology resolves to this pack's own embedded copy (a pack refreshed on a machine whose packs
+    # directory holds it, the usual case since ADR-0011), removing first would delete what is copied.
+    sources = []
     for part in _ontologies.parts(given):                       # bases first, the ontology last
         part_src = src if part == given or part == manifest["name"] else _ontologies.dir_for(part)
-        shutil.copytree(part_src, os.path.join(root, _ontologies.manifest_dir(part_src)["name"]),
-                        ignore=shutil.ignore_patterns(".git", "__pycache__", ".DS_Store", PLUGIN_DIR, SKILLS_DIR, VIEWS_DIR))
-    return _provenance_of(src, given)
+        sources.append((_ontologies.manifest_dir(part_src)["name"], part_src))
+    provenance = _provenance_of(src, given)
+    staging = tempfile.mkdtemp(prefix="oto-embed-")
+    try:
+        for name, part_src in sources:
+            shutil.copytree(part_src, os.path.join(staging, name),
+                            ignore=shutil.ignore_patterns(".git", "__pycache__", ".DS_Store", PLUGIN_DIR, SKILLS_DIR, VIEWS_DIR))
+        if os.path.exists(root):
+            shutil.rmtree(root)
+        os.makedirs(root)
+        for name, _part_src in sources:
+            shutil.move(os.path.join(staging, name), os.path.join(root, name))
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+    return provenance
 
 
 def embedded_config(directory):

@@ -47,7 +47,7 @@ def test_the_engine_s_repository_holds_no_pack_with_tools_of_its_own():
                 provides = json.load(f).get("provides") or {}
             assert not any(k in provides for k in ("stages", "write_hooks", "read_hooks", "status", "adapters")), \
                 "%s provides a stage, a hook or an adapter: that is a pack of the registry" % name
-            assert all(c.get("name") == "arch" for c in provides.get("commands") or []), "%s provides a command the core does not own" % name
+            assert not provides.get("commands"), "%s provides a command: a pack with tools of its own is the registry's (ADR-0010, ADR-0011)" % name
     for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT, "oto")):
         dirnames[:] = [d for d in dirnames if d != "__pycache__"]
         for name in filenames:
@@ -55,7 +55,7 @@ def test_the_engine_s_repository_holds_no_pack_with_tools_of_its_own():
                 with open(os.path.join(dirpath, name), encoding="utf-8") as f:
                     imports = "\n".join(l for l in f.read().splitlines() if l.lstrip().startswith(("from ", "import ")))
                 assert "oto.packs" not in imports and "oto_data" not in imports and "oto_policy" not in imports, os.path.join(dirpath, name)
-    assert {c["name"] for c in extensions.commands()} == {"arch"}, "a machine with the engine alone has the core's commands and the architecture's"
+    assert {c["name"] for c in extensions.commands()} == {"arch"}, "with the fixture packs installed, the one pack command is the architecture pack's (ADR-0011)"
 
 
 def test_the_command_line_has_neither_without_the_packs():

@@ -7,6 +7,7 @@ documents install the engine from its own marketplace before the packs."""
 import json
 import os
 import re
+import shutil
 
 from oto.model import packs
 
@@ -28,6 +29,8 @@ def test_the_engine_s_marketplace_is_named_what_the_packs_depend_on():
 
 def test_a_generated_pack_depends_on_the_engine_from_its_own_marketplace(tmp_path, monkeypatch):
     monkeypatch.setenv("OTO_PACKS", str(tmp_path / "packs"))
+    # the engine ships no software-architecture (ADR-0011): the pack the suite carries for it, installed here
+    shutil.copytree(os.path.join(ROOT, "tests", "fixtures", "packs", "software-architecture"), str(tmp_path / "packs" / "software-architecture"))
     target, problems = packs.new("arch", "software-architecture", maintainer="Cynergis")
     assert problems == []
     plugin = json.loads(open(os.path.join(target, ".claude-plugin", "plugin.json"), encoding="utf-8").read())

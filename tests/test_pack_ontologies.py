@@ -10,6 +10,15 @@ from oto.model import ontologies
 from oto.project import Project
 from oto.scaffold import init
 
+FIXTURE_PACKS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "packs")
+
+
+def _copy_of(name):
+    """The directory of a vocabulary a test pack copies: the engine's own (oto-core), or a domain
+    vocabulary from the pack the suite carries for it, since the engine ships none (ADR-0011)."""
+    shipped = os.path.join(ontologies.ONTOLOGY_DIR, name)
+    return shipped if os.path.isdir(shipped) else os.path.join(FIXTURE_PACKS, name, "ontology", name)
+
 
 @pytest.fixture
 def machine(tmp_path, monkeypatch):
@@ -22,10 +31,10 @@ def machine(tmp_path, monkeypatch):
 
 def _pack(directory, embeds, carries):
     """A pack at `directory` embedding `embeds`; `carries` maps each ontology it holds to
-    (the shipped ontology it copies, its release)."""
+    (the vocabulary it copies, its release)."""
     for name, (copy_of, release) in carries.items():
         target = os.path.join(directory, "ontology", name)
-        shutil.copytree(ontologies.dir_for(copy_of), target)
+        shutil.copytree(_copy_of(copy_of), target)
         path = os.path.join(target, "manifest.json")
         manifest = json.load(open(path, encoding="utf-8"))
         manifest.update(name=name, release=release,
@@ -71,13 +80,18 @@ def test_a_plugin_that_is_not_a_pack_and_a_broken_plugin_list_are_ignored(machin
     assert ontologies.dir_for("tool") is None
     (machine / "claude" / "plugins" / "installed_plugins.json").write_text("{not json")
     assert ontologies.dir_for("anything") is None
-    assert "auto-claims" in ontologies.available()
+    assert "oto-core" in ontologies.available()
 
 
-def test_a_pack_copy_never_shadows_a_shipped_ontology_or_yours(machine):
+def test_a_pack_copy_never_shadows_the_engines_ontology_or_yours(machine):
     _pack(str(machine / "packs" / "claims"), "auto-claims", {"auto-claims": ("auto-claims", 99), "oto-core": ("oto-core", 99)})
-    assert ontologies.origin("auto-claims") == ontologies.BUILTIN
-    assert ontologies.manifest_for("oto-core")["release"] == 7
+    assert ontologies.origin("oto-core") == ontologies.BUILTIN
+    assert ontologies.manifest_for("oto-core")["release"] == 7, "the engine's own, not the pack's copy at 99"
+    assert ontologies.available().count("oto-core") == 1
+    assert ontologies.origin("auto-claims") == ontologies.PACK, "the engine ships no auto-claims (ADR-0011): the pack's copy is the one"
+    shutil.copytree(_copy_of("auto-claims"), str(machine / "ontologies" / "auto-claims"))
+    assert ontologies.origin("auto-claims") == ontologies.USER
+    assert ontologies.manifest_for("auto-claims")["release"] == 5, "yours, not the pack's copy at 99"
     assert ontologies.available().count("auto-claims") == 1
 
 
@@ -100,7 +114,7 @@ def test_an_ontology_found_in_a_pack_composes_with_the_bases_that_pack_carries(m
     config["classes"]["PackOnlyThing"] = {"definition": "Only in the pack's copy of oto-core."}
     json.dump(config, open(core, "w", encoding="utf-8"))
     assert "PackOnlyThing" in ontologies.composed("pack-claims")["config"]["classes"]
-    assert "PackOnlyThing" not in ontologies.composed("auto-claims")["config"]["classes"]
+    assert "PackOnlyThing" not in ontologies.composed("oto-core")["config"]["classes"], "the engine's own copy composes alone"
     assert ontologies.dir_for("oto-core") != os.path.dirname(core)
 
 
@@ -116,9 +130,10 @@ def test_init_starts_a_project_from_a_pack_ontology_and_remembers_the_pack(machi
 
 def test_init_merges_a_pack_ontology_named_beside_another(machine):
     _pack(str(machine / "packs" / "claims"), "pack-claims", {"pack-claims": ("auto-claims", 3), "oto-core": ("oto-core", 5)})
+    shutil.copytree(os.path.join(FIXTURE_PACKS, "organization-process"), str(machine / "packs" / "organization-process"))
     root = str(machine / "project")
     init(root, slug="m", name="M", ontology="pack-claims,organization-process")
     record = Project.standard(root).config()["ontology"]
     assert [part["name"] for part in record["parts"]] == ["pack-claims", "organization-process"]
     assert record["parts"][0]["pack"]["name"] == "claims"
-    assert record["parts"][1]["origin"] == ontologies.BUILTIN
+    assert record["parts"][1]["pack"]["name"] == "organization-process", "the one named beside it is an installed pack's too (ADR-0011)"

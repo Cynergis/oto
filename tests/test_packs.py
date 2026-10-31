@@ -15,21 +15,32 @@ from oto.cli import main
 from oto.model import ontologies, ontology_manifest, packs
 
 FIXTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "apps")
+FIXTURE_PACKS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "packs")
 
 
 @pytest.fixture
 def home(monkeypatch):
+    """A machine of its own: no packs or ontologies of the user's, no registry known, and the domain
+    vocabularies installed as the registry's packs the way Claude Code installs a plugin (ADR-0011:
+    the engine ships none), so `--ontology software-architecture` resolves as it does on a machine
+    that ran `/plugin install software-architecture@cynergis`."""
     with tempfile.TemporaryDirectory() as root:
         monkeypatch.setenv(packs.USER_DIR_ENV, os.path.join(root, "packs"))
         monkeypatch.setenv(ontologies.USER_DIR_ENV, os.path.join(root, "ontologies"))
         monkeypatch.setenv("OTO_REGISTRIES", os.path.join(root, "registries.json"))
+        monkeypatch.setenv(ontologies.CLAUDE_CONFIG_ENV, os.path.join(root, "claude"))
+        os.makedirs(os.path.join(root, "claude", "plugins"))
+        installed = {"%s@cynergis" % name: [{"scope": "user", "installPath": os.path.join(FIXTURE_PACKS, name), "version": "1.0.0"}]
+                     for name in sorted(os.listdir(FIXTURE_PACKS))}
+        with open(os.path.join(root, "claude", "plugins", "installed_plugins.json"), "w", encoding="utf-8") as f:
+            json.dump({"version": 2, "plugins": installed}, f)
         yield root
 
 
 def test_new_embeds_the_ontology_and_its_bases_and_generates_the_plugin_files(home, capsys):
     assert main(["pack", "new", "arch", "--ontology", "software-architecture@12", "--maintainer", "Cynergis"]) == 0
     out = capsys.readouterr().out
-    assert "embeds the ontology software-architecture@12 (built-in)" in out and "check clean" in out
+    assert "embeds the ontology software-architecture@12 (" in out and "check clean" in out
     directory = packs.dir_for("arch")
     assert directory == os.path.join(home, "packs", "arch")
     # the ontology and what it extends, under their own names, so the pack composes on its own
@@ -39,7 +50,9 @@ def test_new_embeds_the_ontology_and_its_bases_and_generates_the_plugin_files(ho
     manifest = packs.read(directory)
     assert manifest["release"] == 1 and manifest["domain"] == "software" and manifest["maintainer"] == "Cynergis"
     assert manifest["ontology"]["name"] == "software-architecture" and manifest["ontology"]["release"] == 12
-    assert manifest["ontology"]["source"] == "built-in" and manifest["ontology"]["embedded_at"]
+    assert manifest["ontology"]["source"] != "built-in" and manifest["ontology"]["embedded_at"], \
+        "the engine ships no software-architecture (ADR-0011): the copy came from an installed pack, never built-in"
+    assert ontologies.manifest_dir(manifest["ontology"]["source"])["release"] == 12, "the source names the copy it embedded"
     assert manifest["engine"].startswith(">=")
     plugin = json.load(open(os.path.join(directory, ".claude-plugin", "plugin.json"), encoding="utf-8"))
     assert plugin["name"] == "arch" and plugin["version"] == "1.0.0" and plugin["dependencies"] == ["oto@cynergis-engine"], \
@@ -350,16 +363,19 @@ def test_init_from_a_pack_installs_its_ontology_and_views_and_records_the_pack(h
         assert "wrote: views/globals-site" in out and "wrote: GUIDE.md" in out and "tools/tool.check-repository.json" in out
         config = json.load(open(os.path.join(root, "project.config.json"), encoding="utf-8"))
         record = config["ontology"]
-        assert record["name"] == "software-architecture" and record["release"] == 12 and record["origin"] == "built-in"
+        assert record["name"] == "software-architecture" and record["release"] == 12
+        assert record["origin"] == ontologies.PACK and record["source"] == packs.read(directory)["ontology"]["source"], \
+            "a pack's vocabulary is the pack's, whatever copy it embedded (here a directory): the engine ships none (ADR-0011)"
         assert record["pack"] == {"name": "arch", "release": 1, "registry": None, "source": None}
         assert record["extends"] == ["oto-core", "portfolio", "product"]
         assert os.path.exists(os.path.join(root, "views", "globals-site", "app.json"))
         assert apps.resolve("globals-site", root) == os.path.join(root, "views", "globals-site")
         build(Project.standard(root))
         assert main(["status", "--project", root]) == 0
-        assert "ontology    software-architecture @12 (built-in) via pack arch @1" in capsys.readouterr().out
-        assert main(["ontology", "diff", "--project", root]) == 0
-        assert "the engine holds the same release" in capsys.readouterr().out
+        assert "ontology    software-architecture @12 (pack) via pack arch @1" in capsys.readouterr().out
+        assert main(["ontology", "diff", "--project", root]) == 1
+        assert "there is no upstream to diff against" in capsys.readouterr().err, \
+            "a copy embedded from another pack on this machine has no release to diff against"
         assert main(["build", "--project", root, "--target", "site", "--view", "globals-site"]) == 0
     # the same, by directory, as the starter skill does with ${CLAUDE_PLUGIN_ROOT}
     with tempfile.TemporaryDirectory() as root:
@@ -379,7 +395,7 @@ def test_init_from_a_pack_merges_the_ontologies_named_beside_it(home, capsys):
     from oto.project import Project
     # a pack whose ontology exists nowhere else on the machine: the merge must find the embedded copy
     estate = os.path.join(home, "ontologies", "estate")
-    shutil.copytree(os.path.join(os.path.dirname(ontologies.__file__), "..", "ontologies", "software-architecture"), estate)
+    shutil.copytree(ontologies.dir_for("software-architecture"), estate)
     manifest = json.load(open(os.path.join(estate, "manifest.json"), encoding="utf-8"))
     manifest["name"] = "estate"
     json.dump(manifest, open(os.path.join(estate, "manifest.json"), "w", encoding="utf-8"))
@@ -398,7 +414,8 @@ def test_init_from_a_pack_merges_the_ontologies_named_beside_it(home, capsys):
         record = json.load(open(os.path.join(root, "project.config.json"), encoding="utf-8"))["ontology"]
         assert record["source"] == "merge" and record["pack"] == {"name": "estate", "release": 1, "registry": None, "source": None}
         assert [part["name"] for part in record["parts"]] == ["estate", "auto-claims"]
-        assert record["parts"][0]["pack"]["name"] == "estate" and "pack" not in record["parts"][1]
+        assert record["parts"][0]["pack"]["name"] == "estate"
+        assert record["parts"][1]["pack"]["name"] == "auto-claims", "the named one is an installed pack's too (ADR-0011)"
         build(Project.standard(root))
         assert main(["status", "--project", root]) == 0
         assert "via pack estate @1" in capsys.readouterr().out
@@ -414,7 +431,8 @@ def test_init_from_a_fetched_pack_keeps_the_registry_provenance(home, capsys):
     with tempfile.TemporaryDirectory() as root:
         init(root, slug="kb", name="KB", pack="arch")
         record = json.load(open(os.path.join(root, "project.config.json"), encoding="utf-8"))["ontology"]
-        assert record["origin"] == "built-in", "the pack embedded the engine's copy; that is what the project records"
+        assert record["origin"] == ontologies.PACK, \
+            "the pack embedded an installed pack's copy, not a registry's: the project records a pack's vocabulary, never a path (ADR-0011)"
         assert record["pack"]["registry"] == "market" and record["pack"]["source"] == bare
 
 

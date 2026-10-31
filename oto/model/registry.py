@@ -830,7 +830,7 @@ def diff_project(project):
 
     work = old_work = None
     try:
-        if kind == "built-in":
+        if kind in ("built-in", "pack"):                      # on this machine: the engine's own, or the installed pack's copy
             new = _ontologies.composed(name)
             roots_new = None
         else:
@@ -843,7 +843,7 @@ def diff_project(project):
         current = int(new["manifest"]["release"])
 
         basis, tag, old_vocab, old_rules, old_questions = "lock", None, None, None, None
-        if kind != "built-in" and recorded and recorded != current:
+        if kind not in ("built-in", "pack") and recorded and recorded != current:
             tag = tag_for(name, recorded)
             if gitx.has_ref(url, tag, token=_token()):
                 old_work = tempfile.mkdtemp(prefix="oto-diff-old-")

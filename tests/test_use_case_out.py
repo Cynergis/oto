@@ -11,7 +11,6 @@ import json
 import os
 import re
 
-from oto import arch as _arch
 from oto.cli import main
 from oto.model import ontologies
 
@@ -73,8 +72,8 @@ def test_what_a_factory_needs_from_the_engine_stays():
     code, out = _cli("--help")
     assert code == 0 and "  work " not in out, "the verdict event is the work pack's, a pack of the registry (ADR-0010)"
     code, out = _cli("arch", "--help")
-    assert code == 0 and "measure" in out, out
-    assert callable(_arch.measure) and callable(_arch.measure_from), "measuring a requirement is the architecture's (H6)"
+    assert code == 0 and "measure" in out, "measuring a requirement is the architecture pack's (H6), a pack of the registry (ADR-0011): " + out
+    assert not os.path.exists(os.path.join(ROOT, "oto", "arch.py")), "the engine ships no arch module: the fixture packs bring the command"
     assert os.path.exists(os.path.join(ROOT, "hooks", "policy_snapshot.py")), "the reader any guard copies"
 
 

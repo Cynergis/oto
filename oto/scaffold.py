@@ -185,13 +185,14 @@ def _today():
 
 def _ontology_record(name, ontologies, bases, pack=None):
     """What a project remembers about the ontology it started from, so a later `oto ontology
-    diff` can say what the upstream ontology changed since. From a pack, the ontology's origin is
-    what the pack recorded when it embedded it, and the pack itself is remembered."""
+    diff` can say what the upstream ontology changed since. From a pack, the origin is the pack
+    (`pack`, or `fetched` when the pack took it from a registry), whatever the pack recorded when it
+    embedded it: the engine ships no domain vocabulary, so `built-in` is only ever oto-core
+    (ADR-0011), and the pack itself is remembered."""
     if pack is not None:
         onto = pack["manifest"].get("ontology") or {}
         source = onto.get("source")
-        where = ontologies.FETCHED if onto.get("registry") else \
-            (ontologies.BUILTIN if source == "built-in" else (ontologies.USER if source == "user" else ontologies.PATH))
+        where = ontologies.FETCHED if onto.get("registry") else ontologies.PACK
         return {"name": onto.get("name") or name, "release": onto.get("release"), "origin": where,
                 "source": source or pack["directory"], "registry": onto.get("registry"), "ref": onto.get("ref"),
                 "commit": onto.get("commit"), "installed_at": _today(), "extends": list(bases),
@@ -292,11 +293,17 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
         for one in names:
             if _ontologies.dir_for(one, roots) is None:
                 _record, entry = _registry.find(one)
-                if entry is not None:
-                    raise ValueError("ontology %r is not on this machine; the registry %r lists it at release %s: "
-                                     "oto ontology add %s" % (one, _record["name"], entry.get("release"), one))
-                raise ValueError("unknown ontology %r. Available: %s"
-                                 % (one, ", ".join(_ontologies.available()) or "none"))
+                if entry is None:
+                    raise ValueError("unknown ontology %r: not on this machine, and no registry this machine knows lists it "
+                                     "(the engine ships its own vocabulary, oto-core, and no other: a domain vocabulary is a pack "
+                                     "of the registry, ADR-0011; oto registry add <url>, then oto pack add %s). Available: %s"
+                                     % (one, one, ", ".join(_ontologies.available()) or "none"))
+                # The registry lists it: fetched, as `oto ontology add` would, so `oto init --ontology <name>`
+                # composes a vocabulary the engine does not ship (ADR-0011).
+                print("  ontology %s is not on this machine: fetched from the registry %s (release %s)" % (one, _record["name"], entry.get("release")))
+                _registry.fetch(one)
+                if _ontologies.dir_for(one, roots) is None:
+                    raise ValueError("ontology %r was fetched from the registry %r but does not resolve on this machine" % (one, _record["name"]))
             if wanted[one] is not None and _ontologies.manifest_for(one, roots)["release"] != wanted[one]:
                 raise ValueError("ontology %r is at release %s on this machine, not %d: oto ontology add %s@%d"
                                  % (one, _ontologies.manifest_for(one, roots)["release"], wanted[one], one, wanted[one]))
@@ -489,7 +496,8 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
     _write(os.path.join(root, "README.md"), PROJECT_README.format(name=name), force, "README.md")
     if repo:
         from . import repo as _repo
-        _repo.write(root, slug, name, engine=engine, force=force, writer=_write)
+        _repo.write(root, slug, name, engine=engine, force=force, writer=_write,
+                    architecture="CodeModule" in ((ontology_config or {}).get("classes") or {}))
     else:
         _write(os.path.join(root, ".gitignore"), PROJECT_GITIGNORE, force, ".gitignore")
     declared = _declare_plugins(root, packs_used, names_used)

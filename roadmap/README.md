@@ -28,9 +28,13 @@ it, and that the published copy is publishable.
 Every command appends a fact and runs the gates; then `oto build --project roadmap`, and commit
 `roadmap/` with the change that caused it. The state of an epic is never written on it.
 
-The `oto work` commands come with the registry's `work` pack ([ADR-0010](../docs/adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)):
-`oto pack add work` once on the machine, or `/plugin install work@cynergis` in Claude Code. The project's own copy of
-the vocabulary builds and answers its questions without it; the reminder workflow installs the pack beside the engine.
+The project composes `portfolio`, `product`, `software-architecture` and `work`, all packs of the registry
+([ADR-0011](../docs/adr/0011-a-domain-vocabulary-is-a-pack-of-the-registry.md)); the `oto work` commands come
+with the `work` pack ([ADR-0010](../docs/adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)). On a fresh
+machine, install them once before building it, one name per command: `oto pack add portfolio`, `oto pack add product`,
+`oto pack add software-architecture`, `oto pack add work` (in Claude Code, `/plugin install <name>@cynergis`). The
+project's own copy of the vocabulary builds and answers its questions without them; the `oto work` commands need
+their pack, and the reminder workflow installs it beside the engine.
 
 **A pull request merges.** Its epic is deployed by the event, once; later pull requests for the
 same epic change nothing:

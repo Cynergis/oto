@@ -17,7 +17,9 @@ from oto.reason import questions as Q
 from oto.scaffold import init
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ARCH = os.path.join(REPO, "oto", "ontologies", "software-architecture")
+# The engine ships no domain vocabulary (ADR-0011): the suite carries each as the registry's pack.
+FIXTURE_PACKS = os.path.join(REPO, "tests", "fixtures", "packs")
+ARCH = os.path.join(FIXTURE_PACKS, "software-architecture", "ontology", "software-architecture")
 
 QUESTIONS = {
     "CQ1": {"who": "an on-call engineer",
@@ -245,16 +247,18 @@ def test_a_store_without_questions_says_so():
 
 # ---------------- the ontology unit ----------------
 
-def test_the_shipped_ontologies_ship_questions_that_cover_every_term_and_that_their_samples_answer():
+def test_the_engines_ontology_and_every_domain_pack_ship_questions_that_cover_every_term_and_that_their_samples_answer():
     from oto.model import ontologies
-    for name in ("oto-core", "software-architecture", "auto-claims", "organization-process", "professional-services"):
+    # every domain pack but platform, whose sample answers three questions gated `empty` (PL8, PL11, PL13):
+    # a pack's own behaviour, proven beside the pack in the registry (ADR-0011), not here
+    for name in ["oto-core"] + [pack for pack in sorted(os.listdir(FIXTURE_PACKS)) if pack != "platform"]:
         result = ontologies.composed(name)
         assert result["questions"], name
         assert Q.uncovered(result["questions"], result["config"]) == [], name
         sample = result["sample"]
         assert Q.findings(result["questions"], sample["nodes"], sample["edges"], covers(result["config"]["classes"])) == [], name
         assert "questions" in ontologies.manifest_for(name)["carries"]
-    # the core's questions compose into every extender, and a built-in installs them
+    # the core's questions compose into every extender, and a pack's vocabulary installs them
     arch = ontologies.composed("software-architecture")["questions"]
     assert "CORE1" in arch and "SA1" in arch
     with tempfile.TemporaryDirectory() as root:

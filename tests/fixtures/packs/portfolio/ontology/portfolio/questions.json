@@ -1,0 +1,397 @@
+{
+  "_about": "What this ontology exists to answer. Each question runs over the graph in the pattern language of rules.json; `gate` says what an empty answer means; `gaps` says why it is empty; `terms` names the vocabulary the question covers. Reasoned about in `why`, confirmed in `validated_by`.",
+  "questions": {
+    "PF1": {
+      "who": "an executive",
+      "question": "Which products do we build: in which domain and value stream, at what stage, owned by which role or team?",
+      "why": "The portfolio in one answer: what exists and where it stands.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "p",
+            "type": "Product"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "p",
+                  "owned_by",
+                  "o"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "p.label",
+          "p.domain",
+          "p.value_stream",
+          "p.stage",
+          "o.label",
+          "o.type"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": [
+        {
+          "when": [
+            {
+              "node": "p",
+              "type": "Product"
+            },
+            {
+              "not_edge": [
+                "p",
+                "owned_by",
+                "*"
+              ]
+            }
+          ],
+          "say": "a product nobody owns"
+        }
+      ]
+    },
+    "PF2": {
+      "who": "an executive",
+      "question": "Which objectives do we pursue this period, which products pursue each, and how is each measured?",
+      "why": "Strategy is objectives with products behind them; an objective no product pursues is a wish.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "ob",
+            "type": "Objective"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "p",
+                  "pursues",
+                  "ob"
+                ]
+              },
+              {
+                "node": "p",
+                "type": "Product"
+              }
+            ]
+          }
+        ],
+        "select": [
+          "ob.label",
+          "ob.period",
+          "ob.state",
+          "p.label"
+        ]
+      },
+      "gate": "non_empty",
+      "gaps": [
+        {
+          "when": [
+            {
+              "node": "ob",
+              "type": "Objective"
+            },
+            {
+              "not_edge": [
+                "*",
+                "pursues",
+                "ob"
+              ]
+            }
+          ],
+          "say": "an objective no product pursues"
+        }
+      ]
+    },
+    "PF3": {
+      "who": "an executive",
+      "question": "Which products depend on which, upstream or downstream, and for what?",
+      "why": "A late upstream product is a risk to every downstream one.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "p",
+              "depends_on",
+              "up"
+            ]
+          },
+          {
+            "node": "p",
+            "type": "Product"
+          },
+          {
+            "node": "up",
+            "type": "Product"
+          }
+        ],
+        "select": [
+          "p.label",
+          "up.label",
+          "up.stage"
+        ]
+      },
+      "gate": "any"
+    },
+    "PF4": {
+      "who": "an executive",
+      "question": "Which capabilities does the portfolio need, which product provides each, and which has no product?",
+      "why": "The gap between needed and provided is the portfolio's finding; nobody fills it by guessing.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "c",
+            "type": "Capability"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "p",
+                  "provides",
+                  "c"
+                ]
+              },
+              {
+                "node": "p",
+                "type": "Product"
+              }
+            ]
+          }
+        ],
+        "select": [
+          "c.label",
+          "c.state",
+          "p.label"
+        ]
+      },
+      "gate": "any",
+      "gaps": [
+        {
+          "when": [
+            {
+              "node": "c",
+              "type": "Capability",
+              "where": {
+                "state": "needed"
+              }
+            },
+            {
+              "not_edge": [
+                "*",
+                "provides",
+                "c"
+              ]
+            }
+          ],
+          "say": "a needed capability no product provides"
+        }
+      ]
+    },
+    "PF5": {
+      "who": "an executive",
+      "question": "What has no owner: which products, capabilities and objectives name no role or team?",
+      "why": "An unowned thing is nobody's problem until it is everybody's.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "x",
+            "type": "Product|Capability|Objective"
+          },
+          {
+            "not_edge": [
+              "x",
+              "owned_by",
+              "*"
+            ]
+          }
+        ],
+        "select": [
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "empty"
+    },
+    "PF6": {
+      "who": "an executive",
+      "question": "Which teams exist, what does each own, with what mandate, and how is it reached?",
+      "why": "Who to call, by team, before anything is on fire.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "t",
+            "type": "Team"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "x",
+                  "owned_by",
+                  "t"
+                ]
+              }
+            ]
+          }
+        ],
+        "select": [
+          "t.label",
+          "t.mandate",
+          "t.contact",
+          "x.label",
+          "x.type"
+        ]
+      },
+      "gate": "non_empty"
+    },
+    "PF7": {
+      "who": "a reader",
+      "question": "Where is the knowledge of $PRODUCT: its query store, its site, and the packs it is specified, designed and run with?",
+      "why": "The lineage between levels: a reader follows the portfolio to the product's store and the packs that explain it.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "params": {
+        "PRODUCT": {
+          "type": "Product"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "node": "$PRODUCT",
+            "type": "Product"
+          }
+        ],
+        "select": [
+          "$PRODUCT.store_url",
+          "$PRODUCT.site_url",
+          "$PRODUCT.packs"
+        ]
+      },
+      "gate": "any",
+      "gaps": {
+        "when": [
+          {
+            "node": "$PRODUCT",
+            "type": "Product",
+            "where": {
+              "store_url": {
+                "exists": false
+              }
+            }
+          }
+        ],
+        "say": "the product has no published store on record"
+      }
+    },
+    "PF8": {
+      "who": "an executive",
+      "question": "Which products are live, which are being built, and which are retired?",
+      "why": "The portfolio by stage.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "ask": {
+        "when": [
+          {
+            "node": "p",
+            "type": "Product",
+            "where": {
+              "stage": {
+                "in": [
+                  "live",
+                  "building",
+                  "retired"
+                ]
+              }
+            }
+          }
+        ],
+        "select": [
+          "p.label",
+          "p.stage"
+        ]
+      },
+      "gate": "any"
+    },
+    "PF9": {
+      "who": "anyone",
+      "question": "Which team does role $ROLE sit in, and who holds it?",
+      "why": "A role's team is who to page when the holder is away.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "params": {
+        "ROLE": {
+          "type": "Role"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "node": "$ROLE",
+            "type": "Role"
+          },
+          {
+            "optional": [
+              {
+                "edge": [
+                  "$ROLE",
+                  "member_of",
+                  "t"
+                ]
+              },
+              {
+                "node": "t",
+                "type": "Team"
+              }
+            ]
+          }
+        ],
+        "select": [
+          "$ROLE.holder",
+          "$ROLE.mandate",
+          "$ROLE.kind",
+          "t.label"
+        ]
+      },
+      "gate": "any"
+    },
+    "PF10": {
+      "who": "an executive",
+      "question": "Which lower objectives support $OBJECTIVE?",
+      "why": "Strategic alignment: the tree under one objective.",
+      "validated_by": "Chiheb Dkhil, 2026-10-07 (B6, the executive's questions)",
+      "params": {
+        "OBJECTIVE": {
+          "type": "Objective"
+        }
+      },
+      "ask": {
+        "when": [
+          {
+            "edge": [
+              "low",
+              "supports",
+              "$OBJECTIVE"
+            ]
+          },
+          {
+            "node": "low",
+            "type": "Objective"
+          }
+        ],
+        "select": [
+          "low.label",
+          "low.period",
+          "low.state"
+        ]
+      },
+      "gate": "any"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "_about": "Why each class and relation exists. `validated_by` is empty: confirmation belongs to the domain that extends this.",
+  "classes": {
+    "Document": {
+      "question": "Where is this written down?",
+      "why": "Every fact needs a checkable source with its own date, and the source is a file in the corpus.",
+      "alternatives": "A `source` string on every node. It cannot be queried, dated or superseded, so it became a class.",
+      "validated_by": ""
+    },
+    "Tool": {
+      "question": "What can be done about this, and how?",
+      "why": "The binding between an entity, the tool that acts on it, its inputs, its credentials by name and its preconditions is otherwise tribal knowledge in an agent's prompt; as a fact it is versioned, reviewed and shared. OTO never invokes it.",
+      "alternatives": "A list of scripts beside the project. It cannot say what each acts on, when it is ready, or what its run proved. Called Action until 2026-10; Tool is MCP's word for the same shape.",
+      "validated_by": ""
+    },
+    "Graph": {
+      "question": "What does this graph hold, how is it reached, and what does it depend on? (CORE4)",
+      "why": "Graphs reference other graphs. A dependency declared as a node carries what the other graph holds and how to reach it, so an agent lists, chooses and queries without a mapping anyone writes, and the concierge root is a graph of nothing but descriptors.",
+      "alternatives": "A dependencies list in project.config.json: rejected, config is not queryable and carries no provenance. A node per remote class: rejected, the descriptor's class list is enough to choose.",
+      "validated_by": ""
+    }
+  },
+  "properties": {
+    "cites": {
+      "question": "Which document does this one rest on?",
+      "why": "A reviewer following a fact to its document often needs the document that one cites; the chain should be walkable in the graph.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "acts_on": {
+      "question": "Which entity did this run touch?",
+      "why": "A recorded run is evidence for the facts it asserted about one entity; the edge is how a reader gets from the entity to the run.",
+      "alternatives": "A note in the run record only. Then the entity cannot be asked what was done to it.",
+      "validated_by": ""
+    },
+    "executed_by": {
+      "question": "Who is accountable for invoking this?",
+      "why": "A tool that changes the world needs an accountable team, and a reader asking who may run it should find a team, not a person who has since moved.",
+      "alternatives": "",
+      "validated_by": ""
+    },
+    "depends_on_graph": {
+      "question": "Which graphs does this one depend on? (CORE4)",
+      "why": "One edge from a graph's own descriptor to a dependency's; the agent walks it from the concierge root to the graph that holds the answer.",
+      "alternatives": "Reuse depends_on: rejected, that relation belongs to products and the estate and would blur what depends on what.",
+      "validated_by": ""
+    }
+  }
+}

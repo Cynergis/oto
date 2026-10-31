@@ -1,0 +1,55 @@
+{
+  "_about": "The ontology's identity: its release rises on every published change, `extends` names what it composes on top of, `carries` what the directory holds.",
+  "name": "oto-core",
+  "release": 7,
+  "summary": "The temporal vocabulary every OTO ontology rests on, the one class every fact cites (Document), and the one node every graph holds about itself (Graph).",
+  "extends": [],
+  "namespace": "https://cynergis.ai/ont/oto-core#",
+  "engine": ">=0.1",
+  "carries": [
+    "vocabulary",
+    "rationale",
+    "rules",
+    "questions",
+    "sample",
+    "readme"
+  ],
+  "maintainer": "OTO",
+  "changelog": [
+    {
+      "release": 7,
+      "at": "2026-10-26",
+      "note": "Graph (roadmap A1, A2): the node every graph holds about itself and about the graphs it depends on, with subject, classes, reach and slug; depends_on_graph; CORE4. `oto init` writes the project's own descriptor."
+    },
+    {
+      "release": 6,
+      "at": "2026-10-25",
+      "note": "Action is now Tool, MCP's word for the same shape; `was` keeps Action as its former name: old nodes read as Tool, and the old IRI stays in the export, deprecated and equivalent. acts_on and executed_by now have domain Tool."
+    },
+    {
+      "release": 5,
+      "at": "2026-10-06",
+      "note": "The sample documents carry their date as as_of, not as an undeclared `date` attribute; an extender that declares attributes on Document composed a sample it could not check."
+    },
+    {
+      "release": 4,
+      "at": "2026-10-06",
+      "note": "Ships its competency questions (questions.json): every class, relation and attribute is cited by a question that runs, and the sample answers each one it must."
+    },
+    {
+      "release": 3,
+      "at": "2026-10-05",
+      "note": "Declares its namespace: its terms keep one IRI in the RDF export of every project that uses it."
+    },
+    {
+      "release": 2,
+      "at": "2026-09-21",
+      "note": "Action, acts_on and executed_by join the core; the status `intended` for a fact asserted as a plan; the policy rule intended-fact-overdue."
+    },
+    {
+      "release": 1,
+      "at": "2026-09-19",
+      "note": "Split out of the four shipped ontologies, which now extend it."
+    }
+  ]
+}

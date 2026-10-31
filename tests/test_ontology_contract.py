@@ -379,11 +379,14 @@ def test_init_records_the_ontology_and_installs_what_it_carries(ontologies_dir):
         build(Project.standard(root))
 
 
-def test_init_records_a_built_in_ontology_and_a_merge(ontologies_dir):
+def test_init_records_a_pack_ontology_and_a_merge(ontologies_dir):
+    """software-architecture is an installed pack's vocabulary (ADR-0011): the project remembers the pack it was read from."""
     with tempfile.TemporaryDirectory() as root:
         init(root, slug="a", name="A", ontology="software-architecture")
         record = json.load(open(os.path.join(root, "project.config.json"), encoding="utf-8"))["ontology"]
-        assert record["name"] == "software-architecture" and record["origin"] == ontologies.BUILTIN
+        assert record["name"] == "software-architecture" and record["origin"] == ontologies.PACK
+        carried = os.path.join(os.path.dirname(os.path.dirname(ontologies.dir_for("software-architecture"))), "manifest.json")
+        assert record["pack"]["name"] == json.load(open(carried, encoding="utf-8"))["name"], "the pack whose copy was read"
         assert record["extends"] == ["oto-core", "portfolio", "product"] and record["release"] >= 1
     with tempfile.TemporaryDirectory() as root:
         init(root, slug="b", name="B", ontology="software-architecture,organization-process")

@@ -486,7 +486,7 @@ listed beside `oto-core` and the installed packs and shadows an installed one of
 builds and answers, the first publish creates the index and the tag `acme-arch/v1`, a publish with
 a deny term in the vocabulary is refused and pushes nothing, the fetched ontology's
 `manifest.json` records the registry, source and commit, `oto init` fetches an ontology that is only
-in a registry by itself and names `oto pack add <name>` when no registry the machine knows has it, a wrong pin is refused, `status` announces the newer
+in a registry by itself (listed as an ontology, or as the pack that carries it; a registry Claude Code knows as a marketplace counts) and names `oto pack add <name>` when no registry the machine knows has it, a wrong pin is refused, `status` announces the newer
 version, `diff` classifies the change and says how many of the project's nodes it touches, and
 `update` brings the newer version, and the plugin installs in Claude Code with its skill.
 

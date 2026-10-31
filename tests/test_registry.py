@@ -448,6 +448,10 @@ def test_a_registry_claude_code_knows_as_a_marketplace_is_listed_without_registr
                    "other": {"source": {"source": "github", "repo": "Other/plugins"}, "installLocation": os.path.join(home, "nope")}}, f)
     monkeypatch.setenv(ontologies.CLAUDE_CONFIG_ENV, config)
     assert [r["name"] for r in registry.claude_marketplaces()] == ["acme"]
+    record, entry = registry.find("dddp", kind="pack")
+    assert record["name"] == "acme" and record["url"] == "https://github.com/Acme/registry" and entry["release"] == 2, \
+        "a registry Claude Code knows as a marketplace is found by name like one added with oto registry add, and a fetch knows where to clone it"
+    assert registry.find("dddp") == (None, None), "listed as a pack, not as a standalone ontology"
     capsys.readouterr()
     assert main(["pack", "list", "--patterns"]) == 0
     out = capsys.readouterr().out

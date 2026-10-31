@@ -108,7 +108,7 @@ def test_a_vocabulary_the_machine_lacks_is_fetched_from_a_registry_that_lists_it
     monkeypatch.setenv("OTO_PACKS", str(tmp_path / "no-packs"))
     monkeypatch.setenv("OTO_ONTOLOGIES", str(tmp_path / "user"))
     assert "product" not in ontologies.available()
-    monkeypatch.setattr(_registry, "find", lambda name: (None, None))
+    monkeypatch.setattr(_registry, "find", lambda name, kind="ontology": (None, None))
     with pytest.raises(ValueError) as refused:
         _init(str(tmp_path / "shop"), "product")
     message = str(refused.value)
@@ -120,7 +120,7 @@ def test_a_vocabulary_the_machine_lacks_is_fetched_from_a_registry_that_lists_it
         for part in os.listdir(src):                               # as `oto ontology add` installs: the vocabulary and the ones it extends
             shutil.copytree(os.path.join(src, part), os.path.join(str(tmp_path / "user"), part), dirs_exist_ok=True)
         return str(tmp_path / "user" / name), {"name": name}
-    monkeypatch.setattr(_registry, "find", lambda name: ({"name": "cynergis"}, {"name": name, "release": 14}))
+    monkeypatch.setattr(_registry, "find", lambda name, kind="ontology": ({"name": "cynergis"}, {"name": name, "release": 14}) if kind == "ontology" else (None, None))
     monkeypatch.setattr(_registry, "fetch", fetch)
     out = io.StringIO()
     with contextlib.redirect_stdout(out):
@@ -128,6 +128,28 @@ def test_a_vocabulary_the_machine_lacks_is_fetched_from_a_registry_that_lists_it
     assert "not on this machine: fetched from the registry cynergis (release 14)" in out.getvalue(), out.getvalue()
     with open(os.path.join(str(tmp_path / "store"), "project.config.json"), encoding="utf-8") as f:
         assert json.load(f)["ontology"]["name"] == "product"
+
+    # the registry lists it as a pack, the usual case since ADR-0011: the pack is fetched, and the project records the pack
+    shutil_packs = str(tmp_path / "fetched-packs")
+    monkeypatch.setenv("OTO_PACKS", shutil_packs)
+    monkeypatch.setenv("OTO_ONTOLOGIES", str(tmp_path / "user-2"))
+    assert "organization-process" not in ontologies.available()
+    monkeypatch.setattr(_registry, "find", lambda name, kind="ontology": ({"name": "cynergis"}, {"name": name, "release": 7, "path": "packs/" + name})
+                        if kind == "pack" else (None, None))
+
+    def fetch_pack(name, release=None, force=False, kind="ontology"):
+        import shutil
+        assert kind == "pack", "a name no registry lists as an ontology is fetched as the pack it lists"
+        shutil.copytree(os.path.join(FIXTURE_PACKS, name), os.path.join(shutil_packs, name))
+        return os.path.join(shutil_packs, name), {"name": name, "release": 7}
+    monkeypatch.setattr(_registry, "fetch", fetch_pack)
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        init(str(tmp_path / "org"), slug="org", name="Org", ontology="organization-process")
+    assert "not on this machine: fetched the pack organization-process from the registry cynergis (release 7)" in out.getvalue(), out.getvalue()
+    with open(os.path.join(str(tmp_path / "org"), "project.config.json"), encoding="utf-8") as f:
+        record = json.load(f)["ontology"]
+    assert record["name"] == "organization-process" and record["origin"] == ontologies.PACK and record["pack"]["name"] == "organization-process", record
 
 
 def test_a_pack_refreshed_from_its_own_embedded_copy_keeps_it(monkeypatch, tmp_path):

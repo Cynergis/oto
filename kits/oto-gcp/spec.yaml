@@ -2,17 +2,17 @@
 schemaVersion: "2"
 kind: sandbox
 name: oto-gcp
-version: "0.14.8"
+version: "0.15.0"
 displayName: OTO on Google Cloud
 description: >-
-  Claude Code with the OTO engine plugin and the OTO registry as a marketplace (packs turned on per project), the OTO engine 0.14.8, the Google Cloud CLI, LibreOffice
+  Claude Code with the OTO engine plugin and the OTO registry as a marketplace (packs turned on per project), the OTO engine 0.15.0, the Google Cloud CLI, LibreOffice
   and Chromium, for building OTO products that run on Google Cloud.
 sourceURL: https://github.com/Cynergis/oto/tree/main/kits/oto-gcp
 licenses: [Apache-2.0]
 extends: claude
 environment:
   variables:
-    OTO_SOURCE: "oto-kg @ git+https://github.com/Cynergis/oto@v0.14.8"
+    OTO_SOURCE: "oto-kg @ git+https://github.com/Cynergis/oto@v0.15.0"
     # Only the plugins installed in the sandbox load; `allowed` (oto sandbox up --allow-outside-plugins)
     # lets those of the person's computer, Claude Desktop and claude.ai account load too.
     OTO_OUTSIDE_PLUGINS: blocked

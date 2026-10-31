@@ -4,6 +4,42 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.15.0 — 2026-10-31
+
+**The engine ships its own vocabulary and no other.** Engine pull request 136 and registry pull requests 34 and 35
+under [ADR-0011](docs/adr/0011-a-domain-vocabulary-is-a-pack-of-the-registry.md): a domain vocabulary is a pack
+of the registry; the engine ships exactly one vocabulary, `oto-core`, its own schema.
+
+- **The nine domain vocabularies leave the engine.** `agent`, `architecture`, `auto-claims`, `organization-process`,
+  `platform`, `portfolio`, `product`, `professional-services` and `software-architecture` are packs of
+  Cynergis/oto-registry, republished at the engine's releases (product 14, software-architecture 12, every base
+  current), `portfolio` and `architecture` published for the first time. `oto ontology list` on a bare engine lists
+  `oto-core`; `oto pack add <name>` (or `/plugin install <name>@cynergis`) brings a vocabulary and what it extends,
+  and `oto init --ontology <name>` composes it from the installed pack. A name the machine lacks is fetched from a
+  registry that lists it (`oto registry add <url>` once); when none does, the refusal names `oto pack add`.
+- **The arch command is the architecture pack's.** `oto arch` (import, export, migrate, the code map, compile,
+  impact, measure) and the served `arch_context` are the module `oto_architecture` in the pack's own `code/`,
+  loaded through `provides.commands` and a new `tools` seam: a pack's `provides.tools` names a module whose
+  `TOOLS` the server mounts beside the `kg_*` tools on a project that composes the pack, served at the route each
+  names and forwardable through `kg_call` when it says so. `oto init --repo` writes the `oto architecture` workflow
+  only for a project whose vocabulary declares `CodeModule`, and the workflow installs the pack before it compiles.
+  The helper that lands generated facts through the gates is the engine's (`oto.curate.apply`); the architecture
+  and policy packs call it.
+- **Provenance.** A project started from a pack's vocabulary records `origin: pack` with the pack, whatever the pack
+  recorded when it embedded it; `built-in` is only ever `oto-core`. When two installed packs carry a vocabulary at
+  the same release, the pack whose own it is wins. `oto pack refresh` copies its sources aside before clearing the
+  pack's `ontology/`, so a pack refreshed from its own embedded copy keeps it.
+- **The suite** carries the registry's nine packs under `tests/fixtures/packs`, resolved as installed packs, so the
+  engine proves itself on the path a project takes; the arch tests and the invoice model moved beside the
+  architecture pack in the registry.
+
+**Migration.** A project that composes one of the nine keeps its own copy of the vocabulary and builds, queries and
+passes its gates as before. Before this engine reads it for anything that needs the vocabulary's source (`oto init
+--ontology`, `oto pack new`, `oto ontology diff`, `oto arch`), install the pack once on the machine:
+`oto pack add <name>` (`oto pack add architecture` brings `oto arch` and `arch_context` back). Registry packs that
+read the reified model (`calm` 2, `ddd` 8, `policy` 2) import it from the architecture pack and fall back to the
+engine's module on 0.14.x.
+
 ## 0.14.8 — 2026-10-30
 
 **The engine ships no pack with tools of its own.** Three pull requests (132, 133, 134) under

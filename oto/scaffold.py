@@ -293,15 +293,21 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
         for one in names:
             if _ontologies.dir_for(one, roots) is None:
                 _record, entry = _registry.find(one)
+                kind = "ontology"
+                if entry is None:
+                    # A domain vocabulary is a pack of the registry (ADR-0011): the usual listing is the pack's
+                    _record, entry = _registry.find(one, kind="pack")
+                    kind = "pack"
                 if entry is None:
                     raise ValueError("unknown ontology %r: not on this machine, and no registry this machine knows lists it "
                                      "(the engine ships its own vocabulary, oto-core, and no other: a domain vocabulary is a pack "
                                      "of the registry, ADR-0011; oto registry add <url>, then oto pack add %s). Available: %s"
                                      % (one, one, ", ".join(_ontologies.available()) or "none"))
-                # The registry lists it: fetched, as `oto ontology add` would, so `oto init --ontology <name>`
-                # composes a vocabulary the engine does not ship (ADR-0011).
-                print("  ontology %s is not on this machine: fetched from the registry %s (release %s)" % (one, _record["name"], entry.get("release")))
-                _registry.fetch(one)
+                # The registry lists it: fetched, as `oto ontology add` or `oto pack add` would, so
+                # `oto init --ontology <name>` composes a vocabulary the engine does not ship (ADR-0011).
+                print("  ontology %s is not on this machine: fetched %sfrom the registry %s (release %s)"
+                      % (one, "the pack %s " % one if kind == "pack" else "", _record["name"], entry.get("release")))
+                _registry.fetch(one, kind=kind)
                 if _ontologies.dir_for(one, roots) is None:
                     raise ValueError("ontology %r was fetched from the registry %r but does not resolve on this machine" % (one, _record["name"]))
             if wanted[one] is not None and _ontologies.manifest_for(one, roots)["release"] != wanted[one]:

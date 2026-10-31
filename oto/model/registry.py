@@ -257,8 +257,10 @@ def refresh(name=None):
 
 
 def find(name, kind="ontology"):
-    """(registry record, index entry) for the first registry listing `name`, or (None, None)."""
-    for record in load_registries():
+    """(registry record, index entry) for the first registry listing `name`, or (None, None): the
+    registries added with `oto registry add`, then the ones Claude Code knows as marketplaces, whose
+    record carries the URL a fetch clones. The order `remote_entries` lists them in."""
+    for record in load_registries() + claude_marketplaces():
         for entry in (record.get("index") or {}).get(KINDS[kind]["list"]) or []:
             if entry.get("name") == name:
                 return record, entry
@@ -304,7 +306,11 @@ def claude_marketplaces():
             index = read_index(location)
         except (OSError, ValueError, ProjectError):
             continue
-        out.append({"name": index.get("name") or market, "index": index, "marketplace": market})
+        # where a fetch clones it: the repository the marketplace came from, else Claude Code's copy
+        source = record.get("source") if isinstance(record.get("source"), dict) else {}
+        url = "https://github.com/%s" % source["repo"] if source.get("source") == "github" and source.get("repo") else \
+            (source.get("url") if source.get("url") else location)
+        out.append({"name": index.get("name") or market, "index": index, "marketplace": market, "url": url, "location": location})
     return out
 
 

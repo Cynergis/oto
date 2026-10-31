@@ -903,7 +903,8 @@ against it. The engine answers with current facts by default and slices history 
   engine's own of the same name, and `oto init --ontology` also accepts a directory path. A name not
   found there or in the engine resolves to the copy an installed pack embeds (under `OTO_PACKS`, or a
   plugin in Claude Code's list of installed plugins), the highest release first, composed with the
-  bases that pack carries; a name a registry the machine knows lists is fetched first. To offer one to
+  bases that pack carries; a name a registry the machine knows lists, as an ontology or as the pack that
+  carries it, is fetched first (a registry Claude Code knows as a marketplace counts). To offer one to
   everyone, publish it as a pack of the registry (`oto pack new`, `oto pack publish`): the engine ships
   no vocabulary but its own, [ontologies/oto-core](../oto/ontologies/oto-core/README.md) (ADR-0011),
   and the suite carries the registry's packs under `tests/fixtures/packs` to prove the engine on them.

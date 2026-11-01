@@ -160,8 +160,19 @@ def test_the_survey_runs_every_question_over_the_whole_graph():
 def _project(root, questions=QUESTIONS, keep_shipped=False):
     init(root, slug="arch", name="Arch", ontology="software-architecture")
     project = Project.standard(root)
+    _owns_its_vocabulary(project)                 # these tests edit the vocabulary by hand: the project's own, not the pack's
     Q.save(project, dict(Q.load(project), **questions) if keep_shipped else questions)
     return project
+
+
+def _owns_its_vocabulary(project):
+    """A project started from a pack derives its vocabulary and refuses a hand edit (docs/plans/ontology-workspace.md);
+    a test that edits the vocabulary says the project owns it, as a person would."""
+    with open(project.config_path, encoding="utf-8") as f:
+        config = json.load(f)
+    config["vocabulary"] = "own"
+    with open(project.config_path, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
 
 
 def _query(root, *args):

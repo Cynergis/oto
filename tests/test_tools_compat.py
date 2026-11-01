@@ -102,6 +102,8 @@ def test_an_upgraded_project_sees_a_rename_not_a_removal_and_its_old_nodes_read_
     with contextlib.redirect_stdout(io.StringIO()):
         init(root, slug="up", name="Up", ontology="software-architecture")
     project = Project.standard(root)
+    # an upgraded project edited its vocabulary over the years: its own, not the pack's (docs/plans/ontology-workspace.md)
+    _rewrite(project.config_path, lambda c: dict(c, vocabulary="own"))
     questions_path = os.path.join(root, "questions.json")
     new_config = open(project.ontology_config_path, encoding="utf-8").read()
     new_questions = open(questions_path, encoding="utf-8").read()

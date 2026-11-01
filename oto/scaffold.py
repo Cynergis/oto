@@ -33,6 +33,8 @@ import shutil
 from . import __version__
 
 # `notes/` is authored. Everything under `build/` is generated, so `oto clean` can delete it whole.
+from .model import derived as _derived   # the kind of project and whose vocabulary it holds
+
 DIRS = ["inbox", "processing", "errors", "archive", "runs", "notes", "tools",
         "build/documents/assets", "build/entities", "build/ontology", "build/cards", "build/graph"]
 
@@ -263,6 +265,7 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
     ontology_actions = []
     ontology_gold = []
     ontology_record = None
+    vocabulary_mode = _derived.OWN
     roots, pack_info, pack_views = None, None, {}
     packs_used = []                    # the pack directories the project starts from, to declare their plugins
     names_used = []                    # each ontology named, the installed pack it was read from, what it composes
@@ -358,6 +361,13 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
             if pack_info:
                 ontology_record["pack"] = ontology_record["parts"][0]["pack"]
         ontology_config = dict(ontology_config, name=name)
+        # Every name resolved on this machine (a pack's copy, a fetched one): the vocabulary is theirs, not the
+        # project's, and the file says so. A directory is a copy the project owns (docs/plans/ontology-workspace.md).
+        if not any(os.sep in given or os.path.isdir(given) for given in names):
+            vocabulary_mode = _derived.DERIVED
+            ontology_config["_about"] = _derived.about(names)
+            ontology_config["_derived"] = {"from": [{"name": one, "release": _ontologies.manifest_for(one, roots)["release"]} for one in names],
+                                           "at": _today()}
 
     config = {
         "_about": "Project identity. Every generated name derives from `slug`, so several knowledge "
@@ -369,7 +379,8 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
         "prefix": prefix or slug,
         "db_name": "%s.db" % slug,
         "server_name": "%s-kg" % slug,
-        **({"kind": "concierge"} if concierge else {}),
+        "kind": _derived.CONCIERGE if concierge else _derived.KNOWLEDGE,
+        "vocabulary": vocabulary_mode,
         "oto_version": __version__,
     }
     if ontology_record:

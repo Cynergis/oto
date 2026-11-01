@@ -209,3 +209,18 @@ def test_pack_new_from_a_project_that_grew_its_own_vocabulary_opens_a_workspace(
     assert code == 0 and "check clean" in out, out
     code, out = _cli("pack", "try", w)
     assert code == 0 and "as required" in out and "answers 0" not in out, out
+
+
+def test_a_workspace_may_live_in_a_folder_of_another_name_as_the_sandbox_s_project_folder_does(tmp_path):
+    """`oto sandbox up --kind ontology` lays the workspace out in the sandbox's `project` folder; an installed pack
+    lives under its own name, but a workspace is a repository and may be called anything."""
+    w = str(tmp_path / "project")
+    directory, problems = packs.new("garage", into=w)
+    assert directory == w and os.path.exists(os.path.join(w, "trial", "project.config.json"))
+    assert [p for p in problems if "directory" in p] == [], problems
+    assert len(problems) == 1 and "declares no classes" in problems[0], "the one problem is the empty vocabulary: " + "; ".join(problems)
+    _fill(w)
+    code, out = _cli("pack", "check", w, "--strict")
+    assert code == 0 and "check clean" in out, out
+    code, out = _cli("pack", "try", w)
+    assert code == 0 and "as required" in out, out

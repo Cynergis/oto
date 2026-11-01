@@ -24,17 +24,21 @@ the playbook that turns the list into a vocabulary. It does not design classes; 
 - **The same clear shape every time:** say what we are about to do, ask a few questions at a time,
   read back what you understood in plain sentences, confirm, then say what is next.
 
-## 1. The project
+## 1. What is being made
 
-If there is no project yet:
+Two kinds of thing start here, and the first question is which:
 
-```bash
-oto init --name "<the knowledge base, in words>" --slug <short-name> --project <root>
-```
+- **An ontology**, to be used by several teams: made in an **ontology workspace**, a pack in the
+  making in a directory of its own, by the ontology-interview skill. `oto pack new <name> --to <dir>
+  [--extends <base>]` opens it; the questions below are its Phase 1.
+- **A knowledge base** on an ontology that exists: a knowledge project started from a pack, whose
+  vocabulary is derived from it. `oto pack list` says what exists; `oto pack add <name>` then
+  `oto init --name "<the knowledge base, in words>" --slug <short-name> --project <root> --pack <name>`.
 
-That writes `project.config.json`, an empty `ontology.config.json`, an empty `graph.json` and a
-README. Nothing else is assumed. If a project exists, `oto status --project <root>` says where it
-is; this skill applies while the vocabulary is `none declared yet`.
+When neither a pack nor an ontology fits what the person describes, the ontology comes first, and
+the knowledge base is the first project on it. A project with no pack at all
+(`oto init --name ... --project <root>` alone) owns its vocabulary and is for a one-off; say so if
+that is what the person wants. If a project exists, `oto status --project <root>` says where it is.
 
 ## 2. What do you have?
 
@@ -45,7 +49,7 @@ Ask one question, offer these four, recommend from what the person said:
 | **A specification, brief, requirements, a design note** — anything that says what the thing is for and who needs to know what | §3: put it in the inbox, ingest, survey, read it, derive the questions, confirm them | the **ontology-interview** skill from its Phase 2 |
 | **A folder of documents** (the corpus itself: handbooks, decisions, transcripts) | the **build-knowledge-base** skill, whole; it runs this derivation as its Gate 1 | — |
 | **A person who knows the domain** and the time to answer | the **ontology-interview** skill from its Phase 1: ask them the questions | — |
-| **An ontology or a pack that is close** (`oto ontology list`, `oto pack list`) | `oto init --ontology <name>` or `oto init --pack <name>`, then the interview from its Phase 3 to prune and rename | — |
+| **A pack that is close** (`oto pack list`) | `oto init --pack <name>` for the knowledge base; what it lacks is a pack that extends it, made in a workspace (`oto pack new <name> --to <dir> --extends <pack>`) by the interview from its Phase 3 | — |
 
 Usually two combine: a specification *and* an expert (derive, then ask them to add and strike);
 an existing ontology *and* a specification (start from the ontology, read the spec to see what it

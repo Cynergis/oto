@@ -41,17 +41,24 @@ There are three confirmation gates. Do not add more; do not skip one.
 
 ## Phase 0 — Project and corpus
 
-1. If there is no project, create one. Ask for a name; the slug derives from it unless the user
-   wants a different one.
+1. If there is no project, create one, on the pack whose vocabulary fits. A knowledge project does
+   not define its vocabulary: it composes packs, and the file is derived from them (the ontology
+   workspace plan, `docs/plans/ontology-workspace.md`). Ask for a name; the slug derives from it
+   unless the user wants a different one.
 
    ```bash
-   oto ontology                                       # is one close to this domain?
+   oto pack list                                      # the packs on this machine and in the registry: is one close to this domain?
    oto ontology show <name>                           # what it composes, and what it changed on the way
-   oto init --project <root> --name "<name>" [--ontology <name>]
+   oto pack add <name>                                # once on the machine (in Claude Code: /oto:packs, or claude plugin install <name>@cynergis --scope project)
+   oto init --project <root> --name "<name>" --pack <name>
    ```
 
-   Starting from an ontology is better than starting empty even when the fit is loose: the sample
-   graph is replaced in Phase 3, and the temporal vocabulary it ships is what makes supersession work.
+   Starting from a pack is better than starting empty even when the fit is loose: the sample graph
+   is replaced in Phase 3, and the temporal vocabulary comes with it. When no pack fits at all, the
+   vocabulary is made first, in an ontology workspace, by the **ontology-interview** skill
+   (`oto pack new <name> --to <dir>`), and this skill resumes once the pack exists. A project made
+   before packs, which owns its vocabulary, keeps it; `oto pack new <name> --from-project <root>`
+   gives that vocabulary a workspace when it is to be shared.
 
 2. Put the documents in `<root>/inbox/` and ingest, or read them where they are:
 
@@ -105,23 +112,32 @@ Do not list nouns. Write down the questions the knowledge base must answer, then
 every one of these ends up in `questions.json`, written so it runs (the ontology-interview skill's
 Phase 4d): `oto query questions` then says, after every build, which the graph answers.
 
-## Phase 2 — The vocabulary
+## Phase 2 — The packs
 
-Run the **ontology-interview** skill from its Phase 3 onward, with the questions from Gate 1 and the
-survey's recurring phrases as the candidate nouns. Its four tests decide what becomes a class, what
-stays an attribute, and what is two things. Its class-list confirmation is part of Gate 1 here:
-show the classes with the question each answers, and confirm, before writing files.
-
-Then write both files and validate:
+The vocabulary is the packs'. Read it, do not write it:
 
 ```bash
-oto ontology rationale --project <root> --strict      # every class has a recorded reason
-oto ontology check --project <root>                   # zero domain and range violations
-oto status --project <root>
+oto status --project <root>                           # vocabulary ... derived from <pack> @<release>
+oto ontology check --project <root>                   # the packs' terms, their shapes, the questions they carry
+oto query --project <root> questions                  # what a graph in this vocabulary must answer
 ```
 
-`validated_by` stays empty. Report "0 of N classes confirmed by a domain expert" as a fact about a
-draft, not a failure.
+Hold the Gate 1 questions against the packs' questions. Three outcomes:
+
+- **The packs answer them.** Go on to Phase 3; the questions the packs carry are the ones the
+  build will be checked against, and yours join the gold set in Phase 5b.
+- **A term is missing or wrong.** It is not added here: `ontology.config.json` in a project started
+  from a pack is derived, and `oto ontology check` refuses a hand edit. Write the need down in the
+  person's words (which question, what the answer would mention) and hand it to the
+  **ontology-interview** skill, which works in the pack's own workspace or opens a pack that extends
+  it (`oto pack new <name> --to <dir> --extends <pack>`). When that pack is released, `oto init
+  --pack <a>,<b>` or `oto ontology update` brings it here. Author what the packs already say
+  meanwhile; a fact that needs the missing term waits in a note, not in the graph.
+- **No pack fits.** Stop here and run the **ontology-interview** skill from its Phase 0 in a new
+  workspace; this skill resumes at Phase 0 once the pack exists.
+
+`validated_by` is the pack's business: the workspace releases a vocabulary confirmed, or not at all.
+Report what the pack says about itself, not a count of your own.
 
 Acronyms and floor jargon from the survey go into `<root>/lexicon.json`, or into the `aliases` of
 the entity they name, so a question using them resolves:
@@ -133,18 +149,8 @@ the entity they name, so a question using them resolves:
 ]}
 ```
 
-`targets` must be node ids the graph holds; pre-flight refuses an unknown one.
-
-Once the vocabulary is accepted, it can seed the next project in the same domain:
-
-```bash
-oto ontology export --project <root> --name <domain-name> --summary "<one line>"
-```
-
-That writes an ontology to your ontology directory, with an invented sample graph, the rationale
-carried over, and `validated_by` blanked, because confirmation in one project does not carry to
-another. `oto init --ontology <domain-name>` then starts the next project from it. Offer this to
-the user; do not run it unasked.
+`targets` must be node ids the graph holds; pre-flight refuses an unknown one. The lexicon, the
+gold set and the rules a team adds are the project's own; the terms are the packs'.
 
 ## Phase 3 — Author the graph, one proposal per document
 

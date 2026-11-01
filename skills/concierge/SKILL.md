@@ -55,6 +55,7 @@ says what each line means (for you):
 | `errors` need a person | A document the extractor could not read. The `.error.json` beside each says why. |
 | vocabulary `none declared` | No classes or relations yet. Nothing can be authored before this. |
 | `not yet accepted` | The vocabulary exists but is not locked; `oto ontology accept` records the baseline future changes are diffed against. |
+| `derived from <pack> @<release>` | The vocabulary is the pack's, written by the engine; a hand edit is refused. A missing term is a release of the pack, or a pack that extends it, made in an ontology workspace. |
 | `candidate OPEN` | Facts staged in `graph.candidate.json`, not believed. Only `oto curate apply` promotes them, after `oto curate check`. |
 | build `not built` or `STALE` | The compiled layers are missing or older than their inputs. `oto build` fixes both. |
 | serve `Neo4j NOT serving` | The project serves from Neo4j and cannot reach it; `--backend sqlite` serves the local build meanwhile. |
@@ -75,8 +76,10 @@ One screen. Every arrow is a command; every file named is the only place that th
 ```
 documents  --oto ingest-->  build/documents/*.md     (the corpus; processing/ holds the run)
 corpus     --oto survey-->  what it is about           (headings, recurring terms, figures)
-reading    --ontology-interview skill-->  ontology.config.json + ontology.rationale.json
-           --oto ontology check / rationale --strict / accept-->  ontology.lock.json
+reading    --ontology-interview skill, in an ontology workspace (oto pack new)-->  the pack's ontology/<name>/ (terms, rationale, questions, sample)
+           --oto pack check --strict / oto pack try / oto pack publish-->  a release in the registry
+           --oto pack add / oto init --pack-->  a knowledge project's ontology.config.json, derived from the pack (not edited there)
+           --oto ontology check / accept-->  ontology.lock.json
 documents  --build-knowledge-base skill, oto draft-->  proposals/<doc>.json
 proposals  --oto curate start / add-->  graph.candidate.json
 candidate  --oto curate check-->  the report: blocking problems, contradictions, gaps, personal data
@@ -104,7 +107,7 @@ oto bench validate --project <root>      # the gold set's shape
 | Decision | Options | Recommend | Commands |
 |---|---|---|---|
 | Nothing yet | a journey a pack leads from start to end (a product, with its playbook); a specification or brief; a folder of documents; an expert; an ontology or pack that is close | the playbook when one fits what the person wants (`oto pack list --playbooks` says what each is for); otherwise the start skill (`/oto:start`): it asks which, and runs the first phase | `oto pack list --playbooks`, then the playbook's skill; or `oto init`, then the start skill |
-| Where the vocabulary comes from | a pack; an ontology; the documents by interview; a file you own | a pack or an ontology if one fits, then the interview to prune it | `oto pack list`, `oto init --pack <name>`, `oto ontology list`, `oto init --ontology <name>`, `oto ontology import --file <path>`, the ontology-interview skill |
+| Where the vocabulary comes from | a pack of the registry, which the project composes and derives its vocabulary from; a pack made first, in an ontology workspace, when none fits; a file you own, for a project that keeps its own vocabulary | a pack if one fits; the workspace when none does: the vocabulary is made once, in a place of its own, and used by every project | `oto pack list`, `oto pack add <name>`, `oto init --pack <name>`; `oto pack new <name> --to <dir>` and the ontology-interview skill; `oto ontology import --file <path>` on a project whose vocabulary is its own |
 | How facts get in | author proposals by reading; a model drafts them (`draft` extra); a conversation captured; an interview against the capture form | reading, for anything that will be believed; `oto draft` for volume, still through the gates | `oto curate start`, `oto curate add --from <proposal> --dry-run`, `oto draft <slug>`, the capture skill, `oto curate propose --from <capture>` and the capture-form skill |
 | Where apply happens | locally by a person; in a repository, by pull request | local for one author; repository mode for a team | `oto curate apply --by <you> --note <why>`; `oto init --repo` and the workflows it writes |
 | Which store serves | SQLite, the local build; Neo4j, self-hosted, shared | SQLite until more than one machine reads; Neo4j is the production store | `serve.backend` in `project.config.json`, `oto serve --backend sqlite|neo4j`, `oto build --target neo4j --verify` |
@@ -160,7 +163,7 @@ that journey, hand over to the playbook and stop: it runs the scenes, and it com
 | When the person wants to | Load | They tend to say |
 |---|---|---|
 | Go from a folder of documents to a served graph | build-knowledge-base | "build a knowledge base from these", "turn this folder into a graph" |
-| Design or restructure the vocabulary | ontology-interview | "what classes should we have", "the vocabulary is wrong" |
+| Make or change an ontology, in its workspace (a pack in the making: `oto pack new`) | ontology-interview | "what classes should we have", "the vocabulary is wrong", "we need a class for X" |
 | Add one document, or one correction someone said | curate | "add this document", "that fact is wrong", "X changed" |
 | Write what someone said into the inbox as a source | capture | "remember that", "note this down", "they told me" |
 | Use what they highlighted or copied, without pasting it | selected-text | "the selected text", "what I copied", "my clipboard" |

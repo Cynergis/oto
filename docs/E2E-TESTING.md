@@ -16,6 +16,10 @@ alias oto='uvx --from "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/ot
 
 ## How to read this document
 
+The engine alone, with no pack installed, has a test of its own: [E2E-CORE.md](E2E-CORE.md) creates a
+vocabulary by hand, deploys and queries its graph and makes a pack of it, in eight steps with a script
+beside it (`tools/e2e_core.sh`) that the suite runs. Start there; this document is the rest.
+
 The sections follow the order the features were built, and [ADR-0006](adr/0006-the-core-and-the-packs.md)
 draws one line through them. The **core**, the knowledge graph with its tools and its deploy, is
 sections 1 to 17, 19, 20, 23 to 27 and 33: install, a project, documents in, the vocabulary, rules,

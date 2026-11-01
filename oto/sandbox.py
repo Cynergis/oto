@@ -28,6 +28,8 @@ adding the SSH connection in Claude Desktop. Everything is read from `sbx` itsel
 sandbox is touched but through `sbx exec`.
 """
 import glob
+import contextlib
+import io
 import json
 import os
 import re
@@ -472,11 +474,113 @@ def describe_lock(lock, next_session=()):
     return "blocked: " + done
 
 
+KINDS = ("knowledge", "ontology")
+GITHUB = "https://github.com/"
+
+
+def _github_url(repo):
+    """`owner/name` -> its https URL; a URL or a path stays as given."""
+    if repo and "://" not in repo and not os.path.exists(os.path.expanduser(repo)) and repo.count("/") == 1 and not repo.startswith("."):
+        return GITHUB + repo + ".git"
+    return repo
+
+
+def _git(cwd, *args, env=None, timeout=300):
+    code, out, err = _run(["git", "-C", cwd] + list(args), timeout=timeout, env=env)
+    if code != 0:
+        raise SandboxError("git %s failed in %s: %s" % (args[0], cwd, (err or out).strip()[-400:]), "")
+    return out
+
+
+def layout(kind, project_dir, name, pack=None, maintainer=None, repo=False):
+    """Lay the project out in the sandbox's project folder, on this computer, before the sandbox is made:
+    a knowledge project (on a pack when one is named, with the repository workflows when it is backed by
+    one), or an ontology workspace, a pack in the making (docs/plans/ontology-workspace.md). Returns what
+    was laid out, in words; nothing when the folder already holds a project."""
+    if os.path.exists(os.path.join(project_dir, "project.config.json")) or os.path.exists(os.path.join(project_dir, "manifest.json")):
+        return None
+    if kind == "ontology":
+        from .model import packs as _packs
+        with contextlib.redirect_stdout(io.StringIO()):
+            _packs.new(name, into=project_dir, maintainer=maintainer or "")
+        return "laid out an ontology workspace for the pack %s in %s: a starter vocabulary to fill, a trial project, the check and publish workflows" % (name, project_dir)
+    from . import scaffold as _scaffold
+    with contextlib.redirect_stdout(io.StringIO()):
+        _scaffold.init(project_dir, slug=name, name=name.replace("-", " ").title(), pack=pack, repo=repo)
+    return "laid out a knowledge project in %s%s%s" % (project_dir, (" on the pack %s" % pack) if pack else "",
+                                                     ", with the repository workflows" if repo else "")
+
+
+def github_repository(repo, token, check=False, gh=None):
+    """Create the GitHub repository `owner/name` (private) with the GitHub CLI and the token, unless it
+    exists. Returns its https URL. A URL or a path is taken as a repository that exists."""
+    url = _github_url(repo)
+    if not url.startswith(GITHUB):
+        return url
+    owner_name = url[len(GITHUB):-len(".git")]
+    gh = gh or _tool("OTO_GH", "gh")
+    if not gh:
+        raise SandboxError("the GitHub CLI (gh) is not on this computer, and creating %s needs it" % owner_name,
+                           "on a Mac: brew install gh; then run again (or create the repository yourself and pass its URL to --repo)")
+    env = dict(os.environ, GH_TOKEN=token) if token else dict(os.environ)
+    if check:
+        return url
+    code, out, err = _run([gh, "repo", "view", owner_name, "--json", "name"], timeout=60, env=env)
+    if code == 0:
+        return url
+    code, out, err = _run([gh, "repo", "create", owner_name, "--private"], timeout=120, env=env)
+    if code != 0:
+        raise SandboxError("could not create the repository %s: %s" % (owner_name, (err or out).strip()[-300:]),
+                           "check the token in the variable you named has the repo scope, or create the repository yourself and pass its URL to --repo")
+    return url
+
+
+def first_push(project_dir, url, token=None, kind="knowledge"):
+    """Put the laid-out folder under git, with `origin` at the repository, and push its first commit.
+    The token, when there is one, goes in the push's own header, never in the remote URL or a file."""
+    if not os.path.isdir(os.path.join(project_dir, ".git")):
+        _git(project_dir, "init", "-q", "-b", "main")
+    _git(project_dir, "add", "-A")
+    identity = ["-c", "user.name=oto sandbox", "-c", "user.email=oto-sandbox@localhost"]
+    code, out, err = _run(["git", "-C", project_dir] + identity + ["commit", "-q", "-m", "The %s, laid out by oto sandbox up" % ("ontology workspace" if kind == "ontology" else "knowledge project")], timeout=120)
+    remotes = _run(["git", "-C", project_dir, "remote"], timeout=60)[1].split()
+    if "origin" not in remotes:
+        _git(project_dir, "remote", "add", "origin", url)
+    header = []
+    if token and url.startswith(GITHUB):
+        import base64
+        header = ["-c", "http.extraheader=AUTHORIZATION: basic %s" % base64.b64encode(("x-access-token:" + token).encode("utf-8")).decode("ascii")]
+    code, out, err = _run(["git", "-C", project_dir] + header + ["push", "-q", "-u", "origin", "main"], timeout=300)
+    if code != 0:
+        raise SandboxError("the first push to %s failed: %s" % (url, (err or out).strip()[-300:]),
+                           "check the repository exists and the token in the variable you named may push to it")
+    return _run(["git", "-C", project_dir, "rev-parse", "--short", "HEAD"], timeout=60)[1].strip()
+
+
 def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=False, init_policy=None,
-       recreate=False, check=False, wait=600, say=None, allow_outside=False, publish=None):
+       recreate=False, check=False, wait=600, say=None, allow_outside=False, publish=None,
+       kind=None, repo=None, no_repo=False, token_env=None, pack=None):
     """Make the sandbox ready. Returns a report: what was found, what was done, what is next.
-    Raises SandboxError, with what the person does about it, when a step cannot go on."""
+    Raises SandboxError, with what the person does about it, when a step cannot go on.
+
+    `kind` lays the project out before the sandbox is made: a knowledge project (on `pack` when named)
+    or an ontology workspace. `repo` (owner/name, a URL or a path) backs it with a git repository:
+    created on GitHub with the token in the environment variable `token_env` when it is owner/name,
+    pushed once from here, and the token stored for the sandbox as the sandbox tool's own GitHub
+    secret, so the agent inside pushes without the token ever entering the sandbox. `no_repo` says
+    the project is local to the folders."""
     say = say or (lambda line: None)
+    if kind is not None and kind not in KINDS:
+        raise SandboxError("the kind is one of %s, not %r" % (" or ".join(KINDS), kind), "")
+    if repo and no_repo:
+        raise SandboxError("--repo and --no-repo contradict each other", "")
+    if kind and not repo and not no_repo:
+        raise SandboxError("a %s project is backed by a repository unless you say it is not" % kind,
+                           "pass --repo <owner/name> (created for you, with the token in --github-token-env), or --no-repo for a project local to the folders")
+    token = os.environ.get(token_env) if token_env else None
+    if repo and _github_url(repo).startswith(GITHUB) and not token and not check:
+        raise SandboxError("creating and pushing to %s needs a GitHub token, and %s" % (repo, ("the variable %s is empty" % token_env) if token_env else "no variable was named"),
+                           "put a token with the repo scope in an environment variable and name it with --github-token-env <VAR>; the value is never written anywhere")
     kit = kit or kit_ref()
     if os.path.exists(os.path.expanduser(kit)):   # a local kit: sbx wants an explicit path
         kit = os.path.abspath(os.path.expanduser(kit))
@@ -536,12 +640,37 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         if existing["folders"][:1] != [project_dir] and directory_given:
             report["warnings"].append("the sandbox %s already works on %s, not %s: run again with --recreate to change it"
                                       % (name, ", ".join(existing["folders"]) or "no folder", project_dir))
+    report["kind"] = kind
+    report["repository"] = _github_url(repo) if repo else None
     if check:
+        if kind:
+            report["done"].append("would lay out %s in %s" % ("an ontology workspace for the pack %s" % name if kind == "ontology"
+                                                           else "a knowledge project%s" % (" on the pack %s" % pack if pack else ""), project_dir))
+        if repo:
+            url = _github_url(repo)
+            creating = ""
+            if url.startswith(GITHUB):
+                creating = "would create the private repository %s on GitHub with the token in %s, " % (url[len(GITHUB):-len(".git")], token_env or "(no variable named)")
+            report["done"].append(creating + "would push the first commit to %s and store the token as the sandbox's GitHub secret" % url)
         report["done"].append(("would remove and recreate the sandbox %s" % name) if existing and recreate else
                               ("would reuse the sandbox %s" % name) if existing else
                               ("would create the sandbox %s from %s" % (name, kit)))
         report["ssh"] = _ssh_ready(name)
         return report
+    if kind:
+        os.makedirs(project_dir, exist_ok=True)
+        laid = layout(kind, project_dir, name, pack=pack, repo=bool(repo))
+        if laid:
+            report["done"].append(laid)
+    if repo:
+        say("the repository %s" % repo)
+        url = github_repository(repo, token)
+        if url.startswith(GITHUB):
+            report["done"].append("created (or found) the private repository %s on GitHub" % url[len(GITHUB):-len(".git")])
+        commit = first_push(project_dir, url, token=token, kind=kind or "knowledge")
+        report["repository"] = url
+        report["commit"] = commit
+        report["done"].append("pushed the first commit (%s) to %s; origin is set in %s" % (commit, url, project_dir))
     if existing and recreate:
         sbx("rm", "-f", name)
         existing = None
@@ -566,6 +695,12 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         if ports:
             report["done"].append("published port%s %s to this computer's localhost, for oto serve inside"
                                   % ("" if len(ports) == 1 else "s", " and ".join(str(p) for p in ports)))
+    if repo and token and _github_url(repo).startswith(GITHUB):
+        code, out, err = sbx("secret", "set", "github", "--sandbox", name, "--token", token, "-f", timeout=120)
+        if code != 0:
+            report["warnings"].append("the GitHub token could not be stored for the sandbox: %s; pushes from inside will ask for it" % (err or out).strip()[-200:])
+        else:
+            report["done"].append("stored the token as the sandbox's own GitHub secret: the agent inside pushes to %s, and the token never enters the sandbox" % _github_url(repo))
     say("waiting for OTO to be ready inside it")
     line = _oto_line(sbx, name, wait=wait)
     report["oto"] = line
@@ -626,7 +761,14 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
 def next_steps(report):
     """What the person does next, in Claude Desktop or a terminal."""
     name = report["name"]
-    lines = ["In Claude Desktop: the Code tab, a new session, then the environment menu: SSH, Add SSH connection.",
+    lines = []
+    if report.get("kind") == "ontology":
+        lines.append("In the sandbox the project folder is an ontology workspace: the ontology-interview skill fills ontology/%s/, "
+                     "oto pack check . --strict and oto pack try . hold it to its gates, oto pack publish releases it." % name)
+    elif report.get("kind") == "knowledge":
+        lines.append("In the sandbox the project folder is a knowledge project%s: documents into inbox/, the build-knowledge-base skill from there."
+                     % ("" if not report.get("repository") else ", backed by %s" % report["repository"]))
+    lines += ["In Claude Desktop: the Code tab, a new session, then the environment menu: SSH, Add SSH connection.",
              "  Name: OTO (%s). SSH host: %s.sbx. Leave the port and the identity file empty." % (name, name),
              "  Choose that connection, then the folder %s." % (report["project"] or "you work in"),
              "Or in a terminal: sbx run --name %s" % name]

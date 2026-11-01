@@ -104,7 +104,8 @@ def cmd_sandbox(args):
         report = _sandbox.up(name=args.name, directory=args.dir, project_id=args.project_id, kit=args.kit,
                              approve=args.approve_anthropic, init_policy=args.init_policy, recreate=args.recreate,
                              check=args.check, wait=args.wait, say=say, allow_outside=args.allow_outside_plugins,
-                             publish=args.publish if args.publish is not None else None)
+                             publish=args.publish if args.publish is not None else None,
+                             kind=args.kind, repo=args.repo, no_repo=args.no_repo, token_env=args.github_token_env, pack=args.pack)
     except _sandbox.SandboxError as e:
         if args.json:
             print(json.dumps({"ok": False, "problem": str(e), "fix": e.fix}, indent=2))
@@ -126,6 +127,8 @@ def cmd_sandbox(args):
             print("  warning: %s" % line)
     else:
         print("  folders: %s" % " and ".join(f for f in (report["project"], report["code"]) if f))
+        if report.get("repository"):
+            print("  repository: %s%s" % (report["repository"], (" at %s" % report["commit"]) if report.get("commit") else ""))
         print("  %s" % report["oto"])
         print("  outside plugins: %s" % report["outside_plugins_summary"])
         if report.get("ports"):
@@ -151,6 +154,13 @@ def register(sub):
     p.add_argument("--dir", help="the folder holding its project and code folders (default ~/<name>)")
     p.add_argument("--project-id", help="the Google Cloud project's id, given to the sandbox as PROJECT")
     p.add_argument("--kit", help="the kit to make it from (default ghcr.io/cynergis/oto-gcp:<this engine's version>)")
+    p.add_argument("--kind", choices=["knowledge", "ontology"],
+                   help="lay the project out before the sandbox is made: a knowledge project (on --pack when named), or an ontology workspace (a pack in the making)")
+    p.add_argument("--pack", help="for --kind knowledge: the pack the project starts from (installed on this computer)")
+    p.add_argument("--repo", help="back the project with a git repository: owner/name (created private on GitHub with the token in --github-token-env), a URL, or a path")
+    p.add_argument("--no-repo", dest="no_repo", action="store_true", help="the project is local to the folders: no repository")
+    p.add_argument("--github-token-env", dest="github_token_env", metavar="VAR",
+                   help="the environment variable holding a GitHub token with the repo scope; used to create and push, and stored as the sandbox's GitHub secret; never written anywhere")
     p.add_argument("--approve-anthropic", action="store_true",
                    help="record the person's approval for the kit to use their Anthropic sign-in (ask them first)")
     p.add_argument("--init-policy", choices=["balanced", "deny-all", "allow-all"],

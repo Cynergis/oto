@@ -15,7 +15,8 @@ sandbox that knows which kind it opens on.
 
 Status: proposed on 2026-11-01. Phase 1 (the kind and the derived vocabulary), phase 2 (the workspace: `oto pack new`
 as a workspace, `check --strict`, `try`, publish leaving the trial behind) and phase 3 (the skills split along the line)
-delivered on 2026-11-01; the sandbox (phase 4), the ADR and the release (phase 5) are not built.
+and phase 4 (the sandbox: `oto sandbox up --kind`, `--repo` or `--no-repo`, `--github-token-env`; the skill's one-answer
+setup) delivered on 2026-11-01; the ADR and the release (phase 5) are not built.
 
 ## What exists, and what changes
 

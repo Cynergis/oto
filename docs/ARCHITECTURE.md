@@ -638,6 +638,17 @@ sandbox created from a tool gets no credential without it. It is written only wi
 `--approve-anthropic`, next to the bindings already there. Everything else is read from `sbx` (its
 JSON listings), and nothing inside the sandbox is touched but through `sbx exec`.
 
+With `--kind knowledge|ontology` it also lays the project out in the `project` folder before the sandbox is
+made, on this computer: a knowledge project (on `--pack` when one is named, with the repository workflows)
+or an ontology workspace, a pack in the making ([the plan](plans/ontology-workspace.md)). `--repo
+<owner/name>` backs it with a repository: created private on GitHub through the GitHub CLI with the token in
+the environment variable `--github-token-env` names, the first commit pushed from here with the token in the
+push's own header, and the token stored as the sandbox tool's own GitHub secret for that sandbox (`sbx secret
+set github --sandbox <name>`), so the agent inside pushes and the token never enters the sandbox or a file; a
+URL or a path is a repository that exists. `--no-repo` keeps the project local to the folders; a kind with
+neither is refused. A folder that already holds a project is left alone. The sandbox skill proposes the name,
+the folder, the kind and the repository from one answer, with "no repository" as a checkbox.
+
 Inside, the kit's `lock-plugins` keeps the sandbox to its own plugins. Desktop's SSH sessions start
 Claude Code with `--setting-sources=user,project,local` and one `--plugin-dir` per plugin of the
 computer, each loading as `<name>@inline`, and the sign-in brings the claude.ai account's plugins,

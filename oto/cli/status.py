@@ -110,8 +110,10 @@ def _ontology(project):
     record, legacy = _registry.project_record(project)
     if not record:
         return None
+    from ..model import derived as _derived
     out = {"name": record["name"], "release": record.get("release"), "origin": record.get("origin"),
            "registry": record.get("registry"), "available": None, "legacy_key": legacy,
+           "vocabulary": _derived.mode(project), "derived_from": _derived.releases(project) if _derived.mode(project) == _derived.DERIVED else [],
            "pack": (record.get("pack") or {}).get("name"), "pack_release": (record.get("pack") or {}).get("release")}
     try:
         out["available"] = _registry.newer_release(record)
@@ -241,8 +243,11 @@ def cmd_status(args):
     if s["errors"]:
         print("              %d file(s) in errors/ need a person: read the .error.json beside each" % s["errors"])
     accepted = "accepted" if s["vocabulary_accepted"] else "not yet accepted"
-    print("  vocabulary  %d class(es), %d relation(s), %d typed attribute(s), %d rule(s), %s"
-          % (s["classes"], s["properties"], s["attributes"], s["rules"], accepted))
+    whose = ""
+    if (s.get("ontology") or {}).get("vocabulary") == "derived":
+        whose = "; derived from %s" % ", ".join("%s @%s" % (n, r) for n, r in s["ontology"]["derived_from"])
+    print("  vocabulary  %d class(es), %d relation(s), %d typed attribute(s), %d rule(s), %s%s"
+          % (s["classes"], s["properties"], s["attributes"], s["rules"], accepted, whose))
     if s.get("ontology"):
         t = s["ontology"]
         where = (" from %s" % t["registry"]) if t.get("registry") else (" (%s)" % t["origin"] if t.get("origin") else "")

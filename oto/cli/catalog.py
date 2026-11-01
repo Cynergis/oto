@@ -192,6 +192,17 @@ def _remote(args):
             return 0
         # update
         changed = _registry.update(which[0] if which else None)
+        # The project this runs in, when its vocabulary is the packs': written again from their current releases
+        try:
+            from ..model import derived as _derived
+            from ._common import resolve as _resolve
+            project = _resolve(args)
+            if _derived.mode(project) == _derived.DERIVED:
+                _derived.write(project)
+                print("re-derived ontology.config.json from %s; then: oto ontology check, oto build"
+                      % ", ".join("%s @%s" % (n, r) for n, r in _derived.releases(project)))
+        except (ProjectError, OSError, ValueError, KeyError):
+            pass                                                   # not run in a project, or one that owns its vocabulary
         if not changed:
             print("every fetched ontology is at its registry's current release")
         for name, old, new in changed:

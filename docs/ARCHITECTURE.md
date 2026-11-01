@@ -439,6 +439,17 @@ or a changed `ask`, `params` or `gate`: breaking; added: additive; reworded: cos
 ontology accept` refuses a vocabulary its questions do not cover. `oto ontology diff` reports
 the upstream ontology's question changes beside its vocabulary and rule changes.
 
+**Whose vocabulary a project holds.** A project records its `kind` (`knowledge`, or `concierge` for a root that
+only routes) and whether its vocabulary is `derived` or its `own` (`project.config.json`;
+[model/derived.py](../oto/model/derived.py), [the plan](plans/ontology-workspace.md)). Started from a pack, or
+from an ontology an installed pack carries, the vocabulary is derived: `ontology.config.json` is what the packs
+compose, named after the project, written by the engine with a header that says so; `oto ontology check` and
+`accept` refuse a hand edit and name what differs and where a change belongs (a pack that extends, or the pack's
+own workspace), `oto ontology import` into it is refused, `oto ontology update` writes it again from the packs'
+current releases, and `oto status` says `derived from <pack> @<release>`. Started with no ontology or from a
+directory, and for every project made before this, the vocabulary is the project's own, edited in place as
+before; a derived project takes its vocabulary back by saying `"vocabulary": "own"`.
+
 A manifest states a `namespace`, the IRI the ontology's own terms live under. Composition
 records, in the vocabulary's `namespaces` section, which terms each part brought, a term
 belonging to the first part that declares it

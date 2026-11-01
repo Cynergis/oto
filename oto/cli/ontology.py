@@ -61,9 +61,25 @@ def cmd_ontology(args):
             args.from_name, out, len(schema["sections"]), sum(len(s["asks"]) for s in schema["sections"]), len(schema["types"])))
         return 0
 
-    from ..model import vocabulary as vocab
+    from ..model import derived as _derived, vocabulary as vocab
 
     project = _resolve(args)
+    if _derived.mode(project) == _derived.DERIVED and args.ontology_command in ("import", "accept", "check", None):
+        # The vocabulary is the packs' (docs/plans/ontology-workspace.md): not edited here, not imported into
+        if args.ontology_command == "import":
+            print("oto: the vocabulary is derived from %s (project.config.json: vocabulary: derived) and takes no import: "
+                  "a term the packs lack is a pack that extends them (oto pack new <name> --extends %s), then a project "
+                  "started from both; a project that wants to own its vocabulary says \"vocabulary\": \"own\""
+                  % (", ".join(_derived.names(project)), ",".join(_derived.names(project))), file=sys.stderr)
+            return 1
+        try:
+            found = _derived.drift(project)
+        except ValueError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        if found:
+            print("oto: " + _derived.refusal(project, found), file=sys.stderr)
+            return 1
     unacknowledged = 0
     with open(project.ontology_config_path, encoding="utf-8") as f:
         current = vocab.Vocabulary.from_config(_json.load(f))

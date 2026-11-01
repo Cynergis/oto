@@ -218,6 +218,18 @@ def test_the_generated_workflow_checks_the_config_publishes_to_dev_and_promotes_
     assert "github.actor" in workflow, "the approver is GitHub's reviewer, not a typed name"
 
 
+def test_promotion_and_status_ignore_the_header_the_workspace_inherited(project, git_over_http, tmp_path, monkeypatch):
+    # The promote jobs run in a checkout too: every call to the query repository sends its own token.
+    _bare(git_over_http.root)
+    _write_config(project, dict(GOOD, publish={"to": git_over_http.base + "/query.git", "require_pr": False}))
+    monkeypatch.chdir(git_over_http.workspace(str(tmp_path / "workspace")))
+    pub.publish(project, source="org/knowledge@abc123", environment="dev")
+    deploy.promote(project, "test", commit="abc123", by="Dana Reyes")
+    held = deploy.status(project)
+    assert held["test"]["approved_by"] == "Dana Reyes" and held["prod"] is None
+    assert git_over_http.seen and git_over_http.header not in git_over_http.seen
+
+
 # ---- F2, F4: the audit log records what left the project, and a node keeps its IRI through the chain ----
 def test_publish_and_promotion_are_audited_and_a_node_keeps_its_iri_in_every_environment(project, tmp_path):
     import sqlite3

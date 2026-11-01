@@ -578,8 +578,9 @@ oto sync --repo /tmp/acme-store.git --branch test --dest /tmp/acme-test && oto s
 Pass when dev, test and prod hold the same store hash, each record names the approver, prod is
 refused without one and with another commit, and a store edited by hand on the dev branch is
 refused at the next promotion ("does not match its manifest"). In repository mode, `oto init --repo`
-writes the deploy workflow with `promote-test` and `promote-prod` jobs behind GitHub Environments of
-the same names: create them in the repository's settings with your login as required reviewer,
+writes the deploy workflow, which publishes to the first environment the config names and promotes to
+the second and third behind GitHub Environments of the same names (a config with one environment
+promotes nowhere): create them in the repository's settings with your login as required reviewer,
 merge a change, and the run stops at test until you approve; the record then names `github` as the
 approver's kind.
 

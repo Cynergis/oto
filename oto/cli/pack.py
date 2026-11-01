@@ -32,33 +32,68 @@ def cmd_pack(args):
     verb = args.pack_command
     which = list(args.which or [])
     if verb == "new":
-        if not which or not args.ontology:
-            print("oto: new needs a name and --ontology <name|name@release|dir>", file=sys.stderr)
+        if not which:
+            print("oto: new needs a name (and --ontology <name|dir>, --from-project <dir>, or --extends <name,...> for a workspace to fill)",
+                  file=sys.stderr)
+            return 1
+        starter = not args.ontology and not args.from_project
+        if starter and not args.to:
+            print("oto: a workspace with a starter vocabulary needs --to <dir>, a directory of its own (a git repository); "
+                  "under the packs directory a pack is an installed one: oto pack new <name> --ontology <name|dir>", file=sys.stderr)
             return 1
         try:
             directory, problems = packs.new(which[0], args.ontology, domain=args.domain, summary=args.summary,
                                             view_dirs=args.view or (), to=args.to, force=args.force,
-                                            maintainer=args.maintainer)
+                                            maintainer=args.maintainer, from_project=args.from_project,
+                                            extends=[e.strip() for e in (args.extends or "").split(",") if e.strip()])
         except FileExistsError as exc:
             print("oto: %s already exists; pass --force to replace it" % exc, file=sys.stderr)
             return 1
-        except ValueError as exc:
+        except (ValueError, OSError) as exc:
             print("oto: %s" % exc, file=sys.stderr)
             return 1
         manifest = packs.read(directory)
         onto = manifest["ontology"]
-        print("wrote pack %r to %s" % (which[0], directory))
-        print("  embeds the ontology %s@%s (%s)" % (onto["name"], onto["release"], onto.get("registry") or onto.get("source")))
-        print("  wrote: %s, skills/%s/SKILL.md, README.md" % (os.path.join(packs.PLUGIN_DIR, "plugin.json"), packs.START_SKILL))
+        is_workspace = os.path.exists(os.path.join(directory, packs.TRIAL_DIR))
+        print("wrote the %s %r to %s" % ("workspace" if is_workspace else "pack", which[0], directory))
+        if args.from_project:
+            print("  the vocabulary from the project %s, as the ontology %s@%s" % (os.path.abspath(args.from_project), onto["name"], onto["release"]))
+        elif starter:
+            print("  a starter vocabulary %s@%s to fill, on %s" % (onto["name"], onto["release"],
+                                                                   ", ".join(packs.embedded_manifest(directory).get("extends") or []) or "nothing"))
+        else:
+            print("  embeds the ontology %s@%s (%s)" % (onto["name"], onto["release"], onto.get("registry") or onto.get("source")))
+        print("  wrote: %s, skills/%s/SKILL.md, README.md%s" % (os.path.join(packs.PLUGIN_DIR, "plugin.json"), packs.START_SKILL,
+                                                            ", trial/ (a project to try it in), .github/workflows/ (check, publish)" if is_workspace else ""))
         for note in packs.notes(directory):
             print("  note: %s" % note)
+        if problems and starter:
+            print("  not yet usable (%d problem(s)): the interview fills ontology/%s/ (the ontology-interview skill), then: "
+                  "oto pack check %s --strict, oto pack try %s" % (len(problems), onto["name"], directory, directory))
+            return 0
         if problems:
             print("  %d problem(s) the check found:" % len(problems))
             for problem in problems[:10]:
                 print("    %s" % problem)
             return 1
-        print("  check clean. Add skills under skills/ and views under views/, then: oto pack check %s" % directory)
+        print("  check clean. Add skills under skills/ and views under views/, then: oto pack check %s%s"
+              % (directory, (" and oto pack try %s" % directory) if is_workspace else ""))
         return 0
+
+    if verb == "try":
+        directory = _here_or(which)
+        if directory is None:
+            print("oto: %s is not a pack" % (which[0] if which else os.getcwd()), file=sys.stderr)
+            return 1
+        try:
+            code, said = packs.try_(directory)
+        except (ValueError, OSError) as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        print("trial %s: vocabulary written from the pack, built; its questions:" % os.path.join(directory, packs.TRIAL_DIR))
+        for line in said.strip().splitlines():
+            print("  " + line)
+        return code
 
     if verb == "check":
         directory = _here_or(which)
@@ -67,11 +102,11 @@ def cmd_pack(args):
                   file=sys.stderr)
             return 1
         manifest = packs.read(directory)
-        problems = packs.check(directory)
+        problems = packs.check(directory, strict=bool(getattr(args, "strict", False)))
         onto = manifest.get("ontology") or {}
-        print("pack %s @%s: ontology %s@%s, %d skill(s), %d view(s)"
+        print("pack %s @%s: ontology %s@%s, %d skill(s), %d view(s)%s"
               % (manifest["name"], manifest["release"], onto.get("name"), onto.get("release"),
-                 len(packs.skills(directory)), len(packs.views(directory))))
+                 len(packs.skills(directory)), len(packs.views(directory)), "; the rationale held to, too" if getattr(args, "strict", False) else ""))
         for note in packs.notes(directory):
             print("  note: %s" % note)
         if problems:
@@ -109,7 +144,7 @@ def cmd_pack(args):
 def register(sub):
     pack = sub.add_parser("pack", help="the full extension a person installs into Claude Code: an ontology, its skills and its views")
     pack.add_argument("pack_command", nargs="?", default="list",
-                      choices=["new", "check", "refresh", "list", "show", "add", "update", "publish"],
+                      choices=["new", "check", "try", "refresh", "list", "show", "add", "update", "publish"],
                       help="new <name> --ontology <name> scaffolds one; check [<dir>] validates it; refresh [<dir>] "
                            "re-embeds the ontology at its current release; list (default) shows every pack; "
                            "show <name> prints one; add <name|name@release|url> fetches one; update re-fetches "
@@ -118,6 +153,9 @@ def register(sub):
                       help="new: the pack's name; check and refresh: a directory (default .); show: a name or "
                            "directory; add: a name, name@release or git URL; update: a name")
     pack.add_argument("--ontology", default=None, help="for new: the ontology to embed, a name on this machine, name@release, or a directory")
+    pack.add_argument("--extends", default=None, help="for new without --ontology: the ontologies the starter vocabulary rests on, comma-separated (default oto-core)")
+    pack.add_argument("--from-project", dest="from_project", default=None, help="for new: open a workspace from a project that grew its own vocabulary")
+    pack.add_argument("--strict", action="store_true", help="for check: hold the rationale to it too, a reason and a confirmation per term")
     pack.add_argument("--patterns", action="store_true",
                       help="for list: only the pattern packs (a pack whose manifest says what it is a design pattern of)")
     pack.add_argument("--playbooks", action="store_true",

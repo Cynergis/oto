@@ -142,25 +142,27 @@ expect "prod     build" $OTO deploy status --project "$P"
 expect "synced" $OTO sync --repo "$WORK/store.git" --branch test --dest "$WORK/store-test"
 expect "a published query store" $OTO status --project "$WORK/store-test"
 
-say "7. The vocabulary exported as an ontology, made into a pack"
-expect "self-check clean" $OTO ontology export --project "$P" --name garage-fleet --summary "A bus garage: buses, where they are based, who maintains them"
-expect "garage-fleet" $OTO ontology list
-expect "check clean" $OTO pack new garage --ontology garage-fleet --to "$WORK/packs-work" --maintainer "Test Driver"
-expect "check clean" $OTO pack check "$WORK/packs-work/garage"
+say "7. The vocabulary leaves the project for a workspace of its own: a pack in the making, tried, held to its gates"
+expect "from the project" $OTO pack new garage --from-project "$P" --to "$WORK/workspaces" --maintainer "Test Driver" --summary "A bus garage: buses, where they are based, who maintains them"
+expect "garage-trial" $OTO status --project "$WORK/workspaces/garage/trial"
+expect "as required" $OTO pack try "$WORK/workspaces/garage"
+expect "check clean" $OTO pack check "$WORK/workspaces/garage" --strict
 
 say "8. The pack published to a registry, installed from it, and a second project started from the pack"
 git init -q --bare -b main "$WORK/registry.git"
-expect "the registry was created" $OTO pack publish --from "$WORK/packs-work/garage" --to "$WORK/registry.git" --registry-name test --note "first cut"
+expect "the registry was created" $OTO pack publish --from "$WORK/workspaces/garage" --to "$WORK/registry.git" --registry-name test --note "first cut"
 expect "1 pack" $OTO registry add "$WORK/registry.git"
 expect "added pack garage @1" $OTO pack add garage
+STEPS=$((STEPS + 1)); [ ! -e "$WORK/packs/garage/trial" ] && [ ! -e "$WORK/packs/garage/.github" ] || fail "the published pack carries the workspace's trial project or workflows"
+echo "the installed pack holds the deliverable alone: no trial/, no .github/"
 expect "Project ready" $OTO init --name "Second garage" --slug garage2 --pack garage --project "$WORK/garage2"
 expect "knowledge layer written" $OTO build --project "$WORK/garage2"
 expect "b.plate=NW-101" $OTO query --project "$WORK/garage2" ask GQ1 GARAGE=garage.north
 STEPS=$((STEPS + 1)); python3 - "$WORK/garage2" <<'EOF' >"$OUT" 2>&1 || fail "the second project's record"
 import json, sys
 o = json.load(open(sys.argv[1] + "/project.config.json"))["ontology"]
-assert o["name"] == "garage-fleet" and o["origin"] == "pack" and o["pack"]["name"] == "garage", o
-print("record: garage-fleet @%s, origin %s, pack %s" % (o["release"], o["origin"], o["pack"]["name"]))
+assert o["name"] == "garage" and o["origin"] == "pack" and o["pack"]["name"] == "garage", o
+print("record: garage @%s, origin %s, pack %s" % (o["release"], o["origin"], o["pack"]["name"]))
 EOF
 cat "$OUT"
 

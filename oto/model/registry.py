@@ -706,7 +706,7 @@ def publish_pack(to, pack, note=None, summary=None, ref=None, registry_name=None
         prior = list(_packs.read(dest).get("changelog") or []) if os.path.isdir(dest) else []
         if os.path.exists(dest):
             shutil.rmtree(dest)
-        shutil.copytree(src, dest, ignore=shutil.ignore_patterns(".git", "__pycache__", ".DS_Store"))
+        shutil.copytree(src, dest, ignore=shutil.ignore_patterns(".git", "__pycache__", ".DS_Store", *_packs.WORKSPACE_ONLY))
         manifest = _packs.read(dest)
         for key in _packs.PROVENANCE:
             manifest.pop(key, None)

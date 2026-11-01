@@ -31,7 +31,7 @@ def test_the_core_runs_end_to_end_on_the_engine_alone(tmp_path):
     assert done.returncode == 0, done.stdout[-4000:] + done.stderr[-2000:]
     assert "ALL STEPS PASSED" in done.stdout, done.stdout[-2000:]
     for promised in ("accepted vocabulary version 1", "ready to apply", "b.plate=NW-101", "promoted test -> prod",
-                     "the registry was created", "added pack garage @1", "record: garage-fleet @1, origin pack, pack garage"):
+                     "the registry was created", "added pack garage @1", "record: garage @1, origin pack, pack garage"):
         assert promised in done.stdout, promised
     work = tmp_path / "work"
     assert (work / "garage" / "oto.deploy.json").exists() and (work / "garage2" / "project.config.json").exists()
@@ -44,7 +44,7 @@ def test_the_document_and_the_script_tell_the_same_story():
     with open(SCRIPT, encoding="utf-8") as f:
         script = f.read()
     for command in ("oto ontology accept", "oto ingest run", "oto curate apply", "oto ingest complete", "oto query", "oto serve",
-                    "oto deploy init", "oto publish", "oto sync", "oto ontology export", "oto pack new", "oto pack publish",
+                    "oto deploy init", "oto publish", "oto sync", "oto pack new", "oto pack try", "oto pack check", "oto pack publish",
                     "oto registry add", "oto pack add", "--pack garage"):
         assert command in doc, command
         assert command.replace("oto ", "$OTO ") in script or command in script, command

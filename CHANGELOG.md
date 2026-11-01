@@ -4,6 +4,14 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.16.1 — 2026-11-01
+
+**A workspace may live in a folder of any name.** Found on the first test drive of an ontology workspace in a
+sandbox (pull request 148): `oto sandbox up --kind ontology` lays the workspace out in the sandbox's `project`
+folder, and `oto pack check` held every pack to a folder named after it, the rule an installed pack lives by under
+the packs directory. A workspace is a repository and may be called anything; the check skips the rule for a
+directory that holds a trial project, so the workspace's own CI gate passes.
+
 ## 0.16.0 — 2026-11-01
 
 **An ontology is made in a workspace of its own; a knowledge project uses one and does not define it.** Five

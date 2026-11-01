@@ -7,8 +7,8 @@ matches its description.
 |---|---|
 | [start](start/SKILL.md) | Nothing yet: from a specification, a folder of documents, an expert or an existing ontology to the first confirmed questions, then a hand-off. `/oto:start`. |
 | [concierge](concierge/SKILL.md) | Where the project is, the options at this point, why OTO does what it does, and which playbook to load. Quotes the engine, does no work itself. |
-| [build-knowledge-base](build-knowledge-base/SKILL.md) | A folder of documents, all the way to a served graph. Start here. |
-| [ontology-interview](ontology-interview/SKILL.md) | Designing or restructuring the vocabulary, with recorded reasoning. |
+| [build-knowledge-base](build-knowledge-base/SKILL.md) | A folder of documents, all the way to a served graph, on the packs the project composes. Start here for a knowledge base. |
+| [ontology-interview](ontology-interview/SKILL.md) | Making, extending or restructuring an ontology, with recorded reasoning: in an ontology workspace, a pack in the making (`oto pack new`), held to the pack's gates and released to the registry. |
 | [curate](curate/SKILL.md) | One new document or one spoken correction, into the graph under four gates. |
 | [vet-provenance](vet-provenance/SKILL.md) | The document set changed; find facts citing a file nobody can open. |
 | [query-knowledge](query-knowledge/SKILL.md) | Answer a question: current facts, dated, cited, and what the graph does not know. |

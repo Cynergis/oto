@@ -1,0 +1,69 @@
+{
+  "source_doc": "0011-a-domain-vocabulary-is-a-pack-of-the-registry",
+  "as_of": "2026-10-31",
+  "nodes": [
+    {
+      "id": "decision.adr-0011",
+      "type": "Decision",
+      "label": "A domain vocabulary is a pack of the registry; the engine ships its own vocabulary and no other",
+      "summary": "A domain vocabulary is a pack of the registry, released there and installed per project like any pack; the engine ships exactly one vocabulary, `oto-core`, which is its own schema (the temporal fields, `Document`, `Tool`, `Graph`) and not a domain, and the nine domain vocabularies it ships today move to Cynergis/oto-registry, the seven the registry already carries republished from the engine's current releases and `architecture` and `portfolio` published for the first time.",
+      "attributes": {
+        "status": "accepted",
+        "decided_on": "2026-10-31",
+        "rationale": "A domain vocabulary is a pack of the registry, released there and installed per project like any pack; the engine ships exactly one vocabulary, `oto-core`, which is its own schema (the temporal fields, `Document`, `Tool`, `Graph`) and not a domain, and the nine domain vocabularies it ships today move to Cynergis/oto-registry, the seven the registry already carries republished from the engine's current releases and `architecture` and `portfolio` published for the first time."
+      },
+      "valid_from": "2026-10-31",
+      "evidence": [
+        {
+          "doc": "0011-a-domain-vocabulary-is-a-pack-of-the-registry",
+          "where": "Decision",
+          "quote": "A domain vocabulary is a pack of the registry, released there and installed per project like any pack; the engine ships exactly one vocabulary, `oto-core`, which is its own schema (the temporal fields, `Document`, `Tool`, `Graph`) and not a domain, and the nine domain vocabularies it ships today move to Cynergis/oto-registry, the seven the registry already carries republished from the engine's current releases and `architecture` and `portfolio` published for the first time."
+        },
+        {
+          "doc": "0011-a-domain-vocabulary-is-a-pack-of-the-registry",
+          "where": "frontmatter",
+          "quote": "decided_on: 2026-10-31"
+        }
+      ]
+    },
+    {
+      "id": "document.0011-a-domain-vocabulary-is-a-pack-of-the-registry",
+      "type": "Document",
+      "label": "A domain vocabulary is a pack of the registry; the engine ships its own vocabulary and no other",
+      "summary": "ADR ADR-0011, the record of this decision.",
+      "attributes": {
+        "kind": "adr"
+      },
+      "valid_from": "2026-10-31",
+      "evidence": [
+        {
+          "doc": "0011-a-domain-vocabulary-is-a-pack-of-the-registry",
+          "where": "title",
+          "quote": "A domain vocabulary is a pack of the registry; the engine ships its own vocabulary and no other"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "decision.adr-0011",
+      "rel": "documented_in",
+      "to": "document.0011-a-domain-vocabulary-is-a-pack-of-the-registry"
+    },
+    {
+      "from": "decision.adr-0011",
+      "rel": "governs",
+      "to": "workitem.epic-h"
+    },
+    {
+      "from": "decision.adr-0011",
+      "rel": "governs",
+      "to": "workitem.epic-i"
+    },
+    {
+      "from": "decision.adr-0011",
+      "rel": "decided_by",
+      "to": "person.chiheb-dkhil"
+    }
+  ]
+}

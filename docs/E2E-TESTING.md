@@ -121,39 +121,51 @@ a sha256 per file, `figures` lists the undescribed diagrams, `survey` lists the 
 
 ## 4. The vocabulary, four ways
 
-Exercises: ontologies merged, the interview, import from a file, the lock, diff, impact and
-rationale.
+Exercises: a vocabulary derived from packs and the refusal of a hand edit, a workspace by interview,
+import from a file into a project that owns its vocabulary, the lock, diff, impact and rationale
+([ADR-0012](adr/0012-two-kinds-of-project.md)).
 
 Open the project in Claude Code with the plugin (`/plugin marketplace add Cynergis/oto` then
 `/plugin install oto@cynergis-engine`, or `claude --plugin-dir <a clone of the engine>`; the packs come
 from the registry's marketplace, `/plugin marketplace add Cynergis/oto-registry`, which lists no engine:
-ADR-0009). Try each way at
-least once:
+ADR-0009). Try each way at least once:
 
-1. Two ontologies merged: `oto pack add organization-process` (the estate's pack is on the machine since
-   section 2; this one is the registry's organization-process pack; in Claude Code, `/plugin install
-   organization-process@cynergis`), then `oto init --ontology software-architecture,organization-process ...`
-2. From the documents: ask for the **ontology-interview** skill after stage 3; it reads the
-   survey, asks its questions, and writes `ontology.config.json` and `ontology.rationale.json`.
-3. From a file you own: `oto ontology import --project acme --file ontology.ttl` (any OWL, RDFS or SKOS in any RDF syntax, with `oto-kg[rdf]`; or a `.csv` or `.json` vocabulary).
-4. By interview alone, with no documents.
+1. Two packs composed: `oto pack add organization-process` (the estate's pack is on the machine since
+   section 2; in Claude Code, `/plugin install organization-process@cynergis`), then
+   `oto init --ontology software-architecture,organization-process --project both`. The project's
+   vocabulary is derived from both.
+2. A new ontology, from the documents: ask for the **ontology-interview** skill; it opens an ontology
+   workspace (`oto pack new estate-notes --to work --extends software-architecture`), reads the documents
+   from the workspace's trial project, writes `ontology/estate-notes/`, and closes with `oto pack check
+   work/estate-notes --strict` and `oto pack try work/estate-notes`.
+3. From a file you own, into a project that owns its vocabulary: `oto init --name Own --project own` then
+   `oto ontology import --project own --file ontology.ttl` (any OWL, RDFS or SKOS in any RDF syntax, with
+   `oto-kg[rdf]`; or a `.csv` or `.json` vocabulary). Into `acme`, whose vocabulary is the pack's, the
+   same import is refused.
+4. By interview alone, with no documents: the same workspace, the trial project empty.
 
 Then:
 
 ```bash
+oto status --project acme                      # vocabulary ... derived from software-architecture @12
 oto ontology check --project acme --strict
-oto ontology rationale --project acme --strict
 oto ontology accept --project acme
-# rename a class in ontology.config.json, then:
-oto ontology check --project acme
-oto ontology widen --project acme
+# add a class to acme/ontology.config.json by hand, then:
+oto ontology check --project acme              # refused: the vocabulary is derived; a pack that extends it, or the pack's workspace
+oto ontology update --project acme             # the pack's vocabulary is back
+# in own/ontology.config.json rename a class, then:
+oto ontology check --project own               # a breaking change, with the nodes it touches
+oto ontology rationale --project own --strict
+oto ontology widen --project own
 ```
 
-Pass when `check` reports conformance and, after the rename, a breaking change with the number of
-nodes it touches; `rationale --strict` fails until every class has a reason and a named person;
-`accept` writes `ontology.lock.json`; a typed attribute declared under `attributes` (an enum, a
-date, a number) is enforced later by `curate check`; and `widen` proposes honest domain and range
-widenings rather than silently accepting a violation.
+Pass when `status` says whose the vocabulary is; `check` on the derived project reports conformance and,
+after the hand edit, refuses and names the class added by hand, `oto pack new <name> --extends` and
+the way back; `update` restores the file; on the project that owns its vocabulary `check` reports the
+rename as a breaking change with the number of nodes it touches, `rationale --strict` fails until every
+class has a reason and a named person, `accept` writes `ontology.lock.json`; a typed attribute declared
+under `attributes` (an enum, a date, a number) is enforced later by `curate check`; and `widen`
+proposes honest domain and range widenings rather than silently accepting a violation.
 
 ## 5. Rules and derived facts
 
@@ -449,50 +461,53 @@ the epic the frontmatter names, and a later ADR with `supersedes: ADR-0003` reti
 read (a status that is not proposed or accepted, a nested map, no `## Decision`) is refused before
 the gates, and a `governs` target the graph lacks is named and not proposed.
 
-## 15. An ontology from your own vocabulary, and a registry
+## 15. An ontology of your own: the workspace, and a registry
 
-Exercises: ontology export, the privacy scan on the sample, init from a user ontology, a
-registry added by URL, an ontology fetched by name, a pinned version, an update.
+Exercises: a workspace opened from a project that grew its own vocabulary, the pack's gates, the privacy
+scan on the sample, a registry created by the first publish, a pack fetched by name, a project started
+from it with a derived vocabulary, a pinned release, a newer release seen, diffed and taken
+([the plan](plans/ontology-workspace.md), [ADR-0012](adr/0012-two-kinds-of-project.md)).
 
 ```bash
-oto ontology export --project acme --name acme-arch --from-graph 12 --summary "<one line>"
-oto ontology show acme-arch
-oto init --name "Try" --ontology acme-arch --project try && oto build --project try
+oto pack new acme-arch --from-project own --to work --maintainer "<you>" --summary "<one line>"   # the vocabulary of section 4's own project, as a pack in the making, its confirmations kept
+oto pack try work/acme-arch                                                                        # the trial project built from the pack; its questions answered
+oto pack check work/acme-arch --strict                                                             # shapes, every term cited, the sample answers, a reason and a confirmation per term
 ```
 
 Then publish it into a registry: create an empty private repository (`gh repo create
 <org>/oto-registry --private`) and, with `OTO_REGISTRY_TOKEN` or `gh auth setup-git` in place:
 
 ```bash
-oto ontology publish --project acme --to https://github.com/<org>/oto-registry --name acme-arch \
-    --summary "<one line>" --note "first cut" --registry-name <org> --plugin
+oto pack publish --from work/acme-arch --to https://github.com/<org>/oto-registry --registry-name <org> --note "first cut"
 ```
 
-`--plugin` also makes the ontology a Claude Code plugin and lists it in the registry's
-marketplace, so in Claude Code `/plugin marketplace add <org>/oto-registry` then
-`/plugin install acme-arch@<org>` gives the agent a skill that starts a project from it.
+The first publish creates the registry: its index, its marketplace, a README and the check workflow;
+`trial/` and `.github/` stay in the workspace. In Claude Code `/plugin marketplace add <org>/oto-registry`
+then `/plugin install acme-arch@<org>` gives the agent a skill that starts a project from it.
 
 From another machine or a clean user directory:
 
 ```bash
 oto registry add https://github.com/<org>/oto-registry
-oto ontology                                                       # lists it as "in a registry, not on this machine"
-oto ontology add acme-arch
-oto init --name "Try2" --ontology acme-arch@1 --project try2
-# change a class in acme, then publish again with --note, and:
-oto status --project try2                                           # "v2 available: oto ontology diff"
+oto pack list                                                       # lists it as in a registry, not on this machine
+oto pack add acme-arch
+oto init --name "Try2" --pack acme-arch --project try2             # project.config.json: origin pack, vocabulary derived
+oto status --project try2                                           # derived from acme-arch @1
+# change a class in the workspace, oto pack check --strict, publish again with --note, and:
+oto status --project try2                                           # "@2 available: oto ontology diff"
 oto ontology diff --project try2
-oto ontology update
+oto ontology update --project try2                                  # fetched, and ontology.config.json written again from it
 ```
 
-Pass when the export is refused if the sample would carry personal data, the new ontology is
-listed beside `oto-core` and the installed packs and shadows an installed one of the same name, a project made from it
-builds and answers, the first publish creates the index and the tag `acme-arch/v1`, a publish with
-a deny term in the vocabulary is refused and pushes nothing, the fetched ontology's
-`manifest.json` records the registry, source and commit, `oto init` fetches an ontology that is only
-in a registry by itself (listed as an ontology, or as the pack that carries it; a registry Claude Code knows as a marketplace counts) and names `oto pack add <name>` when no registry the machine knows has it, a wrong pin is refused, `status` announces the newer
-version, `diff` classifies the change and says how many of the project's nodes it touches, and
-`update` brings the newer version, and the plugin installs in Claude Code with its skill.
+Pass when the workspace holds the project's vocabulary with its confirmations and `--strict` is clean;
+the sample is refused if it would carry personal data or a client term, and the publish with such a
+pack pushes nothing; the first publish creates the index and the tag `acme-arch--v1.0.0`; the fetched
+pack's `manifest.json` records the registry, source and commit; the project started from it records
+`origin: pack` and a derived vocabulary; `oto init --ontology <name>` fetches a vocabulary only a registry
+has (a registry Claude Code knows as a marketplace counts) and names `oto pack add <name>` when none does;
+a wrong pin is refused; `status` announces the newer release; `diff` classifies the change and says how
+many of the project's nodes it touches; and `update` brings the newer release and rewrites the project's
+vocabulary from it.
 
 ## 16. Tools: the graph's hands, described and never invoked
 

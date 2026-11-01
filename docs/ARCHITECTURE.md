@@ -22,7 +22,8 @@ access policy with the generated IAM (`policy@cynergis`) are all there, and the 
 ([ADR-0011](adr/0011-a-domain-vocabulary-is-a-pack-of-the-registry.md)): the engine ships one vocabulary, `oto-core`, its own schema, and no other; the estate (`portfolio`, `product`, `software-architecture`), the
 reified model (`architecture`, whose `oto arch` and `arch_context` are the module `oto_architecture` in the pack's own `code/`) and the other domains (`agent`, `platform`, `auto-claims`,
 `organization-process`, `professional-services`) are installed per project with `oto pack add <name>`, and `oto init --ontology <name>` composes them from the installed pack, fetching one a
-registry lists when the machine lacks it. What someone builds on the graph is a use case of it, not
+registry lists when the machine lacks it. An ontology is made in a workspace of its own and a knowledge project derives its vocabulary from its packs
+([ADR-0012](adr/0012-two-kinds-of-project.md)). What someone builds on the graph is a use case of it, not
 a pack of the engine: it lives in a repository of its own, the software factory first
 ([ADR-0007](adr/0007-a-use-case-lives-outside-the-engine.md)). The first table below is the core; the
 second is the packs. `oto --help` draws the same line.

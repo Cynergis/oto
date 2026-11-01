@@ -14,7 +14,8 @@ The two stores answer alike, so nothing changes for the reader but the freshness
 
 Git does the transport, through the `git` on the PATH: no library, no second protocol. A token is
 taken from the environment and put in the clone URL for the duration of the call; it is never
-written to disk or printed.
+written to disk or printed. A header the git config of the folder would send instead, as the one
+actions/checkout leaves in a workflow's workspace, is dropped for the query repository (gitx).
 """
 import datetime
 import hashlib
@@ -123,7 +124,7 @@ def publish(project, repo=None, source=None, branch="main", token=None, engine=N
 
     work = tempfile.mkdtemp(prefix="oto-publish-")
     try:
-        _git(["clone", "--quiet", "--depth", "1", "--branch", branch, _with_token(repo, token), work]) \
+        _git(["clone", "--quiet", "--depth", "1", "--branch", branch, _with_token(repo, token), work], remote=repo) \
             if _remote_has_branch(repo, token, branch) else _init_empty(work, repo, token, branch)
         shutil.copyfile(database, os.path.join(work, identity["db_name"]))
         if site:
@@ -182,7 +183,7 @@ def publish(project, repo=None, source=None, branch="main", token=None, engine=N
         _git(["-c", "user.name=oto publish", "-c", "user.email=oto-publish@localhost", "commit", "--quiet",
               "-m", "store build_seq %d%s%s" % (manifest["build_seq"], (" from " + source) if source else "",
                                                 (" to " + environment) if environment else "")], cwd=work)
-        _git(["push", "--quiet", _with_token(repo, token), "HEAD:%s" % branch], cwd=work)
+        _git(["push", "--quiet", _with_token(repo, token), "HEAD:%s" % branch], cwd=work, remote=repo)
         manifest["changed"] = True
         from . import assertion as _assertion, audit as _audit
         _audit.append(project, "publish", _assertion.identity(project), [], "published",
@@ -194,7 +195,7 @@ def publish(project, repo=None, source=None, branch="main", token=None, engine=N
 
 
 def _remote_has_branch(repo, token, branch):
-    out = _git(["ls-remote", "--heads", _with_token(repo, token), branch])
+    out = _git(["ls-remote", "--heads", _with_token(repo, token), branch], remote=repo)
     return bool(out.strip())
 
 
@@ -214,14 +215,14 @@ def sync(repo, dest=None, branch="main", token=None):
         # The default lives under the slug, which is only known once the repository is read.
         probe = tempfile.mkdtemp(prefix="oto-sync-")
         try:
-            _git(["clone", "--quiet", "--depth", "1", "--branch", branch, url, probe])
+            _git(["clone", "--quiet", "--depth", "1", "--branch", branch, url, probe], remote=repo)
             if not is_store(probe):
                 raise ProjectError("%s is not a published query store (no %s with store_only)" % (repo, CONFIG_NAME))
             with open(os.path.join(probe, CONFIG_NAME), encoding="utf-8") as f:
                 cfg = json.load(f)
             dest = os.path.expanduser(cfg.get("cache_dir") or "~/.%s-kg" % cfg["slug"])
             if os.path.isdir(os.path.join(dest, ".git")):
-                _git(["pull", "--quiet", "--ff-only", url, branch], cwd=dest)
+                _git(["pull", "--quiet", "--ff-only", url, branch], cwd=dest, remote=repo)
             else:
                 if os.path.exists(dest):
                     shutil.rmtree(dest)
@@ -230,10 +231,10 @@ def sync(repo, dest=None, branch="main", token=None):
         finally:
             shutil.rmtree(probe, ignore_errors=True)
     elif os.path.isdir(os.path.join(dest, ".git")):
-        _git(["pull", "--quiet", "--ff-only", url, branch], cwd=dest)
+        _git(["pull", "--quiet", "--ff-only", url, branch], cwd=dest, remote=repo)
     else:
         os.makedirs(os.path.dirname(os.path.abspath(dest)) or ".", exist_ok=True)
-        _git(["clone", "--quiet", "--depth", "1", "--branch", branch, url, dest])
+        _git(["clone", "--quiet", "--depth", "1", "--branch", branch, url, dest], remote=repo)
     if not is_store(dest):
         raise ProjectError("%s is not a published query store (no %s with store_only)" % (repo, CONFIG_NAME))
     return dest, read_manifest(dest)

@@ -293,7 +293,7 @@ def promote(project, environment, commit, by=None, kind="person", token=None):
     held = tempfile.mkdtemp(prefix="oto-promote-src-")
     work = tempfile.mkdtemp(prefix="oto-promote-")
     try:
-        _gitx.run(["clone", "--quiet", "--depth", "1", "--branch", source, url, held])
+        _gitx.run(["clone", "--quiet", "--depth", "1", "--branch", source, url, held], remote=repo)
         manifest = _publish.read_manifest(held)
         if not manifest:
             raise ProjectError("%s holds no %s" % (source, _publish.MANIFEST_NAME))
@@ -310,7 +310,7 @@ def promote(project, environment, commit, by=None, kind="person", token=None):
             raise ProjectError("%s holds %s, not %s: promotion moves the same commit, never a rebuild"
                                % (source, source_commit or "a store with no recorded commit", commit))
         if _gitx.has_ref(repo, environment, token):
-            _gitx.run(["clone", "--quiet", "--depth", "1", "--branch", environment, url, work])
+            _gitx.run(["clone", "--quiet", "--depth", "1", "--branch", environment, url, work], remote=repo)
         else:
             _gitx.run(["init", "--quiet", "-b", environment, work])
         for name in os.listdir(held):
@@ -332,7 +332,7 @@ def promote(project, environment, commit, by=None, kind="person", token=None):
         _gitx.run(["add", "-A"], cwd=work)
         _gitx.run(["-c", "user.name=oto publish", "-c", "user.email=oto-publish@localhost", "commit", "--quiet",
                    "-m", "promote %s -> %s: %s" % (source, environment, source_commit)], cwd=work)
-        _gitx.run(["push", "--quiet", url, "HEAD:%s" % environment], cwd=work)
+        _gitx.run(["push", "--quiet", url, "HEAD:%s" % environment], cwd=work, remote=repo)
         from . import audit as _audit
         _audit.append(project, "promote", by, [], "promoted",
                       detail="%s -> %s: %s, sha256 %s%s%s" % (source, environment, source_commit, str(promoted.get("sha256"))[:12],
@@ -356,7 +356,7 @@ def status(project, token=None):
             continue
         held = tempfile.mkdtemp(prefix="oto-deploy-status-")
         try:
-            _gitx.run(["clone", "--quiet", "--depth", "1", "--branch", name, _gitx.with_token(repo, token), held])
+            _gitx.run(["clone", "--quiet", "--depth", "1", "--branch", name, _gitx.with_token(repo, token), held], remote=repo)
             record = read_record(held)
             out[name] = record[-1] if record else None
         finally:

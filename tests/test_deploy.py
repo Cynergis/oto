@@ -4,7 +4,10 @@ each step on record. Git is the only path to a graph, and the agent holds no key
 import io
 import json
 import os
+import re
+import shutil
 import subprocess
+import sys
 import contextlib
 
 import pytest
@@ -14,6 +17,8 @@ from oto.builder import build
 from oto.cli import main
 from oto.project import Project, ProjectError
 from oto.scaffold import init
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _cli(*args):
@@ -206,16 +211,87 @@ def test_the_snapshot_and_the_deploy_station_know_the_config(project):
     assert "dev, test, prod" in station["line"]
 
 
-def test_the_generated_workflow_checks_the_config_publishes_to_dev_and_promotes_behind_github_environments():
+def _workflow():
     from oto import repo
-    workflow = repo.files("acme", "Acme")[os.path.join(".github", "workflows", "oto-deploy.yml")]
-    assert "oto deploy check" in workflow
-    assert 'oto publish --project . --to dev' in workflow
-    for env in ("test", "prod"):
-        assert "environment: %s" % env in workflow, env
-        assert '--to %s --promote "${{ github.sha }}"' % env in workflow
+    return repo.files("acme", "Acme")[os.path.join(".github", "workflows", "oto-deploy.yml")]
+
+
+def _jobs(workflow):
+    """The workflow's jobs by name, as text: the tests read it without a YAML library."""
+    parts = re.split(r"^  ([a-z-]+):\n", workflow.split("\njobs:\n", 1)[1], flags=re.M)
+    return dict(zip(parts[1::2], parts[2::2]))
+
+
+def test_the_generated_workflow_publishes_to_the_first_environment_and_promotes_behind_github_environments():
+    workflow = _workflow()
+    jobs = _jobs(workflow)
+    assert sorted(jobs) == ["build-and-publish", "promote-second", "promote-third"]
+    assert "oto deploy check" in jobs["build-and-publish"]
+    assert 'oto publish --project . --to "${{ steps.has-config.outputs.first }}"' in jobs["build-and-publish"]
+    for position in ("second", "third"):
+        job = jobs["promote-" + position]
+        assert "if: needs.build-and-publish.outputs.%s != ''" % position in job, "skipped when the config declares no such environment"
+        assert "environment: ${{ needs.build-and-publish.outputs.%s }}" % position in job
+        assert '--to "${{ needs.build-and-publish.outputs.%s }}" --promote "${{ github.sha }}"' % position in job
+        assert "      %s: ${{ steps.has-config.outputs.%s }}" % (position, position) in jobs["build-and-publish"]
+    assert "needs: [ build-and-publish, promote-second ]" in jobs["promote-third"], "a job reads the outputs of the jobs it needs, only"
+    assert "--to dev" not in workflow and "environment: test" not in workflow and "environment: prod" not in workflow
     assert "hashFiles('oto.deploy.json')" in workflow
     assert "github.actor" in workflow, "the approver is GitHub's reviewer, not a typed name"
+
+
+def test_every_deploy_job_has_the_engine_for_all_its_steps_and_keeps_no_checkout_credential():
+    from oto import repo
+    jobs = _jobs(_workflow())
+    for name, job in jobs.items():
+        assert "\n    env:\n      ENGINE: ${{ vars.OTO_ENGINE || '%s' }}\n" % repo.ENGINE in job, name
+        assert "\n          ENGINE:" not in job, "%s: ENGINE on one step leaves the others that install or name the engine without it" % name
+        assert "- uses: actions/checkout@v4\n        with:\n          persist-credentials: false\n" in job, \
+            "%s: no job pushes here, and git would send the checkout's token to the query repository" % name
+    assert 'pip install "oto-kg[neo4j] @ git+${ENGINE}"' in jobs["build-and-publish"]
+    assert '--engine "${ENGINE}"' in jobs["build-and-publish"]
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="the step runs under bash, as on GitHub's runners")
+@pytest.mark.parametrize("names", [["dev", "test", "prod"], ["prod"], ["dev", "staging", "live"], ["dev", "test", "staging", "prod"]])
+def test_the_workflow_names_the_environments_the_config_declares(project, tmp_path, names):
+    step = _jobs(_workflow())["build-and-publish"].split("id: has-config\n        run: |\n", 1)[1].split("\n        env:\n", 1)[0]
+    script = "\n".join(line[10:] for line in step.split("\n"))
+    tools = tmp_path / "bin"
+    tools.mkdir()
+    (tools / "oto").write_text('#!/bin/sh\nexec "%s" -m oto.cli "$@"\n' % sys.executable)
+    (tools / "oto").chmod(0o755)
+    os.symlink(sys.executable, str(tools / "python"))
+    outputs = tmp_path / "github_output"
+    env = dict(os.environ, PATH=str(tools) + os.pathsep + os.environ.get("PATH", ""), PYTHONPATH=REPO, GITHUB_OUTPUT=str(outputs))
+
+    def run():
+        outputs.write_text("")
+        done = subprocess.run(["bash", "-e", "-c", script], cwd=project.data, env=env, capture_output=True, text=True)
+        return done, dict(line.split("=", 1) for line in outputs.read_text().splitlines())
+
+    done, said = run()
+    assert done.returncode == 0 and said == {"deploy": "false"}, done.stdout + done.stderr
+    _write_config(project, dict(GOOD, environments=[{"name": n, "approvers": []} for n in names]))
+    done, said = run()
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert said == dict({"deploy": "true", "first": names[0]}, **dict(zip(("second", "third"), names[1:3])))
+    assert ("::warning::" in done.stdout) == (len(names) > 3), "an environment past the third has no promote job, and the run says so"
+    _write_config(project, dict(GOOD, environments=[]))
+    done, said = run()
+    assert done.returncode != 0 and said == {}, "a config that does not validate stops the deploy"
+
+
+def test_promotion_and_status_ignore_the_header_the_workspace_inherited(project, git_over_http, tmp_path, monkeypatch):
+    # The promote jobs run in a checkout too: every call to the query repository sends its own token.
+    _bare(git_over_http.root)
+    _write_config(project, dict(GOOD, publish={"to": git_over_http.base + "/query.git", "require_pr": False}))
+    monkeypatch.chdir(git_over_http.workspace(str(tmp_path / "workspace")))
+    pub.publish(project, source="org/knowledge@abc123", environment="dev")
+    deploy.promote(project, "test", commit="abc123", by="Dana Reyes")
+    held = deploy.status(project)
+    assert held["test"]["approved_by"] == "Dana Reyes" and held["prod"] is None
+    assert git_over_http.seen and git_over_http.header not in git_over_http.seen
 
 
 # ---- F2, F4: the audit log records what left the project, and a node keeps its IRI through the chain ----

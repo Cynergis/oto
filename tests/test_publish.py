@@ -67,6 +67,28 @@ def test_a_token_goes_into_https_urls_only_and_never_into_output():
     assert pub._with_token("https://github.com/o/r", None) == "https://github.com/o/r"
 
 
+def test_the_inherited_header_is_reset_for_the_url_itself_without_its_credentials():
+    from oto import gitx
+    # Scoped, because an unscoped `-c http.extraheader=` loses to the checkout's `http.https://github.com/.extraheader`.
+    assert gitx.no_inherited_headers("https://x-access-token:tok@github.com/o/r") == ["-c", "http.https://github.com/o/r.extraheader="]
+    assert gitx.no_inherited_headers("http://127.0.0.1:8080/query.git") == ["-c", "http.http://127.0.0.1:8080/query.git.extraheader="]
+    assert gitx.no_inherited_headers("git@github.com:o/r.git") == [] and gitx.no_inherited_headers("/tmp/query.git") == []
+
+
+def test_publish_and_sync_ignore_the_header_the_workspace_inherited(git_over_http, tmp_path, monkeypatch):
+    # In a workflow, publish runs in the checkout, whose git config sends the job's own token to the
+    # server as a header; the query repository must get the token in the URL, never that one.
+    project = _project(str(tmp_path / "p"))
+    _bare(git_over_http.root)
+    url = git_over_http.base + "/query.git"
+    monkeypatch.chdir(git_over_http.workspace(str(tmp_path / "workspace")))
+    assert pub.publish(project, url, source="org/knowledge@abc123")["changed"]     # no branch yet: ls-remote, then push
+    assert not pub.publish(project, url)["changed"]                                 # the branch is there: ls-remote, then clone
+    dest, manifest = pub.sync(url, dest=str(tmp_path / "reader"))
+    assert pub.is_store(dest) and manifest["source"] == "org/knowledge@abc123"
+    assert git_over_http.seen and git_over_http.header not in git_over_http.seen
+
+
 def test_sync_clones_then_fast_forwards_and_the_checkout_is_a_store(capsys):
     with tempfile.TemporaryDirectory() as root:
         project = _project(os.path.join(root, "p"))

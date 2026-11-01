@@ -288,10 +288,15 @@ DEPLOY = """name: oto deploy
 # engine. The store is kept as a workflow artifact either way.
 #
 # With a deploy config (oto.deploy.json, `oto deploy init`), the config names the query repository
-# and the environments: the build is published to the first (dev), and the promote jobs copy the
-# same store forward, one environment at a time, each behind a GitHub Environment of the same name
-# whose required reviewers are the approvers. The record on the branch names the commit and who ran
-# the approved job.
+# and the environments: the build is published to the first it names, and the promote jobs copy the
+# same store forward to the second and the third, one environment at a time, each behind a GitHub
+# Environment of the same name whose required reviewers are the approvers. A promote job whose
+# environment the config does not declare is skipped, so one environment needs no promotion at all.
+# The record on the branch names the commit and who ran the approved job.
+#
+# ENGINE is set once for each job, since the Neo4j load and the publish steps install or name the
+# engine too. No job pushes to this repository, so the checkout keeps no credential: git would send
+# it to the query repository in place of OTO_QUERY_REPO_TOKEN, and it can only see this repository.
 
 on:
   push:
@@ -310,8 +315,12 @@ permissions:
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    env:
+      ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -321,14 +330,23 @@ jobs:
           OTO_ENGINE_TOKEN: ${{{{ secrets.OTO_ENGINE_TOKEN }}}}
       - name: Install the engine from its repository
         run: {pip}
-        env:
-          ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
       - name: Build every layer
         run: oto build --project .
-      - name: Check the deploy config, when the project has one
+      - name: Check the deploy config, when the project has one, and name its environments
         id: has-config
         run: |
-          if [ -f oto.deploy.json ]; then oto deploy check --project . && echo "deploy=true" >> "$GITHUB_OUTPUT"; else echo "deploy=false" >> "$GITHUB_OUTPUT"; fi
+          if [ ! -f oto.deploy.json ]; then echo "deploy=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          oto deploy check --project .
+          python - <<'PY'
+          import json, os
+          names = [e["name"] for e in json.load(open("oto.deploy.json"))["environments"]]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              print("deploy=true", file=out)
+              for key, name in zip(("first", "second", "third"), names):
+                  print("%s=%s" % (key, name), file=out)
+          if names[3:]:
+              print("::warning::this workflow promotes through three environments; %s needs a promote job of its own" % ", ".join(names[3:]))
+          PY
         env:
           HAS_CONFIG: ${{{{ hashFiles('oto.deploy.json') }}}}
       - name: Load the self-hosted Neo4j, when one is configured
@@ -361,17 +379,22 @@ jobs:
         if: steps.has-config.outputs.deploy == 'true'
         env:
           OTO_QUERY_REPO_TOKEN: ${{{{ secrets.OTO_QUERY_REPO_TOKEN }}}}
-        run: oto publish --project . --to dev --source "${{{{ github.repository }}}}@${{{{ github.sha }}}}" --engine "${{ENGINE}}"
+        run: oto publish --project . --to "${{{{ steps.has-config.outputs.first }}}}" --source "${{{{ github.repository }}}}@${{{{ github.sha }}}}" --engine "${{ENGINE}}"
     outputs:
-      deploy: ${{{{ steps.has-config.outputs.deploy }}}}
+      second: ${{{{ steps.has-config.outputs.second }}}}
+      third: ${{{{ steps.has-config.outputs.third }}}}
 
-  promote-test:
+  promote-second:
     needs: build-and-publish
-    if: needs.build-and-publish.outputs.deploy == 'true'
+    if: needs.build-and-publish.outputs.second != ''
     runs-on: ubuntu-latest
-    environment: test                 # its required reviewers are the approvers named in oto.deploy.json
+    environment: ${{{{ needs.build-and-publish.outputs.second }}}}   # its required reviewers are the approvers named in oto.deploy.json
+    env:
+      ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -381,20 +404,22 @@ jobs:
           OTO_ENGINE_TOKEN: ${{{{ secrets.OTO_ENGINE_TOKEN }}}}
       - name: Install the engine from its repository
         run: {pip}
-        env:
-          ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
-      - name: Promote the same store from dev
+      - name: Promote the same store from the first environment
         env:
           OTO_QUERY_REPO_TOKEN: ${{{{ secrets.OTO_QUERY_REPO_TOKEN }}}}
-        run: oto publish --project . --to test --promote "${{{{ github.sha }}}}" --by "${{{{ github.actor }}}}" --approver github
+        run: oto publish --project . --to "${{{{ needs.build-and-publish.outputs.second }}}}" --promote "${{{{ github.sha }}}}" --by "${{{{ github.actor }}}}" --approver github
 
-  promote-prod:
-    needs: promote-test
-    if: needs.build-and-publish.outputs.deploy == 'true'
+  promote-third:
+    needs: [ build-and-publish, promote-second ]
+    if: needs.build-and-publish.outputs.third != ''
     runs-on: ubuntu-latest
-    environment: prod
+    environment: ${{{{ needs.build-and-publish.outputs.third }}}}
+    env:
+      ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -404,12 +429,10 @@ jobs:
           OTO_ENGINE_TOKEN: ${{{{ secrets.OTO_ENGINE_TOKEN }}}}
       - name: Install the engine from its repository
         run: {pip}
-        env:
-          ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
-      - name: Promote the same store from test
+      - name: Promote the same store from the second environment
         env:
           OTO_QUERY_REPO_TOKEN: ${{{{ secrets.OTO_QUERY_REPO_TOKEN }}}}
-        run: oto publish --project . --to prod --promote "${{{{ github.sha }}}}" --by "${{{{ github.actor }}}}" --approver github
+        run: oto publish --project . --to "${{{{ needs.build-and-publish.outputs.third }}}}" --promote "${{{{ github.sha }}}}" --by "${{{{ github.actor }}}}" --approver github
 """
 
 

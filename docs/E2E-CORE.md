@@ -153,7 +153,7 @@ The graph is what is deployed: a built store, published into a query repository,
 through the environments the deploy config names, never rebuilt on the way.
 
 ```bash
-git init -q --bare "$WORK/store.git"
+git init -q --bare -b main "$WORK/store.git"
 oto deploy init --project "$P" --repo garage --to "$WORK/store.git"       # oto.deploy.json: dev -> test -> prod; test and prod name approvers
 oto deploy check --project "$P"
 ( cd "$P" && git init -q -b main . && git add -A && git commit -q -m "the garage graph" )
@@ -188,7 +188,7 @@ graph, with `validated_by` emptied, since confirmation does not carry to a new d
 ## 8. The pack published to a registry, installed, and a second project started from it
 
 ```bash
-git init -q --bare "$WORK/registry.git"
+git init -q --bare -b main "$WORK/registry.git"
 oto pack publish --from "$WORK/packs-work/garage" --to "$WORK/registry.git" --registry-name test --note "first cut"   # the registry was created: index, marketplace, README and its check workflow; tagged garage--v1.0.0
 oto registry add "$WORK/registry.git"                                          # registry test: 0 ontologies, 1 pack
 oto pack add garage                                                            # added pack garage @1; embeds garage-fleet@1; from registry test

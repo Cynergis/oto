@@ -129,7 +129,7 @@ echo "GET /api/ask?id=GQ1&GARAGE=garage.north -> answered"
 kill "$SERVE" 2>/dev/null; wait "$SERVE" 2>/dev/null
 
 say "6. Deployed: a store repository, the build published to dev, the same commit promoted to test and prod"
-git init -q --bare "$WORK/store.git"
+git init -q --bare -b main "$WORK/store.git"
 expect "wrote oto.deploy.json" $OTO deploy init --project "$P" --repo garage --to "$WORK/store.git"
 expect "dev -> test -> prod" $OTO deploy check --project "$P"
 ( cd "$P" && git init -q -b main . && git add -A && git -c user.name="Test Driver" -c user.email="test@example.com" commit -q -m "the garage graph" )
@@ -149,7 +149,7 @@ expect "check clean" $OTO pack new garage --ontology garage-fleet --to "$WORK/pa
 expect "check clean" $OTO pack check "$WORK/packs-work/garage"
 
 say "8. The pack published to a registry, installed from it, and a second project started from the pack"
-git init -q --bare "$WORK/registry.git"
+git init -q --bare -b main "$WORK/registry.git"
 expect "the registry was created" $OTO pack publish --from "$WORK/packs-work/garage" --to "$WORK/registry.git" --registry-name test --note "first cut"
 expect "1 pack" $OTO registry add "$WORK/registry.git"
 expect "added pack garage @1" $OTO pack add garage

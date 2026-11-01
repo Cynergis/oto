@@ -27,6 +27,8 @@ Nothing here talks to a registry except `refresh` and the advisory `newer_ontolo
 side lives in `registry.py`.
 """
 import datetime
+import contextlib
+import io
 import json
 import os
 import re
@@ -284,6 +286,22 @@ def embed(directory, ontology):
     return provenance
 
 
+def own_config(directory):
+    """The pack's own vocabulary file, uncomposed: what the pack itself declares; {} without one."""
+    onto_dir = embedded_dir(directory)
+    path = os.path.join(onto_dir, "ontology.config.json") if onto_dir else None
+    if not path or not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def embedded_manifest(directory):
+    """The embedded ontology's manifest, defaults filled in; {} without one."""
+    onto_dir = embedded_dir(directory)
+    return _ontologies.manifest_dir(onto_dir) if onto_dir else {}
+
+
 def embedded_config(directory):
     """The composed vocabulary of the embedded ontology, or None when it cannot be composed."""
     name = embedded_name(directory)
@@ -430,23 +448,55 @@ def plugin_files(directory, registry_name=None):
 
 # ---- making, refreshing ----
 
-def new(name, ontology, domain=None, summary=None, view_dirs=(), to=None, force=False, maintainer=None):
-    """Scaffold a pack. Returns (directory, problems)."""
+def new(name, ontology=None, domain=None, summary=None, view_dirs=(), to=None, force=False, maintainer=None,
+        extends=(), from_project=None):
+    """Scaffold a pack. Returns (directory, problems).
+
+    With `ontology`, a pack around an ontology this machine has, as before. With `from_project`, a
+    workspace opened from a project that grew its own vocabulary: the bridge for a vocabulary made
+    before the workspace existed. With neither, a workspace with a starter vocabulary to fill (the
+    interview's job), resting on the bases `extends` names (oto-core when none). Under `to`, the pack
+    is a directory of its own and gets what a workspace has: a trial project beside the deliverable
+    and the two workflows; under the packs directory it is an installed pack and gets neither
+    (docs/plans/ontology-workspace.md)."""
     if not NAME_OK.match(name or ""):
         raise ValueError("a pack name is lowercase letters, digits and hyphens, not %r" % (name,))
     if domain and not NAME_OK.match(domain):
         raise ValueError("a domain is a lowercase slug, not %r" % (domain,))
+    if sum(1 for x in (ontology, from_project) if x) > 1:
+        raise ValueError("new takes one of --ontology and --from-project")
     target = os.path.join(os.path.abspath(to) if to else user_dir(), name)
     if os.path.exists(target) and not force:
         raise FileExistsError(target)
     if os.path.exists(target):
         shutil.rmtree(target)
     os.makedirs(target)
+    exported = None
     try:
-        record = embed(target, ontology)
+        if from_project:
+            from ..project import Project
+            exported = tempfile.mkdtemp(prefix="oto-from-project-")
+            path, problems = _ontologies.export(Project.standard(os.path.abspath(from_project)), name, to=exported,
+                                                summary=summary, force=True)
+            if problems:
+                raise ValueError("the project's vocabulary is not ready to be an ontology: %s" % "; ".join(problems[:5]))
+            record = embed(target, path)
+            record["source"] = os.path.abspath(from_project)            # where it came from: the project, not the export's temp dir
+            # `export` empties validated_by, since a confirmation does not carry to a new domain; a workspace
+            # opened from the project is the same vocabulary, confirmed by the same people, so it keeps them
+            own_rationale = os.path.join(os.path.abspath(from_project), "ontology.rationale.json")
+            if os.path.exists(own_rationale):
+                shutil.copyfile(own_rationale, os.path.join(embedded_root(target), record["name"], "ontology.rationale.json"))
+        elif ontology:
+            record = embed(target, ontology)
+        else:
+            record = _starter(target, name, list(extends) or ["oto-core"], domain)
     except ValueError:
         shutil.rmtree(target, ignore_errors=True)
         raise
+    finally:
+        if exported:
+            shutil.rmtree(exported, ignore_errors=True)
     onto_manifest = _ontologies.manifest_dir(os.path.join(embedded_root(target), record["name"]))
     for source in view_dirs:
         src = os.path.abspath(os.path.expanduser(source))
@@ -462,7 +512,193 @@ def new(name, ontology, domain=None, summary=None, view_dirs=(), to=None, force=
                    "changelog": [{"release": 1, "at": _today(), "note": "Made from the ontology %s@%s."
                                   % (record["name"], record["release"])}]})
     plugin_files(target)
+    if to:
+        workspace(target)
     return target, check(target)
+
+
+# ---- the workspace: a pack in the making, with a trial project beside it ----
+
+TRIAL_DIR = "trial"
+WORKFLOWS_DIR = os.path.join(".github", "workflows")
+#: What `oto pack publish` leaves behind: the workspace's own, never the pack's
+WORKSPACE_ONLY = (TRIAL_DIR, ".github")
+TRIAL_ABOUT = ("The trial project's vocabulary, written from the pack beside it by `oto pack try`: what ontology/%s composes "
+               "with the bases it embeds. Do not edit it here; edit the pack's ontology/%s/ and run `oto pack try` again. "
+               "The documents, proposals and graph of this project are its own and survive a try.")
+PACK_CHECK_WORKFLOW = """name: pack check
+
+# On every pull request and push: the pack's own gates. `oto pack check --strict` holds the vocabulary to its
+# three gates (shapes, a question citing every term, a sample that answers) and the rationale (a reason and a
+# confirmation per term), then the pack's tests, when it carries some, run against the engine.
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the engine
+        run: python -m pip install "oto-kg @ git+https://github.com/Cynergis/oto"
+      - name: The pack's gates
+        run: oto pack check . --strict
+      - name: The pack's tests, when it has some
+        run: if [ -d tests ]; then python -m pip install pytest && python -m pytest tests -q -p no:cacheprovider; fi
+"""
+PACK_PUBLISH_WORKFLOW = """name: pack publish
+
+# A release of the pack: on a tag, or by hand. `oto pack publish` raises the release, regenerates the plugin
+# files, appends the changelog note and pushes to the registry named in the repository variable OTO_REGISTRY
+# (its git URL), with the token in the secret OTO_REGISTRY_TOKEN when the registry is private.
+on:
+  push:
+    tags: [ "v*" ]
+  workflow_dispatch:
+    inputs:
+      note:
+        description: the changelog note for this release
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the engine
+        run: python -m pip install "oto-kg @ git+https://github.com/Cynergis/oto"
+      - name: Publish the pack
+        env:
+          OTO_REGISTRY_TOKEN: ${{ secrets.OTO_REGISTRY_TOKEN }}
+        run: oto pack publish --from . --to "${{ vars.OTO_REGISTRY }}" --note "${{ github.event.inputs.note || github.ref_name }}"
+"""
+
+
+def _starter(target, name, extends, domain):
+    """A vocabulary to fill, resting on its bases: the files the interview writes, empty but well formed,
+    and every base embedded beside it. Returns the pack's ontology record."""
+    from .. import scaffold as _scaffold
+    root = embedded_root(target)
+    os.makedirs(os.path.join(root, name))
+    for base in extends:
+        if _ontologies.dir_for(base) is None:
+            raise ValueError("unknown ontology %r to extend. Available: %s" % (base, ", ".join(_ontologies.available()) or "none"))
+        for part in _ontologies.parts(base):
+            src = _ontologies.dir_for(part)
+            dest = os.path.join(root, _ontologies.manifest_dir(src)["name"])
+            if not os.path.exists(dest):
+                shutil.copytree(src, dest, ignore=shutil.ignore_patterns(".git", "__pycache__", ".DS_Store", PLUGIN_DIR, SKILLS_DIR, VIEWS_DIR))
+    from . import ontology_manifest as _manifest
+    engine = ">=%s" % ".".join(str(x) for x in _om._version_tuple(__version__)[:2])
+    _manifest.write(os.path.join(root, name), {"name": name, "release": 1, "domain": domain, "summary": "", "extends": list(extends),
+                                               "namespace": "https://example.org/ont/%s#" % name,        # the author's to change before a release
+                                               "engine": engine, "carries": ["vocabulary", "rationale", "questions", "sample", "readme"],
+                                               "maintainer": "", "changelog": [{"release": 1, "at": _today(), "note": "Started in a workspace: oto pack new."}]})
+    config = {"_about": "The vocabulary this pack delivers. Empty until the interview fills it: classes, relations and attributes "
+                        "derived from the questions the graph must answer (the ontology-interview skill); `oto pack check` holds "
+                        "it to its gates, `oto pack try` tries it in the trial project beside this pack.",
+              "name": name, "ontology_version": 1, "strict_domains": False, "languages": ["en"], "classes": {}, "properties": {}}
+    if not extends:
+        config["temporal"] = _scaffold.TEMPORAL
+    files = {"ontology.config.json": config,
+             "ontology.rationale.json": {"_about": "Why each class and relation exists, the alternatives considered, and who confirmed it.", "classes": {}, "properties": {}},
+             "questions.json": {"_about": "What a graph in this vocabulary must answer; a term no question cites has no reason to exist.", "questions": {}},
+             "sample.graph.json": {"nodes": [], "edges": []}}
+    for filename, payload in files.items():
+        with open(os.path.join(root, name, filename), "w", encoding="utf-8", newline="\n") as f:
+            json.dump(payload, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+    with open(os.path.join(root, name, "README.md"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("# %s\n\nA vocabulary in the making. The interview writes the classes, the relations, why each exists and the "
+                "questions the graph must answer; this file says what the domain is and how to read a graph in it.\n" % name)
+    return {"name": name, "release": 1, "registry": None, "source": "workspace", "ref": None, "path": None, "commit": None,
+            "embedded_at": _today()}
+
+
+def workspace(directory):
+    """Give a pack directory what a workspace has: a trial project beside the deliverable and the two
+    workflows. The trial starts bare; `try_` writes its vocabulary from the pack when the pack is usable."""
+    from .. import scaffold as _scaffold
+    name = read(directory)["name"]
+    trial = os.path.join(directory, TRIAL_DIR)
+    if not os.path.exists(os.path.join(trial, "project.config.json")):
+        with contextlib.redirect_stdout(io.StringIO()):
+            _scaffold.init(trial, slug="%s-trial" % name, name="%s, tried" % name.replace("-", " ").title())
+        path = os.path.join(trial, "project.config.json")
+        with open(path, encoding="utf-8") as f:
+            config = json.load(f)
+        config["trial_of"] = name
+        config["_about"] = ("The trial project of the pack %s beside it: where sample documents are read and the vocabulary is tried. "
+                            "Its vocabulary is written from the pack by `oto pack try`; its documents, proposals and graph are its own. "
+                            "Never published." % name)
+        with open(path, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+    os.makedirs(os.path.join(directory, WORKFLOWS_DIR), exist_ok=True)
+    for filename, text in (("pack-check.yml", PACK_CHECK_WORKFLOW), ("pack-publish.yml", PACK_PUBLISH_WORKFLOW)):
+        path = os.path.join(directory, WORKFLOWS_DIR, filename)
+        if not os.path.exists(path):
+            with open(path, "w", encoding="utf-8", newline="\n") as f:
+                f.write(text)
+    if not _ontologies.self_check(embedded_name(directory), roots=[embedded_root(directory)]):
+        try_(directory)
+    return trial
+
+
+def try_(directory):
+    """Write the trial project's vocabulary from the pack, build it and ask its questions. Returns
+    (exit code, what `oto ontology check` said of the trial). Raises ValueError when the pack is not usable."""
+    from ..cli import main as _main
+    from ..project import Project
+    from ..reason import questions as _questions, rules as _rules
+    name = embedded_name(directory)
+    roots = [embedded_root(directory)]
+    problems = _ontologies.self_check(name, roots=roots)
+    if problems:
+        raise ValueError("the pack's vocabulary is not usable yet: %s" % "; ".join(problems[:5]))
+    trial = os.path.join(directory, TRIAL_DIR)
+    if not os.path.exists(os.path.join(trial, "project.config.json")):
+        workspace(directory)
+    project = Project.standard(trial)
+    result = _ontologies.composed(name, roots=roots)
+    config = dict(result["config"], name=project.config().get("name") or name)
+    config["_about"] = TRIAL_ABOUT % (name, name)
+    with open(project.ontology_config_path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(config, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    _questions.save(project, dict(result["questions"] or {}))
+    if result["rules"]:
+        _rules.save(project, list(result["rules"]))
+    with open(project.graph_path, encoding="utf-8") as f:
+        graph = json.load(f)
+    # A trial that holds no fact in the pack's own classes yet (only what a bare project starts with: the
+    # engine's sample documents and its own descriptor) starts from the pack's sample, so the questions have
+    # something to answer; once it holds facts of its own, they are its own and stay.
+    own = set(own_config(directory).get("classes") or {})
+    if not [n for n in (graph.get("nodes") or []) if n.get("type") in own]:
+        have = {n.get("id") for n in (graph.get("nodes") or [])}
+        graph["nodes"] = list(graph.get("nodes") or []) + [n for n in (result["sample"].get("nodes") or []) if n.get("id") not in have]
+        graph["edges"] = list(graph.get("edges") or []) + list(result["sample"].get("edges") or [])
+        with open(project.graph_path, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(graph, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
+        code = _main(["build", "--project", trial])
+    if code != 0:
+        return code, out.getvalue()
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
+        code = _main(["ontology", "check", "--project", trial])
+    return code, out.getvalue()
 
 
 def refresh(directory):
@@ -561,10 +797,14 @@ def _manifest_problems(directory):
     return out
 
 
-def check(directory):
-    """Problems with a pack. An empty list means it is usable and publishable."""
+def check(directory, strict=False):
+    """Problems with a pack. An empty list means it is usable and publishable. `strict` adds the rationale:
+    a recorded reason and a named confirmation for every class and relation, what a workspace's gate asks
+    (the packs the registry already holds were made before it, so without `strict` the rationale is advisory)."""
     from ..apps import manifest as _apps
     problems = _manifest_problems(directory)
+    if strict:
+        problems += rationale_problems(directory)
     manifest = read(directory)
     onto_dir = embedded_dir(directory)
     if onto_dir is None:
@@ -573,6 +813,9 @@ def check(directory):
         return problems
     for problem in _ontologies.self_check(embedded_name(directory), roots=[embedded_root(directory)]):
         problems.append("ontology: %s" % problem)
+    if not (own_config(directory).get("classes") or {}):
+        problems.append("ontology: the pack's own vocabulary declares no classes: nothing to deliver yet (the interview fills ontology/%s/)"
+                        % embedded_name(directory))
     pattern = manifest.get("pattern")
     if isinstance(pattern, dict) and all(isinstance(pattern.get(k), str) for k in PATTERN_KEYS):
         if pattern["skill"] not in skills(directory):
@@ -643,6 +886,30 @@ def check(directory):
             problems.append("plugin.json is not valid JSON: %s" % exc)
     problems += publishability_problems(directory)
     return problems
+
+
+def rationale_problems(directory):
+    """What the embedded ontology's rationale lacks: a reason, or a confirmation, for a class or a relation."""
+    from . import rationale as _rationale
+    onto_dir = embedded_dir(directory)
+    config = own_config(directory)                       # the pack's own terms: the bases carry their own rationale
+    if onto_dir is None or not config:
+        return []
+    path = os.path.join(onto_dir, "ontology.rationale.json")
+    if not os.path.exists(path):
+        return ["rationale: ontology/%s/ontology.rationale.json is missing" % embedded_name(directory)]
+    with open(path, encoding="utf-8") as f:
+        record = json.load(f)
+    report = _rationale.report(config, record)
+    out = ["rationale: %s" % p for p in report["problems"]]
+    out += ["rationale: class %s has no recorded reason" % name for name in report["classes_missing"]]
+    out += ["rationale: relation %s has no recorded reason" % name
+            for name in sorted(set(config.get("properties") or {}) - set(record.get("properties") or {}))]
+    out += ["rationale: class %s has no validated_by: nobody who knows the domain confirmed it" % name
+            for name in sorted(config.get("classes") or {}) if name not in report["classes_missing"] and name not in report["classes_validated"]]
+    out += ["rationale: relation %s has no validated_by" % name
+            for name in sorted(set(record.get("properties") or {}) & set(config.get("properties") or {})) if name not in report["properties_validated"]]
+    return out
 
 
 def publishability_problems(directory):

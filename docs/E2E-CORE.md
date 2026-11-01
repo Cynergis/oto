@@ -172,29 +172,40 @@ approver, and the synced store says which environment it is and who approved it.
 hand; a store published without it says "from ?" and cannot be promoted, since promotion moves a
 commit.
 
-## 7. The vocabulary exported as an ontology, made into a pack
+## 7. The vocabulary leaves the project for a workspace of its own
+
+An ontology is made once and used many times, so it gets a home that is not a knowledge project: a
+**workspace**, a pack in the making in a directory of its own, with a trial project beside the
+deliverable and two workflows ([the plan](plans/ontology-workspace.md)). A project that grew its own
+vocabulary, as this one did, opens a workspace from it; a new ontology starts from an empty workspace
+(`oto pack new <name> --to <dir> --extends <base>`) that the interview fills.
 
 ```bash
-oto ontology export --project "$P" --name garage-fleet --summary "A bus garage: buses, where they are based, who maintains them"   # wrote ontology 'garage-fleet'; self-check clean; the sample is taken from the graph
-oto ontology list                                                              # oto-core, and garage-fleet @1 (yours)
-oto pack new garage --ontology garage-fleet --to "$WORK/packs-work" --maintainer "Test Driver"   # embeds garage-fleet@1; a start skill and a README; check clean
-oto pack check "$WORK/packs-work/garage"                                       # pack garage @1: ontology garage-fleet@1, 1 skill(s), 0 view(s); check clean
+oto pack new garage --from-project "$P" --to "$WORK/workspaces" --maintainer "Test Driver" --summary "A bus garage: buses, where they are based, who maintains them"
+                                                                               # wrote the workspace 'garage': ontology/garage/ from the project, skills/start, README, trial/, .github/workflows/
+ls "$WORK/workspaces/garage" "$WORK/workspaces/garage/ontology"                # manifest.json ontology/ skills/ trial/ .github/ ; garage/ oto-core/
+oto status --project "$WORK/workspaces/garage/trial"                           # the trial project: a knowledge project beside the pack, its vocabulary written from it
+oto pack try "$WORK/workspaces/garage"                                         # the trial's vocabulary written from the pack, built; its questions answered from the sample
+oto pack check "$WORK/workspaces/garage" --strict                              # the vocabulary's three gates and the rationale: check clean
 ```
 
-Pass when the export is self-check clean and the pack checks clean. Things to notice: `export`
-refuses a vocabulary whose rationale is incomplete, and the exported sample is the project's own
-graph, with `validated_by` emptied, since confirmation does not carry to a new domain.
+Pass when the workspace holds the pack's files under `ontology/garage/` with `oto-core` embedded
+beside them, the trial project answers the pack's questions, and the strict check is clean. Things to
+notice: `oto pack try` writes only the trial's vocabulary from the pack and leaves its documents and
+graph alone, so sample documents read during the interview survive a try; `--strict` adds what the
+registry's older packs are not yet held to, a reason and a named confirmation for every term; the
+workflows run `oto pack check . --strict` on every pull request and `oto pack publish` on a tag.
 
 ## 8. The pack published to a registry, installed, and a second project started from it
 
 ```bash
 git init -q --bare -b main "$WORK/registry.git"
-oto pack publish --from "$WORK/packs-work/garage" --to "$WORK/registry.git" --registry-name test --note "first cut"   # the registry was created: index, marketplace, README and its check workflow; tagged garage--v1.0.0
+oto pack publish --from "$WORK/workspaces/garage" --to "$WORK/registry.git" --registry-name test --note "first cut"   # the registry was created: index, marketplace, README and its check workflow; tagged garage--v1.0.0; trial/ and .github/ stay behind
 oto registry add "$WORK/registry.git"                                          # registry test: 0 ontologies, 1 pack
 oto pack add garage                                                            # added pack garage @1; embeds garage-fleet@1; from registry test
 oto init --name "Second garage" --slug garage2 --pack garage --project "$WORK/garage2"   # the pack's ontology, with where it came from kept
 oto build --project "$WORK/garage2" && oto query --project "$WORK/garage2" ask GQ1 GARAGE=garage.north   # the same answer, from the pack's sample
-python3 -c 'import json,os; o=json.load(open(os.environ["WORK"]+"/garage2/project.config.json"))["ontology"]; print(o["name"], o["release"], o["origin"], o["pack"]["name"])'   # garage-fleet 1 pack garage
+python3 -c 'import json,os; o=json.load(open(os.environ["WORK"]+"/garage2/project.config.json"))["ontology"]; print(o["name"], o["release"], o["origin"], o["pack"]["name"])'   # garage 1 pack garage
 ```
 
 Pass when the second project records `origin: pack` and the pack's name, and answers GQ1 from the

@@ -13,8 +13,8 @@ engine, which builds, curates, deploys and manages ontologies and defines none (
 nothing domain-shaped: a project kind, a derived vocabulary, a trial project inside a pack, and a
 sandbox that knows which kind it opens on.
 
-Status: proposed on 2026-11-01. Phase 1 (the kind and the derived vocabulary) delivered on 2026-11-01; the rest is
-not built.
+Status: proposed on 2026-11-01. Phase 1 (the kind and the derived vocabulary) and phase 2 (the workspace: `oto pack new`
+as a workspace, `check --strict`, `try`, publish leaving the trial behind) delivered on 2026-11-01; the rest is not built.
 
 ## What exists, and what changes
 

@@ -449,7 +449,7 @@ def plugin_files(directory, registry_name=None):
 # ---- making, refreshing ----
 
 def new(name, ontology=None, domain=None, summary=None, view_dirs=(), to=None, force=False, maintainer=None,
-        extends=(), from_project=None):
+        extends=(), from_project=None, into=None):
     """Scaffold a pack. Returns (directory, problems).
 
     With `ontology`, a pack around an ontology this machine has, as before. With `from_project`, a
@@ -465,12 +465,13 @@ def new(name, ontology=None, domain=None, summary=None, view_dirs=(), to=None, f
         raise ValueError("a domain is a lowercase slug, not %r" % (domain,))
     if sum(1 for x in (ontology, from_project) if x) > 1:
         raise ValueError("new takes one of --ontology and --from-project")
-    target = os.path.join(os.path.abspath(to) if to else user_dir(), name)
-    if os.path.exists(target) and not force:
+    # `into`: this exact directory is the workspace (the sandbox's project folder, say), empty or missing
+    target = os.path.abspath(os.path.expanduser(into)) if into else os.path.join(os.path.abspath(to) if to else user_dir(), name)
+    if os.path.exists(target) and not force and (not into or os.listdir(target)):
         raise FileExistsError(target)
-    if os.path.exists(target):
+    if os.path.exists(target) and (not into or force):
         shutil.rmtree(target)
-    os.makedirs(target)
+    os.makedirs(target, exist_ok=True)
     exported = None
     try:
         if from_project:
@@ -512,7 +513,7 @@ def new(name, ontology=None, domain=None, summary=None, view_dirs=(), to=None, f
                    "changelog": [{"release": 1, "at": _today(), "note": "Made from the ontology %s@%s."
                                   % (record["name"], record["release"])}]})
     plugin_files(target)
-    if to:
+    if to or into:
         workspace(target)
     return target, check(target)
 

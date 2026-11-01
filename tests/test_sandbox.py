@@ -7,6 +7,7 @@ import stat
 import sys
 
 import pytest
+import re
 
 from oto import __version__, sandbox
 from oto.cli import main
@@ -493,3 +494,113 @@ def test_inside_the_kit_is_read_from_the_environment_or_the_kits_files(tmp_path,
     assert sandbox.inside_kit(environ={}, home=str(tmp_path)) is False, "init.sh alone is not the kit"
     (tmp_path / ".oto" / "lock-plugins").write_text("# lock\n")
     assert sandbox.inside_kit(environ={}, home=str(tmp_path)) is True
+
+
+# ---- the kind, the repository and the token (docs/plans/ontology-workspace.md, phase 4) ----
+
+FAKE_GH = r'''
+import json, os, sys
+path = os.environ["FAKE_SBX_STATE"]
+state = json.load(open(path))
+state.setdefault("gh_calls", []).append({"args": sys.argv[1:], "token": os.environ.get("GH_TOKEN")})
+json.dump(state, open(path, "w"))
+if sys.argv[1:3] == ["repo", "view"]:
+    sys.stderr.write("GraphQL: Could not resolve to a Repository\n"); sys.exit(1)
+sys.stdout.write("https://github.com/%s\n" % sys.argv[3]); sys.exit(0)
+'''
+
+
+def _bare(tmp_path, name="store.git"):
+    import subprocess
+    path = str(tmp_path / name)
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", path], check=True)
+    return path
+
+
+def test_up_lays_out_a_knowledge_project_backed_by_a_repository_and_pushes_it_once(fake, tmp_path, monkeypatch):
+    import subprocess
+    from oto import sandbox
+    bare = _bare(tmp_path)
+    monkeypatch.setenv("FAKE_TOKEN", "a-token-that-never-reaches-a-file")
+    report = sandbox.up(name="acme", directory=str(tmp_path / "acme"), kind="knowledge", repo=bare, token_env="FAKE_TOKEN", approve=True)
+    project = str(tmp_path / "acme" / "project")
+    assert report["kind"] == "knowledge" and report["repository"] == bare and report["commit"]
+    assert os.path.exists(os.path.join(project, "project.config.json")) and os.path.exists(os.path.join(project, ".github", "workflows", "oto-checks.yml")), \
+        "a knowledge project with the repository workflows, laid out before the sandbox was made"
+    with open(os.path.join(project, "project.config.json"), encoding="utf-8") as f:
+        assert json.load(f)["kind"] == "knowledge"
+    log = subprocess.run(["git", "-C", bare, "log", "--oneline", "main"], capture_output=True, text=True).stdout
+    assert "laid out by oto sandbox up" in log, "the first commit reached the repository"
+    assert subprocess.run(["git", "-C", project, "remote", "get-url", "origin"], capture_output=True, text=True).stdout.strip() == bare
+    assert any("pushed the first commit" in d for d in report["done"]) and any("knowledge project" in d for d in report["done"])
+    assert [c for c in fake.calls("create")], "the sandbox was created after the layout"
+    for root, _dirs, files in os.walk(str(tmp_path / "acme")):
+        for name in files:
+            with open(os.path.join(root, name), "rb") as f:
+                assert b"a-token-that-never-reaches-a-file" not in f.read(), "the token is in no file of the folders: %s" % os.path.join(root, name)
+    assert not [c for c in fake.calls("secret") if c[:2] == ["secret", "set"]], "a repository that is a path needs no GitHub secret in the sandbox"
+
+
+def test_up_creates_the_github_repository_with_the_token_and_stores_it_as_the_sandbox_s_secret(fake, tmp_path, monkeypatch):
+    from oto import sandbox
+    monkeypatch.setenv("OTO_GH", _script(str(tmp_path / "gh"), FAKE_GH))
+    monkeypatch.setenv("FAKE_TOKEN", "ghp-like-but-not")
+    # the push to github.com cannot happen here: the dry run shows the plan, the real run is stopped at the push
+    report = sandbox.up(name="fleet", directory=str(tmp_path / "fleet"), kind="ontology", repo="acme/fleet-ontology", token_env="FAKE_TOKEN", check=True, approve=True)
+    assert report["repository"] == "https://github.com/acme/fleet-ontology.git"
+    assert any("would create the private repository acme/fleet-ontology on GitHub with the token in FAKE_TOKEN" in d for d in report["done"]), report["done"]
+    assert any("would lay out an ontology workspace for the pack fleet" in d for d in report["done"]), report["done"]
+    assert not os.path.exists(str(tmp_path / "fleet" / "project" / "manifest.json")), "a dry run lays nothing out"
+    url = sandbox.github_repository("acme/fleet-ontology", "ghp-like-but-not")
+    assert url == "https://github.com/acme/fleet-ontology.git"
+    calls = fake.read()["gh_calls"]
+    assert calls[0]["args"][:3] == ["repo", "view", "acme/fleet-ontology"] and calls[1]["args"] == ["repo", "create", "acme/fleet-ontology", "--private"]
+    assert all(c["token"] == "ghp-like-but-not" for c in calls), "the CLI gets the token through its environment"
+    assert sandbox.github_repository(str(tmp_path), None) == str(tmp_path), "a path is a repository that exists"
+
+
+def test_up_lays_out_an_ontology_workspace_with_no_repository_when_told_so(fake, tmp_path):
+    from oto import sandbox
+    report = sandbox.up(name="fleet", directory=str(tmp_path / "fleet"), kind="ontology", no_repo=True, approve=True)
+    project = str(tmp_path / "fleet" / "project")
+    assert report["kind"] == "ontology" and report["repository"] is None
+    for path in ("manifest.json", "ontology/fleet/ontology.config.json", "trial/project.config.json", ".github/workflows/pack-check.yml"):
+        assert os.path.exists(os.path.join(project, path)), path
+    assert not os.path.isdir(os.path.join(project, ".git")), "no repository: no git"
+    assert any("ontology workspace for the pack fleet" in d for d in report["done"]), report["done"]
+    again = sandbox.up(name="fleet", directory=str(tmp_path / "fleet"), kind="ontology", no_repo=True, approve=True)
+    assert not any("laid out" in d for d in again["done"]), "a folder that already holds a project is left alone"
+
+
+def test_a_kind_needs_a_repository_decision_and_a_github_repository_needs_a_token(fake, tmp_path):
+    from oto import sandbox
+    with pytest.raises(sandbox.SandboxError) as refused:
+        sandbox.up(name="x", directory=str(tmp_path / "x"), kind="knowledge")
+    assert "--repo" in refused.value.fix and "--no-repo" in refused.value.fix
+    with pytest.raises(sandbox.SandboxError) as refused:
+        sandbox.up(name="x", directory=str(tmp_path / "x"), kind="knowledge", repo="acme/x")
+    assert "token" in str(refused.value) and "--github-token-env" in refused.value.fix
+    with pytest.raises(sandbox.SandboxError):
+        sandbox.up(name="x", directory=str(tmp_path / "x"), kind="knowledge", repo="acme/x", no_repo=True)
+
+
+def test_the_command_takes_the_kind_the_repository_and_the_token_variable(fake, tmp_path, capsys):
+    bare = _bare(tmp_path)
+    os.environ["FAKE_TOKEN"] = "t"
+    try:
+        assert main(["sandbox", "up", "--name", "acme", "--dir", str(tmp_path / "acme"), "--kind", "knowledge", "--repo", bare,
+                     "--github-token-env", "FAKE_TOKEN", "--approve-anthropic", "--json"]) == 0
+    finally:
+        os.environ.pop("FAKE_TOKEN", None)
+    report = json.loads(capsys.readouterr().out)
+    assert report["kind"] == "knowledge" and report["repository"] == bare and report["commit"]
+    assert any("knowledge project" in line for line in report["next"]), report["next"]
+
+
+def test_the_sandbox_skill_proposes_the_names_from_one_answer_and_names_the_token_variable_never_its_value():
+    with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "skills", "sandbox", "SKILL.md"), encoding="utf-8") as f:
+        text = f.read()
+    for words in ("--kind", "--repo", "--no-repo", "--github-token-env", "ontology workspace", "knowledge project", "no repository",
+                  "gh api user", "derived from", "never the value"):
+        assert words in text, words
+    assert not re.search(r"ghp_[A-Za-z0-9]{6,}", text)

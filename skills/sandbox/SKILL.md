@@ -64,11 +64,26 @@ and say in a sentence or two what is there and what is missing:
 
 ## 2. Ask, a few at a time
 
-Ask only what is still open, in one message:
+One answer decides most of it: **what the sandbox is for**, in a word or two (a client, a domain, an
+ontology to make). From it, propose the rest and let the person change any of it, as a select:
 
-- **A name** for the sandbox (letters, numbers and hyphens; `oto-sandbox` if they have no
-  preference) and **where its folders go** (a folder named after it in their home folder, unless
-  they say otherwise).
+- **The sandbox's name**: the answer, lowercased, letters, digits and hyphens (`kanban-test`).
+  SSH reaches it as `<name>.sbx`.
+- **Where its folders go**: a folder named after it in their home folder (`~/<name>`, holding
+  `project` and `code`).
+- **What they are making**, the kind: a **knowledge project** (a graph on an ontology that exists,
+  started from a pack; `oto pack list` says which packs there are) or an **ontology workspace** (an
+  ontology to make, a pack in the making, which the ontology-interview skill fills). Recommend from
+  the answer; most sandboxes are a knowledge project.
+- **The repository** that backs the project: `<their GitHub login>/<name>`, proposed from
+  `gh api user --jq .login` on their computer (or an organisation they name), created private for
+  them. Show it with a checkbox **no repository** beside it: ticked, the repository name is cleared
+  and the project stays local to the folders.
+- **The GitHub token**, only when a repository is made: ask which **environment variable** on their
+  computer holds a token with the repo scope (`GITHUB_TOKEN`, say). Name the variable and never the value:
+  the engine reads it to create the repository and push once, then stores it as the sandbox tool's own
+  GitHub secret for that sandbox, so the agent inside pushes and the token never enters the sandbox or
+  a file.
 - **Their Google Cloud project's id**, if the work uses Google Cloud: the id, not the name; the
   console shows it under the name. It is given to the sandbox as `PROJECT`. They may have none yet.
 - **The network policy**, only when none is set: "balanced" is the usual one (Claude, code hosts and
@@ -83,24 +98,34 @@ Ask only what is still open, in one message:
 Only if the person says they want their own plugins or connectors in the sandbox too, explain §5 and
 ask whether to make it that way. Never offer it otherwise.
 
-Read the answers back in a sentence and confirm.
+Read the answers back in a sentence and confirm: the name, the folder, the kind, the repository or
+"no repository", and the variable the token is in.
 
 ## 3. Set it up
 
 With their confirmation, first dry-run, then run:
 
 ```bash
-oto sandbox up --name <name> [--dir <folder>] [--project-id <id>] [--init-policy balanced] [--approve-anthropic] --check --json
-oto sandbox up --name <name> [--dir <folder>] [--project-id <id>] [--init-policy balanced] [--approve-anthropic] --json
+oto sandbox up --name <name> [--dir <folder>] --kind knowledge|ontology [--pack <pack>] --repo <login/name> --github-token-env <VAR> [--project-id <id>] [--init-policy balanced] [--approve-anthropic] --check --json
+oto sandbox up --name <name> [--dir <folder>] --kind knowledge|ontology [--pack <pack>] --repo <login/name> --github-token-env <VAR> [--project-id <id>] [--init-policy balanced] [--approve-anthropic] --json
 ```
 
-Pass `--init-policy` only with the policy they chose, `--approve-anthropic` only with their yes,
+`--no-repo` in place of `--repo` and the token variable when they ticked "no repository". Pass
+`--init-policy` only with the policy they chose, `--approve-anthropic` only with their yes,
 `--allow-outside-plugins` only when they asked for their own plugins in the sandbox (§5), `--recreate`
-only when they agreed to replace an existing sandbox. Tell them it takes about a minute
-the first time, more on a slow connection; the second run takes seconds.
+only when they agreed to replace an existing sandbox. Tell them it takes about a minute the first
+time, more on a slow connection; the second run takes seconds.
+
+What `up` does with a kind: it lays the project out in the `project` folder on their computer before
+the sandbox is made (a knowledge project with the repository workflows, or an ontology workspace with
+its trial project and its check and publish workflows), creates the repository, pushes the first
+commit from their computer, and stores the token for the sandbox. A folder that already holds a
+project is left as it is. A knowledge project started from a pack has its vocabulary `derived from`
+the pack, which `oto status` says inside.
 
 When it is done, read `outside_plugins_summary` back in plain words (§5): it says whether the sandbox
-uses only its own plugins. Never say the sandbox is ready without it.
+uses only its own plugins. Never say the sandbox is ready without it. Say the repository's address
+when one was made.
 
 `ok: false` comes with a `problem` and a `fix`: say both in plain words, and do what the fix says
 only if it is theirs to agree to (ask) or theirs to do (wait for them). Never work around it.

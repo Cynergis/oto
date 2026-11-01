@@ -26,7 +26,9 @@ when someone needs it, so a framework is swapped by installing a pack, never by 
 packs the same way, and leave the engine for the registry in turn ([ADR-0010](docs/adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), the domain model (`ddd@cynergis`) first. A domain vocabulary is a pack of the registry too
 ([ADR-0011](docs/adr/0011-a-domain-vocabulary-is-a-pack-of-the-registry.md)): the engine ships one vocabulary, `oto-core`, its own schema, and no other; the estate (`portfolio`, `product`,
 `software-architecture`), the reified model (`architecture`, with `oto arch` and `arch_context` in its own code) and every other domain are installed per
-project (`oto pack add <name>`, or `/plugin install <name>@cynergis`), and `oto init --ontology <name>` composes them from the installed pack. What someone builds on the graph, the software factory first, is a use case
+project (`oto pack add <name>`, or `/plugin install <name>@cynergis`), and `oto init --ontology <name>` composes them from the installed pack. An ontology is made
+in a workspace of its own, a pack in the making (`oto pack new`), and a knowledge project derives its vocabulary from the packs it composes and does not edit it
+([ADR-0012](docs/adr/0012-two-kinds-of-project.md)). What someone builds on the graph, the software factory first, is a use case
 and lives in a repository of its own ([ADR-0007](docs/adr/0007-a-use-case-lives-outside-the-engine.md),
 [Cynergis/oto-factory](https://github.com/Cynergis/oto-factory)). [ADR-0006](docs/adr/0006-the-core-and-the-packs.md) records the line;
 `oto --help` prints it.

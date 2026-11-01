@@ -1,0 +1,69 @@
+{
+  "source_doc": "0012-two-kinds-of-project",
+  "as_of": "2026-11-01",
+  "nodes": [
+    {
+      "id": "decision.adr-0012",
+      "type": "Decision",
+      "label": "An ontology is made in a workspace of its own; a knowledge project uses one and does not define it",
+      "summary": "There are two kinds of project.",
+      "attributes": {
+        "status": "accepted",
+        "decided_on": "2026-11-01",
+        "rationale": "There are two kinds of project. An ontology is made in an **ontology workspace**, a pack in the making in a directory of its own with a trial project beside the deliverable, released to the registry through the pack's gates; a **knowledge project** starts from packs, derives its vocabulary from them and does not edit it, and a term it lacks is a release of the pack or a pack that extends it."
+      },
+      "valid_from": "2026-11-01",
+      "evidence": [
+        {
+          "doc": "0012-two-kinds-of-project",
+          "where": "Decision",
+          "quote": "There are two kinds of project."
+        },
+        {
+          "doc": "0012-two-kinds-of-project",
+          "where": "frontmatter",
+          "quote": "decided_on: 2026-11-01"
+        }
+      ]
+    },
+    {
+      "id": "document.0012-two-kinds-of-project",
+      "type": "Document",
+      "label": "An ontology is made in a workspace of its own; a knowledge project uses one and does not define it",
+      "summary": "ADR ADR-0012, the record of this decision.",
+      "attributes": {
+        "kind": "adr"
+      },
+      "valid_from": "2026-11-01",
+      "evidence": [
+        {
+          "doc": "0012-two-kinds-of-project",
+          "where": "title",
+          "quote": "An ontology is made in a workspace of its own; a knowledge project uses one and does not define it"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "decision.adr-0012",
+      "rel": "documented_in",
+      "to": "document.0012-two-kinds-of-project"
+    },
+    {
+      "from": "decision.adr-0012",
+      "rel": "governs",
+      "to": "workitem.epic-i"
+    },
+    {
+      "from": "decision.adr-0012",
+      "rel": "governs",
+      "to": "workitem.epic-j"
+    },
+    {
+      "from": "decision.adr-0012",
+      "rel": "decided_by",
+      "to": "person.chiheb-dkhil"
+    }
+  ]
+}

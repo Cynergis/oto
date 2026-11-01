@@ -353,6 +353,7 @@ python3 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip   # the pip macOS ships cannot do an editable install
 .venv/bin/pip install -e '.[intake,dev]'
 PYTHON=.venv/bin/python tools/run_gates.sh      # tests, self-test, ontologies, publishability, syntax
+tools/e2e_core.sh                                # the core end to end on the engine alone: an ontology created, deployed, queried, made into a pack (docs/E2E-CORE.md)
 ```
 
 The compile path is stdlib-only, so a build needs nothing installed beyond OTO itself. CI asserts

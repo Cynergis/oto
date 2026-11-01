@@ -4,6 +4,51 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.16.0 — 2026-11-01
+
+**An ontology is made in a workspace of its own; a knowledge project uses one and does not define it.** Five
+pull requests (142 to 146) under [ADR-0012](docs/adr/0012-two-kinds-of-project.md), the plan in
+[docs/plans/ontology-workspace.md](docs/plans/ontology-workspace.md); with them the core's end-to-end test (140)
+and the deploy workflow's fixes (141). A minor release: a project started from a pack now derives its vocabulary.
+
+- **Two kinds of project.** `project.config.json` carries `kind` (`knowledge`, or the `concierge` that existed)
+  and `vocabulary` (`derived` or `own`). Started from a pack, or from an ontology an installed pack carries, the
+  vocabulary is derived: `ontology.config.json` is what the packs compose, written by the engine with a header that
+  says so; `oto ontology check` and `accept` refuse a hand edit and name each difference and where a change
+  belongs; `oto ontology import` into it is refused; `oto ontology update` writes it again from the packs' current
+  releases; `oto status` says `derived from <pack> @<release>`. Started with no ontology or from a directory, and
+  for every project made before this release, the vocabulary is the project's own, as before; a derived project
+  takes it back with `"vocabulary": "own"`.
+- **The ontology workspace.** `oto pack new <name> --to <dir> [--extends <base,...>]` lays out a pack in the making:
+  a starter vocabulary the interview fills, the bases embedded, a `trial/` knowledge project, and two workflows
+  (the pack's gates on every pull request, a release on a tag). `--from-project <dir>` opens a workspace from a
+  project that grew its own vocabulary, keeping its confirmations. `oto pack check <dir> --strict` adds the
+  rationale to the pack's gates, a reason and a named confirmation for every term the pack itself declares.
+  `oto pack try <dir>` writes the trial's vocabulary from the pack, seeds it from the sample while it holds no fact
+  of the pack's own, builds it and asks its questions; the trial's documents and graph are its own. `oto pack
+  publish` leaves `trial/` and `.github/` behind. A pack whose own vocabulary declares no class is not usable yet.
+- **The skills.** The ontology-interview skill works in a workspace and ends with the pack's gates and its release;
+  build-knowledge-base starts a project on a pack and sends a missing term to the workspace; the concierge, the
+  start skill and the skills table route by what is being made.
+- **The sandbox.** `oto sandbox up --kind knowledge|ontology` lays the project out before the sandbox is made;
+  `--repo <owner/name>` backs it with a repository created private on GitHub through the GitHub CLI with the token
+  in the variable `--github-token-env` names, pushed once from this computer, the token stored as the sandbox
+  tool's own GitHub secret so the agent inside pushes and the token never enters the sandbox; `--no-repo` keeps
+  the project local. The sandbox skill proposes the name, the folder, the kind and the repository from one answer.
+- **The deploy workflow** `oto init --repo` writes: `ENGINE` set once for every job; the checkout's credential no
+  longer reaches the query repository (the engine resets the inherited header for that URL on every call that
+  reaches it, and the template sets `persist-credentials: false`); the environments come from the deploy config
+  rather than fixed names; the third promotion can run. Projects keep their generated workflow unless
+  `oto init --repo --force` rewrites it; the engine side reaches them with this release.
+- **The core, end to end.** `docs/E2E-CORE.md` and `tools/e2e_core.sh`: the engine alone, from a vocabulary written
+  by hand through ingest, the gates, build, query, serve, deploy, a workspace, a pack, a registry and a second
+  project, with the suite running the script.
+
+**Migration.** A project started from a pack before this release reads as owning its vocabulary and changes in no
+way. A project started from a pack from now on derives it: `oto status` says so, and a hand edit is refused with
+the way to make the change (a pack that extends, or the pack's workspace). An ontology that lived in a project
+gets a home with `oto pack new <name> --from-project <dir> --to <dir>`.
+
 ## 0.15.1 — 2026-10-31
 
 **A vocabulary the registry lists as a pack is fetched by `oto init`, and a marketplace counts as a registry.**

@@ -521,6 +521,11 @@ def new(name, ontology=None, domain=None, summary=None, view_dirs=(), to=None, f
 # ---- the workspace: a pack in the making, with a trial project beside it ----
 
 TRIAL_DIR = "trial"
+
+
+def is_workspace(directory):
+    """A pack in the making, in a directory of its own: it has a trial project beside the deliverable."""
+    return os.path.isdir(os.path.join(directory, TRIAL_DIR))
 WORKFLOWS_DIR = os.path.join(".github", "workflows")
 #: What `oto pack publish` leaves behind: the workspace's own, never the pack's
 WORKSPACE_ONLY = (TRIAL_DIR, ".github")
@@ -753,7 +758,8 @@ def _manifest_problems(directory):
     name = declared.get("name")
     if not isinstance(name, str) or not NAME_OK.match(name):
         out.append("%s name %r must be lowercase letters, digits and hyphens" % (MANIFEST_NAME, name))
-    elif name != os.path.basename(os.path.normpath(directory)) and not _installed_as(name, directory):
+    elif name != os.path.basename(os.path.normpath(directory)) and not _installed_as(name, directory) and not is_workspace(directory):
+        # an installed pack lives under its name; a workspace is a repository and may be called anything (a sandbox's project folder)
         out.append("%s names %r but the directory is %r" % (MANIFEST_NAME, name, os.path.basename(os.path.normpath(directory))))
     release = declared.get("release", 1)
     if not isinstance(release, int) or isinstance(release, bool) or release < 1:

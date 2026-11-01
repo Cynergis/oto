@@ -20,3 +20,9 @@ dist/
 # Reference material beside the engine (prototypes, examples): never part of the package
 /references/
 .DS_Store
+
+# what the test suite points the engine at instead of ~/.oto and ~/.claude
+.no-user-ontologies/
+.no-user-packs/
+.no-claude-config/
+.no-registries.json

@@ -20,6 +20,7 @@ FIXTURE_PACKS = os.path.join(REPO_ROOT, "tests", "fixtures", "packs")
 os.environ.setdefault("OTO_ONTOLOGIES", os.path.join(REPO_ROOT, ".no-user-ontologies"))
 os.environ.setdefault("OTO_PACKS", FIXTURE_PACKS)
 os.environ.setdefault("CLAUDE_CONFIG_DIR", os.path.join(REPO_ROOT, ".no-claude-config"))
+os.environ.setdefault("OTO_REGISTRIES", os.path.join(REPO_ROOT, ".no-registries.json"))   # `oto ontology update` saves the registries it knows: never into the repository
 
 
 # The engine ships no architecture framework (ADR-0008). The tests that need one, for what the core

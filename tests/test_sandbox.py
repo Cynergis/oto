@@ -10,6 +10,8 @@ import pytest
 import re
 
 from oto import __version__, sandbox
+
+_REAL_BINDABLE = sandbox._bindable       # kept before the fake fixture replaces it
 from oto.cli import main
 
 pytestmark = pytest.mark.skipif(os.name == "nt", reason="the fakes are scripts run through their #! line")
@@ -137,6 +139,7 @@ def fake(tmp_path, monkeypatch):
     monkeypatch.setenv("FAKE_SBX_STATE", str(state_file))
     monkeypatch.setenv("OTO_SBX", _script(str(tmp_path / "sbx"), FAKE_SBX))
     monkeypatch.setenv("OTO_SSH", _script(str(tmp_path / "ssh"), FAKE_SSH))
+    monkeypatch.setattr(sandbox, "_bindable", lambda port: True)      # the fake computer's ports are the fake sandboxes' alone
 
     class Fake(object):
         path = state_file
@@ -622,3 +625,51 @@ def test_the_sandbox_skill_walks_the_two_sandboxes_in_order_and_asks_which_pack_
     assert "not released yet" in body, "a pack still in the making sends the person to the workspace sandbox first"
     assert "the sandbox's name is the pack's name" in body, "an ontology sandbox is named after the pack it makes"
     assert "ontology-interview" in body and "build-knowledge-base" in body, "each sandbox's first skill is named"
+
+
+# ---- two sandboxes at once: each gets free host ports ----
+
+def test_a_second_sandbox_gets_free_host_ports_and_says_which_to_open(fake, tmp_path, capsys):
+    """Every sandbox serves on 8798 and 8799 inside; the computer's side cannot hold the same port twice,
+    so a second sandbox is published on the next free host ports and told which to open, and the
+    sandbox port it serves on stays the same inside."""
+    fake.write(ssh=True, sandboxes={"first": {"agent": "oto-gcp", "running": True, "folders": [str(tmp_path / "first" / "project"), str(tmp_path / "first" / "code")],
+                                              "env": {}, "init": "OTO ready: 1 plugins",
+                                              "ports": [{"host_ip": "127.0.0.1", "host_port": 8798, "sandbox_port": 8798, "protocol": "tcp4"},
+                                                        {"host_ip": "127.0.0.1", "host_port": 8799, "sandbox_port": 8799, "protocol": "tcp4"}]}})
+    work = tmp_path / "second"
+    assert main(["sandbox", "up", "--name", "second", "--dir", str(work), "--approve-anthropic"]) == 0
+    out = capsys.readouterr().out
+    create = fake.calls("create")[-1]
+    assert create[7:11] == ["-p", "8800:8798", "-p", "8801:8799"], "the host side moves, the sandbox side does not"
+    assert "published port 8798 as localhost:8800 and 8799 as localhost:8801" in out and "8798 and 8799 are taken by the sandbox first" in out, out
+    assert "oto serve --project . --http 8798" in out and "open http://localhost:8800/" in out and "8801 for a second view" in out, out
+    s = sandbox.status("second")
+    assert [(e["port"], e["host_port"]) for e in s["ports"]] == [(8798, 8800), (8799, 8801)]
+    assert main(["sandbox", "status", "--name", "second"]) == 0
+    assert "ports          8800->8798, 8801->8799" in capsys.readouterr().out
+    # an existing sandbox that lacks a port gets a free host port too
+    fake.write(ssh=True, sandboxes={"first": fake.read()["sandboxes"]["first"],
+                                    "third": {"agent": "oto-gcp", "running": False, "folders": [str(tmp_path / "third" / "project"), str(tmp_path / "third" / "code")],
+                                              "env": {}, "init": "OTO ready: 1 plugins", "ports": []}})
+    report = sandbox.up(name="third", directory=str(tmp_path / "third"), approve=True)
+    published = [c for c in fake.calls("ports") if "--publish" in c]
+    assert published[-2:] == [["ports", "third", "--publish", "8800:8798"], ["ports", "third", "--publish", "8801:8799"]], published
+    assert [(e["port"], e["host_port"]) for e in report["ports"]] == [(8798, 8800), (8799, 8801)]
+
+
+def test_a_host_port_something_else_listens_on_is_skipped(fake, tmp_path, monkeypatch):
+    import socket
+    monkeypatch.setattr(sandbox, "_bindable", _REAL_BINDABLE)
+    held = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    held.bind(("127.0.0.1", 0))
+    held.listen(1)
+    port = held.getsockname()[1]
+    try:
+        assert sandbox.free_host_port(port, set()) != port
+        assert sandbox.free_host_port(port, set()) > port
+        assert main(["sandbox", "up", "--name", "held", "--dir", str(tmp_path / "held"), "--publish", str(port), "--approve-anthropic"]) == 0
+        mapping = fake.calls("create")[-1][8]
+        assert mapping.endswith(":%d" % port) and not mapping.startswith("%d:" % port), mapping
+    finally:
+        held.close()

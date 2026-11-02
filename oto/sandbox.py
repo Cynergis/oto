@@ -34,6 +34,7 @@ import json
 import os
 import re
 import shutil
+import socket
 import subprocess
 import datetime
 import time
@@ -319,6 +320,67 @@ def published_ports(sbx, name):
         listed = []
     return [{"port": int(e["sandbox_port"]), "host_port": int(e["host_port"]), "host": e.get("host_ip") or "127.0.0.1"}
             for e in listed if isinstance(e, dict) and e.get("sandbox_port") is not None]
+
+
+def host_ports_taken(sbx, except_name=None):
+    """The computer's ports other sandboxes publish, by the sandbox holding each: {host_port: name}. A
+    stopped sandbox keeps its mapping and takes the port back when it starts, so it counts too."""
+    taken = {}
+    for other in _sandboxes(sbx):
+        if other == except_name:
+            continue
+        for entry in published_ports(sbx, other):
+            taken.setdefault(entry["host_port"], other)
+    return taken
+
+
+def _bindable(port):
+    with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as probe:
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            probe.bind(("127.0.0.1", port))
+            return True
+        except OSError:
+            return False
+
+
+def free_host_port(port, taken, span=100):
+    """`port` itself when nothing on this computer holds it, else the first free port above it: every
+    sandbox serves on the same ports inside, and the computer's side cannot hold one twice. `taken`
+    is what other sandboxes publish (and what this call already chose); a port something else listens
+    on is skipped as well."""
+    for candidate in range(port, port + span):
+        if candidate not in taken and _bindable(candidate):
+            return candidate
+    raise SandboxError("no free port on this computer between %d and %d" % (port, port + span - 1),
+                       "stop a sandbox (oto sandbox stop <name>), or pass --publish with ports that are free")
+
+
+def _host_mapping(sbx, name, ports):
+    """[(host_port, sandbox_port)] for the ports to publish, each on a free host port, and the words
+    for what moved: {sandbox_port: holder}."""
+    taken = host_ports_taken(sbx, except_name=name)
+    chosen, moved = [], {}
+    for port in ports:
+        host = free_host_port(port, set(taken) | {h for h, _p in chosen})
+        chosen.append((host, port))
+        if host != port:
+            moved[port] = taken.get(port) or "something else on this computer"
+    return chosen, moved
+
+
+def _published_words(mapping, moved):
+    """'published ports 8798 and 8799 to this computer's localhost', or which host port each took and why."""
+    if not moved:
+        return "published port%s %s to this computer's localhost" % ("" if len(mapping) == 1 else "s", " and ".join(str(p) for _h, p in mapping))
+    pairs = " and ".join("%d as localhost:%d" % (p, h) if h != p else "%d" % p for h, p in mapping)
+    holders = {}
+    for port, holder in moved.items():
+        holders.setdefault(holder, []).append(port)
+    why = "; ".join("%s %s taken by %s" % (" and ".join(str(p) for p in ports), "is" if len(ports) == 1 else "are",
+                                          holder if holder.startswith("something") else "the sandbox %s" % holder)
+                    for holder, ports in holders.items())
+    return "published port %s (%s)" % (pairs, why)
 
 
 def _ssh_ready(name):
@@ -682,8 +744,9 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
             os.makedirs(folder, exist_ok=True)
         say("creating the sandbox %s from %s: about a minute the first time" % (name, kit))
         args = ["create", kit, project_dir, code_dir, "--name", name, "--no-progress"]
-        for port in ports:                   # published at creation, so the forward is live from the first start
-            args += ["-p", "%d:%d" % (port, port)]
+        mapping, moved = _host_mapping(sbx, name, ports)
+        for host, port in mapping:           # published at creation, so the forward is live from the first start
+            args += ["-p", "%d:%d" % (host, port)]
         if project_id:
             args += ["-e", "PROJECT=%s" % project_id]
         if allow_outside:
@@ -693,8 +756,8 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
             raise SandboxError("sbx could not create the sandbox: %s" % (err or out).strip()[-600:])
         report["done"].append("created the sandbox %s from %s" % (name, kit))
         if ports:
-            report["done"].append("published port%s %s to this computer's localhost, for oto serve inside"
-                                  % ("" if len(ports) == 1 else "s", " and ".join(str(p) for p in ports)))
+            report["done"].append(_published_words(mapping, moved) + ", for oto serve inside")
+            report["ports"] = [{"port": p, "host_port": h, "host": "127.0.0.1"} for h, p in mapping]
     if repo and token and _github_url(repo).startswith(GITHUB):
         code, out, err = sbx("secret", "set", "github", "--sandbox", name, "--token", token, "-f", timeout=120)
         if code != 0:
@@ -711,17 +774,16 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
                                       "--recreate to change it" % (name, out.strip() or "no project", project_id))
     if existing and ports:
         have = {e["port"] for e in published_ports(sbx, name)}
+        mapping, moved = _host_mapping(sbx, name, [p for p in ports if p not in have])
         added = []
-        for port in ports:
-            if port in have:
-                continue
-            code, out, err = sbx("ports", name, "--publish", "%d:%d" % (port, port))
+        for host, port in mapping:
+            code, out, err = sbx("ports", name, "--publish", "%d:%d" % (host, port))
             if code == 0:
-                added.append(port)
+                added.append((host, port))
             else:
                 report["warnings"].append("port %d could not be published: %s" % (port, (err or out).strip()[-200:]))
         if added:
-            report["done"].append("published port%s %s to this computer's localhost" % ("" if len(added) == 1 else "s", " and ".join(str(p) for p in added)))
+            report["done"].append(_published_words(added, {p: moved[p] for _h, p in added if p in moved}))
             if existing["status"] == "running":
                 report["warnings"].append("a port published to a running sandbox forwards from its next start: `sbx stop %s`, "
                                           "then the next connection starts it" % name)
@@ -772,9 +834,9 @@ def next_steps(report):
              "  Name: OTO (%s). SSH host: %s.sbx. Leave the port and the identity file empty." % (name, name),
              "  Choose that connection, then the folder %s." % (report["project"] or "you work in"),
              "Or in a terminal: sbx run --name %s" % name]
-    ports = [e["port"] for e in report.get("ports") or []]
+    ports = [(e["port"], e.get("host_port", e["port"])) for e in report.get("ports") or []]
     if ports:
         lines += ["To see a served graph: in the sandbox, oto serve --project . --http %d (it binds all interfaces there, no token needed);"
-                  % ports[0],
-                  "  on this computer, open http://localhost:%d/%s" % (ports[0], (" (and %s for a second view)" % ", ".join("%d" % p for p in ports[1:])) if ports[1:] else "")]
+                  % ports[0][0],
+                  "  on this computer, open http://localhost:%d/%s" % (ports[0][1], (" (and %s for a second view)" % ", ".join("%d" % h for _p, h in ports[1:])) if ports[1:] else "")]
     return lines

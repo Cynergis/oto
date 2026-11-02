@@ -180,8 +180,12 @@ message, the approval is missing: §2, then `up --recreate`. From a terminal ins
 `sbx run --name <name>`.
 
 To see a served graph from their own browser: in the sandbox session, `oto serve --project . --http 8798`
-(it binds all interfaces there and needs no token), and on their computer `http://localhost:8798/`; 8799
-for a second server, a pack's view. `up` publishes both ports when it makes the sandbox; `--publish <port>` adds others.
+(it binds all interfaces there and needs no token), and on their computer the address `up` said: usually
+`http://localhost:8798/`, 8799 for a second server, a pack's view. Two sandboxes serve on the same ports
+inside, and the computer cannot hold one port twice, so the second sandbox gets the next free host ports
+(8800 and 8801, say): `up` says which, in `ports` and `next`, and `oto sandbox status` repeats it as
+`<host port>-><sandbox port>`. Say the host port to the person as the address to open; the sandbox port
+is what `oto serve` inside binds. `--publish <port>` adds others.
 
 Later, `oto sandbox status` says whether it is still ready; `oto sandbox up` starts it again after a
 restart of the computer. Every sandbox on the computer, and cleaning up the ones no longer used, is the

@@ -4,6 +4,17 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.16.5 — 2026-11-02
+
+**A knowledge sandbox has its pack's plugin from the first session** (pull request 156). `oto sandbox up --kind
+knowledge --pack <name>` declared the pack's plugin in the project's `.claude/settings.json` but never installed it
+inside: the kit installs the engine plugin alone and the sandbox's lock keeps the sandbox to what is installed
+there, so the first session had the pack's vocabulary and none of its skills or views until the packs skill was
+run by hand. Once the sandbox is ready, `up` now installs inside it, at project scope and from the project folder,
+every pack plugin the project declares; the report says which, the dry run says what it would install, and a
+failure is a warning that names the packs skill. A workspace and a project with no pack declare nothing beyond
+the engine, so nothing is installed there. The sandbox skill's setup section says it.
+
 ## 0.16.4 — 2026-11-02
 
 **A second sandbox gets free host ports** (pull request 154). Every sandbox serves on 8798 and 8799 inside, and

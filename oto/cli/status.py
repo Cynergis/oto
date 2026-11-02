@@ -248,6 +248,16 @@ def cmd_status(args):
         whose = "; derived from %s" % ", ".join("%s @%s" % (n, r) for n, r in s["ontology"]["derived_from"])
     print("  vocabulary  %d class(es), %d relation(s), %d typed attribute(s), %d rule(s), %s%s"
           % (s["classes"], s["properties"], s["attributes"], s["rules"], accepted, whose))
+    from .. import route as _route
+    guarded = _route.settings_of(project.config())
+    if guarded:
+        limit = guarded.get("max_facts")
+        print("  routes      guardrailed from %s/: classes %s, %s, %s, %s (docs/plans/graph-journeys.md; oto route guardrails)"
+              % ((guarded.get("from") or "inbox/transcripts").strip("/"),
+                 ", ".join(guarded["classes"]) if isinstance(guarded.get("classes"), list) and guarded["classes"] else "any",
+                 ("at most %d facts a run" % limit) if isinstance(limit, int) and limit > 0 else "no limit on a run",
+                 "additive only" if guarded.get("additive_only", True) else "changes allowed",
+                 "attributed to the speaker" if guarded.get("attributed", True) else "attribution not required"))
     if s.get("ontology"):
         t = s["ontology"]
         where = (" from %s" % t["registry"]) if t.get("registry") else (" (%s)" % t["origin"] if t.get("origin") else "")

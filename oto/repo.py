@@ -542,6 +542,13 @@ jobs:
             Load the build-knowledge-base skill and follow, exactly, its
             references/pipeline-run.md together with references/draft-proposal.md. Read CLAUDE.md
             in this repository first. Use `oto` for every check; never edit graph.json directly.
+            When the manifest's `inbox` is the transcripts folder project.config.json names under
+            `routes.guardrailed.from`, this run takes the guardrailed route: record each speaker's
+            statement first (`oto curate assert --by <speaker> --at <date> --text ...`), draft every
+            fact as that speaker's assertion (source_type human_assertion, citing the assertion and
+            the transcript), add only the classes the settings allow, change or retire nothing, and
+            keep within max_facts; `oto curate check` refuses a transcript's fact that is not an
+            assertion.
             Do not commit, push, or run `oto ingest complete`: this workflow commits your working
             tree and opens the pull request with runs/${{ steps.run.outputs.id }}.report.md as its
             description. If you must stop, write that report with a first line `BLOCKED: <why>`.

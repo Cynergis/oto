@@ -279,6 +279,9 @@ def cmd_curate(args):
         vocabulary = _json.load(f)
     from ..curate import assertions as _assertions
     findings = _diff.check(live, proposed, vocabulary, known_assertions=_assertions.known_ids(project))
+    from .. import route as _route
+    for nid, detail in _route.transcript_findings(project, live, proposed):      # the guardrailed route's attribution, at drafting time
+        findings.append(_diff.Finding(_diff.Finding.BLOCKING, nid, detail))
     from ..curate import evidence as _evidence
     from ..curate import values as _values
     on_record = {entry["id"]: entry for entry in _assertions.read(project) if entry.get("id")}

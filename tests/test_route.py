@@ -149,13 +149,15 @@ def test_a_change_drafted_from_documents_is_reviewed_and_needs_one_approval():
         assert code == 0 and "route: reviewed" in out and "approved" in out, out
 
 
-def test_a_run_from_the_transcripts_folder_takes_the_guardrailed_route_which_a_person_still_approves_until_the_guardrails_exist():
+def test_a_run_from_the_transcripts_folder_takes_the_guardrailed_route_which_the_guardrails_then_judge():
     with tempfile.TemporaryDirectory() as root:
         project, base = _repository(root)
-        # the project names the folder; without it, transcripts are documents like any other
+        # the project names the folder; without it, transcripts are documents like any other. Attribution is
+        # off here so a plain fact lands; the run below was not scanned strictly, so the clean guardrail fails
+        # (tests/test_route_guardrails.py holds each guardrail on its own)
         with open(project.config_path, encoding="utf-8") as f:
             config = json.load(f)
-        config["routes"] = {"guardrailed": {"from": "inbox/transcripts"}}
+        config["routes"] = {"guardrailed": {"from": "inbox/transcripts", "attributed": False}}
         with open(project.config_path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2)
         os.makedirs(project.layout.runs, exist_ok=True)
@@ -168,8 +170,8 @@ def test_a_run_from_the_transcripts_folder_takes_the_guardrailed_route_which_a_p
         assert shown["route"] == route.GUARDRAILED and shown["runs"] == ["20261102-1"], shown
         verdict = route.check(root, base, head, authors=["oto pipeline"], verified=True)
         assert not verdict["ok"] and verdict["route"] == route.REVIEWED and verdict["proposed"] == route.GUARDRAILED
-        assert any("guardrails" in r for r in verdict["reasons"]), verdict["reasons"]
-        assert route.check(root, base, head, authors=["oto pipeline"], verified=True, approved=True)["ok"]
+        assert any(r.startswith("guardrail clean:") and "strict-privacy" in r for r in verdict["reasons"]), verdict["reasons"]
+        assert route.check(root, base, head, authors=["oto pipeline"], verified=True, approved=True)["ok"], "a person's approval carries it"
         # the same run from the plain inbox: reviewed
         _git(root, "checkout", "-q", base)
         _git(root, "checkout", "-q", "-b", "documents")

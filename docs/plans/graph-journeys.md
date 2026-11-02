@@ -18,7 +18,7 @@ on 2026-11-02 in the design note *Graph Contribution Journeys*: the person who m
 their session approves it there and no other approval is needed; transcripts are put in the inbox
 by a process designed later; each project has its own graph, repository and pipeline.
 
-Status: proposed on 2026-11-02. Nothing is built.
+Status: proposed on 2026-11-02. Phase 1 (the fact-level diff, its fingerprint, `oto curate apply --confirm`) delivered on 2026-11-02; phases 2 to 5 are not built.
 
 ## What exists, and what changes
 

@@ -10,6 +10,8 @@ marked superseded, not overwritten. An overwrite destroys the answer to "what di
 14th", which is the property the whole system exists to protect. So a changed value with no
 supersession record is reported, every time.
 """
+import hashlib
+import json
 import re
 
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -119,6 +121,33 @@ def summarize(live, candidate):
         "edges_added": sorted(new_edges - old_edges),
         "edges_removed": sorted(old_edges - new_edges),
     }
+
+
+def canonical(live, candidate):
+    """The fact-level diff as plain, ordered JSON: the nodes added (whole, keys sorted), the ids
+    removed, the nodes changed (id, the factual fields that moved, the node as it now reads), the
+    edges added and removed as [from, rel, to]. Over facts, not bytes: the same whether the two
+    graphs come from a candidate beside the live graph or from two commits of graph.json, whatever
+    the order of the nodes or the keys in the files. What a person confirms in a session is this,
+    and what CI recomputes from base and head is this (docs/plans/graph-journeys.md)."""
+    old_nodes, new_nodes = index_nodes(live), index_nodes(candidate)
+    summary = summarize(live, candidate)
+
+    def plain(node):
+        return json.loads(json.dumps(node, sort_keys=True, ensure_ascii=False))
+
+    return {
+        "nodes_added": [plain(new_nodes[nid]) for nid in summary["nodes_added"]],
+        "nodes_removed": list(summary["nodes_removed"]),
+        "nodes_changed": [{"id": nid, "fields": list(fields), "node": plain(new_nodes[nid])} for nid, fields in summary["nodes_changed"]],
+        "edges_added": [list(key) for key in summary["edges_added"]],
+        "edges_removed": [list(key) for key in summary["edges_removed"]],
+    }
+
+
+def fingerprint(canon):
+    """sha256 over the canonical diff, as compact JSON with sorted keys."""
+    return hashlib.sha256(json.dumps(canon, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
 def check(live, candidate, vocabulary=None, known_assertions=None):

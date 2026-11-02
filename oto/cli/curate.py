@@ -220,15 +220,34 @@ def cmd_curate(args):
         print("restored the previous graph. Run `oto build` to recompile.")
         return 0
 
-    if not _session.exists(project):
+    if command == "diff" and (args.from_graph or args.to_graph):
+        # two graph files, no candidate: what CI does between the base and the head of a pull request
+        if not (args.from_graph and args.to_graph):
+            print("oto: diff between two graph files needs both --from-graph <graph.json> and --to-graph <graph.json>", file=sys.stderr)
+            return 1
+        try:
+            with open(args.from_graph, encoding="utf-8") as f:
+                live = _json.load(f)
+            with open(args.to_graph, encoding="utf-8") as f:
+                proposed = _json.load(f)
+        except (OSError, ValueError) as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+    elif not _session.exists(project):
         print("oto: no candidate. Run `oto curate start` first.", file=sys.stderr)
         return 1
-
-    live = _session.live(project)
-    proposed = _session.candidate(project)
+    else:
+        live = _session.live(project)
+        proposed = _session.candidate(project)
     summary = _diff.summarize(live, proposed)
+    canon = _diff.canonical(live, proposed)
+    digest = _diff.fingerprint(canon)
 
-    print("candidate would change the graph:")
+    if command == "diff" and args.json:
+        print(_json.dumps(dict(canon, fingerprint=digest), indent=2, ensure_ascii=False, sort_keys=True))
+        return 0
+
+    print("candidate would change the graph:" if not args.from_graph else "%s -> %s would change the graph:" % (args.from_graph, args.to_graph))
     print("  nodes: +%d  -%d  ~%d" % (len(summary["nodes_added"]), len(summary["nodes_removed"]),
                                       len(summary["nodes_changed"])))
     print("  edges: +%d  -%d" % (len(summary["edges_added"]), len(summary["edges_removed"])))
@@ -253,6 +272,7 @@ def cmd_curate(args):
         print("    edge removed  %s -%s-> %s" % key)
 
     if command == "diff":
+        print("  fingerprint: %s   (the fact-level diff, `oto curate diff --json`; `apply --confirm` records it)" % digest)
         return 0
 
     with open(project.ontology_config_path, encoding="utf-8") as f:
@@ -362,6 +382,9 @@ def cmd_curate(args):
         if blocked and not args.force:
             print("\n%d blocking problem(s). Refusing to apply." % len(blocked))
             return 1
+        if args.confirm and not (args.by or "").strip():
+            print("oto: --confirm records who saw this diff and confirmed it: name the person with --by", file=sys.stderr)
+            return 1
         from ..curate import ledger as _ledger
         from ..intake import pipeline as _pipeline
 
@@ -376,6 +399,10 @@ def cmd_curate(args):
         record = _ledger.entry(summary, retired, by=args.by, note=args.note,
                                runs=[m["run_id"] for m in _pipeline.open_runs(project)],
                                sources=_ledger.new_sources(live, proposed))
+        if args.confirm:
+            import datetime as _datetime
+            record["confirmation"] = {"by": args.by, "at": _datetime.datetime.now().replace(microsecond=0).isoformat(),
+                                      "fingerprint": digest, "shown": "diff"}
         result = _session.apply(project)
         _ledger.append(project, record)
         _audit.append(project, "curate apply", args.by or _assertion.identity(project),
@@ -385,6 +412,8 @@ def cmd_curate(args):
         print("\napplied. Previous graph kept at %s; `oto curate undo` restores it."
               % os.path.basename(result["previous"]))
         print("ledger: %s (%d retired). `oto curate log` reads it." % (_ledger.NAME, len(retired)))
+        if args.confirm:
+            print("confirmed by %s (fingerprint %s): the ledger entry binds this apply to the diff they saw" % (args.by, digest))
         if not args.note:
             print("  no --note: say what this made answerable and what it left open, next time.")
         print("Run `oto build` to recompile.")
@@ -449,8 +478,9 @@ def register(sub):
                         choices=["start", "propose", "add", "diff", "check", "apply", "abort", "undo",
                                  "assert", "assertions", "log", "resolve"],
                         help="start a candidate; propose turns a capture (--from, written against capture.json) or an ADR (markdown with frontmatter) into a proposal file; "
-                             "add merges proposal files into it; diff shows what it changes; check validates it; "
-                             "apply promotes it (with --by and --note for the ledger); abort discards it; undo restores the previous graph; log reads the ledger; "
+                             "add merges proposal files into it; diff shows what it changes (--json for the fact-level diff and its fingerprint, "
+                             "--from-graph/--to-graph for two graph files); check validates it; "
+                             "apply promotes it (with --by and --note for the ledger, --confirm to record the person's confirmation); abort discards it; undo restores the previous graph; log reads the ledger; "
                              "assert records something a person said; assertions lists them")
     curate.add_argument("--from", dest="source", action="append", default=None,
                         help="a proposal file of nodes and edges, for `add`; a capture file or an ADR (markdown with frontmatter), for `propose` (repeatable)")
@@ -468,6 +498,15 @@ def register(sub):
                         help="for resolve: a label, alias or id to look up in the candidate")
     curate.add_argument("--note", default=None,
                         help="for apply: what this change made answerable, what it left open; kept in the ledger")
+    curate.add_argument("--confirm", action="store_true",
+                        help="for apply: the person --by names saw the diff and confirms it; the ledger entry records who, when, "
+                             "and the fingerprint of the fact-level diff, so a pull request carrying it can be checked against what they saw")
+    curate.add_argument("--json", action="store_true",
+                        help="for diff: the canonical fact-level diff as JSON, with its fingerprint")
+    curate.add_argument("--from-graph", dest="from_graph", default=None,
+                        help="for diff: a graph.json to diff from (with --to-graph; no candidate needed: the base of a pull request)")
+    curate.add_argument("--to-graph", dest="to_graph", default=None,
+                        help="for diff: the graph.json to diff to (the head of a pull request)")
     project_arguments(curate)
     curate.add_argument("--show", type=int, default=10, help="how many items to list per section")
     curate.add_argument("--force", action="store_true",

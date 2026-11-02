@@ -5,7 +5,10 @@ The run manifests record which files came in. The previous-graph copy lets one a
 Neither answers, a year later, "why does the graph say this, and what did it say before". This
 ledger does. Every `oto curate apply` appends what changed: the counts, each fact retired and the
 note that says why, who applied it, and the note the applier left about what the change made
-answerable and what it left open.
+answerable and what it left open. An apply made with `--confirm` also carries a `confirmation`:
+who saw the fact-level diff and confirmed it, when, and the diff's fingerprint (`oto curate diff
+--json`), so a pull request carrying the entry can be checked against what the person saw
+(docs/plans/graph-journeys.md).
 
     changelog.jsonl     one JSON object per line, never rewritten
 """
@@ -88,6 +91,9 @@ def render(entries, limit=20):
         if record.get("by"):
             head += "  by %s" % record["by"]
         lines.append(head)
+        confirmation = record.get("confirmation") or {}
+        if confirmation:
+            lines.append("    confirmed by %s at %s (fingerprint %s)" % (confirmation.get("by"), confirmation.get("at"), confirmation.get("fingerprint")))
         if record.get("sources"):
             lines.append("    from: %s" % ", ".join(record["sources"][:8]))
         for retired in record.get("retired") or []:

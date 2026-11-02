@@ -132,7 +132,8 @@ def cmd_sandbox(args):
         print("  %s" % report["oto"])
         print("  outside plugins: %s" % report["outside_plugins_summary"])
         if report.get("ports"):
-            print("  ports: %s published to this computer's localhost" % " and ".join("%d" % e["port"] for e in report["ports"]))
+            print("  ports: %s published to this computer's localhost" % " and ".join(
+                "%d" % e["port"] if e["port"] == e["host_port"] else "%d as localhost:%d" % (e["port"], e["host_port"]) for e in report["ports"]))
         for line in report["warnings"]:
             print("  warning: %s" % line)
         if not report["anthropic_signed_in"]:

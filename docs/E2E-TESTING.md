@@ -278,7 +278,7 @@ oto serve --project acme --http 0.0.0.0:8765                     # refused: no t
 OTO_SERVE_TOKEN=$(openssl rand -hex 16) oto serve --project acme --http 0.0.0.0:8765   # then, from another
      # machine: curl -H "Authorization: Bearer <token>" http://<host>:8765/api/status, and in a browser
      # http://<host>:8765/?oto_token=<token> once
-# inside an OTO sandbox (oto sandbox up publishes 8798 and 8799 to the computer's localhost):
+# inside an OTO sandbox (oto sandbox up publishes 8798 and 8799 to the computer's localhost; a second sandbox gets the next free host ports, which up names):
 oto serve --project acme --http 8798     # binds all interfaces there, no token: open http://localhost:8798/ on the computer
 ```
 

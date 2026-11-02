@@ -313,7 +313,7 @@ start, saying so. One place is the exception, by construction: inside a sandbox 
 (`oto.sandbox.inside_kit`: the kit sets `OTO_SANDBOX`, and its files are under `~/.oto`) a bare port
 binds all interfaces and needs no token, because the sandbox tool publishes a port to the computer's
 loopback only, and a server on the sandbox's own loopback is unreachable from the computer; the
-message says which address to open there. `oto sandbox up` publishes 8798 and 8799 at creation
+message says which address to open there. `oto sandbox up` publishes 8798 and 8799 at creation, on the next free host ports when another sandbox holds them,
 (`-p` on `sbx create`; a port published to a running sandbox forwards from its next start). With a token, every call must carry it as `Authorization: Bearer <token>`; a
 browser that opens the app carries it once, as `/?oto_token=<token>`, and gets an HttpOnly cookie
 and a redirect to the plain address, so the token never sits in the page's URL. The token is

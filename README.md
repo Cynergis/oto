@@ -222,7 +222,7 @@ once inside (`/login`). `oto lock` keeps both files in step with the lock.
 the OTO engine plugin, the registry as a marketplace (packs turned on per project with `/oto:packs`), the engine and the Google Cloud tools, ready to drive from Claude
 Desktop's Code tab over SSH or from a terminal. `oto sandbox ls` lists every sandbox on the computer with
 its last use and Desktop's SSH connections to them, `oto sandbox stop` and `rm` clean up (the folders stay).
-`up` publishes ports 8798 and 8799 to this computer's localhost, so `oto serve` inside is a browser tab here.
+`up` publishes ports 8798 and 8799 to this computer's localhost (a second sandbox gets the next free host ports, which `up` and `status` name), so `oto serve` inside is a browser tab here.
 It checks the computer (the `sbx` CLI, the Docker
 sign-in, a network policy), lets `sbx` run the kit, records the person's approval for the kit to use
 their Anthropic sign-in when they give it (`--approve-anthropic`), creates the project and code folders

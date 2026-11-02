@@ -4,6 +4,16 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.16.4 — 2026-11-02
+
+**A second sandbox gets free host ports** (pull request 154). Every sandbox serves on 8798 and 8799 inside, and
+`oto sandbox up` published each to the same port on the computer, so a second sandbox could not be made while the
+first ran: the sandbox tool refused the bind. `up` now publishes each sandbox port on a free host port, the port
+itself when nothing holds it, else the first free one above, counting what every other sandbox publishes (stopped
+ones too) and what something else on the computer listens on. The sandbox side does not move, so `oto serve --http
+8798` inside is unchanged; `up` says which host port to open, `oto sandbox status` prints `8800->8798`, and the
+sandbox skill tells the person the address. An existing sandbox that lacks a port gets a free host port the same way.
+
 ## 0.16.3 — 2026-11-02
 
 **The sandbox skill walks the two sandboxes in order** (pull request 152). It knew the two kinds of sandbox

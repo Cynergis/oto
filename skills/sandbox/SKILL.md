@@ -2,11 +2,13 @@
 name: sandbox
 description: >-
   Set up a Docker sandbox with Claude Code and OTO inside, made from OTO's ready-made kit, and
-  connect Claude Desktop's Code tab (or a terminal) to it. Checks what the computer has, asks the
-  person for the few answers only they can give, runs the setup and says the one step left in
-  Claude Desktop. Use when someone says "set up the sandbox", "run OTO in a sandbox", "I want to
-  use OTO from Claude Desktop", "connect Desktop to the sandbox", or asks whether their sandbox is
-  ready. Runs on the person's own computer, not inside a sandbox.
+  connect Claude Desktop's Code tab (or a terminal) to it: a sandbox for an ontology to make (a
+  workspace, released as a pack) or for a graph on one (a knowledge project on the pack). Checks
+  what the computer has, asks the person for the few answers only they can give, runs the setup and
+  says the one step left in Claude Desktop. Use when someone says "set up the sandbox", "run OTO in
+  a sandbox", "a sandbox for the ontology", "a sandbox for our graph", "I want to use OTO from
+  Claude Desktop", "connect Desktop to the sandbox", or asks whether their sandbox is ready. Runs
+  on the person's own computer, not inside a sandbox.
 ---
 
 # Sandbox
@@ -47,6 +49,26 @@ then a new terminal.
 If `/home/agent/.oto/init.sh` exists, this session is already inside an OTO sandbox: say so, and
 that `oto sandbox` is run from the computer, not from here. Stop.
 
+## Two sandboxes, in order
+
+An ontology is made once and used many times, so it has a sandbox of its own and the graphs on it
+have theirs (ADR-0012):
+
+1. **The workspace sandbox**, kind *ontology*: its project folder is an ontology workspace, a pack
+   in the making, which the ontology-interview skill fills and `oto pack publish` releases to a
+   registry. The sandbox's name is the pack's name: the word knowledge projects will start from.
+2. **A knowledge sandbox**, kind *knowledge*: its project folder is a knowledge project on that
+   pack, its vocabulary derived from the pack and not edited there; the build-knowledge-base skill
+   fills the graph. One ontology, a sandbox of its own for each team or client that builds a graph
+   on it, so the teams never share a folder or a graph.
+
+The workspace sandbox comes first, and the knowledge sandboxes once the pack is released. The
+project is laid out on their computer before the sandbox exists, so the pack a knowledge sandbox
+starts from must be on their computer first: a registry that lists it (`oto registry list`), then
+`oto pack add <name>`. A pack still in the making is not released yet: say so, and offer the
+workspace sandbox first, or a knowledge project with no pack, which grows a vocabulary of its own
+the way every project was made before this decision.
+
 ## 1. Where things stand
 
 Run `oto sandbox status --name <name> --json` (`oto-sandbox` unless the person named one). Read it
@@ -72,9 +94,15 @@ ontology to make). From it, propose the rest and let the person change any of it
 - **Where its folders go**: a folder named after it in their home folder (`~/<name>`, holding
   `project` and `code`).
 - **What they are making**, the kind: a **knowledge project** (a graph on an ontology that exists,
-  started from a pack; `oto pack list` says which packs there are) or an **ontology workspace** (an
-  ontology to make, a pack in the making, which the ontology-interview skill fills). Recommend from
-  the answer; most sandboxes are a knowledge project.
+  started from a pack) or an **ontology workspace** (an ontology to make, a pack in the making,
+  which the ontology-interview skill fills). Recommend from the answer: an ontology named as the
+  thing to make is a workspace; a client, a team or a body of documents is a knowledge project. For
+  a workspace the sandbox's name is the pack's name, so propose the ontology's name, lowercased.
+- **The pack** the graph is on, for a knowledge project: `oto pack list` on their computer says
+  which are installed; propose the one that fits the answer. A pack they name that is not installed
+  is fetched with `oto pack add <name>` after their yes, when a registry lists it (`oto registry
+  list`; `oto registry add <url>` for one it does not know). A pack no registry lists is not
+  released yet: the workspace sandbox comes first (above), or the project starts with no pack.
 - **The repository** that backs the project: `<their GitHub login>/<name>`, proposed from
   `gh api user --jq .login` on their computer (or an organisation they name), created private for
   them. Show it with a checkbox **no repository** beside it: ticked, the repository name is cleared
@@ -110,7 +138,9 @@ oto sandbox up --name <name> [--dir <folder>] --kind knowledge|ontology [--pack 
 oto sandbox up --name <name> [--dir <folder>] --kind knowledge|ontology [--pack <pack>] --repo <login/name> --github-token-env <VAR> [--project-id <id>] [--init-policy balanced] [--approve-anthropic] --json
 ```
 
-`--no-repo` in place of `--repo` and the token variable when they ticked "no repository". Pass
+`--pack <name>` for a knowledge project on a pack, one installed on their computer; without it the
+project grows a vocabulary of its own. `--no-repo` in place of `--repo` and the token variable when
+they ticked "no repository". Pass
 `--init-policy` only with the policy they chose, `--approve-anthropic` only with their yes,
 `--allow-outside-plugins` only when they asked for their own plugins in the sandbox (§5), `--recreate`
 only when they agreed to replace an existing sandbox. Tell them it takes about a minute the first
@@ -143,7 +173,9 @@ Say the steps from `next`, in words, once:
 
 In that session Claude runs inside the sandbox, with the engine plugin alone: the packs the work
 needs are chosen there, from a checklist or on advice, with the packs skill (`/oto:packs`), which
-turns them on for the project. If it asks to sign in once, they do (`/login`); if it asks at every
+turns them on for the project. In a workspace sandbox the first thing to ask for is the
+ontology-interview skill; in a knowledge sandbox, the build-knowledge-base skill, or the start skill
+when the way in is not documents. If it asks to sign in once, they do (`/login`); if it asks at every
 message, the approval is missing: §2, then `up --recreate`. From a terminal instead:
 `sbx run --name <name>`.
 

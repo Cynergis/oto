@@ -604,3 +604,21 @@ def test_the_sandbox_skill_proposes_the_names_from_one_answer_and_names_the_toke
                   "gh api user", "derived from", "never the value"):
         assert words in text, words
     assert not re.search(r"ghp_[A-Za-z0-9]{6,}", text)
+
+
+def test_the_sandbox_skill_walks_the_two_sandboxes_in_order_and_asks_which_pack_a_graph_is_on():
+    """ADR-0012: an ontology is made in a sandbox of its own, the workspace, and released; the graphs on
+    it are made in other sandboxes, each a knowledge project on the released pack. The skill says the
+    order, asks which pack a knowledge sandbox starts from, and says the pack must be on the computer
+    before the sandbox is made, since the project is laid out there (`oto pack add`)."""
+    with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "skills", "sandbox", "SKILL.md"), encoding="utf-8") as f:
+        text = f.read()
+    head, _sep, body = text.partition("\n---\n")
+    assert "an ontology to make" in head and "a graph on one" in head, "the description names both sandboxes"
+    assert "## Two sandboxes, in order" in body
+    assert "the workspace sandbox comes first" in body and "a sandbox of its own for each team" in body
+    assert "--pack <name>" in body and "**The pack** the graph is on" in body, "a knowledge sandbox is asked which pack"
+    assert "oto pack add <name>" in body and "laid out on their computer before the sandbox exists" in body
+    assert "not released yet" in body, "a pack still in the making sends the person to the workspace sandbox first"
+    assert "the sandbox's name is the pack's name" in body, "an ontology sandbox is named after the pack it makes"
+    assert "ontology-interview" in body and "build-knowledge-base" in body, "each sandbox's first skill is named"

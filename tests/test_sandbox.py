@@ -709,3 +709,14 @@ def test_a_host_port_something_else_listens_on_is_skipped(fake, tmp_path, monkey
         assert mapping.endswith(":%d" % port) and not mapping.startswith("%d:" % port), mapping
     finally:
         held.close()
+
+
+def test_up_with_a_repository_sets_the_branch_rules_on_a_knowledge_project(fake, tmp_path, monkeypatch):
+    """The rules file `oto init --repo` writes is applied with the token the sandbox holds, right after
+    the first push, so the route gate is required from the first pull request (docs/plans/graph-journeys.md)."""
+    monkeypatch.setenv("OTO_GH", _script(str(tmp_path / "gh"), FAKE_GH))
+    monkeypatch.setenv("FAKE_TOKEN", "ghp-like-but-not")
+    report = sandbox.up(name="board", directory=str(tmp_path / "board"), kind="knowledge", repo="acme/board", token_env="FAKE_TOKEN", check=True, approve=True)
+    assert any("would set the branch rules on main from .github/oto-rules.json" in d for d in report["done"]), report["done"]
+    report = sandbox.up(name="fleet", directory=str(tmp_path / "fleet"), kind="ontology", repo="acme/fleet", token_env="FAKE_TOKEN", check=True, approve=True)
+    assert not any("branch rules" in d for d in report["done"]), "a workspace has the pack's workflows, not a knowledge project's rules"

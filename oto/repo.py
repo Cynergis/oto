@@ -12,6 +12,10 @@
     .github/workflows/oto-deploy.yml on a merge to main: build the store and publish it
     .github/workflows/oto-tools.yml   on a schedule: invoke the due read-only tools through the
                                       script under .github/scripts/, record, curate, open a PR
+    .github/workflows/oto-route.yml  on a pull request and on every review: the route gate (session,
+                                      guardrailed, reviewed) as a required check, docs/plans/graph-journeys.md
+    .github/oto-rules.json           the branch rules on main: pull requests required, the two checks,
+                                      no approvals at the branch level, the merge queue; `oto repo rules --apply`
     .gitignore                       generated files ignored, EXCEPT the corpus, which is an input
 
 The engine is installed from its git repository, never assumed to be on a PATH: `uvx` on a person's
@@ -55,6 +59,16 @@ The engine repository is private: on a machine, `gh auth login` then `gh auth se
 The OTO plugin's skills (build-knowledge-base, curate, ontology-interview, vet-provenance,
 query-knowledge, evaluate, capture, spec) are the playbooks for working here; `spec` drafts a
 product spec or decision record from the graph and records its decisions back into it.
+
+## How a change reaches main
+
+Every pull request takes a route decided by what it carries, and one required check, `oto route`,
+enforces the route's rule (docs/plans/graph-journeys.md in the engine). A change a person confirmed in
+their Claude session (`oto curate apply --confirm`, one ledger entry whose fingerprint is the diff) is
+the `session` route: it merges on its own once the confirmer is the author and the commits are verified.
+A change drafted from documents is `reviewed`: one approving review, given in the preview. A change
+drafted from the transcripts folder the project names is `guardrailed`. The branch rules that make the
+check required are in `.github/oto-rules.json`; `oto repo rules --apply` sets them.
 
 ## Where things are
 
@@ -229,6 +243,7 @@ permissions:
 
 jobs:
   gates:
+    name: oto checks                  # the name the branch rules require (.github/oto-rules.json)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -867,6 +882,193 @@ jobs:
 '''
 
 
+ROUTE = """name: oto route
+
+# The route gate (docs/plans/graph-journeys.md). A pull request enters main by the route its content
+# decides: session (one ledger entry with a confirmation whose fingerprint is the fact-level diff),
+# guardrailed (ingest runs from the transcripts folder the project names), reviewed (anything else).
+# This check enforces the route's rule. It hands the engine the facts only GitHub knows, as flags: the
+# pull request's author and the commits' authors, whether every commit is verified, whether a review
+# approved it. The engine never calls GitHub. When a session record does not hold, or a guardrail
+# fails, the route moves to reviewed: the pull request is labelled and the reason posted, and a
+# person decides. The branch rules in .github/oto-rules.json make this check required.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions:
+  contents: read
+  pull-requests: write              # the label and the comment when the route moves to reviewed
+  issues: write                     # labels are issue labels
+
+jobs:
+  route:
+    name: oto route                 # the name the branch rules require
+    runs-on: ubuntu-latest
+    env:
+      ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
+      OTO_ENGINE_TOKEN: ${{{{ secrets.OTO_ENGINE_TOKEN }}}}
+      GH_TOKEN: ${{{{ github.token }}}}
+      PR: ${{{{ github.event.pull_request.number }}}}
+      BASE: ${{{{ github.event.pull_request.base.ref }}}}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # both trees: the base and the head
+          ref: ${{{{ github.event.pull_request.head.sha }}}}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Reach the engine repository when it is private
+        run: if [ -n "$OTO_ENGINE_TOKEN" ]; then git config --global url."https://x-access-token:${{OTO_ENGINE_TOKEN}}@github.com/".insteadOf "https://github.com/"; fi
+      - name: Install the engine from its repository
+        run: {pip}
+      - name: What GitHub knows about the pull request
+        id: facts
+        run: |
+          authors=$(gh pr view "$PR" --json author,commits --jq '[.author.login] + [.commits[].authors[].login, .commits[].authors[].email] | map(select(. != null and . != "")) | unique | .[]')
+          flags=""
+          for a in $authors; do flags="$flags --author $a"; done
+          if [ "$(gh api "repos/${{{{ github.repository }}}}/pulls/$PR/commits" --jq '[.[].commit.verification.verified] | all')" = "true" ]; then flags="$flags --verified"; fi
+          if [ "$(gh pr view "$PR" --json reviews --jq '[.reviews[] | select(.state == "APPROVED")] | length')" != "0" ]; then flags="$flags --approved"; fi
+          echo "flags=$flags" >> "$GITHUB_OUTPUT"
+      - name: The route and its verdict
+        id: verdict
+        run: |
+          set +e
+          oto route check --project . --base "origin/$BASE" --head HEAD ${{{{ steps.facts.outputs.flags }}}} --json > route.json
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          oto route check --project . --base "origin/$BASE" --head HEAD ${{{{ steps.facts.outputs.flags }}}} || true
+      - name: Say so on the pull request when the route moved or the gate does not pass
+        if: always() && steps.verdict.outputs.code != ''
+        run: |
+          route=$(jq -r .route route.json); proposed=$(jq -r .proposed route.json); ok=$(jq -r .ok route.json)
+          if [ "$route" != "$proposed" ]; then
+            gh label create "oto-route:reviewed" --description "the route moved to reviewed: a person decides" --color B3261E --force
+            gh pr edit "$PR" --add-label "oto-route:reviewed"
+          fi
+          if [ "$ok" != "true" ] || [ "$route" != "$proposed" ]; then
+            jq -r '"**oto route**: `\\(.route)`" + (if .proposed != .route then " (the content asked for `\\(.proposed)`)" else "" end) + (if .ok then ": passes" else ": does not pass yet" end) + "\\n\\n" + (.reasons | map("- " + .) | join("\\n"))' route.json > route.md
+            gh pr comment "$PR" --body-file route.md
+          fi
+      - name: The gate
+        run: test "${{{{ steps.verdict.outputs.code }}}}" = "0"
+"""
+
+#: The branch rules on main, as a GitHub ruleset. Pull requests required; the two checks required
+#: and up to date; no approvals at the branch level, because approvals are the route gate's, per
+#: route; the merge queue, so graph.json merges one pull request at a time; GitHub Actions allowed
+#: through, because the ingest workflow pushes its run commit to main. Keys starting with `_` are
+#: for the reader and are stripped before the ruleset is sent.
+RULES_NAME = "oto main"
+RULES_FILE = os.path.join(".github", "oto-rules.json")
+GITHUB_ACTIONS_APP = 15368
+RULES = {
+    "_about": "The branch rules on main, set by `oto repo rules --apply` (or by `oto sandbox up --repo` when it creates the repository). "
+              "Pull requests required; the checks `oto checks` and `oto route` required; zero approvals here, because the route gate "
+              "requires them per route (docs/plans/graph-journeys.md); the merge queue on, so graph.json merges one pull request at a time; "
+              "GitHub Actions may push, because the ingest workflow commits its run to main.",
+    "name": RULES_NAME,
+    "target": "branch",
+    "enforcement": "active",
+    "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
+    "bypass_actors": [{"actor_id": GITHUB_ACTIONS_APP, "actor_type": "Integration", "bypass_mode": "always"}],
+    "rules": [
+        {"type": "deletion"},
+        {"type": "non_fast_forward"},
+        {"type": "pull_request", "parameters": {"required_approving_review_count": 0, "dismiss_stale_reviews_on_push": False,
+                                                "require_code_owner_review": False, "require_last_push_approval": False,
+                                                "required_review_thread_resolution": False}},
+        {"type": "required_status_checks", "parameters": {"strict_required_status_checks_policy": True, "do_not_enforce_on_create": False,
+                                                          "required_status_checks": [{"context": "oto checks"}, {"context": "oto route"}]}},
+        {"type": "merge_queue", "parameters": {"check_response_timeout_minutes": 60, "grouping_strategy": "ALLGREEN", "max_entries_to_build": 5,
+                                               "max_entries_to_merge": 5, "merge_method": "MERGE", "min_entries_to_merge": 1,
+                                               "min_entries_to_merge_wait_minutes": 5}},
+    ],
+}
+
+
+def rules_text():
+    return json.dumps(RULES, indent=2, ensure_ascii=False) + "\n"
+
+
+def _owner_name(repo):
+    """`owner/name` from that, or from a GitHub URL."""
+    value = (repo or "").strip()
+    for prefix in ("https://github.com/", "http://github.com/", "git@github.com:"):
+        if value.startswith(prefix):
+            value = value[len(prefix):]
+    return value[:-len(".git")] if value.endswith(".git") else value
+
+
+def origin_repository(root):
+    """`owner/name` of the repository `origin` points at, or None."""
+    import subprocess
+    done = subprocess.run(["git", "-C", root, "remote", "get-url", "origin"], capture_output=True, text=True)
+    if done.returncode != 0 or not done.stdout.strip():
+        return None
+    name = _owner_name(done.stdout.strip())
+    return name if "/" in name and "github.com" not in name else None
+
+
+def apply_rules(root, repo, token=None, gh=None):
+    """Set the branch rules of `.github/oto-rules.json` on the GitHub repository `owner/name` through
+    the GitHub CLI: a ruleset of that name is replaced, else created. Returns {created, id}. The token,
+    when given, reaches the CLI through its environment and never a file or an argument."""
+    import shutil
+    import subprocess
+    import tempfile
+    from .project import ProjectError
+    path = os.path.join(root, RULES_FILE)
+    try:
+        with open(path, encoding="utf-8") as f:
+            rules = json.load(f)
+    except (OSError, ValueError) as exc:
+        raise ProjectError("no branch rules to apply: %s (%s); `oto init --repo` writes them" % (path, exc))
+    payload = {k: v for k, v in rules.items() if not str(k).startswith("_")}
+    owner_name = _owner_name(repo)
+    if "/" not in owner_name:
+        raise ProjectError("the repository must be owner/name (or its GitHub URL): %r" % repo)
+    gh = gh or os.environ.get("OTO_GH") or shutil.which("gh")
+    if not gh or not os.path.exists(gh):
+        raise ProjectError("the GitHub CLI (gh) is not on this computer, and setting the branch rules of %s needs it" % owner_name)
+    env = dict(os.environ, GH_TOKEN=token) if token else dict(os.environ)
+
+    def run(*args, timeout=120):
+        done = subprocess.run([gh] + list(args), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout, env=env)
+        return done.returncode, done.stdout, done.stderr
+
+    code, out, _err = run("api", "repos/%s/rulesets" % owner_name)
+    try:
+        existing = json.loads(out) if code == 0 else []
+    except ValueError:
+        existing = []
+    found = [r for r in existing if isinstance(r, dict) and r.get("name") == payload.get("name")]
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
+        json.dump(payload, f)
+        temp = f.name
+    try:
+        if found:
+            code, out, err = run("api", "--method", "PUT", "repos/%s/rulesets/%s" % (owner_name, found[0].get("id")), "--input", temp)
+        else:
+            code, out, err = run("api", "--method", "POST", "repos/%s/rulesets" % owner_name, "--input", temp)
+    finally:
+        try:
+            os.unlink(temp)
+        except OSError:
+            pass
+    if code != 0:
+        raise ProjectError("could not set the branch rules on %s: %s" % (owner_name, (err or out).strip()[-400:]))
+    try:
+        created_id = json.loads(out).get("id")
+    except (ValueError, AttributeError):
+        created_id = None
+    return {"created": not found, "id": found[0].get("id") if found else created_id}
+
+
 def files(slug, name, engine=None, architecture=False):
     """Path -> content for everything `--repo` adds. `architecture`: the project composes the architecture
     pack (its vocabulary declares CodeModule), so the merge workflow that compiles it is written too."""
@@ -884,6 +1086,8 @@ def files(slug, name, engine=None, architecture=False):
         os.path.join(".github", "workflows", "oto-ingest.yml"): INGEST.format(pip=pip, engine=engine),
         os.path.join(".github", "workflows", "oto-checks.yml"): CHECKS.format(pip=pip, engine=engine),
         os.path.join(".github", "workflows", "oto-deploy.yml"): DEPLOY.format(pip=pip, engine=engine, slug=slug),
+        os.path.join(".github", "workflows", "oto-route.yml"): ROUTE.format(pip=pip, engine=engine),
+        RULES_FILE: rules_text(),
         os.path.join(".github", "workflows", "oto-author.yml"): fill(AUTHOR),
         os.path.join(".github", "workflows", "oto-review.yml"): fill(REVIEW),
         os.path.join(".github", "workflows", "oto-tools.yml"): fill(ACTIONS),

@@ -123,3 +123,65 @@ def test_the_repository_guide_describes_the_pull_request_gate():
         assert phrase in guide, phrase
     ingest = files[os.path.join(".github", "workflows", "oto-ingest.yml")]
     assert '"oto author" workflow follows' in ingest
+
+
+# ---- the route gate and the branch rules (docs/plans/graph-journeys.md, phase 2) ----
+
+FAKE_GH_API = r'''
+import json, os, sys
+path = os.environ["FAKE_GH_LOG"]
+log = json.load(open(path)) if os.path.exists(path) else []
+log.append({"args": sys.argv[1:], "token": os.environ.get("GH_TOKEN")})
+json.dump(log, open(path, "w"))
+if "--method" not in sys.argv:
+    sys.stdout.write(os.environ.get("FAKE_GH_LIST", "[]")); sys.exit(0)
+sys.stdout.write('{"id": 7, "name": "oto main"}'); sys.exit(0)
+'''
+
+
+def test_init_repo_writes_the_route_gate_and_the_branch_rules():
+    with tempfile.TemporaryDirectory() as root:
+        assert main(["init", "--name", "Board", "--project", root, "--repo"]) == 0
+        workflow = open(os.path.join(root, ".github", "workflows", "oto-route.yml"), encoding="utf-8").read()
+        assert "name: oto route" in workflow and "pull_request_review" in workflow, "runs on the pull request and on every review"
+        assert "oto route check" in workflow and "--author" in workflow and "--verified" in workflow and "--approved" in workflow
+        assert "oto-route:reviewed" in workflow, "a failing session record or guardrail labels the pull request"
+        assert "fetch-depth: 0" in workflow, "both trees are needed"
+        rules = json.load(open(os.path.join(root, ".github", "oto-rules.json"), encoding="utf-8"))
+        assert rules["name"] == repo.RULES_NAME == "oto main" and rules["target"] == "branch" and rules["enforcement"] == "active"
+        kinds = {r["type"]: r for r in rules["rules"]}
+        assert kinds["pull_request"]["parameters"]["required_approving_review_count"] == 0, "approvals are the route gate's, per route"
+        contexts = {c["context"] for c in kinds["required_status_checks"]["parameters"]["required_status_checks"]}
+        assert contexts == {"oto checks", "oto route"}
+        assert "merge_queue" in kinds, "graph.json merges one pull request at a time"
+        assert any(a["actor_type"] == "Integration" for a in rules["bypass_actors"]), "the ingest workflow pushes its run commit"
+        checks = open(os.path.join(root, ".github", "workflows", "oto-checks.yml"), encoding="utf-8").read()
+        assert "name: oto checks" in checks.split("jobs:")[1], "the job carries the name the rules require"
+        guide = open(os.path.join(root, "CLAUDE.md"), encoding="utf-8").read()
+        assert "route" in guide
+
+
+def test_repo_rules_apply_sets_the_rules_through_the_github_cli(tmp_path, monkeypatch, capsys):
+    root = str(tmp_path / "board")
+    assert main(["init", "--name", "Board", "--project", root, "--repo"]) == 0
+    gh = tmp_path / "gh"
+    gh.write_text("#!/usr/bin/env python3\n" + FAKE_GH_API)
+    gh.chmod(0o755)
+    log = tmp_path / "gh.json"
+    monkeypatch.setenv("OTO_GH", str(gh))
+    monkeypatch.setenv("FAKE_GH_LOG", str(log))
+    capsys.readouterr()
+    assert main(["repo", "rules", "--project", root]) == 0
+    assert "oto main" in capsys.readouterr().out and not log.exists(), "without --apply it only shows the rules"
+    result = repo.apply_rules(root, "acme/board", token="ghp-like-but-not")
+    assert result == {"created": True, "id": 7}
+    calls = json.load(open(log))
+    assert calls[0]["args"][:2] == ["api", "repos/acme/board/rulesets"]
+    assert calls[1]["args"][:4] == ["api", "--method", "POST", "repos/acme/board/rulesets"] and "--input" in calls[1]["args"]
+    assert all(c["token"] == "ghp-like-but-not" for c in calls), "the token reaches the CLI through its environment, never a file"
+    # an existing ruleset of that name is replaced, not duplicated
+    monkeypatch.setenv("FAKE_GH_LIST", '[{"id": 7, "name": "oto main"}]')
+    assert repo.apply_rules(root, "acme/board") == {"created": False, "id": 7}
+    assert json.load(open(log))[-1]["args"][:4] == ["api", "--method", "PUT", "repos/acme/board/rulesets/7"]
+    assert main(["repo", "rules", "--apply", "--repo", "acme/board", "--project", root]) == 0
+    assert "replaced" in capsys.readouterr().out

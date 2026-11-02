@@ -151,7 +151,10 @@ the sandbox is made (a knowledge project with the repository workflows, or an on
 its trial project and its check and publish workflows), creates the repository, pushes the first
 commit from their computer, and stores the token for the sandbox. A folder that already holds a
 project is left as it is. A knowledge project started from a pack has its vocabulary `derived from`
-the pack, which `oto status` says inside.
+the pack, which `oto status` says inside, and once the sandbox is ready `up` installs inside it, at
+project scope, the pack plugins the project declares (the kit brings the engine plugin alone), so the
+first session has the pack's skills and views; the report says which. A pack added to the project
+later is the packs skill's job, inside.
 
 When it is done, read `outside_plugins_summary` back in plain words (§5): it says whether the sandbox
 uses only its own plugins. Never say the sandbox is ready without it. Say the repository's address

@@ -4,6 +4,17 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.16.3 — 2026-11-02
+
+**The sandbox skill walks the two sandboxes in order** (pull request 152). It knew the two kinds of sandbox
+(ADR-0012) but not the flow between them. A new section says it: the workspace sandbox first, kind ontology,
+named after the pack it makes, filled by the ontology-interview skill and released with `oto pack publish`; then
+a knowledge sandbox of its own for each team or client, kind knowledge, on the released pack, filled by the
+build-knowledge-base skill. The project is laid out on the person's computer before the sandbox exists, so the
+skill asks which pack a knowledge project is on and fetches it there first (`oto pack add`), and a pack no
+registry lists is not released yet: the workspace sandbox comes first. The description names both sandboxes, so
+"a sandbox for the ontology" and "a sandbox for our graph" both reach the skill. No engine change.
+
 ## 0.16.2 — 2026-11-01
 
 **A pack is removed by name, and a pack built for an older engine is named with its remedy** (pull request 150).

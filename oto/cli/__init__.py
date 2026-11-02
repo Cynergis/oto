@@ -8,6 +8,8 @@ One module per command, in the order a project moves through them:
     ontology.py    oto ontology                 the project's vocabulary, and the catalog (catalog.py)
     lexicon.py     oto lexicon                  words mapped to entities: suggested by embeddings, accepted by a person
     registry.py    oto registry                 the registries ontologies and packs are fetched from
+    repo.py        oto repo                     a project in a GitHub repository: the branch rules (oto/repo.py writes the workflows)
+    route.py       oto route                    the route a pull request takes into main, and its gate (docs/plans/graph-journeys.md)
     pack.py        oto pack                     the extension a person installs: an ontology, skills, views (pack_catalog.py)
     rules.py       oto rules                    validate, dry-run, diff and accept the rules
     capture.py     oto capture                  what someone said, as a dated source document in the inbox
@@ -37,13 +39,13 @@ import sys
 
 from .. import __version__
 from ..project import ProjectError
-from . import audit, bench, build, capture, clipboard, connectors, curate, decide, deploy, draft, feedback, graphs, ingest, init, lexicon, lock, ontology, pack, preview, publish, publishable, query, registry, rules, sandbox, status, tools, vet
+from . import audit, bench, build, capture, clipboard, connectors, curate, decide, deploy, draft, feedback, graphs, ingest, init, lexicon, lock, ontology, pack, preview, publish, publishable, query, registry, repo, route, rules, sandbox, status, tools, vet
 
 # The core and the packs (ADR-0006). The core is the knowledge graph's lifecycle with its tools and
 # its deploy; these are its commands. A pack's command comes from the pack's manifest
 # (`provides.commands`, oto/extensions.py), is discovered from every pack the machine has, works only
 # on a project whose vocabulary composes its pack, and says so otherwise. `oto --help` draws the line.
-CORE_COMMANDS = (init, status, lock, sandbox, ingest, capture, clipboard, ontology, lexicon, pack, registry, rules, tools, curate, deploy,
+CORE_COMMANDS = (init, status, lock, sandbox, ingest, capture, clipboard, ontology, lexicon, pack, registry, repo, route, rules, tools, curate, deploy,
                  connectors, draft, vet, build, preview, query, publish, publishable, bench, feedback, audit, graphs, decide)
 
 
@@ -73,7 +75,7 @@ _FOUND = pack_commands()
 COMMANDS = CORE_COMMANDS + tuple(_pack_modules(_FOUND))
 
 GROUPS = {
-    "core": ("init", "status", "lock", "sandbox", "ingest", "capture", "clipboard", "ontology", "lexicon", "pack", "registry", "rules", "tools",
+    "core": ("init", "status", "lock", "sandbox", "ingest", "capture", "clipboard", "ontology", "lexicon", "pack", "registry", "repo", "route", "rules", "tools",
              "curate", "decide", "deploy", "connectors", "draft", "vet", "build", "preview", "query", "publish", "publishable", "bench",
              "feedback", "audit", "graph", "version"),
     "packs": tuple((c["name"], c["label"]) for c in _FOUND),

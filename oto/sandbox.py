@@ -40,6 +40,7 @@ import datetime
 import time
 
 from . import __version__
+from . import repo as _repo
 
 KIT_REPO = "ghcr.io/cynergis/oto-gcp"
 KIT_SOURCE = "ghcr.io/cynergis/"
@@ -731,6 +732,9 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
             if url.startswith(GITHUB):
                 creating = "would create the private repository %s on GitHub with the token in %s, " % (url[len(GITHUB):-len(".git")], token_env or "(no variable named)")
             report["done"].append(creating + "would push the first commit to %s and store the token as the sandbox's GitHub secret" % url)
+            if url.startswith(GITHUB) and (kind or "knowledge") == "knowledge":
+                report["done"].append("would set the branch rules on main from %s: pull requests required, the checks oto checks and oto route, "
+                                      "no approvals at the branch level, the merge queue on" % _repo.RULES_FILE)
         report["done"].append(("would remove and recreate the sandbox %s" % name) if existing and recreate else
                               ("would reuse the sandbox %s" % name) if existing else
                               ("would create the sandbox %s from %s" % (name, kit)))
@@ -756,6 +760,14 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         report["repository"] = url
         report["commit"] = commit
         report["done"].append("pushed the first commit (%s) to %s; origin is set in %s" % (commit, url, project_dir))
+        if url.startswith(GITHUB) and os.path.exists(os.path.join(project_dir, _repo.RULES_FILE)):
+            from .project import ProjectError
+            try:
+                rules = _repo.apply_rules(project_dir, url[len(GITHUB):-len(".git")], token=token, gh=_tool("OTO_GH", "gh"))
+                report["done"].append("set the branch rules on main from %s (%s): pull requests required, the checks oto checks and oto route, "
+                                      "no approvals at the branch level, the merge queue on" % (_repo.RULES_FILE, "created" if rules["created"] else "replaced"))
+            except ProjectError as exc:
+                report.setdefault("warnings", []).append("the branch rules were not set: %s. Later: oto repo rules --apply, in the project folder" % exc)
     if existing and recreate:
         sbx("rm", "-f", name)
         existing = None

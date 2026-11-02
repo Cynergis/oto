@@ -51,6 +51,8 @@ POLICIES = ("balanced", "deny-all", "allow-all")
 READY = "OTO ready"
 #: the kit's switch for the plugin lock: `allowed` keeps outside plugins, anything else blocks them
 OUTSIDE = "OTO_OUTSIDE_PLUGINS"
+PROJECT_DIR_ENV = "OTO_PROJECT_DIR"   # the project folder's path inside the sandbox, for the kit's landing hook
+CODE_DIR_ENV = "OTO_CODE_DIR"
 #: set by the kit's environment (spec.yaml): the engine runs inside an OTO sandbox
 INSIDE_ENV = "OTO_SANDBOX"
 #: the ports `oto sandbox up` publishes to the computer's loopback: the explorer, and a second view
@@ -770,6 +772,10 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
             args += ["-p", "%d:%d" % (host, port)]
         if project_id:
             args += ["-e", "PROJECT=%s" % project_id]
+        # the folders' paths inside (the tool mounts them at their own paths): the kit's startup script
+        # writes a profile hook from them, so a shell over SSH or sbx run lands on the project, not in
+        # the tool's default folder
+        args += ["-e", "%s=%s" % (PROJECT_DIR_ENV, project_dir), "-e", "%s=%s" % (CODE_DIR_ENV, code_dir)]
         if allow_outside:
             args += ["-e", "%s=allowed" % OUTSIDE]
         code, out, err = sbx(*args, timeout=1800)

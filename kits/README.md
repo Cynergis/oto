@@ -22,6 +22,13 @@ System packages are installed once, when the sandbox is created (`setup.install`
 agent user at every start (`files/home/.oto/init.sh`): the first start installs it, later ones find it and
 take a few seconds. Inside the sandbox, `/tmp/oto-init.log` says what the start did.
 
+**A shell lands on the project.** `ssh <name>.sbx` and `sbx run` open in the sandbox tool's default
+folder, while the person's folders are mounted at their own paths. `oto sandbox up` passes the project
+folder's path as `OTO_PROJECT_DIR` (and the code folder's as `OTO_CODE_DIR`) when it creates the
+sandbox, and `init.sh` writes `~/.oto/landing.sh`, sourced from `.bashrc` and `.profile`: an interactive
+shell that starts in the home folder or `~/workspace` lands in the project folder; one started elsewhere
+is left alone.
+
 **Only the sandbox's own plugins load.** A Claude Desktop SSH session brings the plugins of the person's
 computer along: Desktop copies each into `~/.claude/remote/plugins/<run>/<hash>` and starts Claude Code
 with one `--plugin-dir` per plugin, so each loads as `<name>@inline`. The Claude sign-in brings the

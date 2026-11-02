@@ -239,6 +239,8 @@ def test_up_creates_the_folders_and_the_sandbox_waits_for_oto_and_sets_up_ssh(fa
     assert create[:6] == ["create", "ghcr.io/cynergis/oto-gcp:%s" % __version__, str(work / "project"),
                           str(work / "code"), "--name", "oto-try"]
     assert "-e" in create and "PROJECT=my-project" in create
+    assert "%s=%s" % (sandbox.PROJECT_DIR_ENV, work / "project") in create and "%s=%s" % (sandbox.CODE_DIR_ENV, work / "code") in create, \
+        "the folders' paths go in, so a shell opened over SSH or sbx run lands on the project (the kit's landing hook)"
     assert report["oto"] == "OTO ready: 11 plugins" and report["ssh"]
     assert ["setup", "ssh"] in fake.read()["calls"]
     steps = "\n".join(sandbox.next_steps(report))

@@ -54,6 +54,23 @@ def test_the_kit_keeps_the_sandbox_to_its_own_plugins():
     assert "disableSideloadFlags" not in script, "the managed setting would refuse Desktop's --plugin-dir launch"
 
 
+def test_a_shell_in_the_sandbox_lands_on_the_project_folder():
+    """ssh <name>.sbx and sbx run open a shell in the sandbox tool's default folder; the person's project
+    is mounted elsewhere, at its own path. `oto sandbox up` passes that path in (OTO_PROJECT_DIR), and the
+    kit's startup script writes a profile hook that moves an interactive shell there when it starts in
+    the home folder or the tool's default; a shell started elsewhere on purpose is left alone."""
+    from oto import sandbox
+    init = _read("kits", "oto-gcp", "files", "home", ".oto", "init.sh")
+    assert sandbox.PROJECT_DIR_ENV in init and "landing.sh" in init, "init.sh writes the hook from the variable up passes"
+    assert ".bashrc" in init and ".profile" in init, "sourced by interactive and login shells alike"
+    assert 'case "$-" in *i*)' in init, "interactive shells only"
+    assert '"$HOME/workspace"' in init and '"$HOME"' in init, "only from the home folder or the tool's default landing"
+    readme = _read("kits", "README.md")
+    assert sandbox.PROJECT_DIR_ENV in readme and "lands" in readme
+    skill = _read("skills", "sandbox", "SKILL.md")
+    assert "lands in the project folder" in skill
+
+
 def test_the_kit_tells_its_claude_which_plugin_list_is_the_sandboxs():
     """Claude Desktop's ListPlugins and ListSkills tools describe the person's claude.ai account, where
     everything they ever added is enabled, not what loads in the sandbox. Asked "which plugins are on?",

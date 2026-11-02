@@ -180,7 +180,8 @@ turns them on for the project. In a workspace sandbox the first thing to ask for
 ontology-interview skill; in a knowledge sandbox, the build-knowledge-base skill, or the start skill
 when the way in is not documents. If it asks to sign in once, they do (`/login`); if it asks at every
 message, the approval is missing: §2, then `up --recreate`. From a terminal instead:
-`sbx run --name <name>`.
+`sbx run --name <name>`, or `ssh <name>.sbx`; either shell lands in the project folder (a sandbox
+made before 0.16.6 lands in the tool's own folder until `up --recreate`).
 
 To see a served graph from their own browser: in the sandbox session, `oto serve --project . --http 8798`
 (it binds all interfaces there and needs no token), and on their computer the address `up` said: usually

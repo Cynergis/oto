@@ -12,6 +12,19 @@ log=/tmp/oto-init.log
   have=$(claude plugin list 2>/dev/null)
   echo "$have" | grep -q "oto@cynergis-engine" || claude plugin install "oto@cynergis-engine"   # the engine alone: the packs a project needs are turned on from the session (/oto:packs)
   python3 "$HOME/.oto/lock-plugins"     # only the plugins installed here load: see the script
+  # A shell over SSH or sbx run opens in the tool's default folder; the project is mounted at its own
+  # path, which `oto sandbox up` passed as OTO_PROJECT_DIR. An interactive shell that starts in the home
+  # folder or the default lands on the project; one started elsewhere on purpose is left alone.
+  cat > "$HOME/.oto/landing.sh" <<'LANDING'
+case "$-" in *i*)
+  if [ -n "$OTO_PROJECT_DIR" ] && [ -d "$OTO_PROJECT_DIR" ]; then
+    case "$PWD" in "$HOME"|"$HOME/workspace") cd "$OTO_PROJECT_DIR" ;; esac
+  fi ;;
+esac
+LANDING
+  for rc in "$HOME/.bashrc" "$HOME/.profile"; do
+    grep -q 'oto/landing.sh' "$rc" 2>/dev/null || printf '\n[ -f "$HOME/.oto/landing.sh" ] && . "$HOME/.oto/landing.sh"\n' >> "$rc"
+  done
   command -v oto >/dev/null || uv tool install "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v0.16.5"
   [ -d "$HOME/.cache/ms-playwright" ] || uv tool run --from playwright playwright install chromium
 } >>"$log" 2>&1

@@ -81,6 +81,9 @@ elif args[:1] == ["exec"]:
                                              "connectors_off": not allowed, "hook": not allowed, "locked": not allowed}) + "\n"
     elif command[:2] == ["sh", "-c"] and "lock-plugins\" --names" in command[2]:
         box["given"] = box.get("given", []) + command[4:]
+    elif command[:2] == ["sh", "-c"] and "claude plugin install" in command[2]:
+        box["plugins"] = box.get("plugins", []) + [{"project": command[4], "plugin": p} for p in command[5:]]
+        out = "".join("Installed %s\n" % p for p in command[5:])
     elif "oto-init.log" in command[-1]:
         out = box["init"] + "\n"
 elif args[:1] == ["ports"]:
@@ -575,6 +578,36 @@ def test_up_lays_out_an_ontology_workspace_with_no_repository_when_told_so(fake,
     assert not any("laid out" in d for d in again["done"]), "a folder that already holds a project is left alone"
 
 
+def test_up_installs_in_the_sandbox_the_pack_plugins_the_project_declares(fake, tmp_path):
+    """A knowledge project on a pack declares the pack's plugin in its .claude/settings.json (oto init
+    --pack); the kit installs the engine plugin alone and the lock keeps the sandbox to what is
+    installed inside it, so `up` installs the declared plugins inside, at project scope, from the
+    project folder. The engine plugin is already there; a project with nothing declared installs none."""
+    from oto import sandbox
+    project = tmp_path / "board" / "project"
+    project.mkdir(parents=True)
+    (project / "project.config.json").write_text(json.dumps({"kind": "knowledge", "vocabulary": "derived"}))
+    (project / ".claude").mkdir()
+    (project / ".claude" / "settings.json").write_text(json.dumps({"enabledPlugins": {"kanban@cynergis": True, "oto@cynergis-engine": True}}))
+    report = sandbox.up(name="board", directory=str(tmp_path / "board"), kind="knowledge", no_repo=True, approve=True, check=True)
+    assert any(d == "would install in the sandbox the plugin kanban@cynergis the project declares, at project scope" for d in report["done"]), report["done"]
+    assert fake.read()["sandboxes"] == {}, "a dry run installs nothing"
+    report = sandbox.up(name="board", directory=str(tmp_path / "board"), kind="knowledge", no_repo=True, approve=True)
+    box = fake.read()["sandboxes"]["board"]
+    assert box.get("plugins") == [{"project": str(project), "plugin": "kanban@cynergis"}], "installed inside, from the project folder; the engine plugin is already there"
+    assert any(d == "installed in the sandbox the plugin kanban@cynergis the project declares, at project scope" for d in report["done"]), report["done"]
+    assert report["plugins"] == ["kanban@cynergis"]
+    again = sandbox.up(name="board", directory=str(tmp_path / "board"), kind="knowledge", no_repo=True, approve=True)
+    assert len(fake.read()["sandboxes"]["board"]["plugins"]) == 2, "run again, the install runs again: Claude Code says it is already there"
+    assert again["plugins"] == ["kanban@cynergis"]
+    # a knowledge project with no pack declares only the engine plugin: nothing to install
+    bare = sandbox.up(name="bare", directory=str(tmp_path / "bare"), kind="knowledge", no_repo=True, approve=True)
+    assert bare["plugins"] == [] and not fake.read()["sandboxes"]["bare"].get("plugins") and not any("installed in the sandbox" in d for d in bare["done"])
+    # a workspace is a pack, not a project on one: nothing to install either
+    fleet = sandbox.up(name="fleet", directory=str(tmp_path / "fleet"), kind="ontology", no_repo=True, approve=True)
+    assert fleet["plugins"] == [] and not fake.read()["sandboxes"]["fleet"].get("plugins")
+
+
 def test_a_kind_needs_a_repository_decision_and_a_github_repository_needs_a_token(fake, tmp_path):
     from oto import sandbox
     with pytest.raises(sandbox.SandboxError) as refused:
@@ -625,6 +658,7 @@ def test_the_sandbox_skill_walks_the_two_sandboxes_in_order_and_asks_which_pack_
     assert "not released yet" in body, "a pack still in the making sends the person to the workspace sandbox first"
     assert "the sandbox's name is the pack's name" in body, "an ontology sandbox is named after the pack it makes"
     assert "ontology-interview" in body and "build-knowledge-base" in body, "each sandbox's first skill is named"
+    assert "installs inside it, at\nproject scope, the pack plugins the project declares" in body, "the pack's plugin is on from the first session"
 
 
 # ---- two sandboxes at once: each gets free host ports ----

@@ -573,6 +573,21 @@ def layout(kind, project_dir, name, pack=None, maintainer=None, repo=False):
                                                      ", with the repository workflows" if repo else "")
 
 
+def declared_plugins(project_dir):
+    """The pack plugins the project declares in its .claude/settings.json (`oto init --pack` writes them),
+    the engine plugin left out: the kit installs that one, and the sandbox's lock keeps the sandbox to
+    the plugins installed inside it, so these are installed inside by `up`, at project scope."""
+    from .model import lock as _lock
+    return [key for key in (_lock.declared(project_dir) or []) if key.split("@", 1)[0] != _lock.ENGINE_PLUGIN]
+
+
+INSTALL_PLUGINS = 'cd "$1" || exit 1; shift; for p in "$@"; do claude plugin install "$p" --scope project || exit 1; done'
+
+
+def _plugins_words(ids):
+    return "the plugin%s %s the project declares, at project scope" % ("" if len(ids) == 1 else "s", ", ".join(ids))
+
+
 def github_repository(repo, token, check=False, gh=None):
     """Create the GitHub repository `owner/name` (private) with the GitHub CLI and the token, unless it
     exists. Returns its https URL. A URL or a path is taken as a repository that exists."""
@@ -717,6 +732,12 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         report["done"].append(("would remove and recreate the sandbox %s" % name) if existing and recreate else
                               ("would reuse the sandbox %s" % name) if existing else
                               ("would create the sandbox %s from %s" % (name, kit)))
+        wanted = declared_plugins(project_dir)
+        if wanted:
+            report["done"].append("would install in the sandbox " + _plugins_words(wanted))
+        elif kind == "knowledge" and pack:
+            report["done"].append("would install in the sandbox the plugin of the pack %s, at project scope" % pack)
+        report["plugins"] = wanted
         report["ssh"] = _ssh_ready(name)
         return report
     if kind:
@@ -817,6 +838,16 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
                                   "current kit" % name)
     report["outside_plugins"] = lock
     report["outside_plugins_summary"] = describe_lock(lock, coming(lock))
+    wanted = declared_plugins(project_dir)
+    report["plugins"] = wanted
+    if wanted:
+        say("installing in the sandbox %s" % _plugins_words(wanted))
+        code, out, err = sbx("exec", name, "--", "sh", "-c", INSTALL_PLUGINS, "sh", project_dir, *wanted, timeout=600)
+        if code == 0:
+            report["done"].append("installed in the sandbox " + _plugins_words(wanted))
+        else:
+            report["warnings"].append("the plugins the project declares (%s) could not be installed in the sandbox: %s; "
+                                      "inside, the packs skill (/oto:packs) installs them" % (", ".join(wanted), (err or out).strip()[-300:]))
     return report
 
 

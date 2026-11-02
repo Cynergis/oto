@@ -4,6 +4,17 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.16.6 — 2026-11-02
+
+**A shell in the sandbox lands on the project folder** (pull request 158). `ssh <name>.sbx` and `sbx run` opened
+in the sandbox tool's default folder, `~/workspace`, while the person's project is mounted at its own path, so
+every terminal session began with finding it. `oto sandbox up` passes the project and code folders' paths into
+the sandbox when it creates it (`OTO_PROJECT_DIR`, `OTO_CODE_DIR`), and the kit's startup script writes a profile
+hook: an interactive shell that starts in the home folder or `~/workspace` moves to the project folder; a shell
+started elsewhere, or a non-interactive one, is left alone. The hook ships in the kit, so it applies to a sandbox
+created from this release's kit or recreated with `--recreate`; Claude Desktop's SSH connection, which asks for the
+folder, is unchanged.
+
 ## 0.16.5 — 2026-11-02
 
 **A knowledge sandbox has its pack's plugin from the first session** (pull request 156). `oto sandbox up --kind

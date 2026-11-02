@@ -8,6 +8,7 @@
     oto pack show <name|dir>          the manifest, the embedded ontology, the skills, the views, the checks
     oto pack add <name|name@r|url>    fetch one from a registry
     oto pack update [<name>]          re-fetch newer releases
+    oto pack rm <name>                remove one from this machine
     oto pack publish --to <registry>  release it
 
 A verb with a name acts on the catalog; `check` and `refresh` with no name act on the pack in
@@ -144,14 +145,14 @@ def cmd_pack(args):
 def register(sub):
     pack = sub.add_parser("pack", help="the full extension a person installs into Claude Code: an ontology, its skills and its views")
     pack.add_argument("pack_command", nargs="?", default="list",
-                      choices=["new", "check", "try", "refresh", "list", "show", "add", "update", "publish"],
+                      choices=["new", "check", "try", "refresh", "list", "show", "add", "update", "rm", "remove", "publish"],
                       help="new <name> --ontology <name> scaffolds one; check [<dir>] validates it; refresh [<dir>] "
                            "re-embeds the ontology at its current release; list (default) shows every pack; "
                            "show <name> prints one; add <name|name@release|url> fetches one; update re-fetches "
-                           "newer releases; publish --to <registry> releases one")
+                           "newer releases; rm <name> removes one from this machine; publish --to <registry> releases one")
     pack.add_argument("which", nargs="*", default=None,
                       help="new: the pack's name; check and refresh: a directory (default .); show: a name or "
-                           "directory; add: a name, name@release or git URL; update: a name")
+                           "directory; add: a name, name@release or git URL; update and rm: a name")
     pack.add_argument("--ontology", default=None, help="for new: the ontology to embed, a name on this machine, name@release, or a directory")
     pack.add_argument("--extends", default=None, help="for new without --ontology: the ontologies the starter vocabulary rests on, comma-separated (default oto-core)")
     pack.add_argument("--from-project", dest="from_project", default=None, help="for new: open a workspace from a project that grew its own vocabulary")

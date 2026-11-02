@@ -5,6 +5,7 @@
     oto pack show <name|dir>              one in full
     oto pack add <name|name@release|url>  fetch one
     oto pack update [<name>]              re-fetch newer releases
+    oto pack rm <name>                    remove one from this machine (a pack Claude Code installed is its to uninstall)
     oto pack publish --to <registry url>  release the pack in the current directory, or --from <name>
 """
 import os
@@ -46,6 +47,13 @@ def run(args):
                 print("every fetched pack is at its registry's current release")
             for name, old, new in changed:
                 print("updated pack %s @%s -> @%s" % (name, old, new))
+            return 0
+        if verb in ("rm", "remove"):
+            if not which:
+                print("oto: rm needs a pack name (installed: %s)" % (", ".join(packs.available()) or "none"), file=sys.stderr)
+                return 1
+            directory = packs.remove(which[0])
+            print("removed pack %s (%s); projects built on it keep the vocabulary they derived" % (which[0], directory))
             return 0
         if verb == "publish":
             if not args.to:

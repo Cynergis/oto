@@ -4,6 +4,18 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.16.2 — 2026-11-01
+
+**A pack is removed by name, and a pack built for an older engine is named with its remedy** (pull request 150).
+`oto pack rm <name>` (or `remove`) deletes an installed pack from the packs directory, the one `oto pack add` and
+`oto pack new` write to; a path is refused, a pack Claude Code installed is refused with the plugin command that
+removes it, and a project built on the pack keeps the vocabulary it derived. When a module a pack's manifest names
+does not import, the start-up line used to blame the ontology the manifest was read from, `pack 'architecture'
+provides oto.cli.arch`, on a machine with no architecture pack: the copy was a base embedded in a pack fetched before
+ADR-0011 moved the module out of the engine. The line now names the installed pack and its release, the base it
+embeds, the engine it does not import on, and what to do: `oto pack update` or `oto pack rm` for a pack of the
+packs directory, `/plugin update` for one Claude Code installed. It is said once per start, not twice.
+
 ## 0.16.1 — 2026-11-01
 
 **A workspace may live in a folder of any name.** Found on the first test drive of an ontology workspace in a

@@ -18,7 +18,7 @@ on 2026-11-02 in the design note *Graph Contribution Journeys*: the person who m
 their session approves it there and no other approval is needed; transcripts are put in the inbox
 by a process designed later; each project has its own graph, repository and pipeline.
 
-Status: proposed on 2026-11-02. Phase 1 (the fact-level diff, its fingerprint, `oto curate apply --confirm`) and phase 2 (`oto route show|check`, the route workflow and the branch rules written by `oto init --repo`, `oto repo rules --apply`, the sandbox applying them) delivered on 2026-11-02; phases 3 to 5 are not built.
+Status: proposed on 2026-11-02. Phases 1 (the fact-level diff, its fingerprint, `oto curate apply --confirm`), 2 (`oto route show|check`, the route workflow and the branch rules, `oto repo rules --apply`, the sandbox applying them) and 3 (the five guardrails, `oto route guardrails`, the gate judging a transcript's change by them, attribution held at `oto curate check`, the privacy mode in the run manifest) delivered on 2026-11-02; phases 4 and 5 are not built.
 
 ## What exists, and what changes
 

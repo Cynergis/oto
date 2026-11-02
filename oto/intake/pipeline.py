@@ -219,6 +219,7 @@ def ingest(project, inbox=None, allow_personal_data=False, strict_privacy=False,
 
     run_id = new_run_id(runs_dir)
     manifest = {"run_id": run_id, "started": _now(), "inbox": inbox, "copied": external,
+                "strict_privacy": bool(strict_privacy), "allow_personal_data": bool(allow_personal_data),
                 "files": [], "completed": False}
     result = {"run_id": run_id, "written": [], "blocked": [], "skipped": [], "unsupported": [],
               "failed": [], "collisions": [], "new_versions": []}

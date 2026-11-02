@@ -53,6 +53,9 @@ def pack_commands():
     return extensions.commands()
 
 
+_SAID = set()           # what has been said about a pack's command that does not load: once per start, not once per parse
+
+
 def _pack_modules(found):
     from .. import extensions
     modules = []
@@ -60,7 +63,9 @@ def _pack_modules(found):
         try:
             modules.append(extensions._load(command["module"], command["pack"]))
         except extensions.ExtensionError as exc:
-            print("oto: %s" % exc, file=sys.stderr)
+            if str(exc) not in _SAID:
+                _SAID.add(str(exc))
+                print("oto: %s" % exc, file=sys.stderr)
     return modules
 
 

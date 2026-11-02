@@ -566,7 +566,7 @@ as `--ontology a,b` merges: a studio pack embeds the core every product shares, 
 adds its type and the flow. The project records the merge, with the pack on its first part.
 
 A registry lists packs beside ontologies, under `packs/<name>` because a pack and its ontology
-usually share a name: `oto pack list|show|add|update` mirror the ontology verbs, and `oto pack
+usually share a name: `oto pack list|show|add|update|rm` mirror the ontology verbs, and `oto pack
 publish --to <registry>` copies the pack in, bumps its release, regenerates the plugin files so
 the plugin version follows, updates the index and the marketplace, and tags
 `<name>--v<release>.0.0`, the convention Claude Code uses to resolve plugin versions. The

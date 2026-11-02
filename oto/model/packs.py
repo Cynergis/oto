@@ -130,6 +130,25 @@ def origin(name):
     return PATH
 
 
+def remove(name):
+    """Delete the pack `name` from the packs directory, the one `add` and `new` write to, and return
+    the directory it was. A name, never a path: a pack elsewhere is not the catalog's. A pack Claude
+    Code installed is refused with the plugin command that removes it. A project built on the pack
+    keeps the vocabulary it derived; what goes is the pack's copy on this machine."""
+    from ..project import ProjectError
+    if os.sep in name or (os.altsep and os.altsep in name) or name.startswith(".") or name.startswith("~"):
+        raise ProjectError("rm takes a pack's name, never a path: %s" % name)
+    path = os.path.join(user_dir(), name)
+    if not _is_pack_dir(path):
+        for root in _ontologies._pack_roots():
+            pack_dir = os.path.dirname(os.path.normpath(root))
+            if read(pack_dir)["name"] == name and os.path.dirname(pack_dir) != os.path.normpath(user_dir()):
+                raise ProjectError("pack %r was installed by Claude Code (%s): /plugin uninstall %s removes it" % (name, pack_dir, name))
+        raise ProjectError("no pack named %r here (installed: %s)" % (name, ", ".join(available()) or "none"))
+    shutil.rmtree(path)
+    return path
+
+
 # ---- the manifest ----
 
 def path_for(directory):

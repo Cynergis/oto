@@ -688,3 +688,31 @@ def test_a_binding_pack_says_what_it_binds_and_is_listed(home, capsys):
     manifest["binding"] = {"for": "x"}
     json.dump(manifest, open(os.path.join(directory, "manifest.json"), "w", encoding="utf-8"))
     assert any("binding must be" in p for p in packs.check(directory))
+
+
+def test_rm_removes_a_pack_this_machine_installed_and_refuses_the_rest(home, capsys):
+    """`oto pack rm <name>` deletes a pack from the packs directory, the one `oto pack add` and `oto
+    pack new` write to. A path is not a name, and a pack Claude Code installed is Claude Code's to
+    uninstall; a project built on the pack keeps the vocabulary it derived."""
+    assert main(["pack", "new", "arch", "--ontology", "software-architecture", "--domain", "software"]) == 0
+    directory = packs.dir_for("arch")
+    assert directory and packs.available() == ["arch"]
+    capsys.readouterr()
+    assert main(["pack", "rm", "arch"]) == 0
+    out = capsys.readouterr().out
+    assert "removed pack arch" in out and directory in out and "keep" in out, out
+    assert not os.path.exists(directory) and packs.available() == []
+    assert main(["pack", "rm", "arch"]) == 1
+    err = capsys.readouterr().err
+    assert "no pack named 'arch'" in err and "none" in err, err
+    assert main(["pack", "rm"]) == 1
+    assert "needs a pack name" in capsys.readouterr().err
+    assert main(["pack", "rm", os.path.join(home, "packs")]) == 1
+    assert "never a path" in capsys.readouterr().err
+    # the fixture packs are installed the way Claude Code installs a plugin: not this command's to remove
+    assert ontologies.dir_for("product") and packs.dir_for("product") is None
+    assert main(["pack", "rm", "product"]) == 1
+    err = capsys.readouterr().err
+    assert "installed by Claude Code" in err and "/plugin uninstall product" in err, err
+    assert ontologies.dir_for("product"), "still there"
+    assert main(["pack", "remove", "no-such"]) == 1, "remove is the same verb"

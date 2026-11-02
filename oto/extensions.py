@@ -47,6 +47,7 @@ import json
 import os
 import sys
 
+from . import __version__
 from .model import ontologies as _ontologies
 from .project import ProjectError
 
@@ -108,12 +109,55 @@ def _on_path(pack):
     return path
 
 
+def installed_in(name):
+    """The installed pack the ontology `name` is read from, when it is one: {pack, release, own, where,
+    ontology_release}. `own` says the ontology is the pack's deliverable, not a base it embeds;
+    `where` is "packs" for the packs directory (`oto pack add`, `oto pack new`) or "plugin" for a
+    pack Claude Code installed. None for the engine's own vocabulary and for an ontology of yours."""
+    from .model import packs as _packs        # here, not at the top: packs imports this module's neighbours
+    path = _ontologies.dir_for(name)
+    if not path:
+        return None
+    home = os.path.normpath(os.path.dirname(path))
+    if home not in {os.path.normpath(r) for r in _ontologies._pack_roots()}:
+        return None
+    pack_dir = os.path.dirname(home)
+    manifest = _packs.read(pack_dir)
+    try:
+        ontology_release = int(_ontologies.manifest_for(name).get("release") or 0)
+    except (KeyError, _ontologies.OntologyError):
+        ontology_release = 0
+    return {"pack": manifest["name"], "release": manifest["release"],
+            "own": (manifest.get("ontology") or {}).get("name") == name,
+            "where": "packs" if os.path.dirname(os.path.normpath(pack_dir)) == os.path.normpath(_packs.user_dir()) else "plugin",
+            "ontology_release": ontology_release}
+
+
+def _blame(dotted, name, exc):
+    """Why a module a manifest names does not import, said about the pack a person installed, not the
+    base it embeds: a pack fetched before the engine moved the module out (ADR-0011) names the
+    engine's old module, and the person needs the pack's name and what to do with it."""
+    where = installed_in(name)
+    if where is None:
+        return "pack %r provides %s, which does not import: %s" % (name, dotted, exc)
+    pack = where["pack"]
+    if where["own"]:
+        head = "pack %r @%s provides %s" % (pack, where["release"], dotted)
+    else:
+        head = "pack %r @%s embeds %s@%s, which provides %s" % (pack, where["release"], name, where["ontology_release"], dotted)
+    if where["where"] == "packs":
+        remedy = "oto pack update %s fetches a newer release, oto pack rm %s removes it" % (pack, pack)
+    else:
+        remedy = "in Claude Code, /plugin update %s, or uninstall it" % pack
+    return "%s, and that does not import on oto %s (%s); what it provides is left out. %s" % (head, __version__, exc, remedy)
+
+
 def _load(dotted, pack):
     _on_path(pack)
     try:
         return importlib.import_module(dotted)
     except ImportError as exc:
-        raise ExtensionError("pack %r provides %s, which does not import: %s" % (pack, dotted, exc))
+        raise ExtensionError(_blame(dotted, pack, exc))
 
 
 def _callable(spec, pack):

@@ -11,6 +11,7 @@ import importlib
 import io
 import json
 import os
+import subprocess
 import sys
 import textwrap
 import urllib.request
@@ -303,3 +304,64 @@ def test_the_docs_describe_the_seams():
     with open(os.path.join(ROOT, "docs", "E2E-TESTING.md"), encoding="utf-8") as f:
         e2e = f.read()
     assert "## 33." in e2e and "provides" in e2e
+
+
+# ---- a pack built for an older engine ----
+
+def _stale_pack(root, pack, base, module, release=1, base_release=6):
+    """An installed pack `pack` embedding the base ontology `base`, whose manifest provides a command
+    from `module`: the shape of a pack fetched before the engine moved that module out (ADR-0011)."""
+    home = os.path.join(root, pack)
+    for name, manifest in ((pack, {"name": pack, "release": release}),
+                           (base, {"name": base, "release": base_release,
+                                   "provides": {"commands": [{"name": base, "module": module, "label": base}]}})):
+        directory = os.path.join(home, "ontology", name)
+        os.makedirs(directory)
+        with open(os.path.join(directory, "ontology.config.json"), "w", encoding="utf-8") as f:
+            json.dump({"name": name.title(), "ontology_version": 1, "classes": {name.title(): {"definition": "a %s" % name}}, "properties": {}}, f)
+        with open(os.path.join(directory, "manifest.json"), "w", encoding="utf-8") as f:
+            json.dump(manifest, f)
+    with open(os.path.join(home, "manifest.json"), "w", encoding="utf-8") as f:
+        json.dump({"name": pack, "release": release, "ontology": {"name": pack, "release": release, "source": "embedded"}}, f)
+    return home
+
+
+def test_a_pack_built_for_an_older_engine_is_named_with_its_remedy_and_said_once(tmp_path, monkeypatch):
+    from oto import __version__
+    from oto.model import packs as _packs
+    installed = tmp_path / "packs"
+    monkeypatch.setenv(_packs.USER_DIR_ENV, str(installed))
+    monkeypatch.setenv(ontologies.USER_DIR_ENV, str(tmp_path / "ontologies"))
+    _stale_pack(str(installed), "oldpack", "stale", "oto.cli.gone")
+    commands = {c["name"]: c for c in extensions.commands()}
+    assert commands["stale"]["module"] == "oto.cli.gone" and commands["stale"]["pack"] == "stale"
+    with pytest.raises(extensions.ExtensionError) as refused:
+        extensions._load("oto.cli.gone", "stale")
+    said = str(refused.value)
+    assert said.startswith("pack 'oldpack' @1 embeds stale@6, which provides oto.cli.gone"), said
+    assert "does not import on oto %s" % __version__ in said and "No module named" in said and "left out" in said, said
+    assert "oto pack update oldpack" in said and "oto pack rm oldpack" in said, "the installed pack is named, not the base it embeds, with what to do about it: " + said
+    # a pack whose own ontology provides the module: named as the provider
+    _stale_pack(str(installed), "ownpack", "ownpack-base", "oto.cli.gone_too")
+    with open(os.path.join(str(installed), "ownpack", "ontology", "ownpack", "manifest.json"), "w", encoding="utf-8") as f:
+        json.dump({"name": "ownpack", "release": 1, "provides": {"commands": [{"name": "own", "module": "oto.cli.gone_too", "label": "own"}]}}, f)
+    with pytest.raises(extensions.ExtensionError) as refused:
+        extensions._load("oto.cli.gone_too", "ownpack")
+    assert str(refused.value).startswith("pack 'ownpack' @1 provides oto.cli.gone_too, and that does not import"), str(refused.value)
+    # a pack Claude Code installed: Claude Code's to update
+    config = tmp_path / "claude"
+    monkeypatch.setenv(ontologies.CLAUDE_CONFIG_ENV, str(config))
+    plugin = _stale_pack(str(tmp_path / "plugins"), "plugpack", "plugbase", "oto.cli.gone_three")
+    (config / "plugins").mkdir(parents=True)
+    (config / "plugins" / "installed_plugins.json").write_text(json.dumps(
+        {"version": 2, "plugins": {"plugpack@market": [{"scope": "user", "installPath": plugin, "version": "1.0.0"}]}}))
+    with pytest.raises(extensions.ExtensionError) as refused:
+        extensions._load("oto.cli.gone_three", "plugbase")
+    assert "pack 'plugpack' @1 embeds plugbase@6" in str(refused.value) and "/plugin update plugpack" in str(refused.value), str(refused.value)
+    # the command line says each once per start, on stderr, and goes on: the three packs, ownpack twice
+    # (its own ontology and the base it embeds both name the module)
+    run = subprocess.run([sys.executable, "-c", "import oto.cli, sys; sys.exit(oto.cli.main(['version']))"],
+                         cwd=ROOT, env=dict(os.environ), capture_output=True, text=True, timeout=120)
+    assert run.returncode == 0 and run.stdout.strip() == "oto %s" % __version__, run.stdout + run.stderr
+    lines = run.stderr.strip().splitlines()
+    assert len(lines) == 4 and len(set(lines)) == 4 and all(line.startswith("oto: pack '") for line in lines), run.stderr

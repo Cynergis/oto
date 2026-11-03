@@ -659,11 +659,13 @@ def workspace(directory):
     """Give a pack directory what a workspace has: a trial project beside the deliverable and the two
     workflows. The trial starts bare; `try_` writes its vocabulary from the pack when the pack is usable."""
     from .. import scaffold as _scaffold
+    from . import lock as _lock
     name = read(directory)["name"]
     trial = os.path.join(directory, TRIAL_DIR)
     if not os.path.exists(os.path.join(trial, "project.config.json")):
         with contextlib.redirect_stdout(io.StringIO()):
             _scaffold.init(trial, slug="%s-trial" % name, name="%s, tried" % name.replace("-", " ").title())
+        _lock.own(trial)                    # the engine alone: never the packs of the machine that laid it out
         path = os.path.join(trial, "project.config.json")
         with open(path, encoding="utf-8") as f:
             config = json.load(f)

@@ -581,8 +581,10 @@ def layout(kind, project_dir, name, pack=None, maintainer=None, repo=False):
             _packs.new(name, into=project_dir, maintainer=maintainer or "")
         return "laid out an ontology workspace for the pack %s in %s: a starter vocabulary to fill, a trial project, the check and publish workflows" % (name, project_dir)
     from . import scaffold as _scaffold
+    from .model import lock as _lock
     with contextlib.redirect_stdout(io.StringIO()):
         _scaffold.init(project_dir, slug=name, name=name.replace("-", " ").title(), pack=pack, repo=repo)
+    _lock.own(project_dir)                  # the sandbox's plugins, not this computer's
     return "laid out a knowledge project in %s%s%s" % (project_dir, (" on the pack %s" % pack) if pack else "",
                                                      ", with the repository workflows" if repo else "")
 

@@ -4,6 +4,26 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.18.2 — 2026-11-03
+
+**Only main's deploy key pushes past the branch rules; code owners hold what the gate runs on.** One pull request
+(173). A patch release: upgrade from 0.18.1 before setting the rules on a repository (`oto repo rules --apply`, or
+`oto sandbox up --repo`); repositories whose rules 0.18.1 or earlier set should run `oto repo rules --apply` again.
+
+- **No GitHub Actions bypass.** The rules let GitHub Actions past them, always, because the ingest and architecture
+  workflows committed to `main` with the workflow's own token, which any workflow on any branch can ask for; so a
+  collaborator could push to `main` past pull requests, the route gate and every check. Past the rules now: deploy
+  keys, and an administrator, by a pull request and visibly.
+- **Code owners.** `.github/CODEOWNERS` owns `.github/` and `oto.lock.json`, and the rules require a code owner's review:
+  a pull request cannot rewrite the route workflow, add one that answers to its check's name, or move the engine pin
+  without that approval, which GitHub holds. The rest still asks no approval at the branch level.
+- **Main's deploy key.** The ingest and architecture workflows push with the deploy key kept as `OTO_MAIN_DEPLOY_KEY` in
+  the environment `oto-main`, which only `main` deploys from; their commits carry `[skip ci]`.
+- **`oto repo rules --apply [--code-owner <login|org/team>]`** sets up the code owners (naming the signed-in person, and
+  stopping until they are on `main`), then main's key (a fresh ed25519 pair; the private half reaches the secret on
+  stdin and no file keeps it; the key it replaces is removed), then the rules. `oto sandbox up --repo` names the token's
+  owner the code owner in the first commit. ADR-0013 amended; E2E section 34 has the checks to run on GitHub.
+
 ## 0.18.1 — 2026-11-03
 
 **The gate holds a change to its base's policy.** One pull request (171), found while writing the end-to-end section

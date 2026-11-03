@@ -72,26 +72,41 @@ def _git(path, *args):
 # ---- what this machine has ----
 
 def engine():
-    """The engine running now: its version, and the checkout and commit when it runs from one. An
-    engine installed from a package records no commit; its release tag (v<version>) pins it."""
+    """The engine running now: its version, and the commit when it runs from a checkout. An engine
+    installed from a package records no commit; its release tag (v<version>) pins it. A lock is read on
+    other machines, so it names no folder of this one: not the checkout, and OTO_SOURCE only when
+    another machine can install from it."""
     from .. import __version__
     out = {"version": __version__, "source": ENGINE_REPO, "tag": "v%s" % __version__, "commit": None}
     out.update(_checkout())
     pinned = os.environ.get("OTO_SOURCE")
-    if pinned:
+    if pinned and _installable(pinned):
         out["oto_source"] = pinned
     return out
 
 
+def _installable(spec):
+    """Whether another machine can install the engine from this OTO_SOURCE: a package, a URL or a git
+    remote (`oto-kg @ git+https://...`), not a folder of this machine (a clone, `oto-kg @ file://...`)."""
+    where = spec.split(" @ ", 1)[-1].strip()
+    if where.startswith(("file:", "/", "~", ".")) or re.match(r"^[A-Za-z]:[\\/]", where):
+        return False
+    return not os.path.exists(os.path.expanduser(where))
+
+
 @functools.lru_cache(maxsize=1)
 def _checkout():
-    """The engine's checkout when it runs from one: asked once per process, it does not change."""
+    """The engine's checkout when it runs from one: asked once per process, it does not change. Its
+    remote stands for it when it is one another machine can reach; its folder is never recorded."""
     top = _git(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rev-parse", "--show-toplevel")
     if not top:
         return {}
-    return {"source": _git(top, "config", "--get", "remote.origin.url") or top, "checkout": top,
-            "commit": _git(top, "rev-parse", "HEAD"),
-            "modified": bool(_git(top, "status", "--porcelain", "--untracked-files=no"))}
+    remote = _git(top, "config", "--get", "remote.origin.url") or ""
+    out = {"commit": _git(top, "rev-parse", "HEAD"),
+           "modified": bool(_git(top, "status", "--porcelain", "--untracked-files=no"))}
+    if remote.startswith(("https://", "git@", "ssh://")):
+        out["source"] = remote
+    return out
 
 
 SETTINGS = os.path.join(".claude", "settings.json")
@@ -172,6 +187,16 @@ def declare(root, ids):
         json.dump(settings, f, indent=2, ensure_ascii=False)
         f.write("\n")
     return added
+
+
+def own(root):
+    """Make the project declare its plugins (the engine plugin alone when it declares none) and rewrite
+    its lock from them. A project laid out on one machine for another, a pack's trial or a sandbox's
+    project, locks what it declares, never the packs this machine happens to have. Returns the lock."""
+    from ..project import Project as _Project
+    if declared(root) is None:
+        declare(root, [])
+    return write(_Project.standard(root))[1]
 
 
 def install_views(root, ids, force=False, skip=()):
@@ -385,8 +410,8 @@ def warnings(lock):
     """What a lock cannot pin, as sentences: a reader of the lock should know."""
     out = []
     eng = lock.get("engine") or {}
-    if eng.get("checkout") and eng.get("modified"):
-        out.append("the engine ran from a checkout with uncommitted changes (%s)" % eng["checkout"])
+    if eng.get("modified"):
+        out.append("the engine ran from a checkout with uncommitted changes: its commit does not pin it")
     for market in lock.get("marketplaces") or []:
         source = market.get("source") or {}
         if source.get("source") == "directory":

@@ -456,3 +456,48 @@ def test_lock_engine_ref_prints_what_the_workflows_install(claude, capsys):
         os.remove(os.path.join(root, lock.LOCK_NAME))
         assert main(["lock", "--engine-ref", "--project", root]) == 1
         assert "no oto.lock.json" in capsys.readouterr().err
+
+
+def test_a_lock_names_no_folder_of_the_machine_that_wrote_it(claude, monkeypatch, tmp_path):
+    """A lock is committed and read on other machines and in CI. The engine's source as a local folder
+    (OTO_SOURCE set to a clone, here ~/Downloads/oto), or the checkout the engine ran from, means
+    nothing there and names a folder of the machine that wrote it: neither is recorded. A source
+    another machine can install from is."""
+    monkeypatch.setenv("OTO_SOURCE", str(tmp_path / "Downloads" / "oto"))
+    eng = lockfile.engine()
+    assert "oto_source" not in eng and "checkout" not in eng
+    assert str(eng["source"]).startswith(("https://", "git@")), "a folder never stands in for the engine's repository"
+    for local in ("oto-kg @ file://%s" % tmp_path, "~/Downloads/oto", "./oto", "../oto"):
+        monkeypatch.setenv("OTO_SOURCE", local)
+        assert "oto_source" not in lockfile.engine(), local
+    shared = "oto-kg @ git+https://github.com/Cynergis/oto@v0.19.0"
+    monkeypatch.setenv("OTO_SOURCE", shared)
+    assert lockfile.engine()["oto_source"] == shared
+    assert any("uncommitted changes" in w for w in lockfile.warnings({"engine": {"commit": "abc", "modified": True}})), \
+        "a checkout with changes is still said, without its folder"
+
+
+def test_a_packs_trial_locks_the_engine_alone_not_the_machines_packs(claude):
+    """The trial of a pack in the making declared nothing, so its lock took the OTO plugins installed
+    for the user on the machine that laid it out: on a Mac with the report pack, the workspace's trial
+    locked report@cynergis, and a sandbox made from it said it was missing. The trial declares the
+    engine plugin alone, whatever the machine has."""
+    from oto.model import packs
+    directory, problems = packs.new("board", into=str(claude["tmp"] / "board"), maintainer="")
+    trial = os.path.join(directory, packs.TRIAL_DIR)
+    locked = json.load(open(os.path.join(trial, lockfile.LOCK_NAME)))
+    assert [p["id"] for p in locked["plugins"]] == ["oto@acme"], locked["plugins"]
+    assert locked["declared_by"] == ".claude/settings.json"
+    assert lockfile.declared(trial) == ["oto@acme"]
+
+
+def test_a_project_laid_out_for_a_sandbox_locks_the_sandboxs_plugins(claude):
+    """`oto sandbox up` lays a knowledge project out on the computer before the sandbox exists. With no
+    pack, it declared nothing, and its lock took the computer's packs, which the sandbox does not have:
+    it declares the engine plugin alone, which the kit installs."""
+    from oto import sandbox
+    root = str(claude["tmp"] / "graph" / "project")
+    assert sandbox.layout("knowledge", root, "graph")
+    locked = json.load(open(os.path.join(root, lockfile.LOCK_NAME)))
+    assert [p["id"] for p in locked["plugins"]] == ["oto@acme"] and locked["declared_by"] == ".claude/settings.json"
+    assert sandbox.declared_plugins(root) == [], "nothing for up to install beside the kit's engine plugin"

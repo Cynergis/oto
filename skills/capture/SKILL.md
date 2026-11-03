@@ -68,6 +68,12 @@ and warns, without changing the note:
 - **The project is a repository:** commit the note to `main` and push. A push to `inbox/` runs the
   ingest, the author workflow drafts the facts, and a pull request opens for the curator. Say
   which pull request to watch. Ask before pushing; it is the step that leaves the machine.
+  That pull request takes the **reviewed route** ([ADR-0013](../../docs/adr/0013-three-routes-into-main.md)):
+  nobody has confirmed the drafted facts yet, so it waits for one approving review. When the person
+  is here and what they said is plain, **offer the curate skill instead**: it drafts the facts now,
+  shows them the diff, records their confirmation, and the change takes the **session route**,
+  merging on its own. A capture is for a statement worth recording without drafting it in the
+  moment.
 - **The project is local:** `oto ingest --project <root>`, then the **curate** skill for this one
   document, or **build-knowledge-base** if a batch is waiting.
 

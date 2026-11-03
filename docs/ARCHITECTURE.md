@@ -203,7 +203,7 @@ announced as a new version, because the facts citing the old one may need supers
 
 `oto init --repo` lays a project out to live on GitHub. It adds an `.mcp.json` so Claude Code has
 the query tools when it opens the repository, a `CLAUDE.md` saying what the repository is and what
-the rule is, and six workflows:
+the rule is, the branch rules on `main` as a file (`.github/oto-rules.json`), and eight workflows:
 
 | Workflow | Trigger | What it does |
 |---|---|---|
@@ -213,6 +213,27 @@ the rule is, and six workflows:
 | `oto-review` | `@claude` in a pull request comment | the same agent revises on the branch and pushes; the checks run again |
 | `oto-deploy` | a merge to `main` | builds the store and keeps it; with a deploy config (`oto.deploy.json`, [deploy.py](../oto/deploy.py)) it checks the config, publishes the build to the first environment the config names, and the `promote-second` and `promote-third` jobs copy the same store forward to the next two, each behind a GitHub Environment of that name whose required reviewers are the approvers, and each skipped when the config declares no such environment; `PROMOTIONS.jsonl` on each environment's branch of the query repository records commit, hash, approver and time |
 | `oto-tools` | a daily cron | invokes the due read-only tools through the script under `.github/scripts/` (the caller, never OTO), records the responses, takes the proposals through the gates and opens a pull request |
+| `oto-route` | a pull request, and every review of it | the route gate ([ADR-0013](adr/0013-three-routes-into-main.md), below): gathers with `gh` what only GitHub knows, runs `oto route check`, labels the pull request and posts the reasons when the route moved to reviewed |
+| `oto-preview` | a pull request | builds the store at the head and publishes it to `preview/pr-<n>` of the query repository with the workbench beside it (or keeps it as an artifact), one comment edited on every push; deletes the branch when the pull request closes |
+
+**How a change reaches `main`.** A pull request takes one of three routes, decided by what it
+carries and never by a label ([route.py](../oto/route.py)): `session` when the one ledger entry it
+adds carries a confirmation whose **fingerprint** equals the fact-level diff between the two
+`graph.json` (`oto curate diff --json`, sha256 over the canonical diff; `oto curate apply --confirm`
+writes who, when and the fingerprint into the entry); `guardrailed` when the ingest runs it carries
+came from the transcripts folder `routes.guardrailed.from` names; `reviewed` otherwise. One required
+check, `oto route`, enforces the route's rule: a session change merges on its own once the confirmer
+is the author and the commits are verified; a guardrailed change merges when the five guardrails
+hold (`oto route guardrails`: additive, attributed as the speaker's assertions, in scope, clean,
+bounded) and goes to a person with the findings when one fails; reviewed needs one approving
+review. A route only moves towards reviewed. The branch rules in `oto-rules.json` (pull requests
+required, the checks `oto checks` and `oto route` required, zero approvals at the branch level, the
+merge queue on) are set by `oto repo rules --apply`, or by `oto sandbox up --repo` when it creates
+the repository. Every workflow installs the engine at the ref `oto.lock.json` records and `oto
+checks` runs `oto lock --check`, so the same checks give the same verdicts and an engine upgrade is
+a pull request that moves the lock. A pull request that fell behind `main` re-applies its facts with
+`oto route rebase --onto origin/main`, through the gates; the fingerprint is over facts, so the
+confirmation holds whenever the facts are the same.
 
 The corpus under `build/documents/` is committed in a repository, because it is an input to the
 build and to every review. Nothing reaches `graph.json` on `main` except through a pull request:

@@ -177,6 +177,41 @@ If an apply turns out to be wrong, `oto curate undo` restores the previous graph
 It refuses while a candidate is open or the build predates the document, so a file in `archive/`
 always means the graph holds it. Run it last.
 
+### In a repository: the session route
+
+When the project lives in a GitHub repository, the person who confirms the diff is the approval
+([ADR-0013](../../docs/adr/0013-three-routes-into-main.md)): the change takes the **session route**
+and the pull request merges on its own, with no second person. So, with their yes to the diff you
+showed, apply with their name and `--confirm`:
+
+```bash
+oto curate apply --project <project> --by "<the person, as git knows them: their email or login>" --note "<...>" --confirm
+```
+
+`--confirm` writes into the ledger entry who confirmed, when, and the **fingerprint** of the
+fact-level diff they saw (`oto curate diff --json`): over facts, not bytes, so the gate recomputes
+it from the two commits without having seen this session. Then, in their words, on a branch:
+
+```bash
+git checkout -b <the change>
+git add -A && git commit -s -m "<what changed, in their words>"
+git push -u origin <the change>
+gh pr create --fill && gh pr merge --auto --merge        # auto-merge: it lands when the checks pass
+```
+
+The commits are made with their git identity and verified (signed) where the repository asks for
+it: the gate (`oto route check`, run by the `oto route` workflow) takes the session route only when
+the confirmer is the pull request's author and every commit is verified. Otherwise the route
+becomes **reviewed** and a second person approves; nothing is lost, it just waits.
+`oto route show --base origin/main` says, before the push, which route the change will take and
+why. If `main` moved meanwhile, `oto route rebase --onto origin/main` re-applies the facts through
+the gates and the confirmation still holds, since the fingerprint is over facts; commit and push
+again.
+
+**Never write a confirmation the person did not give.** `--confirm` goes with their name, after
+they said yes to the exact diff you showed; never the pipeline's name, never yours, never on a
+diff they have not seen.
+
 ---
 
 ## Correcting from something a person said
@@ -275,3 +310,5 @@ When in doubt, record the role and cite the source. A reader who needs the name 
   for getting past a gate.
 - **Stop at every gate.** Four confirmations feel like a lot until the first time one of them catches
   something.
+- **Never write a confirmation the person did not give.** `--confirm` is their yes to the diff they
+  saw, under their name; a confirmation under any other name sends the change to a reviewer anyway.

@@ -183,7 +183,11 @@ one proposal at a time, through the same merge, the same check and the same conf
 
 - **In a pipeline**, with no person present, the same phases run under
   [references/pipeline-run.md](references/pipeline-run.md): every gate becomes a section of the
-  pull request's description, and the curator's merge is the confirmation.
+  pull request's description, and the curator's approval is the confirmation. Such a pull request
+  takes the **reviewed route** ([ADR-0013](../../docs/adr/0013-three-routes-into-main.md)): one
+  approving review, given in the preview the repository builds for it. A change a person drafts and
+  confirms in their own session takes the **session route** instead and merges on its own; a
+  transcript's change takes the guardrailed route.
 
 For each document you draft yourself:
 

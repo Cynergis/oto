@@ -1,0 +1,27 @@
+{
+  "allow_personal_data": false,
+  "completed": true,
+  "completed_at": "2026-11-02T20:21:10",
+  "copied": false,
+  "files": [
+    {
+      "file": "0013-three-routes-into-main.md",
+      "outcome": "extracted",
+      "sha256": "5b03de6bfb0edc19fdfd375ce9542ab50ba2b86e83abc2ba10dcd344135c358d",
+      "size": 6785,
+      "slug": "0013-three-routes-into-main"
+    }
+  ],
+  "finished": "2026-11-02T20:21:01",
+  "inbox": "/Users/chihebdkhil/oto-doc/oto/roadmap/inbox",
+  "run_id": "20261102-202101",
+  "started": "2026-11-02T20:21:01",
+  "strict_privacy": false,
+  "summary": {
+    "blocked": 0,
+    "extracted": 1,
+    "extraction-failed": 0,
+    "missing-parser": 0,
+    "unsupported": 0
+  }
+}

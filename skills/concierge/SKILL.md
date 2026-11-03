@@ -92,7 +92,12 @@ build      --oto bench run-->  answer quality against gold/questions.jsonl
 The four gates, in the order a fact meets them: the reader recaps the document before proposing
 (gate 1); what is already believed is checked before writing (gate 2); `oto curate check` must
 be clean (gate 3); a person says yes at `oto curate apply` (gate 4). In repository mode gate 4 is
-a pull request. The detail behind each is printed, not remembered:
+a pull request on one of three routes ([ADR-0013](../../docs/adr/0013-three-routes-into-main.md)),
+decided by what it carries: **session**, when the person confirmed the diff in their own session
+(`oto curate apply --confirm`) and the change merges on its own; **guardrailed**, for transcripts
+under five guardrails; **reviewed**, one approving review, for what a machine drafted from
+documents. `oto route show --base origin/main` says which, and why. The detail behind each gate is
+printed, not remembered:
 
 ```bash
 oto curate check --project <root>        # what the candidate would break, contradict, or leave uncited
@@ -109,7 +114,7 @@ oto bench validate --project <root>      # the gold set's shape
 | Nothing yet | a journey a pack leads from start to end (a product, with its playbook); a specification or brief; a folder of documents; an expert; an ontology or pack that is close | the playbook when one fits what the person wants (`oto pack list --playbooks` says what each is for); otherwise the start skill (`/oto:start`): it asks which, and runs the first phase | `oto pack list --playbooks`, then the playbook's skill; or `oto init`, then the start skill |
 | Where the vocabulary comes from | a pack of the registry, which the project composes and derives its vocabulary from; a pack made first, in an ontology workspace, when none fits; a file you own, for a project that keeps its own vocabulary | a pack if one fits; the workspace when none does: the vocabulary is made once, in a place of its own, and used by every project | `oto pack list`, `oto pack add <name>`, `oto init --pack <name>`; `oto pack new <name> --to <dir>` and the ontology-interview skill; `oto ontology import --file <path>` on a project whose vocabulary is its own |
 | How facts get in | author proposals by reading; a model drafts them (`draft` extra); a conversation captured; an interview against the capture form | reading, for anything that will be believed; `oto draft` for volume, still through the gates | `oto curate start`, `oto curate add --from <proposal> --dry-run`, `oto draft <slug>`, the capture skill, `oto curate propose --from <capture>` and the capture-form skill |
-| Where apply happens | locally by a person; in a repository, by pull request | local for one author; repository mode for a team | `oto curate apply --by <you> --note <why>`; `oto init --repo` and the workflows it writes |
+| Where apply happens | locally by a person; in a repository, by pull request on a route: session (confirmed in the session, merges on its own), guardrailed (transcripts under five guardrails), reviewed (one approval) | local for one author; repository mode for a team, the session route for the person who made the change | `oto curate apply --by <you> --note <why> [--confirm]`; `oto init --repo` and the workflows it writes; `oto route show --base origin/main` |
 | Which store serves | SQLite, the local build; Neo4j, self-hosted, shared | SQLite until more than one machine reads; Neo4j is the production store | `serve.backend` in `project.config.json`, `oto serve --backend sqlite|neo4j`, `oto build --target neo4j --verify` |
 | What a served view shows | live (believed facts, the pending lane beside them); preview, on command; watch, on every change | live for readers; watch while authoring | `oto serve --http <port>`, `oto preview`, `oto serve --http <port> --preview`, `oto serve --http <port> --watch` |
 | How people read it | the workbench (the graph as pages and as a graph, the ontology, the project); a custom view | the workbench | `oto serve --http <port>`, `--view <name|dir>` |

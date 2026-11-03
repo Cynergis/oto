@@ -22,10 +22,10 @@ beside it (`tools/e2e_core.sh`) that the suite runs. Start there; this document 
 
 The sections follow the order the features were built, and [ADR-0006](adr/0006-the-core-and-the-packs.md)
 draws one line through them. The **core**, the knowledge graph with its tools and its deploy, is
-sections 1 to 17, 19, 20, 23 to 27 and 33: install, a project, documents in, the vocabulary, rules,
+sections 1 to 17, 19, 20, 23 to 27, 33 and 34: install, a project, documents in, the vocabulary, rules,
 authoring under the gates, time, query and serve, evaluation, Neo4j, repository mode, the query
 repository, specs and decisions, an ontology of your own, tools, deploy, audit and tracing, graphs
-that know each other, the engine's own CI, the ontology explorer, and the pack seams. Drive these first: they are
+that know each other, the engine's own CI, the ontology explorer, the pack seams, and the three routes into main. Drive these first: they are
 the product, and they need no pack beyond the vocabulary a section composes. The **packs**, each an ontology with the tools that work on it,
 are sections 18 (work and communication, the registry's `work` pack since [ADR-0010](adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), 21 (data, the registry's `data` pack), 22 (architecture; CALM, the first framework
 adapter, is the registry's `calm` pack, [ADR-0008](adr/0008-a-framework-is-a-pack-of-the-registry.md); the domain model is the registry's `ddd` pack, [ADR-0010](adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), 28 to 30 and 32 (policy, the snapshot and guards, the generated IAM; the registry's `policy` pack) and 31
@@ -370,7 +370,8 @@ gh variable set OTO_QUERY_REPO --body "https://github.com/<org>/acme-query"; gh 
 ```
 
 In the repository settings, under Actions, allow GitHub Actions to create and approve pull
-requests, and protect `main` so the `oto checks` workflow is required. Then:
+requests, and set the branch rules on `main` (`oto repo rules --apply`: pull requests required, the
+checks `oto checks` and `oto route` required, the merge queue on; section 34). Then:
 
 ```bash
 cp <a document> inbox/ && git add inbox && git commit -m "ingest: <the document>" && git push
@@ -1393,3 +1394,54 @@ provides (`arch_context`) is mounted beside the `kg_*` tools for a served projec
 pack and not for one that does not; the write hook's note
 lands in the audit record of `curate apply`; an unknown framework is refused by name with the known
 ones listed; and a manifest whose `provides` is the wrong shape is named by the checker.
+
+## 34. Three routes into main: a confirmation in a session, a review in a preview, transcripts under guardrails
+
+[ADR-0013](adr/0013-three-routes-into-main.md), the plan in [plans/graph-journeys.md](plans/graph-journeys.md).
+Exercises: the fingerprint and `oto curate apply --confirm`, `oto route show|check|guardrails|rebase`,
+the `oto route` and `oto preview` workflows, the branch rules, the engine pinned to the lock.
+
+On the `acme-kb` repository of section 11, after `oto repo rules --apply` (the ruleset `oto main`
+appears under the repository's rules; `main` now requires pull requests, the two checks and the
+merge queue, and asks no approval of its own):
+
+```bash
+# the session route: a change the person confirms in their session merges on its own
+git checkout -b card && oto curate start --project . && <edit graph.candidate.json: one new fact>
+oto curate check --project . && oto curate diff --project . --json | python3 -c "import json,sys; print(json.load(sys.stdin)['fingerprint'])"
+oto curate apply --project . --by "<your git email>" --note "the card" --confirm        # the ledger entry carries the confirmation
+oto route show --project . --base origin/main                                          # route: session, the fingerprint matches
+oto route check --project . --base origin/main --author "<your git email>" --verified   # the gate's verdict, as the workflow will give it
+git add -A && git commit -s -S -m "The card" && git push -u origin card && gh pr create --fill && gh pr merge --auto --merge
+
+# the reviewed route: what the pipeline drafted waits for one approval, given in the preview
+cp <a document> inbox/ && git add inbox && git commit -m "ingest: <the document>" && git push
+#   oto author opens the pull request; oto route says reviewed (no confirmation); oto preview comments the link
+oto sync --repo https://github.com/<org>/acme-query --branch preview/pr-<n> --dest preview && oto serve --project preview --http 8765
+gh pr review <n> --approve                                                              # the gate passes; the merge queue lands it
+
+# the guardrailed route: transcripts under five guardrails
+python3 - <<'PY'
+import json; c = json.load(open("project.config.json"))
+c["routes"] = {"guardrailed": {"from": "inbox/transcripts", "classes": ["Decision", "Blocker"], "max_facts": 40}}
+json.dump(c, open("project.config.json", "w"), indent=2)
+PY
+mkdir -p inbox/transcripts && cp <a transcript> inbox/transcripts/ && git add -A && git commit -m "a transcript" && git push
+#   the author run records the speakers' statements (oto curate assert) and drafts their assertions
+oto route guardrails --project . --base origin/main --head origin/oto/run-<id>          # additive, attributed, scope, clean, bounded
+#   all hold: the pull request merges with no approval; one fails: labelled oto-route:reviewed, the findings posted, a person decides
+
+# a stale pull request, for the merge queue
+git checkout card && oto route rebase --project . --onto origin/main && git add -A && git commit -s -S -m "The card, on the new main" && git push
+
+# the engine pinned to the lock
+cat oto.lock.json | python3 -c "import json,sys; print(json.load(sys.stdin)['engine'])"; oto lock --engine-ref --project .
+```
+
+Pass when the session pull request merges without a review and its ledger entry shows `confirmed
+by` you in `oto curate log`; a byte edited in `graph.json` after the confirmation moves the same
+pull request to reviewed with the reason as a comment; the documents pull request waits for the
+approval and its preview serves the new facts; the transcript's pull request merges on its own
+when the five guardrails hold and is labelled `oto-route:reviewed` with the failing guardrail named
+when you break one (a `Party` outside the classes, or a transcript pushed twice); the rebased pull
+request still says `route: session`; and every workflow's install line names the lock's ref.

@@ -19,6 +19,12 @@ their session approves it there and no other approval is needed; transcripts are
 by a process designed later; each project has its own graph, repository and pipeline.
 
 Status: proposed on 2026-11-02; phases 1 to 5 delivered on 2026-11-02 (pull requests 161 to 165, released as 0.17.0 under [ADR-0013](../adr/0013-three-routes-into-main.md)). Phase 6: the engine half (the routes' policy in the pack manifest, validated by `oto pack check` and printed by `oto pack show`; derived into the project at `oto init --pack` with `routes_from`; overridden key by key; re-derived by `oto ontology update`; read by the gate) delivered on 2026-11-02 (pull request 168); the skills half (the transcripts run in the pipeline's references, the routes in act, spec, sandbox, packs, start, the concierge, curate and the ontology interview) delivered on 2026-11-03.
+Found while writing its end-to-end section (E2E-TESTING.md section 35), fixed on 2026-11-03: the gate read the policy at
+the head, so a pull request could widen its own; it reads the base's now. Open: the `oto route` workflow runs on
+`pull_request`, so GitHub runs the workflow file of the pull request itself; the gate sends a change to `.github/` to a
+person, but a pull request that rewrote the workflow would be judged by the rewritten one. Closing that is a branch rule
+that runs the workflow from `main` (a ruleset's required workflow) or a `pull_request_target` trigger, decided with the
+repository's owner.
 
 ## What exists, and what changes
 
@@ -295,7 +301,9 @@ and a setting that chose the route would put a label where a fact-level check is
   behaviour: no section, every pull request reviewed, settings typed by hand. (`oto/model/derived.py`
   gains the routes beside the vocabulary; `oto/scaffold.py`, `oto/cli/catalog.py`.)
 - **The gate reads the policy.** `oto route show` and `check` read the effective `routes` at the
-  head: a route not in `allowed` moves to `reviewed` with the reason ("the pack kanban does not
+  base, never at the head, so a pull request is not judged by a policy it rewrites; one that rewrites
+  `routes`, moves `oto.lock.json` or touches `.github/` goes to `reviewed`, measured from the merge
+  base so a stale branch is not taken for one. A route not in `allowed` moves to `reviewed` with the reason ("the pack kanban does not
   allow the guardrailed route"); a session change touching a class outside `session.classes` moves
   to `reviewed` ("Decision is not a class a session changes without review on this pack"). The
   guardrails read their settings as they do. `oto status` says `routes  from kanban @3 (allowed,

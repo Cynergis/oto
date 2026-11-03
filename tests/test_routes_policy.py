@@ -102,6 +102,11 @@ def test_a_project_overrides_a_key_by_writing_it_and_update_rewrites_only_the_pa
     config = _read(root)
     config["routes"]["guardrailed"]["max_facts"] = 5                     # the project is stricter than its pack
     _write(root, config)
+    capsys.readouterr()
+    assert main(["status", "--project", root]) == 0
+    [line] = [l for l in capsys.readouterr().out.splitlines() if l.strip().startswith("routes ")]
+    assert "from the pack fleet @1: allowed, session" in line and "guardrailed set here" in line, \
+        "a key the project rewrote is its own at once, not only after the next update: " + line
     # the pack moves on: a second release with other settings
     manifest = json.load(open(packs.path_for(directory), encoding="utf-8"))
     manifest["release"] = 2
@@ -175,3 +180,62 @@ def test_a_session_change_outside_the_classes_the_policy_names_goes_to_a_person(
         assert shown["proposed"] == route.SESSION and shown["route"] == route.REVIEWED
         assert any("Party" in r and "Claim" in r for r in shown["reasons"]), shown["reasons"]
         assert not route.check(root, base, head, authors=["chiheb@cynergis.ai"], verified=True)["ok"]
+
+
+def _rewrite_routes(project, change):
+    config = json.load(open(project.config_path, encoding="utf-8"))
+    change(config["routes"])
+    with open(project.config_path, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+
+def test_a_pull_request_is_held_to_the_policy_of_its_base_and_one_that_rewrites_the_policy_goes_to_a_person():
+    with tempfile.TemporaryDirectory() as root:
+        project, base = _repository_with(root, {"allowed": ["session", "reviewed"], "session": {"classes": ["Claim"]}})
+        _git(root, "checkout", "-q", "-b", "widen")
+        _rewrite_routes(project, lambda routes: routes["session"]["classes"].append("Party"))
+        _apply(project, [_node("p.2", "Party")], by="chiheb@cynergis.ai", confirm=True)
+        head = _commit(root, "a party, and a policy that lets it through")
+        shown = route.show(root, base, head)
+        assert shown["proposed"] == route.SESSION and shown["route"] == route.REVIEWED, shown
+        assert any("Party" in r and "Claim" in r for r in shown["reasons"]), "the base's policy decides: " + str(shown["reasons"])
+        assert any("routes" in r and "policy" in r for r in shown["reasons"]), "rewriting the policy is a person's to approve: " + str(shown["reasons"])
+        assert not route.check(root, base, head, authors=["chiheb@cynergis.ai"], verified=True)["ok"]
+        # a change to the policy that does not touch this change's classes is still the policy's change
+        _git(root, "checkout", "-q", "main")
+        _git(root, "checkout", "-q", "-b", "transcripts")
+        _rewrite_routes(project, lambda routes: routes.update(guardrailed={"from": "inbox/transcripts", "classes": ["Claim"]}))
+        _apply(project, [_node("c.3")], by="chiheb@cynergis.ai", confirm=True)
+        head = _commit(root, "a claim, and a transcripts folder")
+        shown = route.show(root, base, head)
+        assert shown["route"] == route.REVIEWED and any("policy" in r for r in shown["reasons"]), shown["reasons"]
+
+
+def test_a_stale_branch_is_not_taken_for_a_change_to_the_policy():
+    with tempfile.TemporaryDirectory() as root:
+        project, first = _repository_with(root, {"allowed": ["session", "reviewed"], "session": {"classes": ["Claim"]}})
+        _git(root, "checkout", "-q", "-b", "claim")
+        _apply(project, [_node("c.2")], by="chiheb@cynergis.ai", confirm=True)
+        head = _commit(root, "a claim")
+        _git(root, "checkout", "-q", "main")
+        _rewrite_routes(project, lambda routes: routes["session"]["classes"].append("Party"))
+        base = _commit(root, "main widens the policy, after the branch was cut")
+        shown = route.show(root, base, head)
+        assert not any("policy" in r for r in shown["reasons"]), "the branch did not touch the policy: " + str(shown["reasons"])
+
+
+def test_a_change_that_touches_the_lock_or_the_workflows_goes_to_a_person():
+    for path in ("oto.lock.json", os.path.join(".github", "workflows", "oto-route.yml"), os.path.join(".github", "oto-rules.json")):
+        with tempfile.TemporaryDirectory() as root:
+            project, base = _repository_with(root, {"allowed": ["session", "reviewed"]})
+            _git(root, "checkout", "-q", "-b", "change")
+            _apply(project, [_node("c.2")], by="chiheb@cynergis.ai", confirm=True)
+            target = os.path.join(root, path)
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with open(target, "a", encoding="utf-8") as f:
+                f.write("# edited by the pull request\n")
+            head = _commit(root, "a claim, and what the gate itself runs on")
+            shown = route.show(root, base, head)
+            assert shown["proposed"] == route.SESSION and shown["route"] == route.REVIEWED, (path, shown)
+            assert any(path.replace(os.sep, "/") in r for r in shown["reasons"]), (path, shown["reasons"])
+            assert not route.check(root, base, head, authors=["chiheb@cynergis.ai"], verified=True)["ok"]

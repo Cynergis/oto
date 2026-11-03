@@ -112,7 +112,7 @@ only when run at a terminal. By hand:
 sbx settings set kit.allowedSources '["docker.io/","ghcr.io/cynergis/"]'   # once per machine
 export PROJECT=<your Google Cloud project id>
 mkdir -p ~/oto-test/project ~/oto-test/code
-sbx run ghcr.io/cynergis/oto-gcp:0.19.0 ~/oto-test/project ~/oto-test/code --name oto-test -e PROJECT
+sbx run ghcr.io/cynergis/oto-gcp:0.20.0 ~/oto-test/project ~/oto-test/code --name oto-test -e PROJECT
 ```
 
 **Trying a change.** `sbx` builds a local kit folder when it creates a sandbox from it, so a change is

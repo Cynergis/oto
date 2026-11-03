@@ -4,6 +4,30 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.20.0 — 2026-11-03
+
+**One engine on a computer, and a project's lock is its own.** Two pull requests (178, 179). A minor release:
+the OTO plugin now runs the engine installed on the computer and downloads no copy of its own, so the engine is
+installed once (ADR-0014). Upgrade by installing the engine at this release and removing any `OTO_SOURCE` from
+your shell:
+
+```bash
+uv tool install --force "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v0.20.0"
+```
+
+- **The plugin runs the installed `oto`.** Its server runs `oto serve`, its prompt hook `oto clipboard`, and a
+  project repository's server (`oto init --repo`) `oto serve`. Before, they ran a copy `uvx` downloaded from main's
+  latest commit, or from whatever `OTO_SOURCE` named, so one computer could run three engines without saying so.
+- **The session start checks the engine.** When it is missing, installed but off the PATH Claude Code sees, or not
+  the plugin's release, the plugin says so in a line with the command that fixes it, then prints the project's status.
+- **Nothing reads `OTO_SOURCE`.** The sandbox kit sets none (its start installs the engine the plugin runs), the lock
+  records none, and its restore script and `sbxenv.yaml` export none. To develop the engine, install the checkout as
+  the engine: `uv tool install --force --editable <checkout>`, with `claude --plugin-dir <checkout>`.
+- **A project laid out on one machine for another locks what it declares.** A pack's trial declares the engine plugin
+  alone, and a knowledge project laid out for a sandbox the sandbox's plugins: neither locks the packs of the
+  computer that laid it out (a workspace made on a Mac with the report pack locked `report@cynergis`). A lock names no
+  folder of the machine that wrote it: not the engine's checkout, not a clone.
+
 ## 0.19.0 — 2026-11-03
 
 **The sandbox kit for sbx 0.51.** Two pull requests (175, 176). sbx 0.51 made the built-in agents published kits of

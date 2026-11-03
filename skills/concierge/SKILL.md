@@ -56,6 +56,7 @@ says what each line means (for you):
 | vocabulary `none declared` | No classes or relations yet. Nothing can be authored before this. |
 | `not yet accepted` | The vocabulary exists but is not locked; `oto ontology accept` records the baseline future changes are diffed against. |
 | `derived from <pack> @<release>` | The vocabulary is the pack's, written by the engine; a hand edit is refused. A missing term is a release of the pack, or a pack that extends it, made in an ontology workspace. |
+| `routes` from the pack `<pack> @<release>` | How changes reach `main` on this project is the pack's policy, derived into `project.config.json` with the vocabulary: the routes it allows, the classes a session may change without review, the guardrails for transcripts. A key marked `set here` is the project's own and stays when the pack is updated. No `routes` line: every pull request goes to a reviewer. |
 | `candidate OPEN` | Facts staged in `graph.candidate.json`, not believed. Only `oto curate apply` promotes them, after `oto curate check`. |
 | build `not built` or `STALE` | The compiled layers are missing or older than their inputs. `oto build` fixes both. |
 | serve `Neo4j NOT serving` | The project serves from Neo4j and cannot reach it; `--backend sqlite` serves the local build meanwhile. |
@@ -96,7 +97,9 @@ a pull request on one of three routes ([ADR-0013](../../docs/adr/0013-three-rout
 decided by what it carries: **session**, when the person confirmed the diff in their own session
 (`oto curate apply --confirm`) and the change merges on its own; **guardrailed**, for transcripts
 under five guardrails; **reviewed**, one approving review, for what a machine drafted from
-documents. `oto route show --base origin/main` says which, and why. The detail behind each gate is
+documents. The project's `routes`, from the pack or set here, can narrow them: a route it does not
+allow, or a session change to a class outside its list, goes to a reviewer.
+`oto route show --base origin/main` says which, and why. The detail behind each gate is
 printed, not remembered:
 
 ```bash

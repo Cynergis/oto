@@ -83,6 +83,13 @@ checklist (§2), ticked by default, so they confirm rather than browse:
 Say in one sentence why each recommended pack fits, and name one or two that would also fit but are
 not needed yet, so the person knows the door is open.
 
+When the person is choosing the pack a knowledge project is on, `oto pack show <name>` also prints
+its `routes`: the routes a project on it may use, the classes a session may change without review,
+and the guardrails for transcripts ([ADR-0013](../../docs/adr/0013-three-routes-into-main.md)). Say
+it in a sentence, in their words: "a card you move in your session merges on your word; a
+decision's status gets a second pair of eyes". A pack without routes leaves every pull request to a
+reviewer. The project takes the pack's routes when it is made, and may change any of them later.
+
 ## 4. Turning it on
 
 With their yes, for each chosen pack, from the project folder:

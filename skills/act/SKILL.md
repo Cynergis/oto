@@ -98,6 +98,20 @@ oto curate apply --project <root> --by "<the person>" --note "<what the run made
 oto build --project <root>
 ```
 
+**In a repository**, the record reaches `main` by a pull request, on one of three routes
+([ADR-0013](../../docs/adr/0013-three-routes-into-main.md)). When the person is here, show them the
+diff after `check` (`oto curate diff`); with their yes to it, apply under their name with
+`--confirm`, as the curate skill does at its fourth gate:
+
+```bash
+oto curate apply --project <root> --by "<the person, as git knows them>" --note "<what the run made true>" --confirm
+```
+
+The change then takes the **session route**: branch, commit in their git identity, open the pull
+request and turn on auto-merge, and it lands when the checks pass. `oto route show --base
+origin/main` says which route it will take before the push. A record applied without their
+confirmation takes the **reviewed route**, and a second person approves it.
+
 A refusal at `add` with `conflict` means the response contradicts what the graph holds (a branch
 renamed, an owner changed): that is supersession work for the curate skill, not an overwrite.
 After the build, `oto query tools --tool <id>` shows the last run, and the entity's card
@@ -107,8 +121,10 @@ cites the run document.
 
 A read-only tool may carry a `schedule`. `oto tools list --due --project <root>` lists the
 ones whose run is due and that are ready. In repository mode the tools workflow invokes those
-it can (http, cli, script) every day and opens a pull request with the runs; a tool bound to
-an MCP server is skipped there and waits for you: run it through this skill.
+it can (http, cli, script) every day and opens a pull request with the runs. Nobody confirmed
+those runs in a session, so that pull request takes the **reviewed route**: a person approves it in
+the preview. A tool bound to an MCP server is skipped there and waits for you: run it through this
+skill.
 
 ## Hand-off
 

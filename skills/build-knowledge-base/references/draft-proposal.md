@@ -79,7 +79,27 @@ faithful to the document and easy to check.
    reports one it states elsewhere than the quotes). Every edge uses a declared
    relation whose domain and range fit the two nodes' classes. Dates are `YYYY-MM-DD` or absent,
    never guessed; `as_of` is the document's own date, and the report says where it came from.
-7. **The report is for the reviewer.** Say what the document does not say that a reader might
+7. **A fact from a transcript is the speaker's assertion.** A transcript is not a document that
+   states facts: people said things in it, and each fact rests on what one person said. The
+   statement is recorded before drafting, with `oto curate assert --by <the speaker> --at <the
+   meeting's date> --text "<their words>"` (by you, or by whoever runs the batch when you are one
+   of several drafting subagents, since the log is numbered in order), and the fact cites it:
+
+   ```json
+   {"id": "blocker.vendor-api-outage", "type": "Blocker", "label": "Vendor API outage",
+    "source_type": "human_assertion",
+    "sources": ["assertion:a-0012", "<the transcript's slug>"],
+    "summary": "<what the speaker said it is, in their words>",
+    "evidence": [{"doc": "<the transcript's slug>", "where": "<the timestamp or the speaker's turn>",
+                  "quote": "<the sentence they said>"}],
+    "attributes": {}}
+   ```
+
+   Each number, date and code in `attributes` must be in the speaker's words, the assertion's
+   text: `curate check` holds the value to it. Never attribute to a speaker what someone else
+   said, and never invent an assertion id: a statement with no recorded assertion, or whose speaker
+   the transcript does not name, goes under *Unsure*.
+8. **The report is for the reviewer.** Say what the document does not say that a reader might
    assume, and anything you were unsure about. Be generous; that is what the review is for.
 
 ## The report

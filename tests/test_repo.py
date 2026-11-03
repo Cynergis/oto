@@ -99,6 +99,7 @@ def test_the_author_workflow_runs_the_agent_with_the_plugin_and_opens_the_pull_r
     assert '--allowedTools "Bash(oto:*)' in author and "Bash(git:*)" not in author.split("prompt:")[0].split("claude_args")[1], \
         "the authoring agent never commits; the workflow does"
     assert "references/pipeline-run.md" in author and "BLOCKED:" in author
+    assert "A transcripts run" in author, "a transcripts run follows the reference's section, where its rules are written"
     assert 'gh pr create --base main --head "oto/run-${RUN_ID}"' in author and "--body-file" in author
     assert "oto-run,blocked" in author, "a blocked run still opens a pull request, labelled"
     assert "git add -A" in author and "git push -u origin" in author

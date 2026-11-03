@@ -202,7 +202,11 @@ gh pr create --fill && gh pr merge --auto --merge        # auto-merge: it lands 
 The commits are made with their git identity and verified (signed) where the repository asks for
 it: the gate (`oto route check`, run by the `oto route` workflow) takes the session route only when
 the confirmer is the pull request's author and every commit is verified. Otherwise the route
-becomes **reviewed** and a second person approves; nothing is lost, it just waits.
+becomes **reviewed** and a second person approves; nothing is lost, it just waits. The project's
+`routes`, usually from its pack, can send it there too: a project whose `routes.allowed` does not
+list `session`, or a confirmed change to a class outside `session.classes` (a decision's status,
+say, on a board where cards move on the owner's word), goes to a reviewer. Tell the person before
+they expect the change to merge on its own.
 `oto route show --base origin/main` says, before the push, which route the change will take and
 why. If `main` moved meanwhile, `oto route rebase --onto origin/main` re-applies the facts through
 the gates and the confirmation still holds, since the fingerprint is over facts; commit and push

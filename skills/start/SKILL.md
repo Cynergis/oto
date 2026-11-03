@@ -34,6 +34,9 @@ Two kinds of thing start here, and the first question is which:
 - **A knowledge base** on an ontology that exists: a knowledge project started from a pack, whose
   vocabulary is derived from it. `oto pack list` says what exists; `oto pack add <name>` then
   `oto init --name "<the knowledge base, in words>" --slug <short-name> --project <root> --pack <name>`.
+  When the pack declares routes, the project takes them too, from the pack: `oto init` prints a
+  `routes` line, and they say how changes will reach `main` once the project has a repository
+  (which ones merge on the word of the person who made them, which wait for a second person).
 
 When neither a pack nor an ontology fits what the person describes, the ontology comes first, and
 the knowledge base is the first project on it. A project with no pack at all

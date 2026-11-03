@@ -564,7 +564,8 @@ jobs:
             references/pipeline-run.md together with references/draft-proposal.md. Read CLAUDE.md
             in this repository first. Use `oto` for every check; never edit graph.json directly.
             When the manifest's `inbox` is the transcripts folder project.config.json names under
-            `routes.guardrailed.from`, this run takes the guardrailed route: record each speaker's
+            `routes.guardrailed.from`, this is a transcripts run: follow the reference's section
+            "A transcripts run" as well. In short: record each speaker's
             statement first (`oto curate assert --by <speaker> --at <date> --text ...`), draft every
             fact as that speaker's assertion (source_type human_assertion, citing the assertion and
             the transcript), add only the classes the settings allow, change or retire nothing, and

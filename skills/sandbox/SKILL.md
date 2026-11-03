@@ -127,7 +127,10 @@ Only if the person says they want their own plugins or connectors in the sandbox
 ask whether to make it that way. Never offer it otherwise.
 
 Read the answers back in a sentence and confirm: the name, the folder, the kind, the repository or
-"no repository", and the variable the token is in.
+"no repository", and the variable the token is in. For a knowledge project with a repository, add one sentence on how
+changes will reach it: every change goes through a pull request, a change they confirm in their own
+session merges on its own, and one drafted from documents waits for a second person; on a pack,
+the pack's routes come with the project and may narrow that.
 
 ## 3. Set it up
 
@@ -155,6 +158,15 @@ the pack, which `oto status` says inside, and once the sandbox is ready `up` ins
 project scope, the pack plugins the project declares (the kit brings the engine plugin alone), so the
 first session has the pack's skills and views; the report says which. A pack added to the project
 later is the packs skill's job, inside.
+
+For a knowledge project with a repository on GitHub, `up` also sets the **branch rules** on its `main`: pull requests required, the
+checks `oto checks` and `oto route` required, no approvals at the branch level since the gate asks
+per route ([ADR-0013](../../docs/adr/0013-three-routes-into-main.md)), the merge queue on. A warning
+that they were not set says why, and `oto repo rules --apply` in the project folder sets them later.
+A knowledge project on a pack that declares routes carries **the pack's routes** in its
+configuration, derived like the vocabulary: which routes the project allows, the classes a session
+may change without review, the guardrails for transcripts. `oto status` says it inside (`routes
+from the pack <pack> @<release>`). Say both to the person, in plain words.
 
 When it is done, read `outside_plugins_summary` back in plain words (§5): it says whether the sandbox
 uses only its own plugins. Never say the sandbox is ready without it. Say the repository's address

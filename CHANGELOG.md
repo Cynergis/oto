@@ -4,6 +4,29 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.18.0 — 2026-11-03
+
+**The pack carries the routes' policy, the project derives it and may override it key by key, and the gate reads it.**
+Two pull requests (168, 169), phase 6 of [docs/plans/graph-journeys.md](docs/plans/graph-journeys.md), under
+[ADR-0013](docs/adr/0013-three-routes-into-main.md). A minor release: pack manifests gain a section and projects a derived
+setting. A pack without `routes`, and a project with no pack, behave as they did.
+
+- **The policy in the pack, derived into the project** (168). A pack's `manifest.json` may declare `routes`: `allowed`
+  (the routes a project on it may use; `reviewed` always), `session.classes` (the classes a session may change without
+  review) and `guardrailed` (the transcripts folder, the classes, `max_facts`, `additive_only`, `attributed`).
+  `oto pack check` validates it against the pack's own classes and `oto pack show` prints it. `oto init --pack` writes
+  it into `project.config.json` with `routes_from` (the pack, its release, the keys it gave and their values); with two
+  packs `allowed` is the intersection and the rest comes from the first pack. A project overrides a key by writing it;
+  `oto ontology update` moves the keys still the pack's, keeps the ones set here and says which. `oto status` says where
+  the routes came from. The gate sends a route the policy does not allow, or a session change to a class outside
+  `session.classes`, to `reviewed` with the reason; which route a change asks for stays derived from the pull request.
+- **The skills say it** (169). The pipeline's `pipeline-run.md` gains *A transcripts run*: record each speaker's
+  statement with `oto curate assert`, draft every fact as their assertion, only the allowed classes, additive, within
+  `max_facts`; the report says the route; the pipeline never applies with `--confirm`. `draft-proposal.md` gives a
+  transcript fact's shape. act and spec apply a record or decision confirmed in a session with `--confirm`; sandbox,
+  packs, start and the concierge say where the policy came from; curate says when it sends a confirmed change to a
+  reviewer; the ontology interview says how a pack author writes it. The author workflow's prompt points at the section.
+
 ## 0.17.0 — 2026-11-02
 
 **A change enters main by one of three routes, decided by what it carries; one gate enforces the route; a

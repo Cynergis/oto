@@ -25,7 +25,7 @@ LANDING
   for rc in "$HOME/.bashrc" "$HOME/.profile"; do
     grep -q 'oto/landing.sh' "$rc" 2>/dev/null || printf '\n[ -f "$HOME/.oto/landing.sh" ] && . "$HOME/.oto/landing.sh"\n' >> "$rc"
   done
-  command -v oto >/dev/null || uv tool install "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v0.18.2"
+  command -v oto >/dev/null || uv tool install "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v0.19.0"
   [ -d "$HOME/.cache/ms-playwright" ] || uv tool run --from playwright playwright install chromium
 } >>"$log" 2>&1
 if command -v oto >/dev/null; then

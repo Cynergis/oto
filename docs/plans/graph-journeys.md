@@ -18,7 +18,7 @@ on 2026-11-02 in the design note *Graph Contribution Journeys*: the person who m
 their session approves it there and no other approval is needed; transcripts are put in the inbox
 by a process designed later; each project has its own graph, repository and pipeline.
 
-Status: proposed on 2026-11-02; delivered on 2026-11-02 in five pull requests: the fact-level diff and `oto curate apply --confirm` (1); `oto route show|check`, the route workflow and the branch rules, `oto repo rules --apply`, the sandbox applying them (2); the five guardrails and `oto route guardrails` (3); the preview per pull request, every workflow pinned to the lock's ref, `oto lock --engine-ref`, `oto route rebase --onto` (4); the skills, the documents and [ADR-0013](../adr/0013-three-routes-into-main.md) (phase 5). The release follows.
+Status: proposed on 2026-11-02; phases 1 to 5 delivered on 2026-11-02 (pull requests 161 to 165, released as 0.17.0 under [ADR-0013](../adr/0013-three-routes-into-main.md)). Phase 6, the routes as the pack's defaults and the skills that still say nothing about them, proposed on 2026-11-02 and not built.
 
 ## What exists, and what changes
 
@@ -32,6 +32,7 @@ Status: proposed on 2026-11-02; delivered on 2026-11-02 in five pull requests: t
 | Two pull requests that both touch `graph.json` conflict as text. | The repository uses GitHub's **merge queue**; a pull request that fell behind re-applies its proposals onto the new `main` through the gates (`oto route rebase`), and the fingerprint still holds because it is over facts, not bytes. |
 | `oto init --repo` writes the workflows; branch rules are set by hand, or not at all. | `oto init --repo` writes the route workflow and the **branch rules** as a file; `oto sandbox up --repo` applies them with the token it already holds; `oto repo rules --apply` does the same later. |
 | The capture skill records what someone said; a CI agent drafts facts from it later, which nobody confirmed. | In a session the **curate skill drafts the facts, shows the diff, and records the confirmation** at the fourth gate. Capture stays for a statement recorded without drafting; it travels the `reviewed` route. |
+| The guardrail settings live in `project.config.json`, typed by hand per project; nothing says which routes a project may use. | **The pack carries the routes' policy** in its manifest, `routes`: which routes a project on it permits (`allowed`), the classes a session may touch without review, the guardrailed settings. It is **derived into the project** at `oto init --pack` and on `oto ontology update`, as the vocabulary is, and a project overrides it key by key; `oto status` says which keys are the pack's and which the project's. Which route a change takes stays derived from the pull request (phase 6). |
 
 ## Architecture
 
@@ -117,7 +118,7 @@ The ledger carries the confirmations; the run manifests already say where a docu
 
 ```
 board/                                   # a knowledge project, kind knowledge (ADR-0012)
-  project.config.json                    # + "routes": the guardrailed route's settings
+  project.config.json                    # + "routes": the routes' policy, derived from the pack (routes_from says which keys); overridable
   oto.lock.json                          # the engine ref the workflows install
   changelog.jsonl                        # the ledger; an entry may carry "confirmation"
   graph.json                             # the live graph
@@ -252,6 +253,76 @@ Each phase is a pull request of the engine (and where noted, of the skills in it
   driving the three routes on a repository), `README.md`.
 - A release.
 
+**Phase 6, the routes as the pack's defaults, and the skills that still say nothing.**
+
+The guardrail settings are domain knowledge: which classes a transcript may add unattended, how
+many facts a run may carry, whether a contradiction is ever allowed. The pack author knows that a
+Kanban board tolerates cards and blockers from a transcript and never a decision's status. So the
+pack carries the routes' *policy*, and the project derives it the way it derives the vocabulary
+(ADR-0012). What the pack never carries is *which route a change takes*: that stays derived from
+what the pull request carries (ADR-0013), because the gate's trust comes from the record, a
+confirmation whose fingerprint is the diff or a run whose manifest names the transcripts folder,
+and a setting that chose the route would put a label where a fact-level check is.
+
+- **The manifest.** `manifest.json` gains `routes`, the same shape as the project's, with one more
+  key:
+
+  ```json
+  "routes": {
+    "allowed": ["session", "reviewed", "guardrailed"],
+    "session": {"classes": ["Card", "Blocker", "Column", "Move"]},
+    "guardrailed": {"from": "inbox/transcripts", "classes": ["Decision", "Blocker"], "max_facts": 40,
+                    "additive_only": true, "attributed": true}
+  }
+  ```
+
+  `allowed` says which routes a project on this pack may use; a pack that drops `guardrailed` sends
+  every transcript to a person. `session.classes`, optional, is a scope guardrail on the session
+  route: a confirmed change that adds or changes a class outside the list goes to a reviewer, so a
+  product owner moves cards on their own word and a decision's status still gets a second pair of
+  eyes. `oto pack check` validates the section: the routes named exist, the classes are classes the
+  pack composes, `max_facts` is a positive integer, `from` is a folder of the project; the
+  publishability scan reads it like the rest. `oto pack show` prints it. (`FIELDS` and
+  `_manifest_problems` in `oto/model/packs.py`.)
+- **Derived into the project.** `oto init --pack` writes `routes` into `project.config.json` from the
+  pack, and records beside it `routes_from`: the pack, its release and the keys taken
+  (`{"pack": "kanban", "release": 3, "keys": ["allowed", "session", "guardrailed"]}`). A project
+  overrides a key by writing it: the key leaves `routes_from.keys` and is the project's from then
+  on. `oto ontology update` rewrites the keys still listed from the pack's new release and leaves
+  the project's alone, saying what moved. Two packs composed: `allowed` is the intersection (the
+  stricter wins), the settings come from the first pack named, and a second pack that declares them
+  too is reported, not merged. A project with no pack, or on a pack without `routes`, keeps today's
+  behaviour: no section, every pull request reviewed, settings typed by hand. (`oto/model/derived.py`
+  gains the routes beside the vocabulary; `oto/scaffold.py`, `oto/cli/catalog.py`.)
+- **The gate reads the policy.** `oto route show` and `check` read the effective `routes` at the
+  head: a route not in `allowed` moves to `reviewed` with the reason ("the pack kanban does not
+  allow the guardrailed route"); a session change touching a class outside `session.classes` moves
+  to `reviewed` ("Decision is not a class a session changes without review on this pack"). The
+  guardrails read their settings as they do. `oto status` says `routes  from kanban @3 (allowed,
+  session, guardrailed); guardrailed overridden here`. (`oto/route.py`, `oto/cli/status.py`.)
+- **The skills that still say nothing.** Found by reading each skill that ends in a change on
+  `main`:
+  - `build-knowledge-base/references/pipeline-run.md`, the document the author agent follows
+    *exactly* in CI: a section for a transcripts run (record each speaker's statements with `oto
+    curate assert`, draft their assertions, only the allowed classes, additive, within `max_facts`,
+    what the report says), and a line on the route the pull request will take; today the rules are
+    in the workflow's prompt and not in the reference.
+  - `build-knowledge-base/references/draft-proposal.md`: a fact from a transcript is the speaker's
+    assertion, with the shape.
+  - `act`: the tools workflow's pull request is `reviewed`; a person acting in their session and
+    recording the response applies with `--confirm`, the session route.
+  - `spec`: a decision recorded from a session applies with `--confirm`; one drafted by the pipeline
+    from an ADR in the inbox is `reviewed`.
+  - `sandbox`: a knowledge sandbox's repository gets the branch rules when it is created, and the
+    pack's routes come with the project; say it in the read-back.
+  - `packs`: `oto pack show` prints the routes; a pack without them leaves every pull request to a
+    reviewer.
+  - `start` and `concierge`: the routes line says where the policy came from.
+  - Tests: `tests/test_skills_routes.py` extended with the words each must say; `tests/test_packs.py`
+    for the manifest's validation and `show`; `tests/test_project_kind.py` for the derivation, the
+    override and `update`; `tests/test_route.py` for `allowed` and `session.classes` at the gate.
+- A release.
+
 ## What the Northwind Kanban project needs, apart from this plan
 
 These are the repository's settings, not engine changes, and they block the journeys today:
@@ -287,6 +358,10 @@ route, which is what it has today.
   project's to set; the engine ships no default beyond `additive_only` and `attributed` on.
 - **How transcripts arrive** in `inbox/transcripts/` (decision 2): a connector, a scheduled tool, a
   person. Designed later; the route does not depend on it.
+- **A stricter project, a looser pack.** A project may drop a route the pack allows; may it allow
+  one the pack does not? Phase 6 says no (the intersection), since the pack author knows the domain
+  and the project owner knows the client, and the stricter of the two should hold until the two
+  agree in a release. Decided when the first project asks for it.
 - **Who re-applies a stale pull request.** `oto route rebase` runs in the working tree and commits
   nothing: an automatic re-apply would be a bot's commit, and the session route trusts a
   confirmation only on commits by the confirmer. So the person, or the curate skill in their

@@ -103,6 +103,38 @@ def test_the_kit_declares_what_the_v2_kit_did():
     assert not _capabilities(d, "com.docker.sandbox/credential@1"), "the Claude kit's own credential carries the sign-in"
 
 
+def test_the_install_hooks_leave_the_agents_home_to_the_agent():
+    """The hooks run as root with the image's HOME, /home/agent: gcloud's installer left a root-owned
+    ~/.config there, and gcloud then could not write its logs. Each hook runs with root's own home."""
+    hooks = _capabilities(_descriptor(), LIFECYCLE)[0]["config"]["install"]
+    assert all(h["command"].startswith("export HOME=/root\n") for h in hooks), [h["description"] for h in hooks]
+
+
+def test_the_kit_brings_a_uv_that_runs_on_the_sandboxs_kernel():
+    """The Claude kit's image packages a uv that aborts where the kernel's pages are 16 KB, as in a
+    sandbox on a Mac with Apple silicon (`jemalloc: Unsupported system page size`): nothing it runs,
+    the engine and the plugin's server among them, starts. When it cannot run, the kit installs
+    Astral's own build ahead of it on the PATH, before the hook that uses it."""
+    hooks = _capabilities(_descriptor(), LIFECYCLE)[0]["config"]["install"]
+    uv = next(h["command"] for h in hooks if "astral-sh/uv" in h["command"])
+    assert "uv --version >/dev/null 2>&1" in uv and "uvx --version >/dev/null 2>&1" in uv, "only when the image's cannot run"
+    assert 'https://github.com/astral-sh/uv/releases/latest/download/uv-$target.tar.gz' in uv and "unknown-linux-musl" in uv
+    assert '"/tmp/uv-$target/uv" "/tmp/uv-$target/uvx" /usr/local/bin/' in uv, "/usr/local/bin is ahead of /usr/bin on the image's PATH"
+    assert uv.index("astral-sh/uv") < uv.index("playwright install-deps"), "installed before it is used"
+    assert 'export PATH="/usr/local/bin:$PATH"' in uv, "a hook's PATH puts /usr/bin first: the image's uv was still the one run"
+    assert uv.index("/usr/local/bin/\n") < uv.index("hash -r") < uv.index("playwright install-deps"), \
+        "the shell remembers where it found uv the first time: forgotten once Astral's is in place"
+
+
+def test_the_start_says_ready_only_when_the_engine_is_there():
+    """The start printed `OTO ready` whatever happened, so a start whose engine did not install looked
+    ready. It says `OTO failed` then, and `oto sandbox up` stops waiting on either."""
+    from oto import sandbox
+    init = _read("kits", "oto-gcp", "files", "home", ".oto", "init.sh")
+    ready, failed = init.index('echo "%s:' % sandbox.READY), init.index('echo "%s:' % sandbox.FAILED)
+    assert "if command -v oto >/dev/null; then" in init[:ready] and ready < failed
+
+
 def test_the_note_for_the_sandboxs_claude_is_its_agent_context():
     """The v2 kit wrote ~/.claude/CLAUDE.md. The Claude kit now owns that file, as its agent context; the
     kit's note joins it as a body of its own, in both versions while sbx accepts both."""

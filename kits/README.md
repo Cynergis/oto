@@ -122,6 +122,15 @@ tried before it is released, in a sandbox of its own:
 oto sandbox up --kit kits/oto-gcp --name oto-kit-try --approve-anthropic
 ```
 
+`sbx` builds the folder in a builder sandbox of its own (`sbx kit builder status`), unless it finds the
+`docker` command: then it builds with Docker's default builder, which on Docker Desktop cannot write a
+kit (`OCI exporter is not supported for the docker driver`). Run that one command without Docker
+Desktop's folder on the PATH (`/usr/local/bin` on a Mac):
+
+```bash
+env PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/bin:/bin" oto sandbox up --kit kits/oto-gcp --name oto-kit-try --approve-anthropic
+```
+
 **Releasing it.** The kit's version is the engine's. A version bump moves it in the same change, in
 `oto-gcp/oto-gcp.yaml` (`version`, the `source` argument's default and its one allowed value, and the
 description), in the engine `init.sh` installs, and in the example above; the copy of `init.sh` in the

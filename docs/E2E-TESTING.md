@@ -1563,13 +1563,15 @@ sbx version                                    # 0.51.0 or later. With an older 
                                                #   and how to upgrade, and oto sandbox up refuses before it changes anything
 oto sandbox up --name oto-kit-try --project-id <your Google Cloud project id> --approve-anthropic --init-policy balanced
                                                # created the sandbox oto-kit-try from ghcr.io/cynergis/oto-gcp:<version>; OTO ready; oto-kit-try.sbx
-#   the kit of a checkout instead of the published one, before a release: add --kit kits/oto-gcp (sbx builds the folder)
+#   the kit of a checkout instead of the published one, before a release: add --kit kits/oto-gcp (sbx builds the folder;
+#   with Docker Desktop installed, run it with Docker's folder off the PATH: kits/README.md, Trying a change)
 oto sandbox status --name oto-kit-try          # running, made from oto-gcp; OTO ready; outside plugins blocked
 
 # inside: the kits it was merged from, its environment, what its hooks installed, its note and its lock
 sbx exec oto-kit-try -- ls /usr/share/sandbox/kit/                                        # claude and oto-gcp
 sbx exec oto-kit-try -- sh -c 'echo "$OTO_SANDBOX $OTO_OUTSIDE_PLUGINS"; echo "$OTO_SOURCE"'   # kit blocked; oto-kg @ git+https://github.com/Cynergis/oto@v<version>
-sbx exec oto-kit-try -- sh -c 'command -v soffice gcloud bq uvx oto claude'               # six paths: LibreOffice, Google Cloud, uvx, the engine, Claude Code
+sbx exec oto-kit-try -- sh -c 'for t in soffice gcloud bq uv uvx oto claude; do command -v $t; done'   # seven paths: LibreOffice, Google Cloud, uv, the engine, Claude Code
+sbx exec oto-kit-try -- sh -c 'uv --version && gcloud --version | head -1'                  # uv <version>, Google Cloud SDK <version>: no abort, no warning about a folder it cannot write
 sbx exec oto-kit-try -- tail -1 /tmp/oto-init.log                                         # OTO ready: <n> plugins
 sbx exec oto-kit-try -- grep -c "This is an OTO sandbox" /home/agent/.claude/CLAUDE.md    # 1: the kit's note, beside the Claude kit's own
 sbx exec oto-kit-try -- claude plugin list                                               # oto@cynergis-engine, enabled
@@ -1581,7 +1583,8 @@ oto sandbox rm oto-kit-try                     # removed; the folders in ~/oto-k
 Pass when an sbx older than 0.51 is refused with its upgrade and nothing is created; the sandbox is
 made from the kit and reported as OTO's (`made from oto-gcp`); `/usr/share/sandbox/kit/` holds both
 kits; the environment says `kit` and `blocked` and pins the engine of this release; LibreOffice, the
-Google Cloud CLI, uvx, the engine and Claude Code are all found; the start log ends on `OTO ready`; the
+Google Cloud CLI, uv, the engine and Claude Code are all found, and uv and gcloud run without an abort or a
+warning; the start log ends on `OTO ready`; the
 Claude kit's `CLAUDE.md` carries the kit's note; only `oto@cynergis-engine` is installed; and the
 lock has switched off the account's plugins and connectors. In Claude Desktop, a session on the SSH
 connection `oto-kit-try.sbx` starts in the project folder, and asked which plugins are on, its Claude

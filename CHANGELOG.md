@@ -4,6 +4,23 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.18.1 — 2026-11-03
+
+**The gate holds a change to its base's policy.** One pull request (171), found while writing the end-to-end section
+for the pack's routes. A patch release: upgrade from 0.18.0, whose gate a pull request could talk its way through.
+
+- **The base's policy decides.** `oto route show`, `check` and `guardrails` read `routes` at the base, not at the pull
+  request's head: in 0.18.0 a pull request could add a class to `routes.session.classes`, or raise its own `max_facts`,
+  and be judged by the policy it wrote. A change that rewrites `routes`, moves `oto.lock.json` or touches `.github/`
+  now takes the reviewed route with the reason posted (ADR-0013: an engine upgrade is a reviewed change), measured
+  from the merge base, so a branch cut before `main` changed its policy is not taken for one.
+- **`oto status` says an override at once.** A key the project rewrote is said to be set here before the next
+  `oto ontology update`, by the rule the update uses.
+- **`docs/E2E-TESTING.md` section 35** walks the pack's routes: a pack of your own declares the policy, a project
+  derives it and overrides a key that an update keeps, and the gate holds a confirmed card, a WIP limit and a change
+  that widens its own policy. Open, in the plan: the `oto route` workflow runs on `pull_request`, so a pull request
+  that rewrote the workflow itself would be judged by its own copy; a ruleset that requires it from `main` closes it.
+
 ## 0.18.0 — 2026-11-03
 
 **The pack carries the routes' policy, the project derives it and may override it key by key, and the gate reads it.**

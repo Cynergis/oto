@@ -182,6 +182,25 @@ def _show(name):
     if manifest.get("maintainer"):
         print("  by:       %s" % manifest["maintainer"])
     print("  skills:   %s" % (", ".join(packs.skills(directory)) or "none"))
+    routes = packs.routes_of(directory)
+    if routes:
+        parts = []
+        if routes.get("allowed"):
+            parts.append("allowed %s" % ", ".join(routes["allowed"]))
+        for name in ("session", "reviewed"):
+            if (routes.get(name) or {}).get("classes"):
+                parts.append("%s classes %s" % (name, ", ".join(routes[name]["classes"])))
+        guarded = routes.get("guardrailed") or {}
+        if guarded:
+            bits = []
+            if guarded.get("from"):
+                bits.append("from %s" % guarded["from"])
+            if guarded.get("classes"):
+                bits.append("classes %s" % ", ".join(guarded["classes"]))
+            if guarded.get("max_facts"):
+                bits.append("at most %s facts" % guarded["max_facts"])
+            parts.append("guardrailed %s" % ", ".join(bits) if bits else "guardrailed")
+        print("  routes:   %s  (derived into a project at init; docs/plans/graph-journeys.md)" % "; ".join(parts))
     print("  views:    %s" % (", ".join(packs.views(directory)) or "none"))
     config = packs.embedded_config(directory)
     if config:

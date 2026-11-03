@@ -18,7 +18,7 @@ on 2026-11-02 in the design note *Graph Contribution Journeys*: the person who m
 their session approves it there and no other approval is needed; transcripts are put in the inbox
 by a process designed later; each project has its own graph, repository and pipeline.
 
-Status: proposed on 2026-11-02; phases 1 to 5 delivered on 2026-11-02 (pull requests 161 to 165, released as 0.17.0 under [ADR-0013](../adr/0013-three-routes-into-main.md)). Phase 6, the routes as the pack's defaults and the skills that still say nothing about them, proposed on 2026-11-02 and not built.
+Status: proposed on 2026-11-02; phases 1 to 5 delivered on 2026-11-02 (pull requests 161 to 165, released as 0.17.0 under [ADR-0013](../adr/0013-three-routes-into-main.md)). Phase 6: the engine half (the routes' policy in the pack manifest, validated by `oto pack check` and printed by `oto pack show`; derived into the project at `oto init --pack` with `routes_from`; overridden key by key; re-derived by `oto ontology update`; read by the gate) delivered on 2026-11-02; the skills half is not built.
 
 ## What exists, and what changes
 

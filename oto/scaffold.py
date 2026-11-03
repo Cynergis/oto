@@ -385,6 +385,16 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
     }
     if ontology_record:
         config["ontology"] = ontology_record
+    if vocabulary_mode == _derived.DERIVED:
+        # the routes' policy the packs carry, derived as the vocabulary is (docs/plans/graph-journeys.md, phase 6)
+        directories = ([pack_info["directory"]] if pack_info else []) + [d for _n, d, _p in names_used if d]
+        routes, routes_from, notes = _derived.routes_policy([d for i, d in enumerate(directories) if d not in directories[:i]])
+        if routes:
+            config["routes"] = routes
+            config["routes_from"] = routes_from
+            print("  routes:   %s" % _derived.routes_said(config))
+            for note in notes:
+                print("    note: %s" % note)
     _write(os.path.join(root, "project.config.json"), config, force, "project.config.json")
 
     _write(os.path.join(root, "ontology.config.json"), ontology_config or {

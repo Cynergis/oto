@@ -159,3 +159,129 @@ def refusal(project, found):
                  % os.path.basename(project.data))
     lines.append("a project that wants to own its vocabulary says so: \"vocabulary\": \"own\" in project.config.json")
     return "\n".join(lines)
+
+
+# ---- the routes' policy (docs/plans/graph-journeys.md, phase 6) ----
+
+ROUTE_KEYS = ("allowed", "session", "reviewed", "guardrailed")
+
+
+def pack_dirs(project):
+    """The directories of the installed packs the project's vocabulary is derived from, in composition
+    order: the pack the record names, then the pack each ontology name resolves inside."""
+    from . import ontologies as _ontologies, packs as _packs
+    out = []
+    found = record(project) or {}
+    pack = (found.get("pack") or {}).get("name")
+    if pack and _packs.dir_for(pack):
+        out.append(_packs.dir_for(pack))
+    roots = _roots(project)
+    pack_roots = {os.path.normpath(r) for r in _ontologies._pack_roots()}
+    for name in names(project):
+        path = _ontologies.dir_for(name, roots)
+        if path and os.path.normpath(os.path.dirname(path)) in pack_roots:
+            directory = os.path.dirname(os.path.dirname(path))
+            if directory not in out:
+                out.append(directory)
+    return out
+
+
+def routes_policy(directories):
+    """(routes, routes_from, notes) composed from the packs at `directories`, in order: `allowed` is the
+    intersection of what the packs allow (the stricter wins); `session`, `reviewed` and `guardrailed`
+    come from the first pack that declares each, and a later pack declaring one too is noted. Each
+    entry of routes_from says which keys a pack gave, at which release, and the values as derived, so
+    a later update can tell a key the project rewrote from one still the pack's."""
+    from . import packs as _packs
+    routes, routes_from, notes = {}, [], []
+    allowed = None
+    for directory in directories:
+        manifest = _packs.read(directory)
+        policy = manifest.get("routes") if isinstance(manifest.get("routes"), dict) else {}
+        if not policy:
+            continue
+        gave = []
+        if isinstance(policy.get("allowed"), list):
+            mine = [r for r in policy["allowed"] if isinstance(r, str)]
+            allowed = mine if allowed is None else [r for r in allowed if r in mine]
+            gave.append("allowed")
+        for key in ("session", "reviewed", "guardrailed"):
+            if isinstance(policy.get(key), dict):
+                if key in routes:
+                    notes.append("the pack %s also declares routes.%s; %s's is kept" % (manifest["name"], key, routes_from[0]["pack"]))
+                    continue
+                routes[key] = json.loads(json.dumps(policy[key]))
+                gave.append(key)
+        if gave:
+            routes_from.append({"pack": manifest["name"], "release": manifest["release"], "keys": sorted(gave), "derived": {}})
+    if allowed is not None:
+        routes["allowed"] = allowed
+    for entry in routes_from:
+        entry["derived"] = {k: json.loads(json.dumps(routes[k])) for k in entry["keys"] if k in routes}
+        entry["keys"] = sorted(entry["derived"])
+    return routes, routes_from, notes
+
+
+def write_routes(project):
+    """Re-derive the project's routes from its packs' current releases, keeping every key the project
+    rewrote: a key is the pack's while its value is what the pack gave (`routes_from[].derived`), and
+    the project's once it differs. Returns {moved, kept, dropped, from} or None when nothing is
+    derived (no pack declares routes and the project recorded none)."""
+    config = project.config()
+    current = dict(config.get("routes") or {})
+    was_from = config.get("routes_from") or []
+    derived_now, from_now, _notes = routes_policy(pack_dirs(project))
+    if not was_from and not from_now:
+        return None
+    theirs_before = {}
+    for entry in was_from:
+        for key in entry.get("keys") or []:
+            theirs_before[key] = (entry.get("derived") or {}).get(key)
+    kept = sorted(k for k in current if k in theirs_before and current[k] != theirs_before[k])      # rewritten by the project
+    projects_own = {k: current[k] for k in current if k not in theirs_before or k in kept}
+    new_routes = dict(projects_own)
+    moved, dropped = [], []
+    for key, value in derived_now.items():
+        if key in projects_own:
+            continue
+        new_routes[key] = value
+        if current.get(key) != value:
+            moved.append(key)
+    for key in theirs_before:
+        if key not in derived_now and key not in projects_own:
+            dropped.append(key)
+    for entry in from_now:
+        entry["keys"] = [k for k in entry["keys"] if k not in projects_own]
+        entry["derived"] = {k: v for k, v in entry["derived"].items() if k not in projects_own}
+    from_now = [e for e in from_now if e["keys"]]
+    if new_routes:
+        config["routes"] = new_routes
+    else:
+        config.pop("routes", None)
+    if from_now:
+        config["routes_from"] = from_now
+    else:
+        config.pop("routes_from", None)
+    with open(project.config_path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(config, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    return {"moved": moved, "kept": kept, "dropped": dropped, "from": from_now}
+
+
+def routes_said(config):
+    """One line for `oto status`: which keys of `routes` are the packs' and which the project's."""
+    routes = config.get("routes") or {}
+    entries = config.get("routes_from") or []
+    if not routes and not entries:
+        return None
+    parts = []
+    theirs = set()
+    for entry in entries:
+        keys = [k for k in entry.get("keys") or [] if k in routes]
+        theirs |= set(keys)
+        if keys:
+            parts.append("from the pack %s @%s: %s" % (entry.get("pack"), entry.get("release"), ", ".join(keys)))
+    mine = sorted(k for k in routes if k not in theirs)
+    if mine:
+        parts.append("%s set here" % ", ".join(mine))
+    return "; ".join(parts)

@@ -18,7 +18,7 @@ on 2026-11-02 in the design note *Graph Contribution Journeys*: the person who m
 their session approves it there and no other approval is needed; transcripts are put in the inbox
 by a process designed later; each project has its own graph, repository and pipeline.
 
-Status: proposed on 2026-11-02. Phases 1 to 4 delivered on 2026-11-02: the fact-level diff and `oto curate apply --confirm` (1); `oto route show|check`, the route workflow and the branch rules, `oto repo rules --apply`, the sandbox applying them (2); the five guardrails and `oto route guardrails` (3); the preview per pull request, every workflow pinned to the lock's ref with `oto lock --check` in the checks, `oto lock --engine-ref`, `oto route rebase --onto` (4). Phase 5, the skills, the documents and the decision, is not built.
+Status: proposed on 2026-11-02; delivered on 2026-11-02 in five pull requests: the fact-level diff and `oto curate apply --confirm` (1); `oto route show|check`, the route workflow and the branch rules, `oto repo rules --apply`, the sandbox applying them (2); the five guardrails and `oto route guardrails` (3); the preview per pull request, every workflow pinned to the lock's ref, `oto lock --engine-ref`, `oto route rebase --onto` (4); the skills, the documents and [ADR-0013](../adr/0013-three-routes-into-main.md) (phase 5). The release follows.
 
 ## What exists, and what changes
 

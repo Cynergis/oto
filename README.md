@@ -61,6 +61,12 @@ shows why.
   what a policy forbids. A derived fact is marked in every answer and explained down to the
   documents it rests on; it is never written into the graph.
 
+In a repository, a change enters `main` by one of **three routes**, decided by what the pull
+request carries ([ADR-0013](docs/adr/0013-three-routes-into-main.md)): confirmed by the person who
+made it in their Claude session, it merges on its own; drafted by the pipeline from documents, it
+waits for one review, given in a preview of the graph; drafted from transcripts, it merges when
+five guardrails hold. One check, `oto route`, enforces the route.
+
 ## Status
 
 Early development. The engine was extracted from a working private system that holds

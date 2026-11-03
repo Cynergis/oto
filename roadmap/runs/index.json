@@ -71,6 +71,12 @@
     "sha256": "58d98bd3b234b660906ebccda4f8e33525be912c1e68f464ae33de37c0d189c3",
     "slug": "0012-two-kinds-of-project"
   },
+  "0013-three-routes-into-main.md": {
+    "archived_at": "2026-11-02T20:21:10",
+    "run_id": "20261102-202101",
+    "sha256": "5b03de6bfb0edc19fdfd375ce9542ab50ba2b86e83abc2ba10dcd344135c358d",
+    "slug": "0013-three-routes-into-main"
+  },
   "OTO Roadmap 2.0.md": {
     "archived_at": "2026-10-25T16:56:01",
     "run_id": "20261025-165359",

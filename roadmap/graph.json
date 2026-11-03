@@ -1599,6 +1599,63 @@
       "sources": [
         "0012-two-kinds-of-project"
       ]
+    },
+    {
+      "id": "decision.adr-0013",
+      "type": "Decision",
+      "label": "A change enters main by one of three routes, decided by what it carries; one gate enforces the route, and a confirmation in a session is the approval",
+      "summary": "A change enters `main` by one of three routes, decided by what the pull request carries and never by a label someone sets: `session` when the one ledger entry it adds carries a confirmation whose fingerprint equals the fact-level diff between the two `graph.json`, `guardrailed` when the ingest runs it carries came from the transcripts folder the project names, and `reviewed` otherwise; one required check, `oto route`, enforces the route's rule, and a route only moves towards `reviewed`.",
+      "attributes": {
+        "status": "accepted",
+        "decided_on": "2026-11-02",
+        "rationale": "A change enters `main` by one of three routes, decided by what the pull request carries and never by a label someone sets: `session` when the one ledger entry it adds carries a confirmation whose fingerprint equals the fact-level diff between the two `graph.json`, `guardrailed` when the ingest runs it carries came from the transcripts folder the project names, and `reviewed` otherwise; one required check, `oto route`, enforces the route's rule, and a route only moves towards `reviewed`."
+      },
+      "valid_from": "2026-11-02",
+      "evidence": [
+        {
+          "doc": "0013-three-routes-into-main",
+          "where": "Decision",
+          "quote": "A change enters `main` by one of three routes, decided by what the pull request carries and never by a label someone sets: `session` when the one ledger entry it adds carries a confirmation whose fingerprint equals the fact-level diff between the two `graph.json`, `guardrailed` when the ingest runs it carries came from the transcripts folder the project names, and `reviewed` otherwise; one required check, `oto route`, enforces the route's rule, and a route only moves towards `reviewed`."
+        },
+        {
+          "doc": "0013-three-routes-into-main",
+          "where": "frontmatter",
+          "quote": "decided_on: 2026-11-02"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-11-02",
+      "source_doc": "0013-three-routes-into-main",
+      "sources": [
+        "0013-three-routes-into-main"
+      ]
+    },
+    {
+      "id": "document.0013-three-routes-into-main",
+      "type": "Document",
+      "label": "A change enters main by one of three routes, decided by what it carries; one gate enforces the route, and a confirmation in a session is the approval",
+      "summary": "ADR ADR-0013, the record of this decision.",
+      "attributes": {
+        "kind": "adr"
+      },
+      "valid_from": "2026-11-02",
+      "evidence": [
+        {
+          "doc": "0013-three-routes-into-main",
+          "where": "title",
+          "quote": "A change enters main by one of three routes, decided by what it carries; one gate enforces the route, and a confirmation in a session is the approval"
+        }
+      ],
+      "aliases": [],
+      "tags": [],
+      "status": "current",
+      "as_of": "2026-11-02",
+      "source_doc": "0013-three-routes-into-main",
+      "sources": [
+        "0013-three-routes-into-main"
+      ]
     }
   ],
   "edges": [
@@ -1984,6 +2041,26 @@
     },
     {
       "from": "decision.adr-0012",
+      "rel": "decided_by",
+      "to": "person.chiheb-dkhil"
+    },
+    {
+      "from": "decision.adr-0013",
+      "rel": "documented_in",
+      "to": "document.0013-three-routes-into-main"
+    },
+    {
+      "from": "decision.adr-0013",
+      "rel": "governs",
+      "to": "workitem.epic-b"
+    },
+    {
+      "from": "decision.adr-0013",
+      "rel": "governs",
+      "to": "workitem.epic-j"
+    },
+    {
+      "from": "decision.adr-0013",
       "rel": "decided_by",
       "to": "person.chiheb-dkhil"
     }

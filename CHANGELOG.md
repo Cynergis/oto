@@ -4,6 +4,32 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.19.0 — 2026-11-03
+
+**The sandbox kit for sbx 0.51.** Two pull requests (175, 176). sbx 0.51 made the built-in agents published kits of
+schema 3, `claude` among them (`docker.io/sbx/claude`), and kits of schema 2 no longer combine with them: OTO's kit
+was one, built on `claude`, and sbx 0.51 refused to create a sandbox from it. A minor release: the kit needs sbx
+0.51.0 or later. Upgrade the sandbox tool first (`brew upgrade docker/tap/sbx` on a Mac, `winget upgrade Docker.sbx`
+on Windows). A sandbox made from the earlier kit keeps running; `oto sandbox up --recreate` makes it again from this
+one, and its project and code folders stay.
+
+- **A kit set of schema 3.** `kits/oto-gcp/oto-gcp.yaml` replaces `spec.yaml`: Docker's Claude Code kit and OTO's
+  declarations (the environment as arguments, the network at run time and while the install hooks run, the install
+  hooks and the start, the files, the note for Claude as agent context), merged into one kit,
+  `ghcr.io/cynergis/oto-gcp:<version>`, as before. A set ships no files of its own: `tools/kit_files.py` copies
+  `kits/oto-gcp/files` into the descriptor, and the tests and CI fail while the copy is stale.
+- **Built by Docker's kit frontend.** The release builds the kit through Buildx, for both Linux platforms, and signs it
+  with `sbx kit sign` (`sbx kit push` is for kits of schema 1 and 2); CI builds it at every push without publishing it.
+- **`oto sandbox up` refuses an older sbx** with its upgrade, before it changes anything, and `oto sandbox status`
+  says it (`sbx_supported`).
+- **Found by running it on sbx 0.51, on a Mac with Apple silicon.** The `uv` of the Claude kit's image aborts on the
+  sandbox's 16 KB pages, so neither the engine nor Chromium's libraries installed: the kit brings Astral's build of
+  `uv` and `uvx` when the image's cannot run. The install hooks ran with the agent's home and left a root-owned
+  `~/.config` that gcloud could not write to: each runs with root's own. And the start said `OTO ready` whatever
+  happened: it says `OTO failed` when the engine is not there, and `up` stops waiting on either.
+- **`docs/E2E-TESTING.md` section 36** walks the kit on sbx 0.51; `kits/README.md` says how to try a kit folder before
+  a release, and why, on a computer with Docker Desktop, without Docker's folder on the PATH.
+
 ## 0.18.2 — 2026-11-03
 
 **Only main's deploy key pushes past the branch rules; code owners hold what the gate runs on.** One pull request

@@ -161,6 +161,13 @@ One paragraph; its first sentence is the quote the node cites, word for word.
    curate add --from proposals/0017-....json`, `oto curate check`, `oto curate apply`. In repository
    mode the pipeline does this from the pull request. The gates look the quote up in the ADR and
    refuse a `governs` target the graph does not hold; `propose` names what it could not resolve.
+   In a repository the decision reaches `main` by a pull request, on one of three routes
+   ([ADR-0013](../../docs/adr/0013-three-routes-into-main.md)). A decision the person makes and
+   records in their own session takes the **session route**: show them the diff after `check`, and
+   with their yes apply under their name with `--confirm` (`oto curate apply --by "<them, as git
+   knows them>" --note "<...>" --confirm`), then branch, commit, pull request and auto-merge, as the
+   curate skill's fourth gate says. An ADR left in the inbox for the pipeline to draft takes the
+   **reviewed route**: a second person approves it in the preview.
 3. The graph then answers "which decisions govern this, since when, by whom, and are they current"
    (PR26), and a superseded decision reads as history as of its date.
 

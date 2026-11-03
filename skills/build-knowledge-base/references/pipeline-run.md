@@ -72,6 +72,45 @@ as its description. Nothing reaches `graph.json` on `main` except through that p
 7. **Write `runs/<run-id>.report.md`.** It is the pull request's description, so it is for the
    curator, not for you.
 
+## A transcripts run
+
+A run whose manifest's `inbox` is the folder `project.config.json` names under
+`routes.guardrailed.from` is a **transcripts run**: what people said in meetings, which may land
+with nobody approving it, as long as it holds to the project's guardrails
+([ADR-0013](../../../docs/adr/0013-three-routes-into-main.md)). Read the settings first: the
+`routes` section of `project.config.json`, usually derived from the pack (`oto status` says which
+keys are the pack's and which were set here). If `routes.allowed` does not list `guardrailed`, or
+the project has no `routes.guardrailed`, draft the run as below all the same: its pull request
+takes the reviewed route, and the report says so. On top of the steps above:
+
+- **Record each speaker's statement before drafting from it.** One
+  `oto curate assert --by "<the speaker, as the transcript names them>" --at <the meeting's date> --text "<what they said, in their words>" --project .`
+  per statement a fact rests on, in series; it prints the assertion's id. A statement whose speaker
+  the transcript does not name is not drafted: it goes under *Needs a person*.
+- **Draft every fact as that speaker's assertion**, in the shape
+  [draft-proposal.md](draft-proposal.md) gives: `"source_type": "human_assertion"`, `sources`
+  citing the assertion and the transcript. While the run is open, `oto curate check` refuses a fact
+  from it that is not an assertion.
+- **Only the classes the settings allow** (`routes.guardrailed.classes`). A statement about
+  anything else goes under *Needs a person*, not into a proposal.
+- **Additive**, when `additive_only` holds: add facts, never change, supersede or retire one the
+  graph holds. A statement that contradicts the graph goes under *Contradictions*, with the speaker
+  and their words, for a person to decide.
+- **Within `max_facts`**: the nodes and the edges the run adds, counted together (`oto curate diff`
+  shows them). Over the limit, keep the facts the Gate 1 questions need most and list the rest
+  under *Needs a person*.
+- **Clean**: the run was ingested with `--strict-privacy` (its manifest records `strict_privacy`);
+  if it was not, the run takes the reviewed route, and the report says why.
+
+The `oto route` workflow runs `oto route guardrails` on the pull request. It reads commits, so you
+cannot run it here; hold yourself to the guardrails above before `apply`. A run that holds to all
+of them takes the **guardrailed route** and merges with no approval. One that does not takes the
+**reviewed route**, with the findings posted, and a person decides: the right outcome for a run that
+needed it, never a reason to bend a fact to fit.
+
+A documents run's pull request takes the **reviewed route**: one approving review, given in the
+preview the `oto preview` workflow links on the pull request.
+
 ## The report
 
 Sections, in this order; "none" where empty:
@@ -89,6 +128,9 @@ Sections, in this order; "none" where empty:
 6. **Needs a person** — contradictions left unresolved, SUSPECTs kept, privacy findings, gaps the
    documents cannot fill, and anything under *Needs the vocabulary*. Each with what you propose.
 7. **Not asserted** — what the documents are silent on that a reader of these facts might assume.
+8. **Route** — the route the pull request will take, and why: reviewed for documents; guardrailed
+   for a transcripts run that held to every guardrail, each named, with the facts added against
+   `max_facts`; reviewed for one that did not, with which and why.
 
 ## Rules, none of which bend
 
@@ -96,6 +138,10 @@ Sections, in this order; "none" where empty:
   `BLOCKED: <why>` if you stopped.
 - do not commit, do not push, do not open or merge a pull request, do not run `oto ingest complete`.
 - Never apply with `--force`; never pass `--allow-personal-data`; never fill `validated_by`.
+- Apply under the pipeline's name, never `--confirm`: a confirmation is a person's yes to a diff
+  they saw, in their own session.
+- In a transcripts run, every fact is a speaker's assertion, in the classes the settings allow,
+  added and never changed, within `max_facts`.
 - Never mark the gold set audited.
 - A run that needs the vocabulary waits for a person; it does not invent a class.
 - Say what the corpus does not say. The most useful line of the report is often "no document

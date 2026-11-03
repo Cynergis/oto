@@ -282,6 +282,25 @@ All under `<workspace>/ontology/<name>/`:
    questions against. Never a client's graph.
 5. `README.md`: what the domain is and how to read a graph in this vocabulary; `manifest.json`'s
    `summary` in one line, and a `namespace` of the organisation's own.
+6. `manifest.json`'s `routes`, optional: the policy a project on the pack starts with for how
+   changes reach its `main` ([ADR-0013](../../docs/adr/0013-three-routes-into-main.md)). Ask the
+   domain owner, in their words, which changes may land on the word of the person who made them,
+   which a second person must see, and what a meeting transcript may add with nobody looking:
+
+   ```json
+   "routes": {
+     "allowed": ["session", "reviewed", "guardrailed"],
+     "session": {"classes": ["Card", "Move"]},
+     "guardrailed": {"from": "inbox/transcripts", "classes": ["Blocker"], "max_facts": 40,
+                     "additive_only": true, "attributed": true}
+   }
+   ```
+
+   `allowed` always holds `reviewed`; leave `guardrailed` out and every transcript goes to a
+   person. `session.classes` and `guardrailed.classes` name classes the pack declares. The pack
+   sets the policy, never the route a change takes: that is derived from what the pull request
+   carries. `oto pack check` validates the section and `oto pack show` prints it; a project derives
+   it at `oto init --pack` and may override a key by writing it.
 
 ## Phase 6 — Validate with the tooling, not by eye
 

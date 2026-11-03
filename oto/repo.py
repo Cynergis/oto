@@ -17,7 +17,10 @@
     .github/workflows/oto-preview.yml on a pull request: the store at its head, published to preview/pr-<n> of
                                       the query repository (or kept as an artifact) and linked in a comment
     .github/oto-rules.json           the branch rules on main: pull requests required, the two checks,
-                                      no approvals at the branch level, the merge queue; `oto repo rules --apply`
+                                      no approvals at the branch level but a code owner's for what the gate
+                                      runs on, the merge queue; past them only main's deploy key and an
+                                      administrator by a pull request; `oto repo rules --apply`, which also
+                                      writes .github/CODEOWNERS and puts main's key in the environment oto-main
     .gitignore                       generated files ignored, EXCEPT the corpus, which is an input
 
 The engine is installed from its git repository, never assumed to be on a PATH: `uvx` on a person's
@@ -84,7 +87,11 @@ A change drafted from documents is `reviewed`: one approving review, given in th
 `oto-preview.yml` builds for every pull request (the store at its head on the `preview/pr-<n>` branch
 of the query repository, or a workflow artifact; the link is a comment on the pull request). A change
 drafted from the transcripts folder the project names is `guardrailed`. The branch rules that make the
-check required are in `.github/oto-rules.json`; `oto repo rules --apply` sets them. Every workflow
+check required are in `.github/oto-rules.json`; `oto repo rules --apply` sets them. A change to what the
+gate runs on (`.github/`, `oto.lock.json`) needs the approval of a code owner `.github/CODEOWNERS` names,
+which GitHub holds; the ingest and architecture workflows push to main with the deploy key kept in the
+environment `oto-main`, which only main deploys from, and nothing else gets past the rules but an
+administrator, by a pull request. Every workflow
 installs the engine at the ref `oto.lock.json` records, and `oto checks` fails when the lock drifts;
 an engine upgrade is `oto lock` on a branch and a pull request. A pull request that fell behind main
 re-applies its facts with `oto route rebase --onto origin/main`, then commits and pushes.
@@ -153,8 +160,14 @@ permissions:
 jobs:
   ingest:
     runs-on: ubuntu-latest
+    # The run's commit is pushed to main with the deploy key kept in this environment, which only main
+    # may deploy from, so a workflow on another branch or a pull request cannot read it; the branch rules
+    # let that key past them, and no workflow's own token (oto repo rules --apply sets the three up).
+    environment: oto-main
     steps:
       - uses: actions/checkout@v4
+        with:
+          ssh-key: ${{{{ secrets.OTO_MAIN_DEPLOY_KEY }}}}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -177,7 +190,7 @@ jobs:
           git config user.name "oto ingest"
           git config user.email "oto-ingest@users.noreply.github.com"
           git add -A inbox processing errors runs build/documents
-          git diff --cached --quiet || git commit -m "oto ingest: $(ls -t runs/*.json | head -1 | xargs -n1 basename | sed 's/.json$//')"
+          git diff --cached --quiet || git commit -m "oto ingest: $(ls -t runs/*.json | head -1 | xargs -n1 basename | sed 's/.json$//') [skip ci]"
           git push
       - name: Open an issue for anything the run could not extract
         if: steps.ingest.outputs.exit != '0'
@@ -213,10 +226,12 @@ jobs:
   compile:
     if: github.event.head_commit.author.name != 'oto architecture'
     runs-on: ubuntu-latest
+    environment: oto-main             # main's deploy key pushes the compiled graph (see oto-ingest.yml)
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ssh-key: ${{{{ secrets.OTO_MAIN_DEPLOY_KEY }}}}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -242,7 +257,7 @@ jobs:
           git config user.name "oto architecture"
           git config user.email "oto-architecture@users.noreply.github.com"
           git add -A graph.json graph.previous.json changelog.jsonl audit.jsonl proposals archive build/documents 2>/dev/null || true
-          git diff --cached --quiet || git commit -m "oto architecture: compiled from ${{{{ github.sha }}}}"
+          git diff --cached --quiet || git commit -m "oto architecture: compiled from ${{{{ github.sha }}}} [skip ci]"
           git push
 """
 
@@ -1070,27 +1085,38 @@ jobs:
 
 #: The branch rules on main, as a GitHub ruleset. Pull requests required; the two checks required
 #: and up to date; no approvals at the branch level, because approvals are the route gate's, per
-#: route; the merge queue, so graph.json merges one pull request at a time; GitHub Actions allowed
-#: through, because the ingest workflow pushes its run commit to main. Keys starting with `_` are
-#: for the reader and are stripped before the ruleset is sent.
+#: route, except a code owner's for the files the gate itself runs on; the merge queue, so graph.json
+#: merges one pull request at a time. Past them: main's deploy key, which the ingest and architecture
+#: workflows push with from an environment only main deploys from, and an administrator by a pull
+#: request. Never GitHub Actions: any workflow on any branch can ask for its token. Keys starting with
+#: `_` are for the reader and are stripped before the ruleset is sent.
 RULES_NAME = "oto main"
 RULES_FILE = os.path.join(".github", "oto-rules.json")
-GITHUB_ACTIONS_APP = 15368
+ADMIN_ROLE = 5                                    # the repository role "admin", as rulesets name it
+MAIN_ENVIRONMENT = "oto-main"                     # deploys from the default branch alone; holds main's key
+DEPLOY_KEY_SECRET = "OTO_MAIN_DEPLOY_KEY"
+DEPLOY_KEY_TITLE = "oto main pushes"
+CODEOWNERS_FILE = os.path.join(".github", "CODEOWNERS")
+OWNED = ("/.github/", "/oto.lock.json")           # what the gate runs on: its workflows and rules, the engine's pin
 RULES = {
     "_about": "The branch rules on main, set by `oto repo rules --apply` (or by `oto sandbox up --repo` when it creates the repository). "
               "Pull requests required; the checks `oto checks` and `oto route` required; zero approvals here, because the route gate "
-              "requires them per route (docs/plans/graph-journeys.md); the merge queue on, so graph.json merges one pull request at a time; "
-              "GitHub Actions may push, because the ingest workflow commits its run to main.",
+              "requires them per route (docs/plans/graph-journeys.md), except a code owner's for the files the gate runs on "
+              "(.github/CODEOWNERS: the workflows, these rules, the lock), which GitHub holds and no workflow can answer for; the merge "
+              "queue on, so graph.json merges one pull request at a time. Past them: the deploy key the ingest and architecture workflows "
+              "push to main with, kept in the environment oto-main that only main deploys from, and an administrator, by a pull request "
+              "and visibly. Never GitHub Actions itself: any workflow on any branch can ask for its token.",
     "name": RULES_NAME,
     "target": "branch",
     "enforcement": "active",
     "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
-    "bypass_actors": [{"actor_id": GITHUB_ACTIONS_APP, "actor_type": "Integration", "bypass_mode": "always"}],
+    "bypass_actors": [{"actor_id": None, "actor_type": "DeployKey", "bypass_mode": "always"},
+                      {"actor_id": ADMIN_ROLE, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}],
     "rules": [
         {"type": "deletion"},
         {"type": "non_fast_forward"},
         {"type": "pull_request", "parameters": {"required_approving_review_count": 0, "dismiss_stale_reviews_on_push": False,
-                                                "require_code_owner_review": False, "require_last_push_approval": False,
+                                                "require_code_owner_review": True, "require_last_push_approval": False,
                                                 "required_review_thread_resolution": False}},
         {"type": "required_status_checks", "parameters": {"strict_required_status_checks_policy": True, "do_not_enforce_on_create": False,
                                                           "required_status_checks": [{"context": "oto checks"}, {"context": "oto route"}]}},
@@ -1124,13 +1150,143 @@ def origin_repository(root):
     return name if "/" in name and "github.com" not in name else None
 
 
-def apply_rules(root, repo, token=None, gh=None):
-    """Set the branch rules of `.github/oto-rules.json` on the GitHub repository `owner/name` through
-    the GitHub CLI: a ruleset of that name is replaced, else created. Returns {created, id}. The token,
-    when given, reaches the CLI through its environment and never a file or an argument."""
+def _handle(owner):
+    owner = (owner or "").strip()
+    return owner if owner.startswith("@") else "@" + owner
+
+
+def code_owners_text(owner):
+    """`.github/CODEOWNERS`: `owner` (a login, or an organisation's team as org/team) owns what the route
+    gate runs on, so the branch rules' code-owner review holds a change to it at GitHub, where no workflow
+    can answer for it."""
+    head = ["# Written by `oto repo rules --apply`. What the route gate runs on: its workflows and rules under",
+            "# .github/, and the lock that pins the engine they install. The branch rules (.github/oto-rules.json)",
+            "# require a code owner's approval for a change to these, which GitHub holds: a pull request cannot",
+            "# rewrite the gate's workflow, add one that answers to its check's name, or move the engine (ADR-0013).",
+            ""]
+    return "\n".join(head + ["%-16s %s" % (path, _handle(owner)) for path in OWNED]) + "\n"
+
+
+def code_owner_of(root):
+    """The owner `.github/CODEOWNERS` names for .github/, or None when there is no such file."""
+    try:
+        with open(os.path.join(root, CODEOWNERS_FILE), encoding="utf-8") as f:
+            for line in f:
+                parts = line.split()
+                if parts and parts[0] == OWNED[0] and len(parts) > 1:
+                    return parts[1]
+    except OSError:
+        return None
+    return None
+
+
+def write_code_owners(root, owner):
+    """Write `.github/CODEOWNERS` naming `owner`. Returns the handle written."""
+    path = os.path.join(root, CODEOWNERS_FILE)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(code_owners_text(owner))
+    return _handle(owner)
+
+
+def _github(token=None, gh=None):
+    """A runner for the GitHub CLI: run(*args, stdin=None) -> (code, out, err). The token, when given,
+    reaches the CLI through its environment and never a file or an argument."""
+    import shutil
+    import subprocess
+    from .project import ProjectError
+    gh = gh or os.environ.get("OTO_GH") or shutil.which("gh")
+    if not gh or not os.path.exists(gh):
+        raise ProjectError("the GitHub CLI (gh) is not on this computer, and setting up the repository needs it")
+    env = dict(os.environ, GH_TOKEN=token) if token else dict(os.environ)
+
+    def run(*args, stdin=None, timeout=120):
+        done = subprocess.run([gh] + list(args), input=stdin, capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", timeout=timeout, env=env)
+        return done.returncode, done.stdout, done.stderr
+    return run
+
+
+def _json(text, default):
+    try:
+        value = json.loads(text)
+    except (TypeError, ValueError):
+        return default
+    return value if isinstance(value, type(default)) else default
+
+
+def github_login(token=None, gh=None):
+    """The login of whoever the GitHub CLI is signed in as (or the token belongs to), or None."""
+    code, out, _err = _github(token, gh)("api", "user")
+    return _json(out, {}).get("login") if code == 0 else None
+
+
+def _main_key(run, owner_name, default_branch):
+    """Main's deploy key: a fresh ed25519 pair, the public half a write deploy key of the repository, the
+    private half the secret OTO_MAIN_DEPLOY_KEY of the environment oto-main, which deploys from the default
+    branch alone; the key it replaces is removed. The private half is made in a private temporary folder
+    and reaches the CLI on its stdin, never as an argument, and the folder is removed. Returns the key's id."""
     import shutil
     import subprocess
     import tempfile
+    from .project import ProjectError
+
+    def must(step, result):
+        code, out, err = result
+        if code != 0:
+            raise ProjectError("could not %s on %s: %s" % (step, owner_name, (err or out).strip()[-400:]))
+        return out
+
+    keygen = os.environ.get("OTO_SSH_KEYGEN") or shutil.which("ssh-keygen")
+    if not keygen or not os.path.exists(keygen):
+        raise ProjectError("ssh-keygen is not on this computer, and making main's deploy key needs it")
+    folder = tempfile.mkdtemp(prefix="oto-main-key-")
+    try:
+        path = os.path.join(folder, "key")
+        done = subprocess.run([keygen, "-t", "ed25519", "-N", "", "-q", "-C", "%s, %s" % (DEPLOY_KEY_TITLE, owner_name), "-f", path],
+                              capture_output=True, text=True, timeout=60)
+        if done.returncode != 0:
+            raise ProjectError("ssh-keygen could not make main's deploy key: %s" % (done.stderr or done.stdout).strip()[-300:])
+        with open(path + ".pub", encoding="utf-8") as f:
+            public = f.read().strip()
+        with open(path, encoding="utf-8") as f:
+            private = f.read()
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+    earlier = _json(must("list the deploy keys", run("api", "repos/%s/keys" % owner_name)), [])
+    added = _json(must("add main's deploy key", run("api", "--method", "POST", "repos/%s/keys" % owner_name,
+                                                    "-f", "title=" + DEPLOY_KEY_TITLE, "-f", "key=" + public, "-F", "read_only=false")), {})
+    # the environment: deployable from the default branch alone, so no other branch's workflow reads the key
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
+        json.dump({"deployment_branch_policy": {"protected_branches": False, "custom_branch_policies": True}}, f)
+        temp = f.name
+    try:
+        must("set up the environment %s" % MAIN_ENVIRONMENT,
+             run("api", "--method", "PUT", "repos/%s/environments/%s" % (owner_name, MAIN_ENVIRONMENT), "--input", temp))
+    finally:
+        os.unlink(temp)
+    policies_path = "repos/%s/environments/%s/deployment-branch-policies" % (owner_name, MAIN_ENVIRONMENT)
+    policies = _json(must("read the environment's branches", run("api", policies_path)), {}).get("branch_policies") or []
+    for policy in policies:
+        if policy.get("name") != default_branch or policy.get("type", "branch") != "branch":
+            must("narrow the environment to %s" % default_branch, run("api", "--method", "DELETE", "%s/%s" % (policies_path, policy.get("id"))))
+    if not any(p.get("name") == default_branch and p.get("type", "branch") == "branch" for p in policies):
+        must("let %s deploy to the environment" % default_branch,
+             run("api", "--method", "POST", policies_path, "-f", "name=" + default_branch, "-f", "type=branch"))
+    must("store main's deploy key in the environment",
+         run("secret", "set", DEPLOY_KEY_SECRET, "--env", MAIN_ENVIRONMENT, "--repo", owner_name, stdin=private))
+    for key in earlier:
+        if isinstance(key, dict) and key.get("title") == DEPLOY_KEY_TITLE and key.get("id") != added.get("id"):
+            must("remove the deploy key it replaces", run("api", "--method", "DELETE", "repos/%s/keys/%s" % (owner_name, key.get("id"))))
+    return added.get("id")
+
+
+def apply_rules(root, repo, token=None, gh=None, code_owner=None):
+    """Set up the GitHub repository `owner/name` for the route gate, through the GitHub CLI, in this order:
+    the code owners (`.github/CODEOWNERS`, naming `code_owner`, or the signed-in person when the file is
+    not there yet), which must be on the default branch before the rules ask for them; main's deploy key,
+    in the environment oto-main; then the branch rules of `.github/oto-rules.json`, a ruleset of that name
+    replaced, else created. Returns {created, id, code_owner, environment, key, warnings}."""
     from .project import ProjectError
     path = os.path.join(root, RULES_FILE)
     try:
@@ -1142,21 +1298,45 @@ def apply_rules(root, repo, token=None, gh=None):
     owner_name = _owner_name(repo)
     if "/" not in owner_name:
         raise ProjectError("the repository must be owner/name (or its GitHub URL): %r" % repo)
-    gh = gh or os.environ.get("OTO_GH") or shutil.which("gh")
-    if not gh or not os.path.exists(gh):
-        raise ProjectError("the GitHub CLI (gh) is not on this computer, and setting the branch rules of %s needs it" % owner_name)
-    env = dict(os.environ, GH_TOKEN=token) if token else dict(os.environ)
+    run = _github(token, gh)
+    warnings = []
 
-    def run(*args, timeout=120):
-        done = subprocess.run([gh] + list(args), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout, env=env)
-        return done.returncode, done.stdout, done.stderr
+    # 1. the code owners, on the default branch first
+    default_branch = _json(run("api", "repos/%s" % owner_name)[1], {}).get("default_branch") or "main"
+    owner = code_owner_of(root)
+    if code_owner or not owner:
+        chosen = code_owner or github_login(token, gh)
+        if not chosen:
+            raise ProjectError("no code owner for %s: the GitHub CLI says nobody is signed in; pass --code-owner <login or org/team>" % CODEOWNERS_FILE)
+        if _handle(chosen) != owner:
+            owner = write_code_owners(root, chosen)
+    code, out, _err = run("api", "repos/%s/contents/.github/CODEOWNERS?ref=%s" % (owner_name, default_branch))
+    if code != 0:
+        raise ProjectError("the code owners are not on %s of %s yet: %s names %s here; commit it to %s and push it "
+                           "(through a pull request if the rules are already on), then run `oto repo rules --apply` again: "
+                           "the rules ask for a code owner's approval, so the owners come first"
+                           % (default_branch, owner_name, CODEOWNERS_FILE, owner, default_branch))
+    on_main = _json(out, {}).get("content")
+    if on_main:
+        import base64
+        try:
+            text = base64.b64decode(on_main).decode("utf-8")
+        except (ValueError, UnicodeDecodeError):
+            text = None
+        if text is not None and text != open(os.path.join(root, CODEOWNERS_FILE), encoding="utf-8").read():
+            warnings.append("the %s on %s differs from this folder's, and %s's is the one GitHub reads" % (CODEOWNERS_FILE, default_branch, default_branch))
+    errors = _json(run("api", "repos/%s/codeowners/errors" % owner_name)[1], {}).get("errors") or []
+    for error in errors[:5]:
+        warnings.append("GitHub reads %s with an error: %s" % (CODEOWNERS_FILE, error.get("message") or error))
 
+    # 2. main's deploy key, in an environment only the default branch deploys from
+    key = _main_key(run, owner_name, default_branch)
+
+    # 3. the rules, last, once main's key is in place
     code, out, _err = run("api", "repos/%s/rulesets" % owner_name)
-    try:
-        existing = json.loads(out) if code == 0 else []
-    except ValueError:
-        existing = []
+    existing = _json(out, []) if code == 0 else []
     found = [r for r in existing if isinstance(r, dict) and r.get("name") == payload.get("name")]
+    import tempfile
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
         json.dump(payload, f)
         temp = f.name
@@ -1172,11 +1352,9 @@ def apply_rules(root, repo, token=None, gh=None):
             pass
     if code != 0:
         raise ProjectError("could not set the branch rules on %s: %s" % (owner_name, (err or out).strip()[-400:]))
-    try:
-        created_id = json.loads(out).get("id")
-    except (ValueError, AttributeError):
-        created_id = None
-    return {"created": not found, "id": found[0].get("id") if found else created_id}
+    created_id = _json(out, {}).get("id")
+    return {"created": not found, "id": found[0].get("id") if found else created_id, "code_owner": owner,
+            "environment": MAIN_ENVIRONMENT, "key": key, "warnings": warnings}
 
 
 def files(slug, name, engine=None, architecture=False):

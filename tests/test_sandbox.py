@@ -718,5 +718,7 @@ def test_up_with_a_repository_sets_the_branch_rules_on_a_knowledge_project(fake,
     monkeypatch.setenv("FAKE_TOKEN", "ghp-like-but-not")
     report = sandbox.up(name="board", directory=str(tmp_path / "board"), kind="knowledge", repo="acme/board", token_env="FAKE_TOKEN", check=True, approve=True)
     assert any("would set the branch rules on main from .github/oto-rules.json" in d for d in report["done"]), report["done"]
+    assert any("code owners" in d and "deploy key" in d and "oto-main" in d for d in report["done"]), \
+        "the code owners and the key the two workflows push to main with come with the rules: " + str(report["done"])
     report = sandbox.up(name="fleet", directory=str(tmp_path / "fleet"), kind="ontology", repo="acme/fleet", token_env="FAKE_TOKEN", check=True, approve=True)
     assert not any("branch rules" in d for d in report["done"]), "a workspace has the pack's workflows, not a knowledge project's rules"

@@ -20,11 +20,12 @@ by a process designed later; each project has its own graph, repository and pipe
 
 Status: proposed on 2026-11-02; phases 1 to 5 delivered on 2026-11-02 (pull requests 161 to 165, released as 0.17.0 under [ADR-0013](../adr/0013-three-routes-into-main.md)). Phase 6: the engine half (the routes' policy in the pack manifest, validated by `oto pack check` and printed by `oto pack show`; derived into the project at `oto init --pack` with `routes_from`; overridden key by key; re-derived by `oto ontology update`; read by the gate) delivered on 2026-11-02 (pull request 168); the skills half (the transcripts run in the pipeline's references, the routes in act, spec, sandbox, packs, start, the concierge, curate and the ontology interview) delivered on 2026-11-03.
 Found while writing its end-to-end section (E2E-TESTING.md section 35), fixed on 2026-11-03: the gate read the policy at
-the head, so a pull request could widen its own; it reads the base's now. Open: the `oto route` workflow runs on
-`pull_request`, so GitHub runs the workflow file of the pull request itself; the gate sends a change to `.github/` to a
-person, but a pull request that rewrote the workflow would be judged by the rewritten one. Closing that is a branch rule
-that runs the workflow from `main` (a ruleset's required workflow) or a `pull_request_target` trigger, decided with the
-repository's owner.
+the head, so a pull request could widen its own; it reads the base's now. Closed on 2026-11-03: the `oto route`
+workflow runs on `pull_request`, so a pull request that rewrote it would have been judged by its own copy, and the rules
+let GitHub Actions past them, so a workflow on any branch could push to main with its token. `.github/CODEOWNERS` now owns
+`.github/` and `oto.lock.json` and the rules require a code owner's approval for them; the ingest and architecture
+workflows push with a deploy key kept in the environment `oto-main`, which only main deploys from; that key and an
+administrator, by a pull request, are the only ones past the rules (`oto repo rules --apply` sets all three up).
 
 ## What exists, and what changes
 

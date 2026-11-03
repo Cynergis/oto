@@ -69,8 +69,12 @@ def test_the_documents_describe_the_routes():
     arch = _read("docs", "ARCHITECTURE.md")
     for words in ("oto-route", "oto-preview", "oto-rules.json", "oto route check", "fingerprint", "--confirm", "guardrail", "oto lock --check", "oto route rebase", "ADR-0013"):
         assert words in arch, words
+    for words in ("CODEOWNERS", "oto-main", "deploy key", "[skip ci]"):
+        assert words in arch, "the rules' code owners and main's key: " + words
     e2e = _read("docs", "E2E-TESTING.md")
     assert "Three routes into main" in e2e
+    for words in ("CODEOWNERS", "OTO_MAIN_DEPLOY_KEY", "code owner's review", "git push origin HEAD:main"):
+        assert words in e2e, "section 34 verifies what GitHub holds: " + words
     for words in ("oto curate apply", "--confirm", "oto route show", "oto route check", "oto route guardrails", "oto route rebase", "oto repo rules --apply", "preview/pr-"):
         assert words in e2e, words
     readme = _read("README.md")

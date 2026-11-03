@@ -371,7 +371,9 @@ gh variable set OTO_QUERY_REPO --body "https://github.com/<org>/acme-query"; gh 
 
 In the repository settings, under Actions, allow GitHub Actions to create and approve pull
 requests, and set the branch rules on `main` (`oto repo rules --apply`: pull requests required, the
-checks `oto checks` and `oto route` required, the merge queue on; section 34). Then:
+checks `oto checks` and `oto route` required, a code owner's approval for `.github/` and the lock,
+the merge queue on, and main's deploy key in the environment `oto-main` for the ingest run's commit;
+section 34). Then:
 
 ```bash
 cp <a document> inbox/ && git add inbox && git commit -m "ingest: <the document>" && git push
@@ -1401,9 +1403,13 @@ ones listed; and a manifest whose `provides` is the wrong shape is named by the 
 Exercises: the fingerprint and `oto curate apply --confirm`, `oto route show|check|guardrails|rebase`,
 the `oto route` and `oto preview` workflows, the branch rules, the engine pinned to the lock.
 
-On the `acme-kb` repository of section 11, after `oto repo rules --apply` (the ruleset `oto main`
-appears under the repository's rules; `main` now requires pull requests, the two checks and the
-merge queue, and asks no approval of its own):
+On the `acme-kb` repository of section 11, after `oto repo rules --apply`. It stops first, once, to
+have `.github/CODEOWNERS` (naming you, or `--code-owner <login or org/team>`) committed to `main`;
+run it again after the push. Then the ruleset `oto main` appears under the repository's rules (`main`
+requires pull requests, the two checks and the merge queue, asks no approval of its own but a code
+owner's for `.github/` and `oto.lock.json`, and lets only deploy keys and an administrator, by a pull
+request, past it); the environment `oto-main` deploys from `main` alone and holds the secret
+`OTO_MAIN_DEPLOY_KEY`; a deploy key `oto main pushes` with write access is under the deploy keys:
 
 ```bash
 # the session route: a change the person confirms in their session merges on its own
@@ -1436,6 +1442,13 @@ git checkout card && oto route rebase --project . --onto origin/main && git add 
 
 # the engine pinned to the lock
 cat oto.lock.json | python3 -c "import json,sys; print(json.load(sys.stdin)['engine'])"; oto lock --engine-ref --project .
+
+# what the gate runs on is a code owner's: a pull request that edits the route workflow, or adds a workflow that answers to its name
+git checkout -b gate main && printf '\n# edited\n' >> .github/workflows/oto-route.yml && git commit -qam "Edit the gate" && git push -u origin gate && gh pr create --fill
+#   the merge box says a code owner's review is required, whatever the checks say; another collaborator cannot merge it, an administrator only by bypassing, visibly
+# nothing but main's key pushes to main: a workflow on a branch that asks for its token's write access and pushes to main is refused
+git checkout -b push main && mkdir -p .github/workflows && printf 'on: push\npermissions:\n  contents: write\njobs:\n  p:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: git -c user.name=t -c user.email=t@example.org commit --allow-empty -m x && git push origin HEAD:main\n' > .github/workflows/push.yml && git add -A && git commit -qm "A push to main" && git push -u origin push
+#   its run fails at the push: the rules refuse it (GitHub Actions is no bypass actor); delete the branch after
 ```
 
 Pass when the session pull request merges without a review and its ledger entry shows `confirmed
@@ -1444,7 +1457,10 @@ pull request to reviewed with the reason as a comment; the documents pull reques
 approval and its preview serves the new facts; the transcript's pull request merges on its own
 when the five guardrails hold and is labelled `oto-route:reviewed` with the failing guardrail named
 when you break one (a `Party` outside the classes, or a transcript pushed twice); the rebased pull
-request still says `route: session`; and every workflow's install line names the lock's ref.
+request still says `route: session`; every workflow's install line names the lock's ref; the ingest
+run's commit on `main` ends in `[skip ci]` and was pushed with main's deploy key; the pull request
+that edits the route workflow waits for a code owner's review; and the branch's workflow cannot push
+to `main`.
 
 
 ## 35. The routes from the pack: a policy the pack declares, the project derives and overrides, the gate holds at the base

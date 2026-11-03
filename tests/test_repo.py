@@ -132,11 +132,47 @@ FAKE_GH_API = r'''
 import json, os, sys
 path = os.environ["FAKE_GH_LOG"]
 log = json.load(open(path)) if os.path.exists(path) else []
-log.append({"args": sys.argv[1:], "token": os.environ.get("GH_TOKEN")})
+args = sys.argv[1:]
+stdin = sys.stdin.read() if args[:2] == ["secret", "set"] else None
+log.append({"args": args, "token": os.environ.get("GH_TOKEN"), "stdin": stdin})
 json.dump(log, open(path, "w"))
-if "--method" not in sys.argv:
-    sys.stdout.write(os.environ.get("FAKE_GH_LIST", "[]")); sys.exit(0)
-sys.stdout.write('{"id": 7, "name": "oto main"}'); sys.exit(0)
+method = args[args.index("--method") + 1] if "--method" in args else "GET"
+target = [a for a in args[1:] if a.startswith("repos/") or a == "user"][:1]
+target = target[0] if target else ""
+def answer(text, code=0):
+    sys.stdout.write(text); sys.exit(code)
+if args[:2] == ["secret", "set"]:
+    answer("")
+if target == "user":
+    answer('{"login": "dana"}')
+if target.endswith("/rulesets") and method == "GET":
+    answer(os.environ.get("FAKE_GH_LIST", "[]"))
+if "/rulesets" in target:
+    answer('{"id": 7, "name": "oto main"}')
+if "/contents/.github/CODEOWNERS" in target:
+    if os.environ.get("FAKE_GH_NO_CODEOWNERS"):
+        sys.stderr.write("gh: Not Found (HTTP 404)\n"); sys.exit(1)
+    answer('{"path": ".github/CODEOWNERS"}')
+if target.endswith("/codeowners/errors"):
+    answer('{"errors": []}')
+if target.endswith("/keys") and method == "GET":
+    answer(os.environ.get("FAKE_GH_KEYS", "[]"))
+if target.endswith("/keys"):
+    answer('{"id": 11}')
+if target.endswith("/deployment-branch-policies") and method == "GET":
+    answer(os.environ.get("FAKE_GH_POLICIES", '{"branch_policies": []}'))
+if method in ("DELETE", "PUT", "POST"):
+    answer("{}")
+if target.count("/") == 2:
+    answer('{"default_branch": "main"}')
+answer("{}")
+'''
+
+FAKE_KEYGEN = r'''
+import sys
+path = sys.argv[sys.argv.index("-f") + 1]
+open(path, "w").write("a fake key: private-key-material\n")
+open(path + ".pub", "w").write("ssh-ed25519 AAAAC3fake oto main pushes\n")
 '''
 
 
@@ -155,37 +191,114 @@ def test_init_repo_writes_the_route_gate_and_the_branch_rules():
         contexts = {c["context"] for c in kinds["required_status_checks"]["parameters"]["required_status_checks"]}
         assert contexts == {"oto checks", "oto route"}
         assert "merge_queue" in kinds, "graph.json merges one pull request at a time"
-        assert any(a["actor_type"] == "Integration" for a in rules["bypass_actors"]), "the ingest workflow pushes its run commit"
+        actors = {(a["actor_type"], a.get("actor_id"), a["bypass_mode"]) for a in rules["bypass_actors"]}
+        assert actors == {("DeployKey", None, "always"), ("RepositoryRole", 5, "pull_request")}, \
+            "only the deploy key kept for main pushes past the rules, and an administrator by a pull request; never GitHub Actions, " \
+            "whose token any workflow on any branch can ask for: " + str(actors)
+        assert kinds["pull_request"]["parameters"]["require_code_owner_review"] is True, \
+            "a change to what the gate runs on (.github/, the lock) needs a code owner's approval, which GitHub holds, not the gate"
         checks = open(os.path.join(root, ".github", "workflows", "oto-checks.yml"), encoding="utf-8").read()
         assert "name: oto checks" in checks.split("jobs:")[1], "the job carries the name the rules require"
         guide = open(os.path.join(root, "CLAUDE.md"), encoding="utf-8").read()
         assert "route" in guide
 
 
-def test_repo_rules_apply_sets_the_rules_through_the_github_cli(tmp_path, monkeypatch, capsys):
-    root = str(tmp_path / "board")
-    assert main(["init", "--name", "Board", "--project", root, "--repo"]) == 0
+def _fake_github(tmp_path, monkeypatch):
     gh = tmp_path / "gh"
     gh.write_text("#!/usr/bin/env python3\n" + FAKE_GH_API)
     gh.chmod(0o755)
+    keygen = tmp_path / "ssh-keygen"
+    keygen.write_text("#!/usr/bin/env python3\n" + FAKE_KEYGEN)
+    keygen.chmod(0o755)
     log = tmp_path / "gh.json"
     monkeypatch.setenv("OTO_GH", str(gh))
+    monkeypatch.setenv("OTO_SSH_KEYGEN", str(keygen))
     monkeypatch.setenv("FAKE_GH_LOG", str(log))
+    return lambda: json.load(open(log)) if log.exists() else []
+
+
+def test_repo_rules_apply_sets_the_code_owners_the_deploy_key_for_main_and_the_rules(tmp_path, monkeypatch, capsys):
+    root = str(tmp_path / "board")
+    assert main(["init", "--name", "Board", "--project", root, "--repo"]) == 0
+    calls = _fake_github(tmp_path, monkeypatch)
     capsys.readouterr()
     assert main(["repo", "rules", "--project", root]) == 0
-    assert "oto main" in capsys.readouterr().out and not log.exists(), "without --apply it only shows the rules"
+    assert "oto main" in capsys.readouterr().out and not calls(), "without --apply it only shows the rules"
+
+    # the code owners must be on main before the rules ask for them: written here, then a stop
+    monkeypatch.setenv("FAKE_GH_NO_CODEOWNERS", "1")
+    try:
+        repo.apply_rules(root, "acme/board", token="ghp-like-but-not")
+        raise AssertionError("the rules were set before the code owners were on main")
+    except Exception as exc:                          # ProjectError
+        assert "CODEOWNERS" in str(exc) and "main" in str(exc) and "push" in str(exc), exc
+    owners = open(os.path.join(root, ".github", "CODEOWNERS"), encoding="utf-8").read()
+    assert "/.github/ @dana" in " ".join(owners.split()) and "/oto.lock.json @dana" in " ".join(owners.split()), \
+        "the signed-in person owns the gate's own files: " + owners
+    assert not [c for c in calls() if "/rulesets" in " ".join(c["args"])], "no rules without the code owners"
+
+    # with the code owners on main: the environment, the key, the secret, then the rules
+    monkeypatch.delenv("FAKE_GH_NO_CODEOWNERS")
+    monkeypatch.setenv("FAKE_GH_KEYS", '[{"id": 4, "title": "oto main pushes"}, {"id": 5, "title": "someone else\'s key"}]')
+    monkeypatch.setenv("FAKE_GH_POLICIES", '{"branch_policies": [{"id": 9, "name": "*"}]}')
     result = repo.apply_rules(root, "acme/board", token="ghp-like-but-not")
-    assert result == {"created": True, "id": 7}
-    calls = json.load(open(log))
-    assert calls[0]["args"][:2] == ["api", "repos/acme/board/rulesets"]
-    assert calls[1]["args"][:4] == ["api", "--method", "POST", "repos/acme/board/rulesets"] and "--input" in calls[1]["args"]
-    assert all(c["token"] == "ghp-like-but-not" for c in calls), "the token reaches the CLI through its environment, never a file"
-    # an existing ruleset of that name is replaced, not duplicated
+    assert result["created"] is True and result["id"] == 7 and result["code_owner"] == "@dana" and result["environment"] == "oto-main", result
+    log = calls()
+    flat = [" ".join(c["args"]) for c in log]
+    assert any(f.startswith("api --method DELETE repos/acme/board/keys/4") for f in flat), "the earlier key for main is replaced"
+    assert not any("keys/5" in f for f in flat), "a key OTO did not make is left alone"
+    added = [c["args"] for c in log if c["args"][:4] == ["api", "--method", "POST", "repos/acme/board/keys"]]
+    assert added and "read_only=false" in added[0] and "key=ssh-ed25519 AAAAC3fake oto main pushes" in added[0], added
+    assert any(f.startswith("api --method PUT repos/acme/board/environments/oto-main") for f in flat)
+    assert any(f.startswith("api --method DELETE repos/acme/board/environments/oto-main/deployment-branch-policies/9") for f in flat), \
+        "the environment deploys from main alone"
+    assert any(f.startswith("api --method POST repos/acme/board/environments/oto-main/deployment-branch-policies") and "name=main" in f for f in flat)
+    [secret] = [c for c in log if c["args"][:2] == ["secret", "set"]]
+    assert secret["args"][2] == "OTO_MAIN_DEPLOY_KEY" and "--env" in secret["args"] and "oto-main" in secret["args"], secret["args"]
+    assert "private-key-material" in secret["stdin"] and not any("private-key-material" in a for c in log for a in c["args"]), \
+        "the private half reaches the secret on stdin, never as an argument"
+    for folder, _dirs, names in os.walk(str(tmp_path)):
+        for name in names:
+            if name not in ("gh.json", "gh", "ssh-keygen"):     # the log and the two fakes themselves
+                assert "private-key-material" not in open(os.path.join(folder, name), encoding="utf-8", errors="replace").read(), \
+                    "the private half is left in no file: " + os.path.join(folder, name)
+    order = [i for i, f in enumerate(flat) if "rulesets" in f and "--method" in f]
+    assert order and order[0] > max(i for i, f in enumerate(flat) if f.startswith("secret set")), "the rules last, once main's key is in place"
+    assert all(c["token"] == "ghp-like-but-not" for c in log), "the token reaches the CLI through its environment, never a file"
+
+    # an existing ruleset of that name is replaced, not duplicated; the command says what it set
     monkeypatch.setenv("FAKE_GH_LIST", '[{"id": 7, "name": "oto main"}]')
-    assert repo.apply_rules(root, "acme/board") == {"created": False, "id": 7}
-    assert json.load(open(log))[-1]["args"][:4] == ["api", "--method", "PUT", "repos/acme/board/rulesets/7"]
+    assert repo.apply_rules(root, "acme/board")["created"] is False
+    assert calls()[-1]["args"][:4] == ["api", "--method", "PUT", "repos/acme/board/rulesets/7"]
+    capsys.readouterr()
     assert main(["repo", "rules", "--apply", "--repo", "acme/board", "--project", root]) == 0
-    assert "replaced" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "replaced" in out and "@dana" in out and "oto-main" in out and "deploy key" in out, out
+
+
+def test_repo_rules_apply_takes_the_code_owner_it_is_given(tmp_path, monkeypatch):
+    root = str(tmp_path / "board")
+    assert main(["init", "--name", "Board", "--project", root, "--repo"]) == 0
+    _fake_github(tmp_path, monkeypatch)
+    result = repo.apply_rules(root, "acme/board", code_owner="acme/maintainers")
+    assert result["code_owner"] == "@acme/maintainers"
+    assert "@acme/maintainers" in open(os.path.join(root, ".github", "CODEOWNERS"), encoding="utf-8").read()
+
+
+def test_the_workflows_that_push_to_main_use_the_deploy_key_kept_for_main_and_trigger_nothing():
+    files = repo.files("acme", "Acme", architecture=True)
+    for name in ("oto-ingest.yml", "oto-architecture.yml"):
+        text = files[os.path.join(".github", "workflows", name)]
+        assert "environment: oto-main" in text, "%s: the key is in an environment only main may deploy from" % name
+        assert "ssh-key: ${{ secrets.OTO_MAIN_DEPLOY_KEY }}" in text, name
+        # its own token may still write, so a repository without the rules works; once they are set, that token
+        # cannot reach main (GitHub Actions is no bypass actor) and only the key can
+        assert "[skip ci]" in text, "%s: its commit starts no workflow, as a commit by the workflow's token never did" % name
+    for relative, text in files.items():
+        if relative.endswith(".yml") and "environment: oto-main" not in text:
+            for line in text.splitlines():
+                if "git push" in line and "--delete" not in line:
+                    assert "origin \"oto/" in line or "-u origin" in line, "%s pushes to main without the key: %s" % (relative, line.strip())
 
 
 # ---- the preview per pull request and the pinned engine (docs/plans/graph-journeys.md, phase 4) ----

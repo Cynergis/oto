@@ -22,7 +22,7 @@ def test_init_repo_writes_the_repository_files(capsys):
             assert os.path.exists(os.path.join(root, relative)), relative
         mcp = json.load(open(os.path.join(root, ".mcp.json"), encoding="utf-8"))
         server = mcp["mcpServers"]["acme-claims-kg"]
-        assert server["command"] == "uvx" and "git+" + repo.ENGINE in " ".join(server["args"])
+        assert server == {"command": "oto", "args": ["serve", "--project", "."]}, "the installed engine serves (ADR-0014)"
         assert server["args"][-2:] == ["--project", "."]
         gitignore = open(os.path.join(root, ".gitignore"), encoding="utf-8").read()
         assert "build/*" in gitignore and "!build/documents/" in gitignore, "the corpus is committed"
@@ -61,20 +61,9 @@ def test_workflows_install_the_engine_from_its_repository_and_run_the_gates():
 
 def test_engine_url_can_be_overridden():
     files = repo.files("x", "X", engine="https://example.com/fork")
-    assert "https://example.com/fork" in files[".mcp.json"]
+    assert json.loads(files[".mcp.json"])["mcpServers"]["x-kg"]["command"] == "oto", "the installed engine serves (ADR-0014)"
     assert "https://example.com/fork" in files["CLAUDE.md"]
     assert "'https://example.com/fork'" in files[os.path.join(".github", "workflows", "oto-checks.yml")]
-
-
-def test_the_plugin_runs_the_engine_through_uvx():
-    mcp = json.load(open(os.path.join(ROOT, ".mcp.json"), encoding="utf-8"))
-    server = mcp["mcpServers"]["oto"]
-    assert server["command"] == "uvx" and server["args"][:2] == ["--from", "${OTO_SOURCE:-oto-kg @ git+" + repo.ENGINE + "}"], \
-        "the published engine, unless OTO_SOURCE names a checkout"
-    assert server["args"][2:] == ["oto", "serve", "--project", "${CLAUDE_PROJECT_DIR}"]
-    hooks = json.load(open(os.path.join(ROOT, "hooks", "hooks.json"), encoding="utf-8"))
-    command = hooks["hooks"]["SessionStart"][0]["hooks"][0]["command"]
-    assert command.startswith('uvx --from "${OTO_SOURCE:-oto-kg @ git+' + repo.ENGINE + '}"') and "oto status" in command
 
 
 def test_init_repo_is_idempotent_and_keeps_edits(capsys):

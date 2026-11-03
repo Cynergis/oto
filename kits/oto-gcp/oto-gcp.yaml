@@ -26,11 +26,6 @@ args:
     enum: [blocked, allowed]
     description: Whether plugins from outside the sandbox load in it
     env: OTO_OUTSIDE_PLUGINS
-  source:
-    default: "oto-kg @ git+https://github.com/Cynergis/oto@v0.19.0"
-    enum: ["oto-kg @ git+https://github.com/Cynergis/oto@v0.19.0"]
-    description: The OTO engine the plugin's server and the skills run
-    env: OTO_SOURCE
   sandbox:
     # The engine knows it runs inside the kit: `oto serve --http <port>` binds all interfaces, no token
     # needed, so the port `oto sandbox up` publishes to the computer's localhost reaches it.

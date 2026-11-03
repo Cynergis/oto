@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uvx --from \"${OTO_SOURCE:-oto-kg @ git+https://github.com/Cynergis/oto}\" oto status --project \"${CLAUDE_PROJECT_DIR}\" 2>/dev/null || true"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/engine.sh\" \"${CLAUDE_PROJECT_DIR}\""
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uvx --from \"${OTO_SOURCE:-oto-kg @ git+https://github.com/Cynergis/oto}\" oto clipboard --when-asked 2>/dev/null || true"
+            "command": "oto clipboard --when-asked 2>/dev/null || true"
           }
         ]
       }

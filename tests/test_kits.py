@@ -53,9 +53,7 @@ def test_the_oto_gcp_kit_carries_this_engine():
     text = _read(*DESCRIPTOR)
     assert re.search(r'^version: "%s"$' % re.escape(version), text, re.M), \
         "kits/oto-gcp/oto-gcp.yaml: `version` must be the engine's, %s" % version
-    source = "oto-kg @ git+https://github.com/Cynergis/oto@v%s" % version
-    assert 'default: "%s"' % source in text and 'enum: ["%s"]' % source in text, \
-        "kits/oto-gcp/oto-gcp.yaml: OTO_SOURCE must pin v%s" % version
+    assert "OTO_SOURCE" not in text, "the engine init.sh installs is the one the plugin runs (ADR-0014)"
     assert "the OTO engine %s," % version in text, "kits/oto-gcp/oto-gcp.yaml: the description names the engine %s" % version
     init = _read("kits", "oto-gcp", "files", "home", ".oto", "init.sh")
     assert '"oto-kg[intake] @ git+https://github.com/Cynergis/oto@v%s"' % version in init, \
@@ -78,7 +76,7 @@ def test_the_kit_declares_what_the_v2_kit_did():
     args = d["args"]
     assert args["outsidePlugins"] == {"default": "blocked", "enum": ["blocked", "allowed"], "env": sandbox.OUTSIDE,
                                       "description": args["outsidePlugins"]["description"]}, "outside plugins blocked by default"
-    assert args["source"]["env"] == "OTO_SOURCE" and args["source"]["enum"] == [args["source"]["default"]], "the engine is pinned"
+    assert sorted(args) == ["outsidePlugins", "sandbox"], "no OTO_SOURCE: the installed engine is the one (ADR-0014)"
     assert args["sandbox"]["env"] == sandbox.INSIDE_ENV and args["sandbox"]["enum"] == ["kit"], \
         "the kit tells the engine it runs inside a sandbox: oto serve binds all interfaces, no token"
     network = _capabilities(d, NETWORK)

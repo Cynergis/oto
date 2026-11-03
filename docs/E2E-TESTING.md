@@ -5,13 +5,14 @@ the commands, and what "pass" looks like, so you can tell a bug from a misunders
 to 10 run on one machine with no account but Docker. Stages 11 to 13 need a GitHub organisation,
 an Anthropic API key and a Neo4j host; stage 16 needs a secret on the engine repository.
 
-Throughout, `oto` means the engine run from its repository, which is public: `uvx` and `pip`
-clone it with no credential.
+Throughout, `oto` means the engine installed on the machine from its repository, which is public:
+`uv` and `pip` clone it with no credential. It is the one engine there: the OTO plugin's server and
+hooks run it too ([ADR-0014](adr/0014-one-engine-on-a-computer.md)).
 
 ```bash
-alias oto='uvx --from "oto-kg[all] @ git+https://github.com/Cynergis/oto" oto'   # every extra
+uv tool install --force "oto-kg[all] @ git+https://github.com/Cynergis/oto@v<version>"   # every extra
 # or only what a stage needs: extras combine inside the brackets
-alias oto='uvx --from "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto" oto'
+uv tool install --force "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v<version>"
 ```
 
 ## How to read this document
@@ -57,7 +58,7 @@ Secrets live in the environment or in GitHub secrets, never in a file in either 
 
 ## 1. The engine installs from its repository
 
-Exercises: packaging without PyPI, `uvx`, the greenfield self-test.
+Exercises: packaging without PyPI, `uv tool install`, the greenfield self-test.
 
 ```bash
 oto version
@@ -216,7 +217,8 @@ With an API key, let the model draft one proposal:
 
 ```bash
 export ANTHROPIC_API_KEY=...
-uvx --from "oto-kg[draft] @ git+https://github.com/Cynergis/oto" oto draft --project acme <slug>
+uv tool install --force "oto-kg[intake,draft] @ git+https://github.com/Cynergis/oto@v<version>"   # the draft extra, once
+oto draft --project acme <slug>
 ```
 
 Pass when the dry run reports what would be added, what repeats an existing fact and what is
@@ -1569,7 +1571,7 @@ oto sandbox status --name oto-kit-try          # running, made from oto-gcp; OTO
 
 # inside: the kits it was merged from, its environment, what its hooks installed, its note and its lock
 sbx exec oto-kit-try -- ls /usr/share/sandbox/kit/                                        # claude and oto-gcp
-sbx exec oto-kit-try -- sh -c 'echo "$OTO_SANDBOX $OTO_OUTSIDE_PLUGINS"; echo "$OTO_SOURCE"'   # kit blocked; oto-kg @ git+https://github.com/Cynergis/oto@v<version>
+sbx exec oto-kit-try -- sh -c 'echo "$OTO_SANDBOX $OTO_OUTSIDE_PLUGINS"; oto version'   # kit blocked; oto <version>: the one engine, which the plugin runs
 sbx exec oto-kit-try -- sh -c 'for t in soffice gcloud bq uv uvx oto claude; do command -v $t; done'   # seven paths: LibreOffice, Google Cloud, uv, the engine, Claude Code
 sbx exec oto-kit-try -- sh -c 'uv --version && gcloud --version | head -1'                  # uv <version>, Google Cloud SDK <version>: no abort, no warning about a folder it cannot write
 sbx exec oto-kit-try -- tail -1 /tmp/oto-init.log                                         # OTO ready: <n> plugins
@@ -1582,7 +1584,7 @@ oto sandbox rm oto-kit-try                     # removed; the folders in ~/oto-k
 
 Pass when an sbx older than 0.51 is refused with its upgrade and nothing is created; the sandbox is
 made from the kit and reported as OTO's (`made from oto-gcp`); `/usr/share/sandbox/kit/` holds both
-kits; the environment says `kit` and `blocked` and pins the engine of this release; LibreOffice, the
+kits; the environment says `kit` and `blocked`, and `oto version` is this release; LibreOffice, the
 Google Cloud CLI, uv, the engine and Claude Code are all found, and uv and gcloud run without an abort or a
 warning; the start log ends on `OTO ready`; the
 Claude kit's `CLAUDE.md` carries the kit's note; only `oto@cynergis-engine` is installed; and the

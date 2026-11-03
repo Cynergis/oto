@@ -20,16 +20,16 @@ Claude Code's files under CLAUDE_CONFIG_DIR (default ~/.claude); nothing is inst
 `drift` says how this machine differs from the lock; `restore_script` writes the shell script that
 rebuilds the locked tools on a fresh machine or in a container: each marketplace cloned at its
 locked commit and added from that directory (Claude Code pins a marketplace to a branch or a tag,
-never a commit), each plugin installed from it, and the engine pinned by its release tag through
-OTO_SOURCE, which the engine plugin's server and hook read.
+never a commit), each plugin installed from it, and the engine installed as the `oto` command at
+its release tag, the one the engine plugin's server and hooks run (ADR-0014).
 
 `sandbox_files` writes the project's Docker sandbox (Docker Sandboxes, the `sbx` CLI): Claude Code
 in a small virtual machine of its own, the project folder shared with it, the network closed but
 for what the person's sbx policy allows, an API key added on the way out and never inside.
-`sbxenv.yaml` names it and pins OTO_SOURCE; once, when the sandbox is created, it runs
-`.sandbox/setup.sh` inside it: the same restore, plus what Docker's Claude image lacks (LibreOffice
-and fonts for older Office files, Chromium for pdf-to-template, the `uvx` the engine plugin calls,
-GitHub over HTTPS, since the sandbox closes SSH). `oto lock` rewrites both while they are its own.
+`sbxenv.yaml` names it; once, when the sandbox is created, it runs `.sandbox/setup.sh` inside it:
+the same restore, the engine installed among it, plus what Docker's Claude image lacks (LibreOffice
+and fonts for older Office files, Chromium for pdf-to-template, `uvx`, GitHub over HTTPS, since the
+sandbox closes SSH). `oto lock` rewrites both while they are its own.
 """
 import datetime
 import functools
@@ -74,24 +74,11 @@ def _git(path, *args):
 def engine():
     """The engine running now: its version, and the commit when it runs from a checkout. An engine
     installed from a package records no commit; its release tag (v<version>) pins it. A lock is read on
-    other machines, so it names no folder of this one: not the checkout, and OTO_SOURCE only when
-    another machine can install from it."""
+    other machines, so it names no folder of this one, not even the checkout's."""
     from .. import __version__
     out = {"version": __version__, "source": ENGINE_REPO, "tag": "v%s" % __version__, "commit": None}
     out.update(_checkout())
-    pinned = os.environ.get("OTO_SOURCE")
-    if pinned and _installable(pinned):
-        out["oto_source"] = pinned
     return out
-
-
-def _installable(spec):
-    """Whether another machine can install the engine from this OTO_SOURCE: a package, a URL or a git
-    remote (`oto-kg @ git+https://...`), not a folder of this machine (a clone, `oto-kg @ file://...`)."""
-    where = spec.split(" @ ", 1)[-1].strip()
-    if where.startswith(("file:", "/", "~", ".")) or re.match(r"^[A-Za-z]:[\\/]", where):
-        return False
-    return not os.path.exists(os.path.expanduser(where))
 
 
 @functools.lru_cache(maxsize=1)
@@ -467,7 +454,7 @@ def _restore_lines(lock):
         if plugin.get("installed"):
             lines.append("claude plugin install %s    # locked at %s" % (plugin["id"], plugin.get("version")))
     lines += ["",
-              "# the engine at %s %s: its plugin's server and hook read OTO_SOURCE, the oto command is installed from it"
+              "# the engine at %s %s, as the oto command: the engine plugin's server and hooks run it"
               % (eng.get("version"), pin.rsplit("@", 1)[1]),
               'uv tool install --force "%s"' % pin]
     return lines
@@ -481,7 +468,6 @@ def restore_script(lock, project_name=None):
              % (project_name or "this project", lock.get("locked_at")),
              "# Run it where they should live: a container, or a profile of its own (CLAUDE_CONFIG_DIR).",
              "set -e"] + _restore_lines(lock)
-    lines.append("echo 'add to the environment: export OTO_SOURCE=\"%s\"'" % engine_pin(lock).replace("[intake]", ""))
     return "\n".join(lines) + "\n"
 
 
@@ -500,7 +486,6 @@ def sandbox_name(slug):
 def sandbox_files(lock, slug, project_name=None):
     """{relative path: text} for the project's Docker sandbox: sbxenv.yaml and .sandbox/setup.sh."""
     name = sandbox_name(slug)
-    pin = engine_pin(lock)
     env = """# The Docker sandbox %(project)s runs in (Docker Sandboxes, the `sbx` CLI): Claude Code in a small
 # virtual machine of its own, this folder shared with it, the network closed but for what your sbx
 # policy allows. %(mark)s from oto.lock.json; `oto lock` rewrites it.
@@ -510,14 +495,12 @@ schemaVersion: "1"
 name: %(name)s
 agent: claude
 workspace: .
-env:
-  OTO_SOURCE: "%(source)s"
 lifecycle:
   postCreate:
     - name: oto-tools
       command: sbx exec "$SBX_SANDBOX_NAME" -- sh "$SBX_WORKSPACE/.sandbox/setup.sh"
       timeout: 30m
-""" % {"project": project_name or "this project", "mark": SANDBOX_MARK, "name": name, "source": pin.replace("[intake]", "")}
+""" % {"project": project_name or "this project", "mark": SANDBOX_MARK, "name": name}
     setup = ["#!/bin/sh",
              "# Sets up, inside the Docker sandbox of %s, the tools oto.lock.json records (locked %s)."
              % (project_name or "this project", lock.get("locked_at")),

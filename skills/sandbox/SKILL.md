@@ -35,16 +35,17 @@ Desktop's Code tab drives it over SSH; a terminal drives it with `sbx run`.
 
 ## Running the engine
 
-On the person's computer the engine runs through `uvx`, as the plugin's server does:
+On the person's computer the engine is the `oto` command installed there, the one the plugin
+runs (ADR-0014): `oto sandbox ...`. When it is not installed, the session start says so with the
+command that installs it, at the plugin's release:
 
 ```bash
-uvx --from "${OTO_SOURCE:-oto-kg @ git+https://github.com/Cynergis/oto}" oto sandbox <up|status> ...
+uv tool install --force "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v<the plugin's version>"
 ```
 
-If `oto` is on the PATH, `oto sandbox ...` is the same. Without `uv`, say that one small tool is
-needed first and give its installer: on a Mac or Linux `curl -LsSf https://astral.sh/uv/install.sh | sh`,
-on Windows in PowerShell `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`;
-then a new terminal.
+Without `uv`, say that one small tool is needed first and give its installer: on a Mac or Linux
+`curl -LsSf https://astral.sh/uv/install.sh | sh`, on Windows in PowerShell
+`powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`; then a new terminal.
 
 If `/home/agent/.oto/init.sh` exists, this session is already inside an OTO sandbox: say so, and
 that `oto sandbox` is run from the computer, not from here. Stop.

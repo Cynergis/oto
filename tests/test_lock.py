@@ -150,7 +150,8 @@ def test_the_restore_script_rebuilds_the_locked_tools(claude, capsys):
     assert "claude plugin marketplace add %s" % where in script
     for key in ("claims@acme", "oto@acme", "tool@acme"):
         assert "claude plugin install %s" % key in script
-    assert 'uv tool install --force "oto-kg[intake] @ git+' in script and "OTO_SOURCE" in script
+    assert 'uv tool install --force "oto-kg[intake] @ git+' in script and "OTO_SOURCE" not in script, \
+        "the installed engine is the one the plugin runs: nothing to export (ADR-0014)"
     notes = lockfile.warnings(lockfile.read(project))
     assert any("tool@acme comes from Acme/tool's default branch" in n for n in notes)
     assert not any("claims@acme" in n for n in notes), "a pack inside the marketplace is pinned with it"
@@ -407,7 +408,8 @@ def test_lock_sandbox_writes_the_projects_docker_sandbox_and_lock_keeps_it_curre
     env = open(os.path.join(project.data, "sbxenv.yaml"), encoding="utf-8").read()
     pin = lockfile.engine_pin(lockfile.read(project))
     assert "name: oto-p\nagent: claude\nworkspace: .\n" in env
-    assert 'OTO_SOURCE: "%s"' % pin.replace("[intake]", "") in env
+    assert "OTO_SOURCE" not in env and "env:" not in env, "the setup installs the engine the plugin runs (ADR-0014)"
+    assert 'uv tool install --force "%s"' % pin in open(os.path.join(project.data, ".sandbox", "setup.sh"), encoding="utf-8").read()
     assert 'command: sbx exec "$SBX_SANDBOX_NAME" -- sh "$SBX_WORKSPACE/.sandbox/setup.sh"' in env, "whatever name it is created under"
     setup_path = os.path.join(project.data, ".sandbox", "setup.sh")
     setup = open(setup_path, encoding="utf-8").read()
@@ -461,8 +463,8 @@ def test_lock_engine_ref_prints_what_the_workflows_install(claude, capsys):
 def test_a_lock_names_no_folder_of_the_machine_that_wrote_it(claude, monkeypatch, tmp_path):
     """A lock is committed and read on other machines and in CI. The engine's source as a local folder
     (OTO_SOURCE set to a clone, here ~/Downloads/oto), or the checkout the engine ran from, means
-    nothing there and names a folder of the machine that wrote it: neither is recorded. A source
-    another machine can install from is."""
+    nothing there and names a folder of the machine that wrote it: neither is recorded, and since the
+    plugin runs the installed engine (ADR-0014), OTO_SOURCE is not recorded at all."""
     monkeypatch.setenv("OTO_SOURCE", str(tmp_path / "Downloads" / "oto"))
     eng = lockfile.engine()
     assert "oto_source" not in eng and "checkout" not in eng
@@ -470,9 +472,8 @@ def test_a_lock_names_no_folder_of_the_machine_that_wrote_it(claude, monkeypatch
     for local in ("oto-kg @ file://%s" % tmp_path, "~/Downloads/oto", "./oto", "../oto"):
         monkeypatch.setenv("OTO_SOURCE", local)
         assert "oto_source" not in lockfile.engine(), local
-    shared = "oto-kg @ git+https://github.com/Cynergis/oto@v0.19.0"
-    monkeypatch.setenv("OTO_SOURCE", shared)
-    assert lockfile.engine()["oto_source"] == shared
+    monkeypatch.setenv("OTO_SOURCE", "oto-kg @ git+https://github.com/Cynergis/oto@v0.19.0")
+    assert "oto_source" not in lockfile.engine(), "nothing reads it any more: the installed engine is the one (ADR-0014)"
     assert any("uncommitted changes" in w for w in lockfile.warnings({"engine": {"commit": "abc", "modified": True}})), \
         "a checkout with changes is still said, without its folder"
 

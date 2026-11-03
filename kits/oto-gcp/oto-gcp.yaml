@@ -69,11 +69,13 @@ capabilities:
 
   - type: com.docker.sandbox/lifecycle@1
     config:
-      # Once, when the sandbox is created, as root, after the Claude kit's own.
+      # Once, when the sandbox is created, as root, after the Claude kit's own. A hook gets the image's
+      # HOME, the agent's: each sets root's, so that nothing it writes there is left owned by root.
       install:
         - description: LibreOffice and fonts, for older Office files at intake
           user: "0"
           command: |
+            export HOME=/root
             n=0; while pgrep -x apt-get >/dev/null || pgrep -x dpkg >/dev/null; do n=$((n+1)); [ $n -gt 300 ] && break; sleep 2; done
             apt-get -o DPkg::Lock::Timeout=600 update -qq
             DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=600 install -y -qq --no-install-recommends \
@@ -81,19 +83,34 @@ capabilities:
         - description: The Google Cloud CLI (gcloud, bq)
           user: "0"
           command: |
+            export HOME=/root
             case "$(uname -m)" in aarch64|arm64) arch=arm ;; *) arch=x86_64 ;; esac
             curl -fsSL -o /tmp/gcloud.tgz "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-$arch.tar.gz"
             tar -xzf /tmp/gcloud.tgz -C /opt && rm /tmp/gcloud.tgz
             /opt/google-cloud-sdk/install.sh --quiet --usage-reporting=false --path-update=false --command-completion=false >/dev/null 2>&1
             ln -sf /opt/google-cloud-sdk/bin/gcloud /opt/google-cloud-sdk/bin/bq /usr/local/bin/
-        - description: uvx, and the system libraries Chromium needs
+        - description: uv and uvx that run here, and the system libraries Chromium needs
           user: "0"
           command: |
+            export HOME=/root
+            # The image's uv aborts where the kernel's pages are 16 KB, as on a Mac with Apple silicon
+            # (jemalloc): Astral's own build runs there, ahead of it on the PATH (a hook's own PATH puts
+            # /usr/bin first).
+            export PATH="/usr/local/bin:$PATH"
+            if ! uv --version >/dev/null 2>&1 || ! uvx --version >/dev/null 2>&1; then
+              case "$(uname -m)" in aarch64|arm64) target=aarch64-unknown-linux-musl ;; *) target=x86_64-unknown-linux-musl ;; esac
+              curl -fsSL -o /tmp/uv.tgz "https://github.com/astral-sh/uv/releases/latest/download/uv-$target.tar.gz"
+              tar -xzf /tmp/uv.tgz -C /tmp && install -m 755 "/tmp/uv-$target/uv" "/tmp/uv-$target/uvx" /usr/local/bin/
+              rm -rf /tmp/uv.tgz "/tmp/uv-$target"
+              hash -r     # the shell remembers the uv it found first, the image's
+            fi
             command -v uvx >/dev/null || { printf '#!/bin/sh\nexec uv tool run "$@"\n' > /usr/local/bin/uvx && chmod 755 /usr/local/bin/uvx; }
             uv tool run --from playwright playwright install-deps chromium >/tmp/chromium-deps.log 2>&1 || true
         - description: OTO's folder in the agent's home, where the files below are written
           user: "0"
-          command: mkdir -p /home/agent/.oto && chown agent:agent /home/agent/.oto
+          command: |
+            export HOME=/root
+            mkdir -p /home/agent/.oto && chown agent:agent /home/agent/.oto
       # At every start, as the agent: the first installs OTO, later ones find it and take a few seconds.
       startup:
         - description: OTO for the agent user (its log is /tmp/oto-init.log)
@@ -135,7 +152,11 @@ capabilities:
               command -v oto >/dev/null || uv tool install "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v0.18.2"
               [ -d "$HOME/.cache/ms-playwright" ] || uv tool run --from playwright playwright install chromium
             } >>"$log" 2>&1
-            echo "OTO ready: $(claude plugin list 2>/dev/null | grep -c enabled) plugins" >>"$log"
+            if command -v oto >/dev/null; then
+              echo "OTO ready: $(claude plugin list 2>/dev/null | grep -c enabled) plugins" >>"$log"
+            else
+              echo "OTO failed: the engine is not installed; the lines above say why" >>"$log"
+            fi
         - path: /home/agent/.oto/lock-plugins
           description: Keeps the sandbox to the plugins installed in it
           content: |

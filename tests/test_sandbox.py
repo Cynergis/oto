@@ -309,6 +309,17 @@ def test_oto_not_ready_inside_says_where_to_look(fake, tmp_path):
     assert "uv tool install failed" in str(e.value) and "/tmp/oto-init.log" in e.value.fix
 
 
+def test_a_start_that_failed_is_said_at_once(fake, tmp_path):
+    """The kit's start ends on `OTO ready` or `OTO failed`; up waits for either, not ten minutes for
+    the first, and says the failure with where to read why."""
+    fake.write(init_line="OTO failed: the engine is not installed; the lines above say why")
+    with pytest.raises(sandbox.SandboxError) as e:
+        sandbox.up(name="oto-try", directory=str(tmp_path / "w"), approve=True)
+    assert "OTO failed" in str(e.value) and "tail -20 /tmp/oto-init.log" in e.value.fix
+    wait = [c for c in fake.calls("exec") if "oto-init.log" in c[-1]][0][-1]
+    assert 'grep -q -e "%s" -e "%s"' % (sandbox.READY, sandbox.FAILED) in wait
+
+
 def test_check_changes_nothing(fake, tmp_path):
     fake.write(policy=None)
     report = sandbox.up(directory=str(tmp_path / "w"), approve=True, init_policy="balanced", check=True)

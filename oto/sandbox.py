@@ -55,6 +55,8 @@ ANTHROPIC_BINDING = {"apiKey": ["api.anthropic.com", "claude.ai", "console.anthr
                      "oauth": ["platform.claude.com"]}
 POLICIES = ("balanced", "deny-all", "allow-all")
 READY = "OTO ready"
+#: how the kit's start ends when the engine did not install: `up` stops waiting on it too
+FAILED = "OTO failed"
 #: the kit's switch for the plugin lock: `allowed` keeps outside plugins, anything else blocks them
 OUTSIDE = "OTO_OUTSIDE_PLUGINS"
 PROJECT_DIR_ENV = "OTO_PROJECT_DIR"   # the project folder's path inside the sandbox, for the kit's landing hook
@@ -433,10 +435,10 @@ def status(name=DEFAULT_NAME):
 
 
 def _oto_line(sbx, name, wait=600):
-    """The last line of the kit's start log, waiting up to `wait` seconds for OTO to be ready."""
+    """The last line of the kit's start log, waiting up to `wait` seconds for the start to end, ready or failed."""
     rounds = max(1, int(wait) // 5)
-    script = ('for i in $(seq 1 %d); do grep -q "%s" /tmp/oto-init.log 2>/dev/null && break; sleep 5; done; '
-              'tail -1 /tmp/oto-init.log 2>/dev/null' % (rounds, READY)) if wait else "tail -1 /tmp/oto-init.log 2>/dev/null"
+    script = ('for i in $(seq 1 %d); do grep -q -e "%s" -e "%s" /tmp/oto-init.log 2>/dev/null && break; sleep 5; done; '
+              'tail -1 /tmp/oto-init.log 2>/dev/null' % (rounds, READY, FAILED)) if wait else "tail -1 /tmp/oto-init.log 2>/dev/null"
     code, out, err = sbx("exec", name, "--", "sh", "-c", script, timeout=wait + 120)
     lines = [l for l in out.splitlines() if l.strip()]
     return lines[-1].strip() if lines else None

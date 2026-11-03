@@ -4,6 +4,43 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.17.0 — 2026-11-02
+
+**A change enters main by one of three routes, decided by what it carries; one gate enforces the route; a
+confirmation in a session is the approval.** Five pull requests (161 to 165) under
+[ADR-0013](docs/adr/0013-three-routes-into-main.md), the plan in [docs/plans/graph-journeys.md](docs/plans/graph-journeys.md).
+A minor release: two commands, two repository workflows and a rules file are new; a project that never confirms in a
+session and declares no guardrails has every pull request on the reviewed route, which is what it had.
+
+- **The fact-level diff and the confirmation** (161). `oto curate diff --json` is the canonical fact-level diff with its
+  sha256 fingerprint, over facts and not bytes; `--from-graph`/`--to-graph` diff two graph files with no candidate.
+  `oto curate apply --confirm` writes who confirmed, when and the fingerprint into the ledger entry; `oto curate log`
+  shows it.
+- **The route and its gate** (162). `oto route show --base <ref>` says the route a change asks for from two git trees:
+  `session` (one confirmed entry whose fingerprint is the diff), `guardrailed` (runs from the transcripts folder),
+  `reviewed` (the rest, a rewritten ledger, two confirmed applies, a confirmation that no longer matches). `oto route
+  check` is the verdict, fed what only GitHub knows as flags (`--author`, `--verified`, `--approved`); the engine never
+  calls GitHub. `oto init --repo` writes `oto-route.yml` and `.github/oto-rules.json` (pull requests required, the checks
+  `oto checks` and `oto route` required, zero approvals at the branch level, the merge queue on); `oto repo rules --apply`
+  sets them, and `oto sandbox up --repo` applies them when it creates the repository. The checks job is named `oto checks`.
+- **The five guardrails** (163). `routes.guardrailed` in `project.config.json`; `oto route guardrails` runs additive,
+  attributed (the speaker's assertions citing a transcript of the run), scope, clean (`--strict-privacy`, no transcript
+  twice) and bounded on the diff; the gate merges a transcript's change on its own when all hold and sends it to a
+  person with the findings when one fails. `oto curate check` holds a transcript's facts to attribution while the run is
+  open; the ingest manifest records the privacy mode; `oto status` says the settings.
+- **A preview per pull request, the engine pinned to the lock, `oto route rebase`** (164). `oto-preview.yml` publishes
+  the store at the head to `preview/pr-<n>` of the query repository (or keeps an artifact), one comment edited on every
+  push, the branch deleted on close. Every workflow installs the engine at the ref the lock records and `oto checks` runs
+  `oto lock --check`; `oto lock --engine-ref` prints it. `oto route rebase --onto <ref>` re-applies a stale pull
+  request's facts through the gates; the confirmation holds whenever the facts are the same.
+- **The skills, the documents and the decision** (165). The curate skill records the confirmation at its fourth gate
+  and opens the pull request in the person's name; the capture skill says a capture is reviewed and offers to draft now;
+  the concierge and build-knowledge-base name the routes. `docs/ARCHITECTURE.md`, `docs/E2E-TESTING.md` section 34,
+  `README.md`; ADR-0013 recorded in the roadmap graph.
+
+Found on the way and released before: `oto pack rm` and the stale-pack message (0.16.2), the sandbox skill's two
+sandboxes in order (0.16.3).
+
 ## 0.16.6 — 2026-11-02
 
 **A shell in the sandbox lands on the project folder** (pull request 158). `ssh <name>.sbx` and `sbx run` opened

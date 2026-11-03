@@ -191,3 +191,48 @@ def test_route_needs_a_base_and_says_so():
         _repository(root)
         code, out = _cli("route", "show", "--project", root)
         assert code == 1 and "--base" in out, out
+
+
+def test_rebase_reapplies_a_confirmed_change_onto_a_moved_main_and_the_record_holds():
+    """For the merge queue: a pull request that fell behind re-applies its facts onto the new main
+    through the gates; the fingerprint is over facts, so the confirmation still holds."""
+    with tempfile.TemporaryDirectory() as root:
+        project, base = _repository(root)
+        _git(root, "checkout", "-q", "-b", "card")
+        _change(project, by="chiheb@cynergis.ai", confirm=True)
+        head = _commit(root, "the card")
+        _git(root, "checkout", "-q", "main")
+        _change(project, by="oto pipeline", node=_node("c.9", summary="landed on main meanwhile", sources=["memo"], source_doc="memo"))
+        moved = _commit(root, "another change on main")
+        _git(root, "checkout", "-q", "card")
+        code, out = _cli("route", "rebase", "--onto", "main", "--project", root)
+        assert code == 0, out
+        assert "re-applied" in out and "holds" in out, out
+        with open(project.graph_path, encoding="utf-8") as f:
+            ids = {n["id"] for n in json.load(f)["nodes"]}
+        assert {"c.1", "p.1", "c.2", "c.9"} <= ids, ids
+        with open(os.path.join(root, "changelog.jsonl"), encoding="utf-8") as f:
+            entries = [json.loads(line) for line in f if line.strip()]
+        assert [e["by"] for e in entries] == ["oto pipeline", "chiheb@cynergis.ai"], "main's ledger, then the pull request's entry on top"
+        assert entries[-1]["confirmation"]["by"] == "chiheb@cynergis.ai" and entries[-1]["rebased_onto"] == moved
+        rebased = _commit(root, "the card, on the new main")
+        shown = route.show(root, moved, rebased)
+        assert shown["route"] == route.SESSION, shown["reasons"]
+        assert route.check(root, moved, rebased, authors=["chiheb@cynergis.ai"], verified=True)["ok"]
+
+
+def test_rebase_refuses_a_conflict_and_leaves_the_tree_as_it_was():
+    with tempfile.TemporaryDirectory() as root:
+        project, base = _repository(root)
+        _git(root, "checkout", "-q", "-b", "card")
+        _change(project, by="chiheb@cynergis.ai", confirm=True)
+        _commit(root, "the card")
+        _git(root, "checkout", "-q", "main")
+        _change(project, by="oto pipeline", node=_node("c.2", summary="the same id, another fact, on main", sources=["memo"], source_doc="memo"))
+        _commit(root, "c.2 on main too")
+        _git(root, "checkout", "-q", "card")
+        before = open(project.graph_path, encoding="utf-8").read()
+        code, out = _cli("route", "rebase", "--onto", "main", "--project", root)
+        assert code == 1 and "conflict" in out and "c.2" in out, out
+        assert open(project.graph_path, encoding="utf-8").read() == before, "nothing written"
+        assert _git(root, "status", "--porcelain") == ""

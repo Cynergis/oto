@@ -2,6 +2,7 @@
 ontologies it started from, recorded at init; a machine checked against it; a script that rebuilds it."""
 import json
 import os
+import tempfile
 import shutil
 import subprocess
 
@@ -437,3 +438,21 @@ def test_lock_sandbox_needs_a_lock(tmp_path, capsys):
     os.remove(os.path.join(root, "oto.lock.json")) if os.path.exists(os.path.join(root, "oto.lock.json")) else None
     assert main(["lock", "--sandbox", "--project", root]) == 1
     assert "no oto.lock.json yet" in capsys.readouterr().err
+
+
+def test_lock_engine_ref_prints_what_the_workflows_install(claude, capsys):
+    """`oto lock --engine-ref` is the ref the repository workflows pin the engine to: the locked commit
+    when the lock has one, else the release tag; nothing without a lock (docs/plans/graph-journeys.md, phase 4)."""
+    from oto.cli import main
+    from oto.model import lock
+    with tempfile.TemporaryDirectory() as root:
+        init(root, slug="r", name="R")
+        project = Project.standard(root)
+        locked = lock.read(project)
+        capsys.readouterr()
+        assert main(["lock", "--engine-ref", "--project", root]) == 0
+        printed = capsys.readouterr().out.strip()
+        assert printed == (locked["engine"].get("commit") or locked["engine"]["tag"]), printed
+        os.remove(os.path.join(root, lock.LOCK_NAME))
+        assert main(["lock", "--engine-ref", "--project", root]) == 1
+        assert "no oto.lock.json" in capsys.readouterr().err

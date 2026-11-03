@@ -432,3 +432,136 @@ def render_guardrails(result):
     for item in result["guardrails"]:
         lines.append("  %-4s %s: %s" % ("ok" if item["ok"] else "FAIL", item["name"], item["detail"]))
     return "\n".join(lines)
+
+
+def _merge_base(root, a, b):
+    code, out, err = _git(root, "merge-base", a, b)
+    if code != 0:
+        raise RouteError("no common commit between %s and %s%s" % (a, b, (": " + err.strip()) if err.strip() else ""))
+    return out.strip()
+
+
+def rebase(root, onto, head="HEAD"):
+    """For the merge queue: re-apply the facts a pull request adds over its base onto `onto` (the
+    new main), through the gates, in the working tree. The fact-level diff from the merge base to
+    `head` is applied to the graph at `onto`: the nodes added, the nodes changed (when `onto` still
+    holds the base's version), the nodes removed, the edges added and removed; a fact that moved on
+    both sides is a conflict and nothing is written. The ledger becomes `onto`'s with the pull
+    request's entries on top, each marked `rebased_onto`; the assertions the head added join
+    `onto`'s. Returns {ok, holds, fingerprint, conflicts, findings, entries, onto, base, head}:
+    `holds` says the confirmation's fingerprint still equals the diff, None without a confirmation.
+    The person (or their skill) commits and pushes; nothing here touches git."""
+    from .curate import assertions as _assertions
+    from .project import Project
+    onto_sha, head_sha = _resolve(root, onto), _resolve(root, head)
+    base_sha = _merge_base(root, onto_sha, head_sha)
+    shown = show(root, base_sha, head_sha)
+    canon = _diff.canonical(_json_at(root, base_sha, GRAPH, {"nodes": [], "edges": []}), _json_at(root, head_sha, GRAPH, {"nodes": [], "edges": []}))
+    base_graph = _json_at(root, base_sha, GRAPH, {"nodes": [], "edges": []})
+    target = _json_at(root, onto_sha, GRAPH, {"nodes": [], "edges": []})
+    base_nodes, target_nodes = _diff.index_nodes(base_graph), _diff.index_nodes(target)
+    out = {"ok": False, "holds": None, "fingerprint": None, "conflicts": [], "findings": [], "entries": len(shown["entries"]),
+           "onto": onto_sha, "base": base_sha, "head": head_sha, "route": shown["proposed"]}
+    if onto_sha == base_sha:
+        out["ok"] = True
+        out["fingerprint"] = shown["fingerprint"]
+        out["holds"] = (shown["confirmation"] or {}).get("fingerprint") == shown["fingerprint"] if shown["confirmation"] else None
+        out["conflicts"].append("nothing to do: %s is the base of this change already" % onto[:12])
+        return out
+
+    nodes = [json.loads(json.dumps(n)) for n in target.get("nodes") or []]
+    by_id = {n.get("id"): n for n in nodes}
+    for node in canon["nodes_added"]:
+        nid = node.get("id")
+        if nid in by_id and by_id[nid] != node:
+            out["conflicts"].append("%s was added on both sides with different facts" % nid)
+        elif nid not in by_id:
+            nodes.append(json.loads(json.dumps(node)))
+            by_id[nid] = nodes[-1]
+    for item in canon["nodes_changed"]:
+        nid = item["id"]
+        if nid not in by_id:
+            out["conflicts"].append("%s changed here but is gone from %s" % (nid, onto[:12]))
+        elif by_id[nid] != base_nodes.get(nid) and by_id[nid] != item["node"]:
+            out["conflicts"].append("%s changed here and on %s" % (nid, onto[:12]))
+        else:
+            by_id[nid].clear()
+            by_id[nid].update(json.loads(json.dumps(item["node"])))
+    for nid in canon["nodes_removed"]:
+        if nid in by_id and by_id[nid] != base_nodes.get(nid):
+            out["conflicts"].append("%s removed here but changed on %s" % (nid, onto[:12]))
+        elif nid in by_id:
+            nodes = [n for n in nodes if n.get("id") != nid]
+            del by_id[nid]
+    edges = [dict(e) for e in target.get("edges") or []]
+    keys = {_diff.edge_key(e) for e in edges}
+    for key in canon["edges_added"]:
+        if tuple(key) not in keys:
+            edges.append({"from": key[0], "rel": key[1], "to": key[2]})
+            keys.add(tuple(key))
+    removed = {tuple(key) for key in canon["edges_removed"]}
+    edges = [e for e in edges if _diff.edge_key(e) not in removed]
+    if out["conflicts"]:
+        return out
+
+    project = Project.standard(root)
+    new_graph = dict(target, nodes=nodes, edges=edges)
+    try:
+        with open(project.ontology_config_path, encoding="utf-8") as f:
+            vocabulary = json.load(f)
+    except (OSError, ValueError):
+        vocabulary = None
+    onto_assertions = _assertions_at(root, onto_sha)
+    head_assertions = _assertions_at(root, head_sha)
+    base_assertions = _assertions_at(root, base_sha)
+    added_assertions = {k: v for k, v in head_assertions.items() if k not in base_assertions}
+    known = set(onto_assertions) | set(added_assertions)
+    findings = _diff.check(target, new_graph, vocabulary, known_assertions=known)
+    blocking = _diff.blocking(findings)
+    if blocking:
+        out["findings"] = ["%s: %s" % (f.subject, f.detail) for f in blocking]
+        return out
+
+    # write: the graph, the previous graph (so undo works), the ledger, the assertions
+    with open(project.graph_path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(new_graph, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    with open(os.path.join(root, "graph.previous.json"), "w", encoding="utf-8", newline="\n") as f:
+        json.dump(target, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    lines = [json.dumps(e, ensure_ascii=False, sort_keys=True) for e in _ledger_at(root, onto_sha)]
+    for entry in shown["entries"]:
+        entry = dict(entry, rebased_onto=onto_sha)
+        lines.append(json.dumps(entry, ensure_ascii=False, sort_keys=True))
+    with open(os.path.join(root, LEDGER), "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + ("\n" if lines else ""))
+    if onto_assertions or added_assertions:
+        with open(_assertions.log_path(project), "w", encoding="utf-8", newline="\n") as f:
+            for entry in list(onto_assertions.values()) + list(added_assertions.values()):
+                f.write(json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n")
+    fingerprint = _diff.fingerprint(_diff.canonical(target, new_graph))
+    out["ok"] = True
+    out["fingerprint"] = fingerprint
+    confirmation = shown.get("confirmation")
+    out["holds"] = (confirmation.get("fingerprint") == fingerprint) if confirmation else None
+    return out
+
+
+def render_rebase(result):
+    lines = ["rebase onto %s: %s" % (result["onto"][:12], "re-applied" if result["ok"] else "refused")]
+    lines.append("  base %s -> head %s, %d ledger entr%s" % (result["base"][:12], result["head"][:12], result["entries"], "y" if result["entries"] == 1 else "ies"))
+    for conflict in result["conflicts"]:
+        lines.append("  conflict: %s" % conflict)
+    for finding in result["findings"]:
+        lines.append("  blocked at the gate: %s" % finding)
+    if result["ok"]:
+        if result["holds"] is True:
+            lines.append("  the confirmation holds: the fact-level diff is the same (%s)" % result["fingerprint"][:12])
+        elif result["holds"] is False:
+            lines.append("  the confirmation no longer holds: the fact-level diff changed (%s); a person reviews it" % result["fingerprint"][:12])
+        else:
+            lines.append("  fingerprint %s (no confirmation on this change)" % result["fingerprint"][:12])
+        lines.append("  written: graph.json, graph.previous.json, changelog.jsonl (and the assertions); review, then git add -A && git commit && git push")
+    else:
+        lines.append("  nothing written: resolve on the branch, or let a person review the pull request")
+    return "\n".join(lines)

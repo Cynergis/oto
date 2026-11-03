@@ -249,10 +249,14 @@ def cmd_status(args):
     print("  vocabulary  %d class(es), %d relation(s), %d typed attribute(s), %d rule(s), %s%s"
           % (s["classes"], s["properties"], s["attributes"], s["rules"], accepted, whose))
     from .. import route as _route
+    from ..model import derived as _derived_routes
+    said = _derived_routes.routes_said(project.config())
+    if said:
+        print("  routes      %s" % said)
     guarded = _route.settings_of(project.config())
     if guarded:
         limit = guarded.get("max_facts")
-        print("  routes      guardrailed from %s/: classes %s, %s, %s, %s (docs/plans/graph-journeys.md; oto route guardrails)"
+        print("              guardrailed from %s/: classes %s, %s, %s, %s (docs/plans/graph-journeys.md; oto route guardrails)"
               % ((guarded.get("from") or "inbox/transcripts").strip("/"),
                  ", ".join(guarded["classes"]) if isinstance(guarded.get("classes"), list) and guarded["classes"] else "any",
                  ("at most %d facts a run" % limit) if isinstance(limit, int) and limit > 0 else "no limit on a run",

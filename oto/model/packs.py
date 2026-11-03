@@ -52,7 +52,14 @@ ENGINE_DEPENDENCY = "%s@%s" % (ENGINE_PLUGIN, ENGINE_MARKETPLACE)   # how a pack
 NAME_OK = re.compile(r"^[a-z][a-z0-9-]*$")
 DATE_OK = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 FIELDS = ("name", "title", "release", "domain", "product_type", "pattern", "playbook", "binding", "summary", "ontology", "engine", "maintainer",
-          "license", "changelog")
+          "license", "changelog", "routes")
+#: The routes' policy a pack carries (docs/plans/graph-journeys.md, phase 6): which routes a project on it may use
+#: (`allowed`, reviewed always among them), the classes a session may touch without review (`session.classes`),
+#: and the guardrailed route's settings. Derived into the project at init and on update; which route a change
+#: takes is never here (ADR-0013).
+ROUTES = ("session", "reviewed", "guardrailed")
+ROUTE_KEYS = ("allowed",) + ROUTES
+GUARDRAILED_KEYS = {"from": str, "classes": list, "max_facts": int, "additive_only": bool, "attributed": bool}
 #: A pattern pack declares what it is a design pattern of, for which part, and the skill that models
 #: that part: {"of": "software-architecture", "for": "a part designed with DDD", "skill": "model-domain"}.
 #: An architecture skill finds the patterns a project composes from this, never by their names.
@@ -810,6 +817,10 @@ def _manifest_problems(directory):
                                 or not all(isinstance(binding[k], str) and binding[k].strip() for k in BINDING_KEYS)):
         out.append("%s binding must be {\"of\": <the ontology it binds to a platform>, \"for\": <what it binds, in a "
                    "phrase>, \"skill\": <this pack's skill that captures it>}" % MANIFEST_NAME)
+    routes = declared.get("routes")
+    if routes is not None:
+        known = set((embedded_config(directory) or {}).get("classes") or {})
+        out += routes_problems(routes, known, MANIFEST_NAME)
     changelog = declared.get("changelog", [])
     if not isinstance(changelog, list):
         out.append("%s changelog must be a list" % MANIFEST_NAME)
@@ -821,6 +832,75 @@ def _manifest_problems(directory):
             elif entry.get("at") and not DATE_OK.match(str(entry["at"])):
                 out.append("%s changelog entry %d: `at` must be YYYY-MM-DD" % (MANIFEST_NAME, index))
     return out
+
+
+def routes_problems(routes, known_classes, where="routes"):
+    """What is wrong with a `routes` section, in words: unknown keys or routes, `reviewed` missing from
+    `allowed`, a class the vocabulary does not declare, a setting of the wrong shape. `known_classes`
+    is the set of classes to hold the lists to; empty, the classes are not checked."""
+    out = []
+    if not isinstance(routes, dict):
+        return ["%s routes must be an object with allowed, session, reviewed and guardrailed" % where]
+    for key in routes:
+        if key not in ROUTE_KEYS:
+            out.append("%s routes has no key %r (known: %s)" % (where, key, ", ".join(ROUTE_KEYS)))
+    allowed = routes.get("allowed")
+    if allowed is not None:
+        if not isinstance(allowed, list) or not allowed or not all(isinstance(r, str) for r in allowed):
+            out.append("%s routes.allowed must be a non-empty list of route names" % where)
+        else:
+            for name in allowed:
+                if name not in ROUTES:
+                    out.append("%s routes.allowed names %r, not a route (%s)" % (where, name, ", ".join(ROUTES)))
+            if "reviewed" not in allowed:
+                out.append("%s routes.allowed must include reviewed: it is the route everything else falls back to" % where)
+
+    def classes_ok(value, label):
+        if not isinstance(value, list) or not all(isinstance(c, str) for c in value):
+            out.append("%s %s must be a list of classes, not %r" % (where, label, value))
+            return
+        unknown = sorted(c for c in value if known_classes and c not in known_classes)
+        if unknown:
+            out.append("%s %s names %s, which the vocabulary does not declare" % (where, label, ", ".join(unknown)))
+
+    for name in ("session", "reviewed"):
+        section = routes.get(name)
+        if section is None:
+            continue
+        if not isinstance(section, dict):
+            out.append("%s routes.%s must be an object" % (where, name))
+            continue
+        for key in section:
+            if key != "classes":
+                out.append("%s routes.%s has no key %r (known: classes)" % (where, name, key))
+        if "classes" in section:
+            classes_ok(section["classes"], "routes.%s.classes" % name)
+    guarded = routes.get("guardrailed")
+    if guarded is not None:
+        if not isinstance(guarded, dict):
+            out.append("%s routes.guardrailed must be an object" % where)
+        else:
+            for key, value in guarded.items():
+                kind = GUARDRAILED_KEYS.get(key)
+                if kind is None:
+                    out.append("%s routes.guardrailed has no key %r (known: %s)" % (where, key, ", ".join(GUARDRAILED_KEYS)))
+                elif key == "classes":
+                    classes_ok(value, "routes.guardrailed.classes")
+                elif key == "max_facts":
+                    if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+                        out.append("%s routes.guardrailed.max_facts must be a positive integer, not %r" % (where, value))
+                elif key == "from":
+                    if not isinstance(value, str) or not value.strip() or value.startswith(("/", "\\")) or ".." in value:
+                        out.append("%s routes.guardrailed.from must be a folder of the project, relative (inbox/transcripts), not %r" % (where, value))
+                elif not isinstance(value, kind) or (kind is bool and not isinstance(value, bool)):
+                    out.append("%s routes.guardrailed.%s must be %s, not %r" % (where, key, "true or false" if kind is bool else kind.__name__, value))
+    return out
+
+
+def routes_of(directory):
+    """The routes' policy the pack at `directory` declares, or {} when it declares none."""
+    routes = read(directory).get("routes")
+    return routes if isinstance(routes, dict) else {}
 
 
 def check(directory, strict=False):

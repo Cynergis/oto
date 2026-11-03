@@ -92,6 +92,39 @@ def _transcripts_folder(config):
     return folder.strip("/").replace(os.sep, "/") if isinstance(folder, str) and folder.strip() else None
 
 
+def allowed_of(config):
+    """The routes the project's policy allows; every route when it says nothing. `reviewed` is always in."""
+    allowed = ((config or {}).get("routes") or {}).get("allowed")
+    if not isinstance(allowed, list) or not allowed:
+        return {SESSION, REVIEWED, GUARDRAILED}
+    return {r for r in allowed if isinstance(r, str)} | {REVIEWED}
+
+
+def session_classes_of(config):
+    """The classes a session may add or change without review, or None when the policy names none."""
+    classes = (((config or {}).get("routes") or {}).get("session") or {}).get("classes")
+    return [c for c in classes if isinstance(c, str)] if isinstance(classes, list) and classes else None
+
+
+def _policy(out, config, canon):
+    """The policy the project derived from its pack (phase 6), applied to the route the content asks
+    for: a route not allowed, or a session change outside its classes, moves to reviewed."""
+    proposed = out["proposed"]
+    if proposed != REVIEWED and proposed not in allowed_of(config):
+        out["route"] = REVIEWED
+        out["reasons"].append("the %s route is not allowed on this project (routes.allowed: %s): a person reviews it"
+                              % (proposed, ", ".join(sorted(allowed_of(config)))))
+        return
+    classes = session_classes_of(config)
+    if out["route"] == SESSION and classes:
+        touched = sorted({n.get("type") for n in canon["nodes_added"]} | {i["node"].get("type") for i in canon["nodes_changed"]})
+        outside = [c for c in touched if c not in classes]
+        if outside:
+            out["route"] = REVIEWED
+            out["reasons"].append("a session changes %s only without review (routes.session.classes); this change touches %s: a person reviews it"
+                                  % (", ".join(classes), ", ".join(str(c) for c in outside)))
+
+
 def show(root, base, head="HEAD"):
     """The route of the change between `base` and `head`, and why: {route, proposed, reasons,
     entries, confirmation, fingerprint, runs, base, head}. `proposed` is the route the content asks
@@ -101,7 +134,8 @@ def show(root, base, head="HEAD"):
     before, after = _ledger_at(root, base_sha), _ledger_at(root, head_sha)
     live = _json_at(root, base_sha, GRAPH, {"nodes": [], "edges": []})
     proposed_graph = _json_at(root, head_sha, GRAPH, {"nodes": [], "edges": []})
-    fingerprint = _diff.fingerprint(_diff.canonical(live, proposed_graph))
+    canon = _diff.canonical(live, proposed_graph)
+    fingerprint = _diff.fingerprint(canon)
     config = _json_at(root, head_sha, CONFIG, {})
     out = {"base": base_sha, "head": head_sha, "fingerprint": fingerprint, "entries": [], "confirmation": None,
            "runs": [], "reasons": [], "proposed": REVIEWED, "route": REVIEWED}
@@ -127,6 +161,7 @@ def show(root, base, head="HEAD"):
             out["route"] = SESSION
             out["reasons"].append("one ledger entry, confirmed by %s at %s, and its fingerprint is the fact-level diff of this change (%s)"
                                   % (confirmation.get("by"), confirmation.get("at"), fingerprint[:12]))
+            _policy(out, config, canon)
         else:
             out["reasons"].append("the confirmation's fingerprint (%s) does not match the diff between the base and the head (%s): "
                                   "something changed after %s confirmed, so a person reviews it"
@@ -149,6 +184,7 @@ def show(root, base, head="HEAD"):
         if all(origin and (origin == folder or origin.startswith(folder + "/")) for origin in origins.values()):
             out["proposed"] = out["route"] = GUARDRAILED
             out["reasons"].append("the ingest run(s) %s came from %s/, the transcripts folder the project names" % (", ".join(runs), folder))
+            _policy(out, config, canon)
             return out
         elsewhere = sorted(run for run, origin in origins.items() if not origin or not (origin == folder or origin.startswith(folder + "/")))
         out["reasons"].append("run(s) %s did not come from %s/: a person reviews what documents drafted" % (", ".join(elsewhere), folder))

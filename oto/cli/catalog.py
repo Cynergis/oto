@@ -201,6 +201,13 @@ def _remote(args):
                 _derived.write(project)
                 print("re-derived ontology.config.json from %s; then: oto ontology check, oto build"
                       % ", ".join("%s @%s" % (n, r) for n, r in _derived.releases(project)))
+                routed = _derived.write_routes(project)
+                if routed:
+                    print("re-derived routes from %s: %s%s%s"
+                          % (", ".join("the pack %s @%s" % (e["pack"], e["release"]) for e in routed["from"]) or "no pack",
+                             ("moved " + ", ".join(routed["moved"])) if routed["moved"] else "nothing moved",
+                             ("; kept %s, set here" % ", ".join(routed["kept"])) if routed["kept"] else "",
+                             ("; dropped %s, no longer the pack's" % ", ".join(routed["dropped"])) if routed["dropped"] else ""))
         except (ProjectError, OSError, ValueError, KeyError):
             pass                                                   # not run in a project, or one that owns its vocabulary
         if not changed:

@@ -1,0 +1,362 @@
+# syntax=docker/sandbox-kit:3
+# OTO's Docker Sandboxes kit (schema 3): see kits/README.md. A kit set on Docker's Claude Code kit,
+# published as one kit, ghcr.io/cynergis/oto-gcp:<engine version>, by .github/workflows/kit-publish.yml.
+# The parts marked `# >>>` are written by tools/kit_files.py from kits/oto-gcp/files: edit those files,
+# then run it.
+schemaVersion: "3"
+kind: set
+version: "0.18.2"
+displayName: OTO on Google Cloud
+description: >-
+  Claude Code with the OTO engine plugin and the OTO registry as a marketplace (packs turned on per project), the OTO engine 0.18.2, the Google Cloud CLI, LibreOffice
+  and Chromium, for building OTO products that run on Google Cloud.
+sourceUrl: https://github.com/Cynergis/oto/tree/main/kits/oto-gcp
+licenses: [Apache-2.0]
+
+kits:
+  # Docker's Claude Code kit, what `claude` names since sbx 0.51: the agent, its sign-in and its settings.
+  # Publishing records the digest the tag had, so each release of the kit carries one Claude Code.
+  - ref: docker.io/sbx/claude:latest
+
+args:
+  outsidePlugins:
+    # Only the plugins installed in the sandbox load; `allowed` (oto sandbox up --allow-outside-plugins)
+    # lets those of the person's computer, Claude Desktop and claude.ai account load too.
+    default: blocked
+    enum: [blocked, allowed]
+    description: Whether plugins from outside the sandbox load in it
+    env: OTO_OUTSIDE_PLUGINS
+  source:
+    default: "oto-kg @ git+https://github.com/Cynergis/oto@v0.18.2"
+    enum: ["oto-kg @ git+https://github.com/Cynergis/oto@v0.18.2"]
+    description: The OTO engine the plugin's server and the skills run
+    env: OTO_SOURCE
+  sandbox:
+    # The engine knows it runs inside the kit: `oto serve --http <port>` binds all interfaces, no token
+    # needed, so the port `oto sandbox up` publishes to the computer's localhost reaches it.
+    default: kit
+    enum: [kit]
+    description: Tells the engine it runs inside OTO's kit
+    env: OTO_SANDBOX
+
+capabilities:
+  - type: com.docker.sandbox/network-policy@1
+    config:
+      # Open only while the install hooks below run: Debian's packages, the Google Cloud CLI, Python packages.
+      install:
+        allow:
+          - deb.debian.org
+          - security.debian.org
+          - dhi.io
+          - dl.google.com
+          - pypi.org
+          - files.pythonhosted.org
+          - github.com
+          - "*.githubusercontent.com"
+      # The agent's steady state, beside what the Claude kit allows: GitHub, Python packages, Google's APIs
+      # and downloads, Chromium's downloads.
+      runtime:
+        allow:
+          - github.com
+          - "*.github.com"
+          - "*.githubusercontent.com"
+          - pypi.org
+          - files.pythonhosted.org
+          - dl.google.com
+          - "*.googleapis.com"
+          - cdn.playwright.dev
+          - playwright.download.prss.microsoft.com
+
+  - type: com.docker.sandbox/lifecycle@1
+    config:
+      # Once, when the sandbox is created, as root, after the Claude kit's own.
+      install:
+        - description: LibreOffice and fonts, for older Office files at intake
+          user: "0"
+          command: |
+            n=0; while pgrep -x apt-get >/dev/null || pgrep -x dpkg >/dev/null; do n=$((n+1)); [ $n -gt 300 ] && break; sleep 2; done
+            apt-get -o DPkg::Lock::Timeout=600 update -qq
+            DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=600 install -y -qq --no-install-recommends \
+              libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui fonts-liberation fonts-dejavu-core >/dev/null
+        - description: The Google Cloud CLI (gcloud, bq)
+          user: "0"
+          command: |
+            case "$(uname -m)" in aarch64|arm64) arch=arm ;; *) arch=x86_64 ;; esac
+            curl -fsSL -o /tmp/gcloud.tgz "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-$arch.tar.gz"
+            tar -xzf /tmp/gcloud.tgz -C /opt && rm /tmp/gcloud.tgz
+            /opt/google-cloud-sdk/install.sh --quiet --usage-reporting=false --path-update=false --command-completion=false >/dev/null 2>&1
+            ln -sf /opt/google-cloud-sdk/bin/gcloud /opt/google-cloud-sdk/bin/bq /usr/local/bin/
+        - description: uvx, and the system libraries Chromium needs
+          user: "0"
+          command: |
+            command -v uvx >/dev/null || { printf '#!/bin/sh\nexec uv tool run "$@"\n' > /usr/local/bin/uvx && chmod 755 /usr/local/bin/uvx; }
+            uv tool run --from playwright playwright install-deps chromium >/tmp/chromium-deps.log 2>&1 || true
+        - description: OTO's folder in the agent's home, where the files below are written
+          user: "0"
+          command: mkdir -p /home/agent/.oto && chown agent:agent /home/agent/.oto
+      # At every start, as the agent: the first installs OTO, later ones find it and take a few seconds.
+      startup:
+        - description: OTO for the agent user (its log is /tmp/oto-init.log)
+          user: agent
+          env: [OTO_OUTSIDE_PLUGINS]     # a hook sees only what it names: the plugin lock reads the switch
+          command: ["sh", "/home/agent/.oto/init.sh"]
+      # >>> files: written by tools/kit_files.py from kits/oto-gcp/files/home
+      files:
+        - path: /home/agent/.oto/init.sh
+          description: OTO for the agent user, run at every start
+          content: |
+            #!/bin/sh
+            # OTO for the agent user, at every start: quick once everything is there.
+            export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"     # a startup step gets a bare PATH; claude and oto live here
+            log=/tmp/oto-init.log
+            {
+              git config --global --get-all url."https://github.com/".insteadOf | grep -q "git@github.com:" || {
+                git config --global --add url."https://github.com/".insteadOf git@github.com:
+                git config --global --add url."https://github.com/".insteadOf ssh://git@github.com/; }
+              markets=$(claude plugin marketplace list 2>/dev/null)
+              echo "$markets" | grep -q "(Cynergis/oto)" || claude plugin marketplace add Cynergis/oto                    # the engine plugin's own marketplace, cynergis-engine
+              echo "$markets" | grep -q "(Cynergis/oto-registry)" || claude plugin marketplace add Cynergis/oto-registry   # the packs (ADR-0009: the registry carries no engine)
+              have=$(claude plugin list 2>/dev/null)
+              echo "$have" | grep -q "oto@cynergis-engine" || claude plugin install "oto@cynergis-engine"   # the engine alone: the packs a project needs are turned on from the session (/oto:packs)
+              python3 "$HOME/.oto/lock-plugins"     # only the plugins installed here load: see the script
+              # A shell over SSH or sbx run opens in the tool's default folder; the project is mounted at its own
+              # path, which `oto sandbox up` passed as OTO_PROJECT_DIR. An interactive shell that starts in the home
+              # folder or the default lands on the project; one started elsewhere on purpose is left alone.
+              cat > "$HOME/.oto/landing.sh" <<'LANDING'
+            case "$-" in *i*)
+              if [ -n "$OTO_PROJECT_DIR" ] && [ -d "$OTO_PROJECT_DIR" ]; then
+                case "$PWD" in "$HOME"|"$HOME/workspace") cd "$OTO_PROJECT_DIR" ;; esac
+              fi ;;
+            esac
+            LANDING
+              for rc in "$HOME/.bashrc" "$HOME/.profile"; do
+                grep -q 'oto/landing.sh' "$rc" 2>/dev/null || printf '\n[ -f "$HOME/.oto/landing.sh" ] && . "$HOME/.oto/landing.sh"\n' >> "$rc"
+              done
+              command -v oto >/dev/null || uv tool install "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v0.18.2"
+              [ -d "$HOME/.cache/ms-playwright" ] || uv tool run --from playwright playwright install chromium
+            } >>"$log" 2>&1
+            echo "OTO ready: $(claude plugin list 2>/dev/null | grep -c enabled) plugins" >>"$log"
+        - path: /home/agent/.oto/lock-plugins
+          description: Keeps the sandbox to the plugins installed in it
+          content: |
+            #!/usr/bin/env python3
+            """Keep this sandbox to the plugins installed inside it.
+
+            Claude Desktop's SSH sessions bring the plugins of the person's computer along (each loads as
+            <name>@inline, from ~/.claude/remote/plugins/<run>/<hash>), and the Claude sign-in brings the person's
+            claude.ai plugins (<name>@synced), skills (anthropic-skills:<name>) and connectors. In this sandbox
+            only its own plugins load: this merges into ~/.claude/settings.json
+
+            - syncClaudeAiPlugins: false, syncClaudeAiSkills: false and disableClaudeAiConnectors: true;
+            - "<name>@inline": false for every plugin Desktop has copied in, named by its manifest, or by its
+              folder when it has none (no wildcard exists, so each name is listed);
+            - a SessionStart hook that runs this again, so a plugin Desktop copies in for the first time is
+              switched off from the next session on (the session that brought it has it loaded already).
+
+            Every other key is left as it is, the sandbox's own <name>@cynergis plugins among them. It runs at
+            every sandbox start (init.sh) and at every session start (--hook), and changes nothing the second
+            time. `--names <name>...` switches those off too before Desktop has copied them in: `oto sandbox up`
+            passes the plugins Desktop would bring from the computer, so the first session starts without them. With OTO_OUTSIDE_PLUGINS=allowed it changes nothing at all: the person chose to keep them.
+            """
+            import glob
+            import json
+            import os
+            import shutil
+            import sys
+            import tempfile
+
+            HOOK_COMMAND = 'python3 "$HOME/.oto/lock-plugins" --hook'
+            HOOK_MARK = ".oto/lock-plugins"
+            BACKUP = ".before-oto-plugin-lock"
+
+
+            def _home():
+                return os.path.expanduser("~")
+
+
+            def forwarded():
+                """The plugins Desktop has copied in, by the name each loads under."""
+                names = []
+                for folder in sorted(glob.glob(os.path.join(_home(), ".claude", "remote", "plugins", "*", "*"))):
+                    if not os.path.isdir(folder):
+                        continue
+                    name = None
+                    try:
+                        with open(os.path.join(folder, ".claude-plugin", "plugin.json"), encoding="utf-8") as f:
+                            name = json.load(f).get("name")
+                    except (OSError, ValueError, AttributeError):
+                        pass
+                    if not isinstance(name, str) or not name.strip():
+                        name = os.path.basename(folder)
+                    if name.strip() not in names:
+                        names.append(name.strip())
+                return names
+
+
+            def lock(settings, names):
+                """Switch off what does not belong to the sandbox. Returns what was newly switched off, in words,
+                the forwarded plugins among them by name, and whether the hook was added."""
+                off, plugins = [], []
+                if settings.get("syncClaudeAiPlugins") is not False:
+                    settings["syncClaudeAiPlugins"] = False
+                    off.append("the plugins of your claude.ai account")
+                if settings.get("syncClaudeAiSkills") is not False:
+                    settings["syncClaudeAiSkills"] = False
+                    off.append("the skills of your claude.ai account")
+                if settings.get("disableClaudeAiConnectors") is not True:
+                    settings["disableClaudeAiConnectors"] = True
+                    off.append("the connectors of your claude.ai account")
+                for name in names:
+                    enabled = settings.setdefault("enabledPlugins", {})
+                    if enabled.get(name + "@inline") is not False:
+                        enabled[name + "@inline"] = False
+                        plugins.append(name)
+                if plugins:
+                    off.insert(0, ("the plugin %s from your computer" % plugins[0]) if len(plugins) == 1 else
+                               "%d plugins from your computer (%s)" % (len(plugins), ", ".join(plugins)))
+                starts = settings.setdefault("hooks", {}).setdefault("SessionStart", [])
+                hooked = any(HOOK_MARK in str(hook.get("command", "")) for entry in starts if isinstance(entry, dict)
+                             for hook in entry.get("hooks", []) if isinstance(hook, dict))
+                if not hooked:
+                    starts.append({"hooks": [{"type": "command", "command": HOOK_COMMAND}]})
+                return off, plugins, not hooked
+
+
+            def _indent(text):
+                for line in text.splitlines()[1:]:
+                    stripped = line.lstrip(" \t")
+                    if stripped:
+                        return line[:len(line) - len(stripped)] or 2
+                return 2
+
+
+            def _write(path, text):
+                folder = os.path.dirname(path)
+                os.makedirs(folder, exist_ok=True)
+                fd, temp = tempfile.mkstemp(prefix=".settings.", dir=folder)
+                with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+                    f.write(text)
+                if os.path.exists(path):
+                    shutil.copymode(path, temp)
+                os.replace(temp, path)
+
+
+            def run(given=()):
+                """Returns (newly switched off, the forwarded plugins among them, hook added, problem). `given` are
+                names to switch off as well, of plugins Desktop has not copied in yet."""
+                if os.environ.get("OTO_OUTSIDE_PLUGINS", "").strip().lower() == "allowed":
+                    return [], [], False, None
+                path = os.path.join(_home(), ".claude", "settings.json")
+                names = forwarded()
+                names += [name for name in given if name not in names]
+                try:
+                    with open(path, encoding="utf-8") as f:
+                        text = f.read()
+                except FileNotFoundError:
+                    text = None
+                except OSError as e:
+                    return [], [], False, "cannot read %s: %s" % (path, e)
+                try:
+                    settings = json.loads(text) if text and text.strip() else {}
+                except ValueError as e:
+                    return [], [], False, "%s is not valid JSON (%s): left as it is" % (path, e)
+                hooks = settings.get("hooks", {}) if isinstance(settings, dict) else None
+                if not (isinstance(settings, dict) and isinstance(settings.get("enabledPlugins", {}), dict)
+                        and isinstance(hooks, dict) and isinstance(hooks.get("SessionStart", []), list)):
+                    return [], [], False, "%s is not shaped as Claude Code's settings: left as it is" % path
+                off, plugins, hooked = lock(settings, names)
+                if not off and not hooked:
+                    return [], [], False, None
+                if text is not None and not os.path.exists(path + BACKUP):
+                    _write(path + BACKUP, text)
+                _write(path, json.dumps(settings, indent=_indent(text or ""), ensure_ascii=False) + "\n")
+                return off, plugins, hooked, None
+
+
+            def sentence(off, plugins=0):
+                """What the person is told when a session starts with something it has just switched off."""
+                many = len(off) > 1 or plugins > 1
+                what = " and ".join(off)
+                return "%s%s %s just switched off in this sandbox, but %s still loaded in this session: start a new session, or type /reload-plugins, to work without %s." % (
+                    what[0].upper(), what[1:], "were" if many else "was", "they are" if many else "it is", "them" if many else "it")
+
+
+            def _given(argv):
+                """The names after --names, up to the next option."""
+                if "--names" not in argv:
+                    return []
+                names = []
+                for arg in argv[argv.index("--names") + 1:]:
+                    if arg.startswith("--"):
+                        break
+                    if arg.strip() and arg.strip() not in names:
+                        names.append(arg.strip())
+                return names
+
+
+            def main(argv):
+                hook = "--hook" in argv
+                try:
+                    off, plugins, hooked, problem = run(_given(argv))
+                except Exception as e:  # never stop a session from starting
+                    off, plugins, hooked, problem = [], [], False, "unexpected: %s" % e
+                if hook:
+                    if off:
+                        print(json.dumps({"systemMessage": sentence(off, len(plugins))}))
+                    return 0
+                if problem:
+                    print("plugin lock: %s" % problem)
+                    return 1
+                if os.environ.get("OTO_OUTSIDE_PLUGINS", "").strip().lower() == "allowed":
+                    print("plugin lock: off, by choice (OTO_OUTSIDE_PLUGINS=allowed)")
+                if off:
+                    print("plugin lock: switched off %s" % "; ".join(off))
+                if hooked:
+                    print("plugin lock: added the check at the start of every session")
+                return 0
+
+
+            if __name__ == "__main__":
+                sys.exit(main(sys.argv[1:]))
+      # <<< files
+
+  # The note for the sandbox's Claude. The Claude kit owns ~/.claude/CLAUDE.md, its agent context; this
+  # body joins it. Both versions, while sbx accepts both: it selects one.
+  - type: com.docker.sandbox/agent-context@1
+    optional: true
+    # >>> context: written by tools/kit_files.py from kits/oto-gcp/files/home/.claude/CLAUDE.md
+    config: &oto-context
+      content: |
+        # This is an OTO sandbox
+
+        You run inside a sandbox made from OTO's kit. Only the plugins installed in it load: the engine plugin
+        `oto@cynergis-engine` (from the engine's own marketplace) and the packs of the `cynergis` marketplace
+        the person has turned on, each named `<name>@cynergis`. A new sandbox has the engine alone; the packs a
+        project needs are chosen from this session with the packs skill (`/oto:packs`), which shows what the
+        registry offers, installs the chosen ones for the project and says to type `/reload-plugins`. The plugins
+        of the person's computer, and the plugins, skills and connectors of their claude.ai account, are switched
+        off here on purpose, so the work does not depend on what happens to be on their machine.
+
+        **Which plugins and skills are on.** When the person asks, answer from the sandbox, not from the
+        account. The host's `ListPlugins` and `ListSkills` tools describe the person's claude.ai account, where
+        everything they ever added shows as enabled; that list is the same from any machine and says nothing
+        about this sandbox. What loads here is what `claude plugin list` prints (`oto@cynergis-engine` and the `@cynergis`
+        plugins turned on so far, all enabled) and the skills you can invoke by `/<plugin>:<skill>`. If a plugin from outside shows as
+        `<name>@inline` and enabled, say so: the next session starts without it, or `/reload-plugins` does.
+        From the person's computer, `oto sandbox status` says whether anything from outside loads.
+
+        **Serving the graph.** `oto serve --project . --http 8798` here listens on all interfaces, with no
+        token: the engine knows it runs inside the kit, and the sandbox tool forwards the port only to the
+        person's computer, on its localhost. The person opens `http://localhost:8798/` in their own browser (8799
+        for a second server, a pack's view with `--view <name>`). A server bound to this sandbox's loopback is unreachable from the
+        computer, so never pass `127.0.0.1:<port>`. The ports are published when the sandbox is made
+        (`oto sandbox up`, 8798 and 8799); another port is `sbx ports <name> --publish <port>:<port>` on the
+        computer, live from the sandbox's next start.
+
+        **The folders.** The sandbox works on two folders of the computer, `project` (the knowledge project,
+        where `oto` commands take `--project .`) and `code`, both at the same paths here and there, so the
+        person opens what you write as usual. `oto sandbox` itself is run from the computer, not from here.
+    # <<< context
+  - type: com.docker.sandbox/agent-context@2
+    optional: true
+    config: *oto-context

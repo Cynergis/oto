@@ -124,6 +124,20 @@ jobs:
           PGPASSWORD: testpassword
         run: python -m pytest -q tests/test_overlay_stores.py
 
+  kit:
+    name: the sandbox kit builds with Docker's kit frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: The descriptor carries the kit's files
+        run: python3 tools/kit_files.py --check
+      - name: Build the kit for both platforms, without publishing it
+        # The frontend checks the descriptor strictly and merges it with Docker's Claude Code kit, as
+        # the release does (kit-publish.yml); nothing here pushes.
+        run: |
+          docker buildx create --use --driver docker-container --name kit >/dev/null
+          docker buildx build kits/oto-gcp -f kits/oto-gcp/oto-gcp.yaml --platform linux/amd64,linux/arm64
+
   ui-bundle:
     name: committed UI bundles match ui-src
     runs-on: ubuntu-latest

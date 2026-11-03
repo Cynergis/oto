@@ -22,10 +22,10 @@ beside it (`tools/e2e_core.sh`) that the suite runs. Start there; this document 
 
 The sections follow the order the features were built, and [ADR-0006](adr/0006-the-core-and-the-packs.md)
 draws one line through them. The **core**, the knowledge graph with its tools and its deploy, is
-sections 1 to 17, 19, 20, 23 to 27, 33 to 35: install, a project, documents in, the vocabulary, rules,
+sections 1 to 17, 19, 20, 23 to 27, 33 to 36: install, a project, documents in, the vocabulary, rules,
 authoring under the gates, time, query and serve, evaluation, Neo4j, repository mode, the query
 repository, specs and decisions, an ontology of your own, tools, deploy, audit and tracing, graphs
-that know each other, the engine's own CI, the ontology explorer, the pack seams, the three routes into main, and the routes' policy a pack carries. Drive these first: they are
+that know each other, the engine's own CI, the ontology explorer, the pack seams, the three routes into main, the routes' policy a pack carries, and the sandbox kit. Drive these first: they are
 the product, and they need no pack beyond the vocabulary a section composes. The **packs**, each an ontology with the tools that work on it,
 are sections 18 (work and communication, the registry's `work` pack since [ADR-0010](adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), 21 (data, the registry's `data` pack), 22 (architecture; CALM, the first framework
 adapter, is the registry's `calm` pack, [ADR-0008](adr/0008-a-framework-is-a-pack-of-the-registry.md); the domain model is the registry's `ddd` pack, [ADR-0010](adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), 28 to 30 and 32 (policy, the snapshot and guards, the generated IAM; the registry's `policy` pack) and 31
@@ -43,6 +43,7 @@ composes it, or fetched by `oto init --ontology <name>` itself on a machine that
 | [uv](https://docs.astral.sh/uv/) on each machine | all | nothing else has to be installed |
 | Docker, for a local Neo4j 5 | 10 | `docker run ... neo4j:5` |
 | LibreOffice, only for `.doc`, `.ppt`, `.xls` | 3 | found on the PATH as `soffice` |
+| Docker Sandboxes 0.51 or later (`sbx`), signed in to a Docker account | 36 | `sbx login` |
 | A token that can read the engine repository, only if you install from a private fork of it | 11, 12 | repository secret `OTO_ENGINE_TOKEN` |
 | An Anthropic API key | 6 (`oto draft`), 11, 12, 14 | `ANTHROPIC_API_KEY` in your shell; the repository secret of the same name |
 | A GitHub organisation where you can create repositories, secrets and variables | 11, 12, 13, 16 | the knowledge repository, the query repository, the engine's CI |
@@ -1549,3 +1550,39 @@ moves to reviewed with `routes.session.classes` named and passes only with an ap
 change that adds `WipLimit` to its own policy is still reviewed, with the policy rewrite named. In
 a repository, the update itself is a pull request that rewrites the routes' policy, so it takes
 the reviewed route.
+
+## 36. The sandbox kit: OTO in a Docker sandbox, on sbx 0.51
+
+[kits/README.md](../kits/README.md). Exercises: the kit of schema 3, a set on Docker's Claude Code kit;
+`oto sandbox up` and `oto sandbox status` with an sbx older than the kit needs; the install hooks and
+the start; the files and the note the kit declares; its environment; and the plugin lock. On a Mac or a
+Windows computer with Docker Sandboxes 0.51 or later, signed in (`sbx login`).
+
+```bash
+sbx version                                    # 0.51.0 or later. With an older one, oto sandbox status says "older than the kit needs (0.51.0 or later)"
+                                               #   and how to upgrade, and oto sandbox up refuses before it changes anything
+oto sandbox up --name oto-kit-try --project-id <your Google Cloud project id> --approve-anthropic --init-policy balanced
+                                               # created the sandbox oto-kit-try from ghcr.io/cynergis/oto-gcp:<version>; OTO ready; oto-kit-try.sbx
+#   the kit of a checkout instead of the published one, before a release: add --kit kits/oto-gcp (sbx builds the folder)
+oto sandbox status --name oto-kit-try          # running, made from oto-gcp; OTO ready; outside plugins blocked
+
+# inside: the kits it was merged from, its environment, what its hooks installed, its note and its lock
+sbx exec oto-kit-try -- ls /usr/share/sandbox/kit/                                        # claude and oto-gcp
+sbx exec oto-kit-try -- sh -c 'echo "$OTO_SANDBOX $OTO_OUTSIDE_PLUGINS"; echo "$OTO_SOURCE"'   # kit blocked; oto-kg @ git+https://github.com/Cynergis/oto@v<version>
+sbx exec oto-kit-try -- sh -c 'command -v soffice gcloud bq uvx oto claude'               # six paths: LibreOffice, Google Cloud, uvx, the engine, Claude Code
+sbx exec oto-kit-try -- tail -1 /tmp/oto-init.log                                         # OTO ready: <n> plugins
+sbx exec oto-kit-try -- grep -c "This is an OTO sandbox" /home/agent/.claude/CLAUDE.md    # 1: the kit's note, beside the Claude kit's own
+sbx exec oto-kit-try -- claude plugin list                                               # oto@cynergis-engine, enabled
+sbx exec oto-kit-try -- python3 -c "import json; s = json.load(open('/home/agent/.claude/settings.json')); print(s['syncClaudeAiPlugins'], s['disableClaudeAiConnectors'])"   # False True
+
+oto sandbox rm oto-kit-try                     # removed; the folders in ~/oto-kit-try stay
+```
+
+Pass when an sbx older than 0.51 is refused with its upgrade and nothing is created; the sandbox is
+made from the kit and reported as OTO's (`made from oto-gcp`); `/usr/share/sandbox/kit/` holds both
+kits; the environment says `kit` and `blocked` and pins the engine of this release; LibreOffice, the
+Google Cloud CLI, uvx, the engine and Claude Code are all found; the start log ends on `OTO ready`; the
+Claude kit's `CLAUDE.md` carries the kit's note; only `oto@cynergis-engine` is installed; and the
+lock has switched off the account's plugins and connectors. In Claude Desktop, a session on the SSH
+connection `oto-kit-try.sbx` starts in the project folder, and asked which plugins are on, its Claude
+answers from `claude plugin list`, not from the claude.ai account.

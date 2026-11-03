@@ -26,7 +26,7 @@ out, err, code = "", "", 0
 def save():
     json.dump(state, open(path, "w"))
 if args[:1] == ["version"]:
-    out = "sbx version v0.48.0 5caf923e\n"
+    out = "sbx version v%s 5caf923e\n" % state.get("version", "0.51.0")
 elif not state["signed_in"] and args[:1] in (["ls"], ["create"]):
     err, code = "error: not signed in to Docker\ntry: sbx login\n", 1
 elif args == ["ls", "--json"]:
@@ -172,6 +172,38 @@ def test_without_the_sandbox_tool_it_says_how_to_install_it(fake, monkeypatch, t
         sandbox.up(approve=True)
     assert "not installed" in str(e.value) and "brew install docker/tap/sbx" in e.value.fix and "winget" in e.value.fix
     assert sandbox.status()["sbx"] is None
+
+
+def test_a_sandbox_tool_older_than_the_kit_needs_is_upgraded_first(fake, tmp_path, capsys):
+    """sbx 0.51 runs the built-in agents from published schema-3 kits, and OTO's kit is one: an older
+    sbx is sent to its upgrade before anything changes on the computer."""
+    fake.write(version="0.50.1")
+    with pytest.raises(sandbox.SandboxError) as e:
+        sandbox.up(approve=True, directory=str(tmp_path / "w"))
+    assert "0.50.1" in str(e.value) and sandbox.MIN_SBX in str(e.value)
+    assert "brew upgrade docker/tap/sbx" in e.value.fix and "winget upgrade" in e.value.fix
+    assert not fake.calls("create") and not fake.calls("settings") and not fake.calls("policy")[1:]
+    assert not fake.credentials.exists()
+    assert sandbox.status()["sbx_supported"] is False
+    assert main(["sandbox", "status"]) == 1, "no sandbox ready"
+    assert "older than the kit needs (%s or later)" % sandbox.MIN_SBX in capsys.readouterr().out
+    fake.write(version=sandbox.MIN_SBX)
+    assert sandbox.status()["sbx_supported"] is True
+    sandbox.up(approve=True, directory=str(tmp_path / "w"))
+    assert fake.calls("create")
+
+
+def test_a_local_kit_folder_is_named_after_its_folder(fake, tmp_path):
+    """A schema-3 kit has no name field: sbx names a sandbox's kit after the last part of its registry
+    reference, or the folder of a local one."""
+    folder = tmp_path / "kits" / "oto-gcp"
+    folder.mkdir(parents=True)
+    (folder / "oto-gcp.yaml").write_text('# syntax=docker/sandbox-kit:3\nschemaVersion: "3"\nkind: set\n')
+    assert sandbox._kit_name(str(folder)) == "oto-gcp" and sandbox._kit_name(str(folder) + "/") == "oto-gcp"
+    assert sandbox._kit_name(sandbox.kit_ref()) == "oto-gcp"
+    sandbox.up(name="local", approve=True, directory=str(tmp_path / "w"), kit=str(folder))
+    assert fake.calls("create")[0][1] == str(folder)
+    assert sandbox.status("local")["from_kit"], "a sandbox made from the local kit is OTO's"
 
 
 def test_signed_out_it_sends_the_person_to_sbx_login(fake):
@@ -722,3 +754,10 @@ def test_up_with_a_repository_sets_the_branch_rules_on_a_knowledge_project(fake,
         "the code owners and the key the two workflows push to main with come with the rules: " + str(report["done"])
     report = sandbox.up(name="fleet", directory=str(tmp_path / "fleet"), kind="ontology", repo="acme/fleet", token_env="FAKE_TOKEN", check=True, approve=True)
     assert not any("branch rules" in d for d in report["done"]), "a workspace has the pack's workflows, not a knowledge project's rules"
+
+
+def test_the_sandbox_skill_sends_an_older_sandbox_tool_to_its_upgrade():
+    with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "skills", "sandbox", "SKILL.md"), encoding="utf-8") as f:
+        skill = f.read()
+    assert "`sbx_supported` false" in skill and sandbox.MIN_SBX in skill
+    assert "brew upgrade docker/tap/sbx" in skill and "winget upgrade" in skill

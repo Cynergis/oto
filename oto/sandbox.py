@@ -4,9 +4,10 @@ driven from Claude Desktop's Code tab over SSH or from a terminal.
 
 Docker Sandboxes (the `sbx` CLI) runs each sandbox as a small virtual machine. The kit
 (`kits/oto-gcp`, published as ghcr.io/cynergis/oto-gcp:<engine version>) says what the sandbox
-holds and may reach, and sets OTO up inside it. `up` does everything a person would otherwise type:
+holds and may reach, and sets OTO up inside it: a schema-3 kit set on Docker's Claude Code kit,
+which `sbx` runs from 0.51 on (`MIN_SBX`). `up` does everything a person would otherwise type:
 
-- checks that `sbx` is installed and signed in, with a network policy;
+- checks that `sbx` is installed, recent enough and signed in, with a network policy;
 - lets `sbx` run kits from OTO's registry (`kit.allowedSources`);
 - records the person's approval for the kit to use their Anthropic sign-in, a binding in
   `credentials.yaml`. `sbx` asks for it only at a terminal; started from a tool, a kit's sandbox
@@ -44,6 +45,10 @@ from . import repo as _repo
 
 KIT_REPO = "ghcr.io/cynergis/oto-gcp"
 KIT_SOURCE = "ghcr.io/cynergis/"
+#: the first sbx that runs the kit: 0.51 made `claude` Docker's schema-3 kit, which the kit is built on
+MIN_SBX = "0.51.0"
+SBX_UPGRADE = ("on a Mac: brew upgrade docker/tap/sbx; on Windows: winget upgrade Docker.sbx; on Linux: "
+               "sudo apt-get install --only-upgrade docker-sbx; then run again")
 DEFAULT_NAME = "oto-sandbox"
 #: what `sbx` records when a person approves the kit's use of their Anthropic sign-in at a terminal
 ANTHROPIC_BINDING = {"apiKey": ["api.anthropic.com", "claude.ai", "console.anthropic.com", "mcp-proxy.anthropic.com"],
@@ -54,7 +59,7 @@ READY = "OTO ready"
 OUTSIDE = "OTO_OUTSIDE_PLUGINS"
 PROJECT_DIR_ENV = "OTO_PROJECT_DIR"   # the project folder's path inside the sandbox, for the kit's landing hook
 CODE_DIR_ENV = "OTO_CODE_DIR"
-#: set by the kit's environment (spec.yaml): the engine runs inside an OTO sandbox
+#: set by the kit's environment (kits/oto-gcp/oto-gcp.yaml): the engine runs inside an OTO sandbox
 INSIDE_ENV = "OTO_SANDBOX"
 #: the ports `oto sandbox up` publishes to the computer's loopback: the explorer, and a second view
 DEFAULT_PORTS = (8798, 8799)
@@ -125,12 +130,8 @@ def kit_ref(version=None):
 
 
 def _kit_name(kit):
-    """The name `sbx ls` shows for a sandbox made from this kit: ghcr.io/cynergis/oto-gcp:0.11.30 -> oto-gcp."""
-    spec = os.path.join(kit, "spec.yaml")
-    if os.path.isfile(spec):
-        found = re.search(r"^name:\s*\"?([\w.-]+)", open(spec, encoding="utf-8").read(), re.M)
-        if found:
-            return found.group(1)
+    """The name `sbx ls` shows for a sandbox made from this kit, the last part of its reference or of a
+    local kit's folder: ghcr.io/cynergis/oto-gcp:0.11.30 -> oto-gcp, kits/oto-gcp -> oto-gcp."""
     last = re.split(r"[\\/]", kit.rstrip("/\\"))[-1]
     return re.sub(r"\.(zip|git)$", "", last.split("@")[0].split(":")[0])
 
@@ -172,6 +173,13 @@ def _version(sbx):
     code, out, err = sbx("version")
     match = re.search(r"v?(\d+\.\d+\.\d+)", out)
     return match.group(1) if code == 0 and match else None
+
+
+def supported(version):
+    """Whether this sbx runs the kit: True from MIN_SBX on, False before, None when the version is unknown."""
+    if not version or not re.match(r"^\d+\.\d+\.\d+$", version):
+        return None
+    return tuple(int(x) for x in version.split(".")) >= tuple(int(x) for x in MIN_SBX.split("."))
 
 
 def _signed_in(sbx):
@@ -397,13 +405,14 @@ def _ssh_ready(name):
 def status(name=DEFAULT_NAME):
     """Where things stand, without changing anything."""
     sbx = Sbx()
-    out = {"name": name, "kit": kit_ref(), "credentials": credentials_path(), "sbx": None, "signed_in": False,
+    out = {"name": name, "kit": kit_ref(), "credentials": credentials_path(), "sbx": None, "sbx_supported": None, "signed_in": False,
            "policy": False, "kit_allowed": False, "anthropic_approved": anthropic_bound(), "anthropic_signed_in": False,
            "sandbox": None, "made_from": None, "from_kit": False, "folders": [], "oto": None, "outside_plugins": None, "outside_plugins_summary": None,
            "ssh": False, "ports": []}
     if not sbx.path:
         return out
     out["sbx"] = _version(sbx) or "unknown"
+    out["sbx_supported"] = supported(out["sbx"])
     out["signed_in"] = _signed_in(sbx)
     if not out["signed_in"]:
         return out
@@ -678,6 +687,9 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
                            "PowerShell: winget install -h Docker.sbx (with Windows Hypervisor Platform turned on); "
                            "then open a new terminal")
     report["sbx"] = _version(sbx)
+    if supported(report["sbx"]) is False:
+        raise SandboxError("Docker Sandboxes %s is older than OTO's kit needs (%s or later)" % (report["sbx"], MIN_SBX),
+                           SBX_UPGRADE)
     if not _signed_in(sbx):
         raise SandboxError("the sbx command is not signed in to Docker", "run `sbx login` in a terminal: it opens the browser")
     if not _policy_set(sbx):

@@ -4,12 +4,19 @@ A kit is a Docker Sandboxes package ([Docker Sandboxes](https://docs.docker.com/
 CLI): what a sandbox runs, what it may reach, and what it sets up. A tester starts a fully set-up sandbox
 from a published kit with one command, and writes no file of their own.
 
+The kit needs **sbx 0.51.0 or later**. That release made `claude` a published kit of schema 3,
+`docker.io/sbx/claude`, and a kit of schema 2, as OTO's was, can no longer build on it: v2 and v3 kits do
+not combine. `oto sandbox up` and `oto sandbox status` say when the sandbox tool is older, and how to
+upgrade it (`brew upgrade docker/tap/sbx` on a Mac, `winget upgrade Docker.sbx` on Windows). A sandbox
+made from the schema-2 kit keeps running on 0.51; `oto sandbox up --recreate` makes it again from this
+one, and its folders stay.
+
 ## oto-gcp
 
 Claude Code with everything an OTO product on Google Cloud needs:
 
 - **OTO:** the engine plugin from its own marketplace (`oto@cynergis-engine`, Cynergis/oto) and the engine
-  itself at the version in `spec.yaml`, pinned through `OTO_SOURCE`; the `cynergis` marketplace
+  itself at the version in `oto-gcp.yaml`, pinned through `OTO_SOURCE`; the `cynergis` marketplace
   (Cynergis/oto-registry) is added but none of its packs is installed: a sandbox starts with the engine
   alone, and the packs a project needs are turned on from the session with the packs skill
   (`/oto:packs`), which installs them for the project and records them in its lock;
@@ -18,9 +25,27 @@ Claude Code with everything an OTO product on Google Cloud needs:
 - **network:** the hosts these need, allowed for this sandbox alone (GitHub, Python packages, Google's APIs
   and downloads, Chromium's downloads).
 
-System packages are installed once, when the sandbox is created (`setup.install`). OTO is set up for the
-agent user at every start (`files/home/.oto/init.sh`): the first start installs it, later ones find it and
-take a few seconds. Inside the sandbox, `/tmp/oto-init.log` says what the start did.
+**What it is made of.** `oto-gcp/oto-gcp.yaml` is a kit set ([schema 3](https://github.com/docker/sandbox-kit-spec/blob/main/docs/spec/SPEC-v3.md)):
+Docker's Claude Code kit (`docker.io/sbx/claude`, what `claude` names since sbx 0.51: the agent, its
+sign-in and its settings) and OTO's own declarations, merged into one kit when it is published:
+
+| Declaration | What it does |
+|---|---|
+| `args` | the environment: `OTO_SOURCE` (the engine, pinned), `OTO_SANDBOX=kit`, `OTO_OUTSIDE_PLUGINS` (`blocked`) |
+| `network-policy@1` | the hosts above, at run time; while the install hooks run, Debian's and Google's downloads and Python packages too |
+| `lifecycle@1` | the install hooks, the start, and the files `init.sh` and `lock-plugins` in `/home/agent/.oto` |
+| `agent-context@1`, `@2` | the note for the sandbox's Claude (`files/home/.claude/CLAUDE.md`) |
+
+System packages are installed once, when the sandbox is created, as root (the lifecycle's install hooks,
+after the Claude kit's own). OTO is set up for the agent user at every start (`files/home/.oto/init.sh`):
+the first start installs it, later ones find it and take a few seconds. Inside the sandbox,
+`/tmp/oto-init.log` says what the start did.
+
+**The files.** A kit set ships no files of its own: what it adds is in its descriptor. The files are
+edited as files, in `oto-gcp/files/home`, and `python3 tools/kit_files.py` copies them into the parts of
+the descriptor it marks; `tests/test_kits.py` and CI fail while the copy is stale. CI also builds the kit
+with Docker's kit frontend at every push, without publishing it: the frontend reads the descriptor
+strictly, so a misspelled field fails there rather than in a tester's sandbox.
 
 **A shell lands on the project.** `ssh <name>.sbx` and `sbx run` open in the sandbox tool's default
 folder, while the person's folders are mounted at their own paths. `oto sandbox up` passes the project
@@ -33,7 +58,8 @@ is left alone.
 computer along: Desktop copies each into `~/.claude/remote/plugins/<run>/<hash>` and starts Claude Code
 with one `--plugin-dir` per plugin, so each loads as `<name>@inline`. The Claude sign-in brings the
 plugins, skills and connectors of the person's claude.ai account. `files/home/.oto/lock-plugins` keeps
-all of them out by merging into the sandbox's `~/.claude/settings.json`:
+all of them out by merging into the sandbox's `~/.claude/settings.json`, which the Claude kit writes when
+the sandbox is created:
 
 | Setting | Keeps out |
 |---|---|
@@ -47,8 +73,8 @@ the computer with the same name as one of the sandbox's is switched off and the 
 The `@builtin` plugins and the `mcp-gateway` server `sbx` declares stay. It keeps a copy of the file as it
 was, once (`settings.json.before-oto-plugin-lock`), and changes nothing the second time.
 
-The sandbox's Claude is told which list is its own (`files/home/.claude/CLAUDE.md`, its user memory): Claude
-Desktop's `ListPlugins` and `ListSkills` tools describe the person's claude.ai account, where everything they
+The sandbox's Claude is told which list is its own (`files/home/.claude/CLAUDE.md`, the kit's agent context,
+which joins the Claude kit's in its user memory, `~/.claude/CLAUDE.md`): Claude Desktop's `ListPlugins` and `ListSkills` tools describe the person's claude.ai account, where everything they
 ever added shows as enabled, so asked "which plugins are on?" it answers from `claude plugin list` and the
 skills it can invoke, not from the account.
 
@@ -89,22 +115,36 @@ mkdir -p ~/oto-test/project ~/oto-test/code
 sbx run ghcr.io/cynergis/oto-gcp:0.18.2 ~/oto-test/project ~/oto-test/code --name oto-test -e PROJECT
 ```
 
+**Trying a change.** `sbx` builds a local kit folder when it creates a sandbox from it, so a change is
+tried before it is released, in a sandbox of its own:
+
+```bash
+oto sandbox up --kit kits/oto-gcp --name oto-kit-try --approve-anthropic
+```
+
 **Releasing it.** The kit's version is the engine's. A version bump moves it in the same change, in
-four places: `version`, `OTO_SOURCE` and the description in `spec.yaml`, the engine `init.sh` installs, and
-the example above. `tests/test_kits.py` fails until they all say the new version.
+`oto-gcp/oto-gcp.yaml` (`version`, the `source` argument's default and its one allowed value, and the
+description), in the engine `init.sh` installs, and in the example above; the copy of `init.sh` in the
+descriptor moves with the descriptor. `tests/test_kits.py` fails until they all say the new version.
 
 When the release workflow tags `v<version>` (`tag-release.yml`), it publishes the kit from that tag as
-`ghcr.io/cynergis/oto-gcp:<version>`, signed (`kit-publish.yml`). It needs:
+`ghcr.io/cynergis/oto-gcp:<version>`, signed (`kit-publish.yml`): Docker's kit frontend builds it through
+Buildx, for both Linux platforms, and records the digest Docker's Claude Code kit had, so each release
+carries one Claude Code; `sbx kit sign` signs it. It needs:
 
 - the secrets `DOCKER_SBX_USERNAME` and `DOCKER_SBX_TOKEN`, a Docker account and one of its personal access
-  tokens, because `sbx` publishes only when signed in to Docker;
+  tokens, because `sbx` signs only when signed in to Docker;
 - the package to grant this repository write access (package settings, Manage Actions access).
 
 Without the secrets the release still tags, and the run says how to publish by hand. The Actions tab runs
 `kit publish` by hand, to publish a version again. By hand, from a checkout of the tag:
 
 ```bash
-sbx kit validate kits/oto-gcp
-gh auth token | sbx secret set --registry ghcr.io --password-stdin     # a token with write:packages
-sbx kit push kits/oto-gcp ghcr.io/cynergis/oto-gcp:<version> --sign
+python3 tools/kit_files.py --check
+gh auth token | docker login ghcr.io --username <your GitHub login> --password-stdin   # a token with write:packages
+docker buildx create --use --driver docker-container --name kit
+docker buildx build kits/oto-gcp -f kits/oto-gcp/oto-gcp.yaml --platform linux/amd64,linux/arm64 \
+  -t ghcr.io/cynergis/oto-gcp:<version> --push
+gh auth token | sbx secret set --registry ghcr.io --password-stdin
+sbx kit sign ghcr.io/cynergis/oto-gcp:<version>
 ```

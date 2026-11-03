@@ -77,6 +77,7 @@ and say in a sentence or two what is there and what is missing:
 | It says | Then |
 |---|---|
 | `sbx` null | the sandbox tool is not installed: give the command for their system (a Mac: `brew trust docker/tap && brew install docker/tap/sbx`; Windows 11: turn on Windows Hypervisor Platform in an administrator PowerShell, `Enable-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -All`, restart, then `winget install -h Docker.sbx`). They run it; you wait, then status again. |
+| `sbx_supported` false | the sandbox tool is older than OTO's kit needs (0.51.0 or later): give the upgrade for their system (a Mac: `brew upgrade docker/tap/sbx`; Windows: `winget upgrade Docker.sbx`; Linux: `sudo apt-get install --only-upgrade docker-sbx`). They run it; you wait, then status again. A sandbox they already have keeps running; made again later (`up --recreate`, with their yes), it gets the current kit. |
 | `signed_in` false | they sign in to Docker once: `sbx login` in a terminal opens the browser. Wait, then status again. |
 | `policy` false | no network policy is chosen yet: ask (§2). |
 | `anthropic_approved` false | the kit needs their approval to use their Claude sign-in: ask (§2). |

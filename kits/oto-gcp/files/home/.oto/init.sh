@@ -25,7 +25,7 @@ LANDING
   for rc in "$HOME/.bashrc" "$HOME/.profile"; do
     grep -q 'oto/landing.sh' "$rc" 2>/dev/null || printf '\n[ -f "$HOME/.oto/landing.sh" ] && . "$HOME/.oto/landing.sh"\n' >> "$rc"
   done
-  command -v oto >/dev/null || uv tool install "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v0.17.0"
+  command -v oto >/dev/null || uv tool install "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v0.18.0"
   [ -d "$HOME/.cache/ms-playwright" ] || uv tool run --from playwright playwright install chromium
 } >>"$log" 2>&1
 echo "OTO ready: $(claude plugin list 2>/dev/null | grep -c enabled) plugins" >>"$log"

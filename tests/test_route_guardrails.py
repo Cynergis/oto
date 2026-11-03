@@ -236,3 +236,18 @@ def test_curate_check_refuses_a_plain_fact_while_a_transcript_run_is_open():
             json.dump(candidate, f)
         code, out = _cli("curate", "check", "--project", root)
         assert code == 0, out
+
+
+def test_the_guardrails_are_the_bases_so_a_transcript_change_cannot_raise_its_own_limit():
+    with tempfile.TemporaryDirectory() as root:
+        project, base = _repository(root)                                       # max_facts 3, on main
+        _manifest(project, "20261102-1")
+        _assert(project)
+        _configure(project, dict(SETTINGS, max_facts=100))                      # the change raises it for itself
+        _apply(project, [_fact("c.%d" % i) for i in range(2, 6)])
+        head = _commit(root, "oto author: the standup, and a higher limit")
+        result = route.guardrails(root, base, head)
+        detail = _only(result, "bounded")
+        assert "4" in detail and "3" in detail, "the base's limit holds: " + detail
+        verdict = route.check(root, base, head, authors=["oto pipeline"], verified=True)
+        assert verdict["route"] == route.REVIEWED and any("policy" in r for r in verdict["reasons"]), verdict["reasons"]

@@ -226,7 +226,10 @@ check, `oto route`, enforces the route's rule: a session change merges on its ow
 is the author and the commits are verified; a guardrailed change merges when the five guardrails
 hold (`oto route guardrails`: additive, attributed as the speaker's assertions, in scope, clean,
 bounded) and goes to a person with the findings when one fails; reviewed needs one approving
-review. A route only moves towards reviewed. The branch rules in `oto-rules.json` (pull requests
+review. A route only moves towards reviewed. The policy that decides is the base's (`routes` in
+`project.config.json`, derived from the pack): a pull request is never judged by a policy it rewrites,
+and one that changes what the gate reads or runs on (the routes, `oto.lock.json`, anything under
+`.github/`) goes to a person. The branch rules in `oto-rules.json` (pull requests
 required, the checks `oto checks` and `oto route` required, zero approvals at the branch level, the
 merge queue on) are set by `oto repo rules --apply`, or by `oto sandbox up --repo` when it creates
 the repository. Every workflow installs the engine at the ref `oto.lock.json` records and `oto

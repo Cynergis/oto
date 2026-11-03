@@ -28,6 +28,8 @@ GUARDRAILED = "guardrailed"
 LEDGER = "changelog.jsonl"
 GRAPH = "graph.json"
 CONFIG = "project.config.json"
+LOCK = "oto.lock.json"
+REPOSITORY_FILES = ".github/"
 RUNS = "runs"
 
 
@@ -129,14 +131,45 @@ def show(root, base, head="HEAD"):
     """The route of the change between `base` and `head`, and why: {route, proposed, reasons,
     entries, confirmation, fingerprint, runs, base, head}. `proposed` is the route the content asks
     for; `route` is where it stands after the record is checked (a confirmation that does not hold
-    sends it to reviewed before any gate runs)."""
+    sends it to reviewed before any gate runs). The policy that decides is the base's: a pull request
+    is never judged by a policy it rewrites, and one that changes what the gate itself reads or runs
+    on (the routes, the lock, the repository's workflows and rules) goes to a person."""
+    out = _show(root, base, head)
+    _own_inputs(out, root)
+    return out
+
+
+def _own_inputs(out, root):
+    """What the gate reads or runs on, changed by the pull request since it left its base: the routes'
+    policy in project.config.json, the lock that pins the engine the workflows install, and the
+    repository's workflows and rules under .github/. Each is a person's to approve (ADR-0013: an
+    engine upgrade is a reviewed change), and until it merges the base's decide."""
+    base_sha, head_sha = out["base"], out["head"]
+    code, merge_base, _err = _git(root, "merge-base", base_sha, head_sha)
+    since = merge_base.strip() if code == 0 and merge_base.strip() else base_sha
+    reasons = []
+    before = (_json_at(root, since, CONFIG, {}) or {}).get("routes")
+    after = (_json_at(root, head_sha, CONFIG, {}) or {}).get("routes")
+    if before != after:
+        reasons.append("this change rewrites the routes' policy (routes in %s): a person reviews it, and the base's policy decides until it merges" % CONFIG)
+    code, names, _err = _git(root, "diff", "--name-only", since, head_sha)
+    touched = sorted(n for n in (names.splitlines() if code == 0 else []) if n == LOCK or n.startswith(REPOSITORY_FILES))
+    if touched:
+        reasons.append("this change touches what the gate runs on (%s): the engine the workflows install, or the workflows and rules themselves, "
+                       "so a person reviews it" % ", ".join(touched))
+    if reasons:
+        out["route"] = REVIEWED
+        out["reasons"].extend(reasons)
+
+
+def _show(root, base, head):
     base_sha, head_sha = _resolve(root, base), _resolve(root, head)
     before, after = _ledger_at(root, base_sha), _ledger_at(root, head_sha)
     live = _json_at(root, base_sha, GRAPH, {"nodes": [], "edges": []})
     proposed_graph = _json_at(root, head_sha, GRAPH, {"nodes": [], "edges": []})
     canon = _diff.canonical(live, proposed_graph)
     fingerprint = _diff.fingerprint(canon)
-    config = _json_at(root, head_sha, CONFIG, {})
+    config = _json_at(root, base_sha, CONFIG, {})        # the base's policy: a change never judges itself by its own
     out = {"base": base_sha, "head": head_sha, "fingerprint": fingerprint, "entries": [], "confirmation": None,
            "runs": [], "reasons": [], "proposed": REVIEWED, "route": REVIEWED}
 
@@ -250,12 +283,13 @@ def _document_names(manifest):
 def guardrails(root, base, head="HEAD", shown=None):
     """The five guardrails on the change between `base` and `head`: {ok, guardrails: [{name, ok,
     detail}], settings, runs, base, head, fingerprint}. Raises RouteError when the project declares
-    no guardrailed route. The settings, the graph, the ledger, the assertions and the run manifests
-    are read at the head; the earlier runs at the base."""
+    no guardrailed route. The settings are the base's, so a change cannot loosen the guardrails it is
+    held to; the graph, the ledger, the assertions and the run manifests are read at the head; the
+    earlier runs at the base."""
     from .curate import assertions as _assertions
     shown = shown or show(root, base, head)
     base_sha, head_sha = shown["base"], shown["head"]
-    config = _json_at(root, head_sha, CONFIG, {})
+    config = _json_at(root, base_sha, CONFIG, {})
     settings = settings_of(config)
     if not settings:
         raise RouteError("the project declares no guardrailed route: `routes.guardrailed` in project.config.json names the transcripts "

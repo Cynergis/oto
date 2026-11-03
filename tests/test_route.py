@@ -160,6 +160,7 @@ def test_a_run_from_the_transcripts_folder_takes_the_guardrailed_route_which_the
         config["routes"] = {"guardrailed": {"from": "inbox/transcripts", "attributed": False}}
         with open(project.config_path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2)
+        base = _commit(root, "the project names its transcripts folder")     # on main first: a change is held to its base's policy
         os.makedirs(project.layout.runs, exist_ok=True)
         with open(os.path.join(project.layout.runs, "20261102-1.json"), "w", encoding="utf-8") as f:
             json.dump({"run_id": "20261102-1", "started": "2026-11-02T10:00:00", "inbox": os.path.join(root, "inbox", "transcripts"),

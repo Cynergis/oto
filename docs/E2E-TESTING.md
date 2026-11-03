@@ -22,10 +22,10 @@ beside it (`tools/e2e_core.sh`) that the suite runs. Start there; this document 
 
 The sections follow the order the features were built, and [ADR-0006](adr/0006-the-core-and-the-packs.md)
 draws one line through them. The **core**, the knowledge graph with its tools and its deploy, is
-sections 1 to 17, 19, 20, 23 to 27, 33 and 34: install, a project, documents in, the vocabulary, rules,
+sections 1 to 17, 19, 20, 23 to 27, 33 to 35: install, a project, documents in, the vocabulary, rules,
 authoring under the gates, time, query and serve, evaluation, Neo4j, repository mode, the query
 repository, specs and decisions, an ontology of your own, tools, deploy, audit and tracing, graphs
-that know each other, the engine's own CI, the ontology explorer, the pack seams, and the three routes into main. Drive these first: they are
+that know each other, the engine's own CI, the ontology explorer, the pack seams, the three routes into main, and the routes' policy a pack carries. Drive these first: they are
 the product, and they need no pack beyond the vocabulary a section composes. The **packs**, each an ontology with the tools that work on it,
 are sections 18 (work and communication, the registry's `work` pack since [ADR-0010](adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), 21 (data, the registry's `data` pack), 22 (architecture; CALM, the first framework
 adapter, is the registry's `calm` pack, [ADR-0008](adr/0008-a-framework-is-a-pack-of-the-registry.md); the domain model is the registry's `ddd` pack, [ADR-0010](adr/0010-a-domain-feature-is-a-pack-of-the-registry.md)), 28 to 30 and 32 (policy, the snapshot and guards, the generated IAM; the registry's `policy` pack) and 31
@@ -1445,3 +1445,91 @@ approval and its preview serves the new facts; the transcript's pull request mer
 when the five guardrails hold and is labelled `oto-route:reviewed` with the failing guardrail named
 when you break one (a `Party` outside the classes, or a transcript pushed twice); the rebased pull
 request still says `route: session`; and every workflow's install line names the lock's ref.
+
+
+## 35. The routes from the pack: a policy the pack declares, the project derives and overrides, the gate holds at the base
+
+[ADR-0013](adr/0013-three-routes-into-main.md), phase 6 of [plans/graph-journeys.md](plans/graph-journeys.md).
+Exercises: `routes` in a pack's manifest, `oto pack check` and `oto pack show`, the derivation at
+`oto init --pack` with `routes_from`, an override kept across `oto ontology update`, the `routes` line
+of `oto status`, and the gate reading the base's policy. A local git repository is enough: the gate's
+verdicts are read here before section 34's repository sees them.
+
+On a machine with the registry's kanban pack (`oto pack add kanban`):
+
+```bash
+# a pack of your own on kanban, with the policy: cards and moves land on the owner's word, a WIP limit is seen by a second person
+oto pack new board --ontology kanban --domain organization      # prints the folder it wrote: ~/.oto/packs/board, unless OTO_PACKS names another
+BOARD=~/.oto/packs/board
+python3 - "$BOARD/manifest.json" <<'PY'
+import json, sys; p = sys.argv[1]; m = json.load(open(p))
+m["routes"] = {"allowed": ["session", "reviewed", "guardrailed"],
+               "session": {"classes": ["Card", "Move", "Blocker"]},
+               "guardrailed": {"from": "inbox/transcripts", "classes": ["Blocker"], "max_facts": 40,
+                               "additive_only": True, "attributed": True}}
+json.dump(m, open(p, "w"), indent=2)
+PY
+oto pack check "$BOARD"              # check clean; drop reviewed from allowed, or name a class kanban does not declare (Starship): refused by name, exit 1
+oto pack show board                  # routes:   allowed session, reviewed, guardrailed; session classes Card, Move, Blocker; guardrailed from inbox/transcripts, classes Blocker, at most 40 facts
+
+# the project derives it, as it derives the vocabulary
+oto init --name "Team board" --slug team-board --project team-board --pack board    # routes:   from the pack board @1: allowed, guardrailed, session
+cd team-board
+oto status --project .               # routes      from the pack board @1: allowed, guardrailed, session; the guardrailed settings on the line under it
+python3 -c "import json; print(json.load(open('project.config.json'))['routes_from'])"   # the pack, its release, the keys it gave and their values
+
+# the project overrides one key by writing it: stricter on transcripts than its pack
+python3 - <<'PY'
+import json; c = json.load(open("project.config.json")); c["routes"]["guardrailed"]["max_facts"] = 20
+json.dump(c, open("project.config.json", "w"), indent=2)
+PY
+oto status --project .               # routes      from the pack board @1: allowed, session; guardrailed set here
+
+# the pack moves on: release 2 lets a session move columns, and allows more facts a transcript
+python3 - "$BOARD/manifest.json" <<'PY'
+import json, sys; p = sys.argv[1]; m = json.load(open(p))
+m["release"] = 2; m["routes"]["session"]["classes"].append("Column"); m["routes"]["guardrailed"]["max_facts"] = 60
+json.dump(m, open(p, "w"), indent=2)
+PY
+oto pack refresh "$BOARD" && oto pack check "$BOARD"
+oto ontology update --project .      # re-derived routes from the pack board @2: moved session; kept guardrailed, set here
+oto status --project .               # from the pack board @2: allowed, session; guardrailed set here, at most 20 facts a run and not 60
+
+# the gate, in a local repository: the base's policy decides
+git init -q -b main && git add -A && git commit -qm "the board"
+git checkout -qb card && oto curate start --project .
+oto curate assert --project . --by "<your git email>" --at <today> --text "New card: refund status page, standard class of service; Ben works it."
+#   add to graph.candidate.json a Card citing it ("source_type": "human_assertion", "sources": ["assertion:a-0001"]) and its worked_by edge to person.ben
+oto curate check --project . && oto curate apply --project . --by "<your git email>" --note "the refund status card" --confirm
+git add -A && git commit -qm "The refund status card"
+oto route check --project . --base main --author "<your git email>" --verified                # route: session  passes
+
+git checkout -q main && git checkout -qb limit && oto curate start --project .
+#   assert "From <today> the review column takes at most 2 cards: one reviewer is on leave.", add the WipLimit and its limits edge the same way
+oto curate check --project . && oto curate apply --project . --by "<your git email>" --note "a lower review limit" --confirm
+git add -A && git commit -qm "A lower review limit"
+oto route check --project . --base main --author "<your git email>" --verified; echo $?       # route: reviewed (proposed session): routes.session.classes ... touches WipLimit; 1
+oto route check --project . --base main --author "<your git email>" --verified --approved     # passes: approved by a reviewer
+
+# a change cannot widen its own policy
+python3 - <<'PY'
+import json; c = json.load(open("project.config.json")); c["routes"]["session"]["classes"].append("WipLimit")
+json.dump(c, open("project.config.json", "w"), indent=2)
+PY
+git commit -qam "Let a session change the limits"
+oto route check --project . --base main --author "<your git email>" --verified; echo $?       # still reviewed: "this change rewrites the routes' policy ...", the base's classes decide; 1
+#   the same for a change to oto.lock.json or to anything under .github/: what the gate runs on is a person's to approve
+
+cd .. && oto pack rm board           # the section's pack, off the machine; the project keeps what it derived
+```
+
+Pass when `oto pack check` refuses a routes section without `reviewed` or naming a class the
+vocabulary does not declare, and `oto pack show` prints the policy; the project's
+`project.config.json` holds the pack's `routes` and a `routes_from` naming the pack, its release and
+the keys it gave; `oto status` says a key the project rewrote is set here at once, before any
+update; `oto ontology update` moves the pack's keys to release 2 and keeps the project's
+`max_facts` of 20; a confirmed Card takes the session route and passes; a confirmed WIP limit
+moves to reviewed with `routes.session.classes` named and passes only with an approval; and a
+change that adds `WipLimit` to its own policy is still reviewed, with the policy rewrite named. In
+a repository, the update itself is a pull request that rewrites the routes' policy, so it takes
+the reviewed route.

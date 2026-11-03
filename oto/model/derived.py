@@ -269,7 +269,9 @@ def write_routes(project):
 
 
 def routes_said(config):
-    """One line for `oto status`: which keys of `routes` are the packs' and which the project's."""
+    """One line for `oto status`: which keys of `routes` are the packs' and which the project's. A key is
+    the pack's while its value is what the pack gave (`routes_from[].derived`), as `write_routes` decides
+    it, so a key the project rewrote is said to be set here at once, not only after the next update."""
     routes = config.get("routes") or {}
     entries = config.get("routes_from") or []
     if not routes and not entries:
@@ -277,7 +279,8 @@ def routes_said(config):
     parts = []
     theirs = set()
     for entry in entries:
-        keys = [k for k in entry.get("keys") or [] if k in routes]
+        given = entry.get("derived") or {}
+        keys = [k for k in entry.get("keys") or [] if k in routes and (k not in given or routes[k] == given[k])]
         theirs |= set(keys)
         if keys:
             parts.append("from the pack %s @%s: %s" % (entry.get("pack"), entry.get("release"), ", ".join(keys)))

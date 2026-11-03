@@ -147,3 +147,15 @@ def test_the_ontology_interview_says_how_a_pack_author_writes_the_routes_policy(
     assert '"routes"' in text and '"allowed"' in text and '"guardrailed"' in text, "the manifest section, with its shape"
     assert "oto pack show" in text, "where the author sees it back"
     assert "reviewed" in text, "reviewed is always allowed"
+
+
+def test_the_end_to_end_guide_walks_the_packs_routes_from_the_manifest_to_the_gate():
+    e2e = _read("docs", "E2E-TESTING.md")
+    assert "33 to 35" in e2e, "the guide's index counts the section among the core's"
+    assert "## 35. " in e2e
+    section = e2e.split("## 35. ", 1)[1]
+    for words in ('"routes"', "oto pack new", "oto pack check", "oto pack show", "--pack", "routes_from", "oto status",
+                  "set here", "oto ontology update", "kept guardrailed", "oto route check", "routes.session.classes",
+                  "rewrites the routes' policy", "oto.lock.json", ".github/", "oto pack rm"):
+        assert words in section, words
+    assert "Pass when" in section

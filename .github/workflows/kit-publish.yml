@@ -4,10 +4,13 @@ name: kit publish
 # tag v<version>. Called by the release workflow when it pushes a new tag (tag-release.yml); it can
 # also be run by hand from the Actions tab, to publish a version again.
 #
-# The sbx CLI publishes only when signed in to Docker: the secrets DOCKER_SBX_USERNAME and
+# The kit is a schema-3 kit set. Docker's kit frontend builds it through Buildx (`docker buildx build
+# -f <descriptor>`): it merges Docker's Claude Code kit with OTO's declarations into one kit, for both
+# Linux platforms, and pushes it to GitHub's registry with this workflow's own token, which needs the
+# package to grant the repository write access (package settings, Manage Actions access). The sbx CLI
+# signs it, and works only when signed in to Docker: the secrets DOCKER_SBX_USERNAME and
 # DOCKER_SBX_TOKEN (a Docker personal access token). Without them the release is not blocked: the run
-# says how to publish by hand. Pushing to GitHub's registry uses this workflow's own token, which needs
-# the package to grant the repository write access (package settings, Manage Actions access).
+# says how to publish by hand.
 
 on:
   workflow_call:
@@ -37,7 +40,7 @@ jobs:
       - name: Without a Docker sign-in, say how to publish by hand
         if: env.DOCKER_SBX_TOKEN == ''
         run: |
-          echo "::notice title=Sandbox kit not published::The secrets DOCKER_SBX_USERNAME and DOCKER_SBX_TOKEN are not set. Publish by hand from the tag v$VERSION: sbx kit push kits/oto-gcp ghcr.io/cynergis/oto-gcp:$VERSION"
+          echo "::notice title=Sandbox kit not published::The secrets DOCKER_SBX_USERNAME and DOCKER_SBX_TOKEN are not set. Publish by hand from the tag v$VERSION (kits/README.md, Releasing it): docker buildx build kits/oto-gcp -f kits/oto-gcp/oto-gcp.yaml --platform linux/amd64,linux/arm64 -t ghcr.io/cynergis/oto-gcp:$VERSION --push, then sbx kit sign ghcr.io/cynergis/oto-gcp:$VERSION"
       - uses: actions/checkout@v4
         if: env.DOCKER_SBX_TOKEN != ''
         with:
@@ -49,6 +52,12 @@ jobs:
           curl -fsSL https://get.docker.com | sudo REPO_ONLY=1 sh >/dev/null
           sudo apt-get install -y -qq docker-sbx >/dev/null
           sbx version
+      - name: Check the kit carries this version and its files
+        if: env.DOCKER_SBX_TOKEN != ''
+        run: |
+          grep -q "^version: \"$VERSION\"$" kits/oto-gcp/oto-gcp.yaml \
+            || { echo "::error::kits/oto-gcp/oto-gcp.yaml at v$VERSION does not carry version $VERSION"; exit 1; }
+          python3 tools/kit_files.py --check
       - name: Sign in to Docker, and to GitHub's registry with this workflow's token
         if: env.DOCKER_SBX_TOKEN != ''
         env:
@@ -56,11 +65,16 @@ jobs:
         run: |
           echo "$DOCKER_SBX_TOKEN" | sbx login --username "$DOCKER_SBX_USERNAME" --password-stdin
           echo "$GITHUB_TOKEN" | sbx secret set --registry ghcr.io --username "$GITHUB_ACTOR" --password-stdin
-      - name: Publish the kit, signed
+          echo "$DOCKER_SBX_TOKEN" | docker login --username "$DOCKER_SBX_USERNAME" --password-stdin
+          echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Publish the kit
         if: env.DOCKER_SBX_TOKEN != ''
         run: |
-          grep -q "^version: \"$VERSION\"$" kits/oto-gcp/spec.yaml \
-            || { echo "::error::kits/oto-gcp/spec.yaml at v$VERSION does not carry version $VERSION"; exit 1; }
-          sbx kit validate kits/oto-gcp
-          sbx kit push kits/oto-gcp "ghcr.io/cynergis/oto-gcp:$VERSION" --sign
+          docker buildx create --use --driver docker-container --name kit >/dev/null
+          docker buildx build kits/oto-gcp -f kits/oto-gcp/oto-gcp.yaml --platform linux/amd64,linux/arm64 \
+            -t "ghcr.io/cynergis/oto-gcp:$VERSION" --push
+      - name: Sign it
+        if: env.DOCKER_SBX_TOKEN != ''
+        run: |
+          sbx kit sign "ghcr.io/cynergis/oto-gcp:$VERSION"
           echo "::notice title=Sandbox kit published::ghcr.io/cynergis/oto-gcp:$VERSION"

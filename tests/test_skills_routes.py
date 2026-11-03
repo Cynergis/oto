@@ -13,6 +13,7 @@ from, the curate skill says when the pack sends a session change to a reviewer, 
 interview says how a pack author writes the policy."""
 import json
 import os
+import re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -155,7 +156,8 @@ def test_the_ontology_interview_says_how_a_pack_author_writes_the_routes_policy(
 
 def test_the_end_to_end_guide_walks_the_packs_routes_from_the_manifest_to_the_gate():
     e2e = _read("docs", "E2E-TESTING.md")
-    assert "33 to 35" in e2e, "the guide's index counts the section among the core's"
+    core = re.search(r"sections 1 to 17, 19, 20, 23 to 27, 33 to (\d+):", e2e)
+    assert core and int(core.group(1)) >= 35, "the guide's index counts the section among the core's"
     assert "## 35. " in e2e
     section = e2e.split("## 35. ", 1)[1]
     for words in ('"routes"', "oto pack new", "oto pack check", "oto pack show", "--pack", "routes_from", "oto status",

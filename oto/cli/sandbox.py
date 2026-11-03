@@ -6,9 +6,12 @@ import sys
 
 
 def _print_status(s):
+    from .. import sandbox as _sandbox
     yes = lambda ok: "yes" if ok else "no"  # noqa: E731
     print("sandbox %s (kit %s)" % (s["name"], s["kit"]))
-    print("  sbx            %s" % ("not installed" if not s["sbx"] else "v%s, signed in: %s" % (s["sbx"], yes(s["signed_in"]))))
+    print("  sbx            %s" % ("not installed" if not s["sbx"] else "v%s, signed in: %s%s" % (
+        s["sbx"], yes(s["signed_in"]), ("; older than the kit needs (%s or later): %s" % (_sandbox.MIN_SBX, _sandbox.SBX_UPGRADE))
+        if s.get("sbx_supported") is False else "")))
     if s["sbx"] and s["signed_in"]:
         print("  network policy %s" % ("set" if s["policy"] else "not set"))
         print("  kit allowed    %s" % yes(s["kit_allowed"]))

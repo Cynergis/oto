@@ -659,9 +659,17 @@ and git reaching GitHub over HTTPS, since the sandbox closes SSH; it ends with `
 No kit is built: building one needs Docker's image builder on the host, which a sandbox does not.
 `oto lock` rewrites both files while `sbxenv.yaml` is the one it wrote, and leaves a hand-written one.
 
+The kit is a Docker Sandboxes kit set of schema 3 ([kits/README.md](../kits/README.md)): Docker's Claude
+Code kit, `docker.io/sbx/claude`, and OTO's declarations (its environment as arguments, the network,
+the install hooks and the start, the files, the note for Claude as agent context), merged into one kit
+when Docker's kit frontend builds it. sbx 0.51 made `claude` that kit, and a schema-2 kit such as OTO's
+earlier one cannot build on it, so `up` refuses an older sbx with its upgrade. A set ships no files of
+its own: `tools/kit_files.py` copies `kits/oto-gcp/files` into the descriptor, CI builds the kit at every
+push without publishing it, and the release publishes it with Buildx and signs it with `sbx kit sign`.
+
 `oto sandbox up` ([sandbox.py](../oto/sandbox.py)) starts a sandbox from the published kit
 (`kits/oto-gcp`, `ghcr.io/cynergis/oto-gcp:<engine version>`) and does on the host what a person would
-type: `sbx` installed and signed in, a network policy, `kit.allowedSources` naming OTO's registry, the
+type: `sbx` installed, 0.51 or later (`MIN_SBX`), and signed in, a network policy, `kit.allowedSources` naming OTO's registry, the
 Anthropic binding in `sbx`'s `credentials.yaml`, the folders, `sbx create` with `PROJECT`, a wait on the
 kit's start log through `sbx exec`, and `sbx setup ssh`. The binding is what `sbx` records when a person
 approves a third-party kit's use of their Anthropic credential; `sbx` asks only at a terminal, so a

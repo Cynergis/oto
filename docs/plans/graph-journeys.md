@@ -18,7 +18,7 @@ on 2026-11-02 in the design note *Graph Contribution Journeys*: the person who m
 their session approves it there and no other approval is needed; transcripts are put in the inbox
 by a process designed later; each project has its own graph, repository and pipeline.
 
-Status: proposed on 2026-11-02. Phases 1 (the fact-level diff, its fingerprint, `oto curate apply --confirm`), 2 (`oto route show|check`, the route workflow and the branch rules, `oto repo rules --apply`, the sandbox applying them) and 3 (the five guardrails, `oto route guardrails`, the gate judging a transcript's change by them, attribution held at `oto curate check`, the privacy mode in the run manifest) delivered on 2026-11-02; phases 4 and 5 are not built.
+Status: proposed on 2026-11-02. Phases 1 to 4 delivered on 2026-11-02: the fact-level diff and `oto curate apply --confirm` (1); `oto route show|check`, the route workflow and the branch rules, `oto repo rules --apply`, the sandbox applying them (2); the five guardrails and `oto route guardrails` (3); the preview per pull request, every workflow pinned to the lock's ref with `oto lock --check` in the checks, `oto lock --engine-ref`, `oto route rebase --onto` (4). Phase 5, the skills, the documents and the decision, is not built.
 
 ## What exists, and what changes
 
@@ -287,3 +287,7 @@ route, which is what it has today.
   project's to set; the engine ships no default beyond `additive_only` and `attributed` on.
 - **How transcripts arrive** in `inbox/transcripts/` (decision 2): a connector, a scheduled tool, a
   person. Designed later; the route does not depend on it.
+- **Who re-applies a stale pull request.** `oto route rebase` runs in the working tree and commits
+  nothing: an automatic re-apply would be a bot's commit, and the session route trusts a
+  confirmation only on commits by the confirmer. So the person, or the curate skill in their
+  session, runs it and pushes; the merge queue's strict checks then see an up-to-date branch.

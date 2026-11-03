@@ -41,7 +41,7 @@ def test_workflows_install_the_engine_from_its_repository_and_run_the_gates():
     author = files[os.path.join(".github", "workflows", "oto-author.yml")]
     review = files[os.path.join(".github", "workflows", "oto-review.yml")]
     for text in (ingest, checks, deploy, author, review):
-        assert 'pip install "oto-kg[intake] @ git+${ENGINE}"' in text
+        assert 'pip install "oto-kg[intake] @ git+${ENGINE}${ENGINE_REF}"' in text, "the engine at the ref the lock records (phase 4)"
         assert "vars.OTO_ENGINE || '%s'" % repo.ENGINE in text
         assert 'OTO_ENGINE_TOKEN: ${{ secrets.OTO_ENGINE_TOKEN }}' in text, "a private engine repository needs a token"
         assert 'insteadOf "https://github.com/"' in text
@@ -185,3 +185,34 @@ def test_repo_rules_apply_sets_the_rules_through_the_github_cli(tmp_path, monkey
     assert json.load(open(log))[-1]["args"][:4] == ["api", "--method", "PUT", "repos/acme/board/rulesets/7"]
     assert main(["repo", "rules", "--apply", "--repo", "acme/board", "--project", root]) == 0
     assert "replaced" in capsys.readouterr().out
+
+
+# ---- the preview per pull request and the pinned engine (docs/plans/graph-journeys.md, phase 4) ----
+
+def test_every_workflow_pins_the_engine_to_the_lock_and_the_checks_hold_the_machine_to_it():
+    files = repo.files("acme", "Acme")
+    for relative, text in files.items():
+        if not relative.endswith(".yml"):
+            continue
+        installs = text.count("Install the engine from its repository")
+        assert installs, relative
+        assert text.count("Pin the engine to the lock") == installs, "%s: every install is preceded by the pin" % relative
+        assert text.index("Pin the engine to the lock") < text.index("Install the engine from its repository"), relative
+        assert "oto.lock.json" in text and "ENGINE_REF" in text, relative
+    checks = files[os.path.join(".github", "workflows", "oto-checks.yml")]
+    assert "oto lock --check --project ." in checks, "drift between the lock and the installed engine fails the pull request"
+    assert "if [ -f oto.lock.json ]" in checks, "a project without a lock is not failed for it"
+
+
+def test_a_preview_is_built_for_every_pull_request_and_cleaned_up_when_it_closes():
+    files = repo.files("acme", "Acme")
+    preview = files[os.path.join(".github", "workflows", "oto-preview.yml")]
+    assert "name: oto preview" in preview and "types: [opened, synchronize, reopened, closed]" in preview
+    assert "oto build --project ." in preview
+    assert 'oto publish --project . --repo "${{ vars.OTO_QUERY_REPO }}" --branch "preview/pr-${PR}"' in preview, "the store at the head, on a branch of the query repository"
+    assert "vars.OTO_SITE_VIEW != '' && '--site' || ''" in preview, "the workbench beside it when an app is named"
+    assert "upload-artifact" in preview and "build/acme.db" in preview, "without a query repository the store is kept as an artifact"
+    assert "gh pr comment" in preview and "--edit-last" in preview, "one comment per pull request, edited on every push"
+    assert "github.event.action == 'closed'" in preview and '--delete "preview/pr-${PR}"' in preview, "the branch goes when the pull request closes"
+    guide = files["CLAUDE.md"]
+    assert "preview" in guide.lower()

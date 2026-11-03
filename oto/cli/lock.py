@@ -11,6 +11,18 @@ def cmd_lock(args):
     from ..model import lock as _lock
 
     project = _resolve(args)
+    if args.engine_ref:
+        locked = _lock.read(project)
+        if locked is None:
+            print("oto: no %s yet: oto lock writes it" % _lock.LOCK_NAME, file=sys.stderr)
+            return 1
+        engine = locked.get("engine") or {}
+        ref = engine.get("commit") or engine.get("tag")
+        if not ref:
+            print("oto: %s records no commit or tag for the engine" % _lock.LOCK_NAME, file=sys.stderr)
+            return 1
+        print(ref)
+        return 0
     if args.check:
         locked = _lock.read(project)
         problems = _lock.drift(project, locked)
@@ -90,6 +102,8 @@ def register(sub):
     mode = lock.add_mutually_exclusive_group()
     mode.add_argument("--check", action="store_true", help="say how this machine differs from oto.lock.json (exit 1 when it does)")
     mode.add_argument("--script", action="store_true", help="print the shell script that rebuilds the locked tools elsewhere")
+    mode.add_argument("--engine-ref", dest="engine_ref", action="store_true",
+                      help="print the ref the lock records for the engine (its commit, else its release tag): what the repository workflows install")
     mode.add_argument("--sandbox", action="store_true",
                       help="write the project's Docker sandbox (sbxenv.yaml and .sandbox/setup.sh): Claude Code with the "
                            "locked tools, started with `sbx env run`")

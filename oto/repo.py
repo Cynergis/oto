@@ -14,6 +14,8 @@
                                       script under .github/scripts/, record, curate, open a PR
     .github/workflows/oto-route.yml  on a pull request and on every review: the route gate (session,
                                       guardrailed, reviewed) as a required check, docs/plans/graph-journeys.md
+    .github/workflows/oto-preview.yml on a pull request: the store at its head, published to preview/pr-<n> of
+                                      the query repository (or kept as an artifact) and linked in a comment
     .github/oto-rules.json           the branch rules on main: pull requests required, the two checks,
                                       no approvals at the branch level, the merge queue; `oto repo rules --apply`
     .gitignore                       generated files ignored, EXCEPT the corpus, which is an input
@@ -34,7 +36,19 @@ import os
 
 ENGINE = "https://github.com/Cynergis/oto"
 UVX = 'uvx --from "oto-kg @ git+{engine}" oto'
-PIP = 'python -m pip install "oto-kg[intake] @ git+{engine}"'
+PIP = 'python -m pip install "oto-kg[intake] @ git+{engine}${{ENGINE_REF}}"'      # ENGINE_REF: "@<ref>" from the lock, set by PIN; empty without a lock
+
+#: Before every install: the ref the lock records, so the same checks give the same verdicts and an
+#: engine upgrade is a pull request that moves the lock (docs/plans/graph-journeys.md, phase 4). The
+#: engine is not installed yet when this runs, so plain python reads the lock. Written into every
+#: workflow by `files()`, right before the install step.
+PIN = """      - name: Pin the engine to the lock
+        run: |
+          ref=$(python3 -c 'import json; e = (json.load(open("oto.lock.json")).get("engine") or {}); print(e.get("commit") or e.get("tag") or "")' 2>/dev/null || true)
+          echo "ENGINE_REF=${ref:+@$ref}" >> "$GITHUB_ENV"
+          echo "engine ref from oto.lock.json: ${ref:-none, the default branch}"
+"""
+INSTALL = "      - name: Install the engine from its repository\n"
 
 GITIGNORE = """# build/ is generated and rebuilt by `oto build`, so it is not tracked: EXCEPT the corpus.
 # build/documents/ is what ingest extracted from inbox/. It is an input to the build and to every
@@ -66,9 +80,14 @@ Every pull request takes a route decided by what it carries, and one required ch
 enforces the route's rule (docs/plans/graph-journeys.md in the engine). A change a person confirmed in
 their Claude session (`oto curate apply --confirm`, one ledger entry whose fingerprint is the diff) is
 the `session` route: it merges on its own once the confirmer is the author and the commits are verified.
-A change drafted from documents is `reviewed`: one approving review, given in the preview. A change
+A change drafted from documents is `reviewed`: one approving review, given in the preview that
+`oto-preview.yml` builds for every pull request (the store at its head on the `preview/pr-<n>` branch
+of the query repository, or a workflow artifact; the link is a comment on the pull request). A change
 drafted from the transcripts folder the project names is `guardrailed`. The branch rules that make the
-check required are in `.github/oto-rules.json`; `oto repo rules --apply` sets them.
+check required are in `.github/oto-rules.json`; `oto repo rules --apply` sets them. Every workflow
+installs the engine at the ref `oto.lock.json` records, and `oto checks` fails when the lock drifts;
+an engine upgrade is `oto lock` on a branch and a pull request. A pull request that fell behind main
+re-applies its facts with `oto route rebase --onto origin/main`, then commits and pushes.
 
 ## Where things are
 
@@ -262,6 +281,8 @@ jobs:
           ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
       - name: Where the project stands
         run: oto status --project .
+      - name: The engine and the tools the lock records
+        run: if [ -f oto.lock.json ]; then oto lock --check --project .; else echo "no lock yet (oto lock writes it)"; fi
       - name: Candidate, if one is open
         run: |
           if [ -f graph.candidate.json ]; then oto curate check --project .; else echo "no candidate open"; fi
@@ -965,6 +986,87 @@ jobs:
         run: test "${{{{ steps.verdict.outputs.code }}}}" = "0"
 """
 
+PREVIEW = """name: oto preview
+
+# A preview of the graph for every pull request (docs/plans/graph-journeys.md, phase 4). A diff of
+# graph.json cannot be reviewed for what it says; the store built from the head can. With
+# OTO_QUERY_REPO set (and OTO_QUERY_REPO_TOKEN as a secret), the store is published to the branch
+# preview/pr-<n> of the query repository, with the workbench beside it when OTO_SITE_VIEW names an
+# app, and `oto sync --repo <it> --branch preview/pr-<n>` brings it to a machine; without a query
+# repository the store is kept as a workflow artifact. One comment on the pull request carries the
+# link and is edited on every push. When the pull request closes, the preview branch goes.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  PR: ${{{{ github.event.pull_request.number }}}}
+
+jobs:
+  preview:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    env:
+      ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
+      OTO_ENGINE_TOKEN: ${{{{ secrets.OTO_ENGINE_TOKEN }}}}
+      GH_TOKEN: ${{{{ github.token }}}}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{{{ github.event.pull_request.head.sha }}}}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Reach the engine repository when it is private
+        run: if [ -n "$OTO_ENGINE_TOKEN" ]; then git config --global url."https://x-access-token:${{OTO_ENGINE_TOKEN}}@github.com/".insteadOf "https://github.com/"; fi
+      - name: Install the engine from its repository
+        run: {pip}
+      - name: Build the store at the head of the pull request
+        run: oto build --project .
+      - name: Build the workbench when an app is named
+        if: vars.OTO_QUERY_REPO != '' && vars.OTO_SITE_VIEW != ''
+        run: oto build --project . --only site --target site --view "${{{{ vars.OTO_SITE_VIEW }}}}"
+      - name: Publish it to the query repository's preview branch, when one is configured
+        if: vars.OTO_QUERY_REPO != ''
+        env:
+          OTO_QUERY_REPO_TOKEN: ${{{{ secrets.OTO_QUERY_REPO_TOKEN }}}}
+        run: oto publish --project . --repo "${{{{ vars.OTO_QUERY_REPO }}}}" --branch "preview/pr-${{PR}}" --source "${{{{ github.repository }}}}@${{{{ github.event.pull_request.head.sha }}}}" --engine "${{ENGINE}}" ${{{{ vars.OTO_SITE_VIEW != '' && '--site' || '' }}}}
+      - name: Keep the store as an artifact, when there is no query repository
+        if: vars.OTO_QUERY_REPO == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-pr-${{{{ github.event.pull_request.number }}}}
+          path: build/{slug}.db
+      - name: Say where the preview is, in one comment kept up to date
+        run: |
+          if [ -n "${{{{ vars.OTO_QUERY_REPO }}}}" ]; then
+            repo="${{{{ vars.OTO_QUERY_REPO }}}}"; repo="${{repo#https://github.com/}}"; repo="${{repo%.git}}"
+            printf '%s\\n\\n%s\\n%s\\n' "**oto preview**: the store at ${{{{ github.event.pull_request.head.sha }}}}, on https://github.com/${{repo}}/tree/preview/pr-${{PR}}" \\
+              "- read it here: oto sync --repo https://github.com/${{repo}} --branch preview/pr-${{PR}} --dest preview, then oto serve --project preview --http 8765" \\
+              "- the branch goes when this pull request closes" > preview.md
+          else
+            printf '%s\\n\\n%s\\n' "**oto preview**: the store at ${{{{ github.event.pull_request.head.sha }}}} is the artifact preview-pr-${{PR}} of this run: ${{{{ github.server_url }}}}/${{{{ github.repository }}}}/actions/runs/${{{{ github.run_id }}}}" \\
+              "- download it beside a checkout of this branch as build/{slug}.db, then oto serve --project . --http 8765" > preview.md
+          fi
+          gh pr comment "$PR" --edit-last --body-file preview.md || gh pr comment "$PR" --body-file preview.md
+
+  cleanup:
+    if: github.event.action == 'closed' && vars.OTO_QUERY_REPO != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete the preview branch of the query repository
+        env:
+          OTO_QUERY_REPO_TOKEN: ${{{{ secrets.OTO_QUERY_REPO_TOKEN }}}}
+        run: |
+          repo="${{{{ vars.OTO_QUERY_REPO }}}}"; repo="${{repo#https://github.com/}}"; repo="${{repo%.git}}"
+          git push "https://x-access-token:${{OTO_QUERY_REPO_TOKEN}}@github.com/${{repo}}.git" --delete "preview/pr-${{PR}}" || echo "no preview branch to delete"
+"""
+
 #: The branch rules on main, as a GitHub ruleset. Pull requests required; the two checks required
 #: and up to date; no approvals at the branch level, because approvals are the route gate's, per
 #: route; the merge queue, so graph.json merges one pull request at a time; GitHub Actions allowed
@@ -1086,7 +1188,7 @@ def files(slug, name, engine=None, architecture=False):
     def fill(ontology):
         return ontology.replace("@PIP@", pip).replace("@ENGINE@", engine)
 
-    return {
+    out = {
         ".gitignore": GITIGNORE,
         ".mcp.json": json.dumps(mcp, indent=2) + "\n",
         "CLAUDE.md": CLAUDE_MD.format(name=name, engine=engine),
@@ -1094,12 +1196,15 @@ def files(slug, name, engine=None, architecture=False):
         os.path.join(".github", "workflows", "oto-checks.yml"): CHECKS.format(pip=pip, engine=engine),
         os.path.join(".github", "workflows", "oto-deploy.yml"): DEPLOY.format(pip=pip, engine=engine, slug=slug),
         os.path.join(".github", "workflows", "oto-route.yml"): ROUTE.format(pip=pip, engine=engine),
+        os.path.join(".github", "workflows", "oto-preview.yml"): PREVIEW.format(pip=pip, engine=engine, slug=slug),
         RULES_FILE: rules_text(),
         os.path.join(".github", "workflows", "oto-author.yml"): fill(AUTHOR),
         os.path.join(".github", "workflows", "oto-review.yml"): fill(REVIEW),
         os.path.join(".github", "workflows", "oto-tools.yml"): fill(ACTIONS),
         os.path.join(".github", "scripts", "oto-tools-invoke.py"): INVOKE_SCRIPT,
     } | ({os.path.join(".github", "workflows", "oto-architecture.yml"): ARCHITECTURE.format(pip=pip, engine=engine)} if architecture else {})
+    # every install of the engine is pinned to the lock, in every workflow
+    return {path: text.replace(INSTALL, PIN + INSTALL) if path.endswith(".yml") else text for path, text in out.items()}
 
 
 def write(root, slug, name, engine=None, force=False, writer=None, architecture=False):

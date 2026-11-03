@@ -16,7 +16,7 @@ one, and its folders stay.
 Claude Code with everything an OTO product on Google Cloud needs:
 
 - **OTO:** the engine plugin from its own marketplace (`oto@cynergis-engine`, Cynergis/oto) and the engine
-  itself at the version in `oto-gcp.yaml`, pinned through `OTO_SOURCE`; the `cynergis` marketplace
+  itself at the version in `oto-gcp.yaml`, installed as the `oto` command that the plugin runs; the `cynergis` marketplace
   (Cynergis/oto-registry) is added but none of its packs is installed: a sandbox starts with the engine
   alone, and the packs a project needs are turned on from the session with the packs skill
   (`/oto:packs`), which installs them for the project and records them in its lock;
@@ -31,7 +31,7 @@ sign-in and its settings) and OTO's own declarations, merged into one kit when i
 
 | Declaration | What it does |
 |---|---|
-| `args` | the environment: `OTO_SOURCE` (the engine, pinned), `OTO_SANDBOX=kit`, `OTO_OUTSIDE_PLUGINS` (`blocked`) |
+| `args` | the environment: `OTO_SANDBOX=kit`, `OTO_OUTSIDE_PLUGINS` (`blocked`) |
 | `network-policy@1` | the hosts above, at run time; while the install hooks run, Debian's and Google's downloads and Python packages too |
 | `lifecycle@1` | the install hooks, the start, and the files `init.sh` and `lock-plugins` in `/home/agent/.oto` |
 | `agent-context@1`, `@2` | the note for the sandbox's Claude (`files/home/.claude/CLAUDE.md`) |
@@ -132,9 +132,8 @@ env PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/bin:/bin" oto sandbox up --kit
 ```
 
 **Releasing it.** The kit's version is the engine's. A version bump moves it in the same change, in
-`oto-gcp/oto-gcp.yaml` (`version`, the `source` argument's default and its one allowed value, and the
-description), in the engine `init.sh` installs, and in the example above; the copy of `init.sh` in the
-descriptor moves with the descriptor. `tests/test_kits.py` fails until they all say the new version.
+`oto-gcp/oto-gcp.yaml` (`version` and the description), in the engine `init.sh` installs, and in the
+example above; the copy of `init.sh` in the descriptor moves with the descriptor. `tests/test_kits.py` fails until they all say the new version.
 
 When the release workflow tags `v<version>` (`tag-release.yml`), it publishes the kit from that tag as
 `ghcr.io/cynergis/oto-gcp:<version>`, signed (`kit-publish.yml`): Docker's kit frontend builds it through

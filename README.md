@@ -76,7 +76,7 @@ Early development. The engine was extracted from a working private system that h
 
 The engine is not on a package index; it installs from this repository.
 
-The repository is public: `uvx` and `pip` clone it like any other git dependency, with no
+The repository is public: `uv` and `pip` clone it like any other git dependency, with no
 credential. A workflow that installs the engine from a private fork instead sets the secret
 `OTO_ENGINE_TOKEN` (see repository mode below).
 
@@ -84,14 +84,14 @@ The extras name what a machine needs beyond the stdlib engine, and they combine 
 brackets. `all` is every one of them; a machine that only serves needs none.
 
 ```bash
-# On a machine, with uv installed: run it without installing anything else.
-uvx --from "oto-kg @ git+https://github.com/Cynergis/oto" oto --help
-uvx --from "oto-kg[all] @ git+https://github.com/Cynergis/oto" oto --help          # every extra
-alias oto='uvx --from "oto-kg[all] @ git+https://github.com/Cynergis/oto" oto'     # and keep it
+# On a machine, with uv installed: the engine, once, as the oto command. The plugin runs this one (ADR-0014).
+uv tool install "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v<version>"
+uv tool install --force "oto-kg[all] @ git+https://github.com/Cynergis/oto@v<version>"    # every extra
+uv tool install --force "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v<newer>"   # to upgrade it
 
-The Claude Code plugin starts the engine the same way. To run it from a checkout instead (a branch
-not yet merged), set `OTO_SOURCE` before starting Claude Code: `export OTO_SOURCE=~/Downloads/oto`;
-the plugin's MCP server and session hook read it.
+# To develop the engine, install your checkout as the engine, and back to a release when done.
+uv tool install --force --editable ~/oto-doc/oto
+claude --plugin-dir ~/oto-doc/oto                   # the plugin of the checkout, beside it
 
 # Or into an environment of your own.
 pip install "oto-kg[all] @ git+https://github.com/Cynergis/oto"        # everything below at once
@@ -115,8 +115,9 @@ To test everything end to end, in the order a real project goes through it, foll
 
 In Claude Code, install the plugin from this repository's own marketplace, `cynergis-engine`:
 `/plugin marketplace add Cynergis/oto` then `/plugin install oto@cynergis-engine`, or
-`claude --plugin-dir <a clone of this repository>`. The plugin's server and hook run the engine through
-`uvx`, so uv is the only prerequisite. The packs come from the registry, [Cynergis/oto-registry](https://github.com/Cynergis/oto-registry)
+`claude --plugin-dir <a clone of this repository>`. The plugin's server and hooks run the engine installed
+above, the `oto` command: one engine on the computer, which the plugin's session start checks against its
+own release ([ADR-0014](docs/adr/0014-one-engine-on-a-computer.md)). The packs come from the registry, [Cynergis/oto-registry](https://github.com/Cynergis/oto-registry)
 (`/plugin marketplace add Cynergis/oto-registry`, then `/plugin install <pack>@cynergis`), which carries
 extensions and packs of the engine, never the engine itself ([ADR-0009](docs/adr/0009-the-registry-carries-no-engine.md)).
 

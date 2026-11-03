@@ -69,7 +69,9 @@ def test_the_plugin_hook_no_longer_names_the_inbox():
     with open(os.path.join(ROOT, "hooks", "hooks.json"), encoding="utf-8") as f:
         hooks = json.load(f)["hooks"]
     commands = [h["command"] for group in hooks["SessionStart"] for h in group["hooks"]]
-    assert any("oto status" in c for c in commands), "the status hook stays"
+    with open(os.path.join(ROOT, "hooks", "engine.sh"), encoding="utf-8") as f:
+        script = f.read()                                  # the session hook's script (ADR-0014)
+    assert any("hooks/engine.sh" in c for c in commands) and "oto status" in script, "the status hook stays"
     assert not any("oto work" in c for c in commands), "the inbox hook is the work pack's own hooks/hooks.json"
 
 

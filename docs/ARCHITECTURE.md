@@ -252,9 +252,10 @@ section of the report the pull request carries. The unattended rules the agent f
 review workflows need the repository secret `ANTHROPIC_API_KEY`; `OTO_MODEL` and `OTO_ENGINE` are
 optional repository variables.
 
-Everywhere, the engine installs from its git repository rather than being assumed on a PATH: `uvx`
-on a machine, `pip` in a workflow, one URL in [repo.py](../oto/repo.py) overridable with `--engine`
-or the repository variable `OTO_ENGINE`.
+Everywhere, the engine installs from its git repository: on a machine once, as the `oto` command
+the plugin's server and hooks run (`uv tool install`, [ADR-0014](adr/0014-one-engine-on-a-computer.md)),
+`pip` in a workflow, one URL in [repo.py](../oto/repo.py) overridable with `--engine` or the repository
+variable `OTO_ENGINE`.
 
 The deploy workflow has two targets. The self-hosted Neo4j is the production store (below). The
 query repository, when the repository variable `OTO_QUERY_REPO` names one and the secret
@@ -644,17 +645,17 @@ where they are. `oto lock --script` writes the shell script that rebuilds the lo
 fresh machine or in a container: each marketplace cloned at its locked commit and added from that
 directory (Claude Code pins a marketplace to a branch or a tag, never a commit), each plugin
 installed from it, and the engine installed from its commit or its release tag `v<version>`, which
-every version gets when it reaches main (`.github/workflows/tag-release.yml`), and named in
-`OTO_SOURCE`, which the engine plugin's server and hook read. What a lock cannot pin is said when it
+every version gets when it reaches main (`.github/workflows/tag-release.yml`), as the `oto` command
+the engine plugin's server and hooks run (ADR-0014). What a lock cannot pin is said when it
 is written: a plugin listed from its own repository's default branch, a marketplace that is a
 directory on one machine, an engine checkout with uncommitted changes.
 
 `oto lock --sandbox` writes the project's Docker sandbox from the lock. `sbxenv.yaml` (Docker
-Sandboxes' environment file) names it `oto-<slug>`, runs Docker's Claude agent on the project folder,
-and pins `OTO_SOURCE`. Its one host command, after the sandbox is created, runs `.sandbox/setup.sh`
+Sandboxes' environment file) names it `oto-<slug>` and runs Docker's Claude agent on the project folder.
+Its one host command, after the sandbox is created, runs `.sandbox/setup.sh`
 inside it with `sbx exec "$SBX_SANDBOX_NAME"`, so nothing the agent can edit runs on the host. The
 script is the restore script plus what Docker's Claude image lacks: LibreOffice and fonts, Chromium
-for pdf-to-template, a `uvx` that runs `uv tool run` (the engine plugin's server and hook call it),
+for pdf-to-template, a `uvx` that runs `uv tool run`,
 and git reaching GitHub over HTTPS, since the sandbox closes SSH; it ends with `oto lock --check`.
 No kit is built: building one needs Docker's image builder on the host, which a sandbox does not.
 `oto lock` rewrites both files while `sbxenv.yaml` is the one it wrote, and leaves a hand-written one.

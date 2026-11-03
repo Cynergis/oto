@@ -45,8 +45,9 @@ in a checkout of a published query store (`oto sync`) both serve and report that
 
 A pack (`oto pack`) is the other way in: a plugin published from the registry's marketplace that
 carries an ontology, its own skills and its views, and depends on this plugin, so installing a
-pack installs the engine with it. Its `start` skill begins a project from the installed copy.
+pack installs the engine plugin with it. Its `start` skill begins a project from the installed copy.
 
-Both run the engine through `uvx`, installing it from the OTO repository on first use and caching
-it, so the only prerequisite on a machine is [uv](https://docs.astral.sh/uv/). Nothing has to be
-on the PATH and no virtual environment is involved.
+Both run the engine installed on the machine, the `oto` command, and no copy of their own
+(ADR-0014). It is installed once with [uv](https://docs.astral.sh/uv/),
+`uv tool install "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v<version>"`, and the plugin's
+session start says when it is missing or is not the plugin's release, with the command that fixes it.

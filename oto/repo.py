@@ -23,9 +23,9 @@
                                       writes .github/CODEOWNERS and puts main's key in the environment oto-main
     .gitignore                       generated files ignored, EXCEPT the corpus, which is an input
 
-The engine is installed from its git repository, never assumed to be on a PATH: `uvx` on a person's
-machine, `pip` in a workflow. Where the engine lives is one string, `ENGINE`, overridable with
-`--engine` and, in the workflows, a repository variable.
+The engine on a person's machine is the `oto` command installed there (ADR-0014), which the
+project's server runs; in a workflow, `pip` installs it at the ref the lock records. Where the engine
+lives is one string, `ENGINE`, overridable with `--engine` and, in the workflows, a repository variable.
 
 The authoring and review workflows run Claude through the Claude Code Action with this engine's own
 plugin loaded from its repository, so the pipeline agent follows the same skills a person's Claude
@@ -38,7 +38,6 @@ import json
 import os
 
 ENGINE = "https://github.com/Cynergis/oto"
-UVX = 'uvx --from "oto-kg @ git+{engine}" oto'
 PIP = 'python -m pip install "oto-kg[intake] @ git+{engine}${{ENGINE_REF}}"'      # ENGINE_REF: "@<ref>" from the lock, set by PIN; empty without a lock
 
 #: Before every install: the ref the lock records, so the same checks give the same verdicts and an
@@ -63,16 +62,17 @@ build/*
 __pycache__/
 """
 
-MCP = {"mcpServers": {"{slug}-kg": {"command": "uvx",
-                                    "args": ["--from", "oto-kg @ git+{engine}", "oto", "serve", "--project", "."]}}}
+MCP = {"mcpServers": {"{slug}-kg": {"command": "oto", "args": ["serve", "--project", "."]}}}
 
 CLAUDE_MD = """# {name}: an OTO knowledge project
 
 This repository holds a knowledge graph's data and nothing else: the vocabulary, the curated graph,
 the ledger, the raw documents at their stations, and the corpus extracted from them. The engine is
-the `oto` package, installed on demand from {engine}; run it as `uvx --from "oto-kg @ git+{engine}" oto`.
-The engine repository is private: on a machine, `gh auth login` then `gh auth setup-git` once, so
-`uvx` and `pip` can clone it; in this repository's workflows the secret `OTO_ENGINE_TOKEN` does the same.
+the `oto` command installed on the machine, once, at the release `oto.lock.json` records:
+`uv tool install "oto-kg[intake] @ git+{engine}@<that tag>"` (`oto lock --script` prints it). The OTO
+plugin and this repository's server run that one. The engine repository is private: on a machine,
+`gh auth login` then `gh auth setup-git` once, so `uv` and `pip` can clone it; in this repository's
+workflows the secret `OTO_ENGINE_TOKEN` does the same.
 The OTO plugin's skills (build-knowledge-base, curate, ontology-interview, vet-provenance,
 query-knowledge, evaluate, capture, spec) are the playbooks for working here; `spec` drafts a
 product spec or decision record from the graph and records its decisions back into it.

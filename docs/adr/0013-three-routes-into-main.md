@@ -48,7 +48,11 @@ commits are verified), so the engine never calls GitHub. `oto init --repo` write
 which gathers the flags and runs the check on every pull request and every review, and
 `.github/oto-rules.json`, the branch rules on `main`: pull requests required, the checks `oto checks`
 and `oto route` required and up to date, zero approvals at the branch level because the gate asks
-per route, the merge queue on, GitHub Actions allowed to push the ingest run. `oto repo rules
+per route, the merge queue on. Amended on 2026-11-03: a change to what the gate runs on (`.github/`,
+`oto.lock.json`) needs a code owner's approval, which GitHub holds and no workflow can answer for; the
+ingest and architecture workflows push to `main` with a deploy key kept in an environment only `main`
+deploys from, and that key and an administrator (by a pull request) are the only ones past the rules.
+GitHub Actions itself is not: any workflow on any branch can ask for its token. `oto repo rules
 --apply` sets them; `oto sandbox up --repo` applies them when it creates the repository.
 
 **The guardrails.** A project declares `routes.guardrailed` in `project.config.json`: the

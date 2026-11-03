@@ -230,9 +230,15 @@ review. A route only moves towards reviewed. The policy that decides is the base
 `project.config.json`, derived from the pack): a pull request is never judged by a policy it rewrites,
 and one that changes what the gate reads or runs on (the routes, `oto.lock.json`, anything under
 `.github/`) goes to a person. The branch rules in `oto-rules.json` (pull requests
-required, the checks `oto checks` and `oto route` required, zero approvals at the branch level, the
-merge queue on) are set by `oto repo rules --apply`, or by `oto sandbox up --repo` when it creates
-the repository. Every workflow installs the engine at the ref `oto.lock.json` records and `oto
+required, the checks `oto checks` and `oto route` required, zero approvals at the branch level but a
+code owner's for what the gate runs on, the merge queue on) are set by `oto repo rules --apply`, or by
+`oto sandbox up --repo` when it creates the repository. `.github/CODEOWNERS` owns `.github/` and
+`oto.lock.json`, so a pull request cannot rewrite the gate's workflow, add one that answers to its
+check's name, or move the engine without an owner's approval, which GitHub holds. Past the rules go
+only main's deploy key, which the ingest and architecture workflows push with from the environment
+`oto-main` that only `main` deploys from (their commits carry `[skip ci]`, as a commit by the
+workflow's own token never started a workflow), and an administrator, by a pull request; never GitHub
+Actions itself, whose token any workflow on any branch can ask for. Every workflow installs the engine at the ref `oto.lock.json` records and `oto
 checks` runs `oto lock --check`, so the same checks give the same verdicts and an engine upgrade is
 a pull request that moves the lock. A pull request that fell behind `main` re-applies its facts with
 `oto route rebase --onto origin/main`, through the gates; the fingerprint is over facts, so the

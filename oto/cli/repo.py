@@ -2,11 +2,17 @@
 """`oto repo`: a project that lives in a GitHub repository (oto/repo.py writes its workflows with
 `oto init --repo`); this command sets what the repository itself must have.
 
-    oto repo rules [--apply] [--repo owner/name]    the branch rules on main (.github/oto-rules.json):
+    oto repo rules [--apply] [--repo owner/name] [--code-owner <login|org/team>]
+                                                    the branch rules on main (.github/oto-rules.json):
                                                     shown; with --apply, set through the GitHub CLI
 
 The rules make the two checks required, `oto checks` and `oto route`, ask no approval at the branch
-level (the route gate asks per route, docs/plans/graph-journeys.md), and turn the merge queue on.
+level (the route gate asks per route, docs/plans/graph-journeys.md) except a code owner's for what the
+gate runs on (.github/CODEOWNERS: the workflows, the rules, the lock), and turn the merge queue on.
+`--apply` sets up, in order: the code owners, which must be on main first; main's deploy key, kept in
+the environment oto-main that only main deploys from, which the ingest and architecture workflows push
+with; then the rules, which let that key and an administrator (by a pull request) past them, and
+never GitHub Actions.
 `oto sandbox up --repo` applies them when it creates the repository; this is the way for a repository
 made otherwise, or after the rules file changed."""
 import json
@@ -44,13 +50,20 @@ def cmd_repo(args):
         print("oto: no GitHub repository to set the rules on: pass --repo owner/name, or set `origin`", file=sys.stderr)
         return 1
     try:
-        result = _repo.apply_rules(root, repository)
+        result = _repo.apply_rules(root, repository, code_owner=args.code_owner)
     except ProjectError as exc:
         print("oto: %s" % exc, file=sys.stderr)
         return 1
+    print("code owners: %s owns .github/ and oto.lock.json (%s); a change to them needs that approval"
+          % (result.get("code_owner"), _repo.CODEOWNERS_FILE.replace(os.sep, "/")))
+    print("main's deploy key: in the environment %s, which only main deploys from; the ingest and architecture workflows push with it"
+          % result.get("environment"))
     print("%s the branch rules %r on %s (ruleset %s): pull requests required, the checks oto checks and oto route, "
-          "no approvals at the branch level, the merge queue on"
+          "no approvals at the branch level but a code owner's for what the gate runs on, the merge queue on; "
+          "past them only main's deploy key, and an administrator by a pull request"
           % ("created" if result["created"] else "replaced", _repo.RULES_NAME, _repo._owner_name(repository), result.get("id")))
+    for warning in result.get("warnings") or []:
+        print("  warning: %s" % warning)
     return 0
 
 
@@ -60,5 +73,7 @@ def register(sub):
                       help="rules shows .github/oto-rules.json; with --apply, sets it on the repository through the GitHub CLI")
     repo.add_argument("--apply", action="store_true", help="set the rules on GitHub (a ruleset named after them is replaced)")
     repo.add_argument("--repo", default=None, help="the repository, owner/name (default: where `origin` points)")
+    repo.add_argument("--code-owner", default=None,
+                      help="who owns what the gate runs on, a login or org/team (default: the one .github/CODEOWNERS names, else whoever gh is signed in as)")
     project_arguments(repo)
     repo.set_defaults(func=cmd_repo)

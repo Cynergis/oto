@@ -734,7 +734,9 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
             report["done"].append(creating + "would push the first commit to %s and store the token as the sandbox's GitHub secret" % url)
             if url.startswith(GITHUB) and (kind or "knowledge") == "knowledge":
                 report["done"].append("would set the branch rules on main from %s: pull requests required, the checks oto checks and oto route, "
-                                      "no approvals at the branch level, the merge queue on" % _repo.RULES_FILE)
+                                      "no approvals at the branch level but a code owner's for what the gate runs on, the merge queue on; "
+                                      "with them the code owners (%s, in the first commit) and main's deploy key, kept in the environment %s, "
+                                      "for the two workflows that push to main" % (_repo.RULES_FILE, _repo.CODEOWNERS_FILE, _repo.MAIN_ENVIRONMENT))
         report["done"].append(("would remove and recreate the sandbox %s" % name) if existing and recreate else
                               ("would reuse the sandbox %s" % name) if existing else
                               ("would create the sandbox %s from %s" % (name, kit)))
@@ -756,16 +758,31 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         url = github_repository(repo, token)
         if url.startswith(GITHUB):
             report["done"].append("created (or found) the private repository %s on GitHub" % url[len(GITHUB):-len(".git")])
+        rules_here = url.startswith(GITHUB) and os.path.exists(os.path.join(project_dir, _repo.RULES_FILE))
+        if rules_here and not _repo.code_owner_of(project_dir):
+            # the code owners travel in the first commit, so they are on main before the rules ask for them
+            from .project import ProjectError
+            try:
+                login = _repo.github_login(token, gh=_tool("OTO_GH", "gh"))
+            except ProjectError:
+                login = None
+            if login:
+                report["done"].append("named %s the code owner of what the route gate runs on (%s)"
+                                      % (_repo.write_code_owners(project_dir, login), _repo.CODEOWNERS_FILE))
         commit = first_push(project_dir, url, token=token, kind=kind or "knowledge")
         report["repository"] = url
         report["commit"] = commit
         report["done"].append("pushed the first commit (%s) to %s; origin is set in %s" % (commit, url, project_dir))
-        if url.startswith(GITHUB) and os.path.exists(os.path.join(project_dir, _repo.RULES_FILE)):
+        if rules_here:
             from .project import ProjectError
             try:
                 rules = _repo.apply_rules(project_dir, url[len(GITHUB):-len(".git")], token=token, gh=_tool("OTO_GH", "gh"))
                 report["done"].append("set the branch rules on main from %s (%s): pull requests required, the checks oto checks and oto route, "
-                                      "no approvals at the branch level, the merge queue on" % (_repo.RULES_FILE, "created" if rules["created"] else "replaced"))
+                                      "no approvals at the branch level but %s's for what the gate runs on, the merge queue on; main's deploy key "
+                                      "is in the environment %s, for the two workflows that push to main"
+                                      % (_repo.RULES_FILE, "created" if rules["created"] else "replaced", rules.get("code_owner"), rules.get("environment")))
+                for warning in rules.get("warnings") or []:
+                    report.setdefault("warnings", []).append(warning)
             except ProjectError as exc:
                 report.setdefault("warnings", []).append("the branch rules were not set: %s. Later: oto repo rules --apply, in the project folder" % exc)
     if existing and recreate:

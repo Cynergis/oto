@@ -922,7 +922,7 @@ def diff_project(project):
         changelog = [e for e in new["manifest"].get("changelog") or [] if int(e.get("release", 0)) > recorded]
         changelog.sort(key=lambda e: -int(e.get("release", 0)))
         return {"name": name, "recorded": recorded, "current": current, "where": where, "basis": basis, "tag": tag,
-                "changes": changes, "rules": rules, "questions": questions, "changelog": changelog}
+                "changes": changes, "rules": rules, "questions": questions, "changelog": changelog, "taken_whole": kind == "pack"}
     finally:
         for directory in (work, old_work):
             if directory:

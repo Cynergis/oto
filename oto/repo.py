@@ -594,6 +594,7 @@ jobs:
           git add ontology.config.json project.config.json
           git commit -m "A new release of the pack $pack"
           git push --force -u origin oto/pack-update
+          printf '\\n\\nThe Actions token opened this pull request, and GitHub starts no checks for what that token does: close it and reopen it to start them.\\n' >> update.md
           gh pr view oto/pack-update --json number > /dev/null 2>&1 || gh pr create --head oto/pack-update --title "A new release of the pack $pack" --body-file update.md
 """
 

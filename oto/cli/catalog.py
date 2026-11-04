@@ -131,6 +131,11 @@ def _print_diff(report):
                 + len(questions.get("removed") or []) + len(questions.get("changed") or []))
     additive = (sum(1 for c in report["changes"] if c.severity == vocab.Change.ADDITIVE) + len(report["rules"]["added"])
                 + len(report["rules"]["changed"]) + len(questions.get("added") or []))
+    if report.get("taken_whole"):
+        print("\n%d breaking, %d additive. This project's vocabulary comes from the pack: `oto ontology update` takes all of it, then `oto ontology check` and `oto build`." % (breaking, additive))
+        if breaking:
+            print("A breaking change may leave facts here that no longer fit: the lines above say how many each touches.")
+        return
     print("\n%d breaking, %d additive. Nothing was changed in this project." % (breaking, additive))
     if additive:
         print("Additive changes can be copied into ontology.config.json, rules.json and questions.json, then `oto ontology check`.")

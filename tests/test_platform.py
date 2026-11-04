@@ -379,6 +379,7 @@ def test_status_and_diff_see_a_new_release_of_the_pack_and_update_takes_it(relea
     assert cli("pack", "add", "garage", "--force")[0] == 0
     code, out = cli("ontology", "diff", "--project", root)
     assert code == 0 and "Depot" in out and "kept_at" in out and "release 2" in out, out
+    assert "oto ontology update" in out and "can be copied" not in out, "this text is the update pull request's description, and the vocabulary here comes from the pack"
     code, out = cli("ontology", "update", "--project", root)
     assert code == 0, out
     with open(os.path.join(root, "ontology.config.json"), encoding="utf-8") as f:
@@ -390,3 +391,11 @@ def test_status_and_diff_see_a_new_release_of_the_pack_and_update_takes_it(relea
     code, out = cli("status", "--project", root)
     assert "@2 available" not in out, out
     assert cli("build", "--project", root)[0] == 0
+
+
+def test_the_update_pull_request_says_its_checks_need_a_person_to_start_them():
+    """GitHub starts no workflow for what the Actions token does, so the gate never runs on this pull request until someone reopens it."""
+    text = repo.files("acme", "Acme")[os.path.join(".github", "workflows", "oto-pack-update.yml")]
+    assert "close it and reopen it" in text
+    assert text.index("close it and reopen it") < text.index("gh pr create")
+

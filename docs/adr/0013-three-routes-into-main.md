@@ -73,7 +73,9 @@ ref `oto.lock.json` records, and `oto checks` fails when the lock drifts, so the
 the same verdicts and an engine upgrade is a reviewed change. `oto route rebase --onto <ref>`
 re-applies a stale pull request's facts onto the new `main` through the gates; the fingerprint is
 over facts, so the confirmation holds whenever the facts are the same. It commits nothing: the
-session route trusts commits by the confirmer, so the person or their skill pushes.
+session route trusts commits by the confirmer, so the person or their skill runs the git steps it
+prints. Amended on 2026-11-04: it also re-chains the audit log, and those steps replace the branch,
+because a branch left on the old base still conflicted.
 
 **The skills.** The curate skill, at its fourth gate in a repository, applies with `--confirm` in
 the person's identity, commits on a branch, opens the pull request and turns on auto-merge, in the

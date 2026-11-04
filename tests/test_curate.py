@@ -223,9 +223,9 @@ def test_the_assertion_log_is_append_only_and_ids_increment():
         project, first = _with_assertions(root)
         second = assertions.record(project, text="And the deductible too.",
                                    by="R. Handler", at="2026-04-01")
-        assert first["id"] == "a-0001" and second["id"] == "a-0002"
+        assert first["id"] != second["id"]
         entries = assertions.read(project)
-        assert [e["id"] for e in entries] == ["a-0001", "a-0002"]
+        assert [e["id"] for e in entries] == [first["id"], second["id"]]
         assert entries[0]["text"] == "The owner changed in March."
 
 

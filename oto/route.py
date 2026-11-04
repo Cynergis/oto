@@ -17,6 +17,7 @@ towards `reviewed`.
 """
 import json
 import os
+import shlex
 import subprocess
 
 from .curate import diff as _diff
@@ -29,6 +30,9 @@ LEDGER = "changelog.jsonl"
 GRAPH = "graph.json"
 CONFIG = "project.config.json"
 LOCK = "oto.lock.json"
+PREVIOUS = "graph.previous.json"
+#: what `rebase` rewrites from both sides: the branch's own diff of these is not carried over as a file
+REBASED_FILES = (GRAPH, LEDGER, "audit.jsonl", "assertions.jsonl", PREVIOUS)
 REPOSITORY_FILES = ".github/"
 RUNS = "runs"
 
@@ -251,6 +255,21 @@ def _assertions_at(root, ref):
     return out
 
 
+def _duplicates_brought(root, base, head):
+    """Assertion ids the log at `head` repeats and the log at `base` does not: damage already on main is not this pull request's."""
+    from .curate import assertions as _assertions
+
+    def repeated(ref):
+        entries = []
+        for line in (read_at(root, ref, _assertions.LOG_NAME) or "").splitlines():
+            try:
+                entries.append(json.loads(line))
+            except ValueError:
+                continue
+        return set(_assertions.duplicates([e for e in entries if isinstance(e, dict)]))
+    return sorted(repeated(head) - repeated(base))
+
+
 def _run_manifests_at(root, ref):
     """{run_id: manifest} for every run manifest the tree holds."""
     code, out, _err = _git(root, "ls-tree", "--name-only", ref, RUNS + "/")
@@ -439,6 +458,13 @@ def check(root, base, head="HEAD", authors=(), approved=False, verified=False):
     review approved it; `verified` says every commit is verified. A session record that does not hold
     against them moves the route to reviewed, and reviewed needs the approval."""
     out = show(root, base, head)
+    brought = _duplicates_brought(root, out["base"], out["head"])
+    if brought:
+        out["ok"] = False
+        out["route"] = REVIEWED
+        out["reasons"].append("the assertion log holds %s more than once, so a fact citing it could mean either statement. No approval can pass "
+                              "this: a person gives each statement its own id, and points each fact at the right one" % ", ".join(brought))
+        return out
     route = out["route"]
     if route == SESSION:
         known = {str(a).strip().lower() for a in authors if str(a).strip()}
@@ -511,16 +537,66 @@ def _merge_base(root, a, b):
     return out.strip()
 
 
+def _blob(root, ref, path):
+    """The id of a file at a commit, or None where it has no such file."""
+    code, out, _err = _git(root, "rev-parse", "--verify", "--quiet", "%s:%s" % (ref, path))
+    return out.strip() if code == 0 and out.strip() else None
+
+
+def _changed(root, a, b):
+    code, out, _err = _git(root, "diff", "--name-only", a, b)
+    return set(out.splitlines()) if code == 0 else set()
+
+
+def _audit_records_at(root, ref):
+    from . import audit as _audit
+    out = []
+    for line in (read_at(root, ref, _audit.NAME) or "").splitlines():
+        try:
+            record = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(record, dict) and record.get("hash"):
+            out.append(record)
+    return out
+
+
+def _rechained_audit(root, onto_sha, base_sha, head_sha, graph_version):
+    """The audit log at `onto`, with the records this change added re-chained onto it. A record already
+    on `onto` stays exactly as it was. A moved one takes its new place and the graph as it now stands,
+    and says where it came from: `rebased_from` is its old hash, `rebased_onto` the commit."""
+    from . import audit as _audit
+    kept = _audit_records_at(root, onto_sha)
+    before = {r["hash"] for r in _audit_records_at(root, base_sha)}
+    prev = kept[-1]["hash"] if kept else ""
+    seq = (kept[-1].get("seq") or len(kept)) if kept else 0
+    out = list(kept)
+    for record in _audit_records_at(root, head_sha):
+        if record["hash"] in before:
+            continue
+        seq += 1
+        moved = {k: v for k, v in record.items() if k != "hash"}
+        moved.update(seq=seq, prev=prev, graph=graph_version, rebased_from=record["hash"], rebased_onto=onto_sha)
+        moved["hash"] = _audit.digest(moved)
+        prev = moved["hash"]
+        out.append(moved)
+    return out
+
+
 def rebase(root, onto, head="HEAD"):
-    """For the merge queue: re-apply the facts a pull request adds over its base onto `onto` (the
+    """For a pull request that fell behind: re-apply the facts it adds over its base onto `onto` (the
     new main), through the gates, in the working tree. The fact-level diff from the merge base to
     `head` is applied to the graph at `onto`: the nodes added, the nodes changed (when `onto` still
     holds the base's version), the nodes removed, the edges added and removed; a fact that moved on
-    both sides is a conflict and nothing is written. The ledger becomes `onto`'s with the pull
-    request's entries on top, each marked `rebased_onto`; the assertions the head added join
-    `onto`'s. Returns {ok, holds, fingerprint, conflicts, findings, entries, onto, base, head}:
-    `holds` says the confirmation's fingerprint still equals the diff, None without a confirmation.
-    The person (or their skill) commits and pushes; nothing here touches git."""
+    both sides is a conflict and nothing is written, and so is another file both sides changed, or two
+    statements under one id. The ledger becomes `onto`'s with the pull request's entries on top, each
+    marked `rebased_onto`; the audit log `onto`'s with this change's records re-chained on top; the
+    assertions the head added join `onto`'s. Returns {ok, holds, fingerprint, conflicts, findings,
+    entries, onto, base, head, steps}: `holds` says the confirmation's fingerprint still equals the
+    diff, None without a confirmation, and `steps` are the git commands that put this change on
+    `onto` as one commit. The person (or their skill) runs them, because the session route trusts
+    commits by the confirmer; nothing here touches git."""
+    from . import audit as _audit
     from .curate import assertions as _assertions
     from .project import Project
     onto_sha, head_sha = _resolve(root, onto), _resolve(root, head)
@@ -531,13 +607,25 @@ def rebase(root, onto, head="HEAD"):
     target = _json_at(root, onto_sha, GRAPH, {"nodes": [], "edges": []})
     base_nodes, target_nodes = _diff.index_nodes(base_graph), _diff.index_nodes(target)
     out = {"ok": False, "holds": None, "fingerprint": None, "conflicts": [], "findings": [], "entries": len(shown["entries"]),
-           "onto": onto_sha, "base": base_sha, "head": head_sha, "route": shown["proposed"]}
+           "onto": onto_sha, "base": base_sha, "head": head_sha, "route": shown["proposed"], "steps": []}
     if onto_sha == base_sha:
         out["ok"] = True
         out["fingerprint"] = shown["fingerprint"]
         out["holds"] = (shown["confirmation"] or {}).get("fingerprint") == shown["fingerprint"] if shown["confirmation"] else None
         out["conflicts"].append("nothing to do: %s is the base of this change already" % onto[:12])
         return out
+    if _resolve(root, "HEAD") != head_sha:
+        out["conflicts"].append("the steps act on the branch checked out here, and that is not %s: check it out first" % head[:12])
+        return out
+    dirty = _git(root, "status", "--porcelain", "--untracked-files=no")[1]
+    if dirty.strip():
+        out["conflicts"].append("uncommitted changes here, which the steps would throw away: commit them or set them aside first (%s)"
+                                % ", ".join(line[3:] for line in dirty.splitlines()[:5]))
+        return out
+    others = _changed(root, base_sha, head_sha) - set(REBASED_FILES)
+    for path in sorted(others & _changed(root, base_sha, onto_sha)):
+        if _blob(root, onto_sha, path) != _blob(root, head_sha, path):
+            out["conflicts"].append("%s changed here and on %s: this file isn't facts, so a person settles it" % (path, onto[:12]))
 
     nodes = [json.loads(json.dumps(n)) for n in target.get("nodes") or []]
     by_id = {n.get("id"): n for n in nodes}
@@ -571,6 +659,12 @@ def rebase(root, onto, head="HEAD"):
             keys.add(tuple(key))
     removed = {tuple(key) for key in canon["edges_removed"]}
     edges = [e for e in edges if _diff.edge_key(e) not in removed]
+    onto_assertions = _assertions_at(root, onto_sha)
+    head_assertions = _assertions_at(root, head_sha)
+    base_assertions = _assertions_at(root, base_sha)
+    added_assertions = {k: v for k, v in head_assertions.items() if k not in base_assertions}
+    for identifier in sorted(k for k, v in added_assertions.items() if k in onto_assertions and onto_assertions[k] != v):
+        out["conflicts"].append("assertion %s says one thing here and another on %s: an id from an older engine, so a person gives each statement its own" % (identifier, onto[:12]))
     if out["conflicts"]:
         return out
 
@@ -581,10 +675,6 @@ def rebase(root, onto, head="HEAD"):
             vocabulary = json.load(f)
     except (OSError, ValueError):
         vocabulary = None
-    onto_assertions = _assertions_at(root, onto_sha)
-    head_assertions = _assertions_at(root, head_sha)
-    base_assertions = _assertions_at(root, base_sha)
-    added_assertions = {k: v for k, v in head_assertions.items() if k not in base_assertions}
     known = set(onto_assertions) | set(added_assertions)
     findings = _diff.check(target, new_graph, vocabulary, known_assertions=known)
     blocking = _diff.blocking(findings)
@@ -592,7 +682,7 @@ def rebase(root, onto, head="HEAD"):
         out["findings"] = ["%s: %s" % (f.subject, f.detail) for f in blocking]
         return out
 
-    # write: the graph, the previous graph (so undo works), the ledger, the assertions
+    # write: the graph, the previous graph (so undo works), the ledger, the audit log, the assertions
     with open(project.graph_path, "w", encoding="utf-8", newline="\n") as f:
         json.dump(new_graph, f, indent=2, ensure_ascii=False)
         f.write("\n")
@@ -605,16 +695,36 @@ def rebase(root, onto, head="HEAD"):
         lines.append(json.dumps(entry, ensure_ascii=False, sort_keys=True))
     with open(os.path.join(root, LEDGER), "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(lines) + ("\n" if lines else ""))
+    records = _rechained_audit(root, onto_sha, base_sha, head_sha, _audit.graph_version(project))
+    if records:
+        with open(_audit.path(project), "w", encoding="utf-8", newline="\n") as f:
+            for record in records:
+                f.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
     if onto_assertions or added_assertions:
         with open(_assertions.log_path(project), "w", encoding="utf-8", newline="\n") as f:
-            for entry in list(onto_assertions.values()) + list(added_assertions.values()):
+            for entry in list(onto_assertions.values()) + [v for k, v in added_assertions.items() if k not in onto_assertions]:
                 f.write(json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n")
     fingerprint = _diff.fingerprint(_diff.canonical(target, new_graph))
     out["ok"] = True
     out["fingerprint"] = fingerprint
     confirmation = shown.get("confirmation")
     out["holds"] = (confirmation.get("fingerprint") == fingerprint) if confirmation else None
+    out["steps"] = _steps(root, onto_sha, others, shown["entries"])
     return out
+
+
+def _steps(root, onto_sha, others, entries):
+    """Put this change on `onto` as one commit, holding the working tree as `rebase` left it. The index
+    starts from `onto`, so a file main changed meanwhile stays main's: only what this change touches is
+    added. The last checkout brings main's other files into the working tree."""
+    paths = [p for p in REBASED_FILES if p != PREVIOUS and os.path.exists(os.path.join(root, p))]
+    paths += [p for p in sorted(others) if os.path.exists(os.path.join(root, p)) or _blob(root, onto_sha, p)]
+    note = next((e.get("note") for e in reversed(entries) if e.get("note")), None) or "This change, on the new main"
+    return ["git reset -q %s" % onto_sha,
+            "git add -- %s" % " ".join(shlex.quote(p) for p in paths),
+            "git commit -q -m %s" % shlex.quote(note),
+            "git checkout -q -- .",
+            "git push --force-with-lease origin HEAD"]
 
 
 def render_rebase(result):
@@ -631,7 +741,8 @@ def render_rebase(result):
             lines.append("  the confirmation no longer holds: the fact-level diff changed (%s); a person reviews it" % result["fingerprint"][:12])
         else:
             lines.append("  fingerprint %s (no confirmation on this change)" % result["fingerprint"][:12])
-        lines.append("  written: graph.json, graph.previous.json, changelog.jsonl (and the assertions); review, then git add -A && git commit && git push")
+        lines.append("  written: the graph, the ledger, the audit log and the assertions. Review them, then put this change on the new main, as yourself:")
+        lines += ["    %s" % step for step in result["steps"]]
     else:
         lines.append("  nothing written: resolve on the branch, or let a person review the pull request")
     return "\n".join(lines)

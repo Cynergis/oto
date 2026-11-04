@@ -60,6 +60,8 @@ build/*
 *.db
 *.db.new
 __pycache__/
+# What `oto curate undo` restores. It changes on every apply, so tracking it conflicts on every merge.
+graph.previous.json
 """
 
 MCP = {"mcpServers": {"{slug}-kg": {"command": "oto", "args": ["serve", "--project", "."]}}}
@@ -256,7 +258,7 @@ jobs:
         run: |
           git config user.name "oto architecture"
           git config user.email "oto-architecture@users.noreply.github.com"
-          git add -A graph.json graph.previous.json changelog.jsonl audit.jsonl proposals archive build/documents 2>/dev/null || true
+          git add -A graph.json changelog.jsonl audit.jsonl proposals archive build/documents 2>/dev/null || true
           git diff --cached --quiet || git commit -m "oto architecture: compiled from ${{{{ github.sha }}}} [skip ci]"
           git push
 """

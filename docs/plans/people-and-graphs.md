@@ -273,10 +273,11 @@ Two rules of this model are not true yet, and both are required:
    commits unsigned under a generic identity, and a person's own computer signs only if they set that up.
    Otherwise a confirmed change falls back to reviewed and waits. See the decisions below.
 
-### Two contributors today: one works, two damage the record
+### Two contributors: the record now survives both
 
 Tested on 2026-11-04 with two simulated contributors and a local bare repository, using the real `oto
-curate` commands. Each cloned, built, confirmed a different new fact and pushed a branch.
+curate` commands. Each cloned, built, confirmed a different new fact and pushed a branch. Phase 0 fixed what
+broke, and `tests/test_two_contributors.py` now runs the same story.
 
 **What held:**
 
@@ -286,14 +287,14 @@ curate` commands. Each cloned, built, confirmed a different new fact and pushed 
 - The gates refused a value the statement never made ("capacity = 40 appears nowhere in assertion a-0001").
 - The confirmation's fingerprint survives `oto route rebase`.
 
-**What broke, once both merged:**
+**What broke, once both merged, and what phase 0 did about it:**
 
 | Problem | What happened | Fix |
 |---|---|---|
-| **Assertion ids collide** | ids are the next number (`oto/curate/assertions.py:60`), so both people got `a-0001`. After merging, two facts cite one id for two people's different statements, and no gate notices. Provenance is wrong, silently. | ids from the content (`a-<hash>` of who, when and text), so they can't collide and stay stable through a rebase; existing `a-NNNN` stay valid; a check refuses a duplicate id |
-| **An audit record is lost** | `oto route rebase` doesn't touch `audit.jsonl` (`oto/route.py:514`). The merged log held only the second contributor's record, and `oto audit` showed nothing wrong, because that one record chains correctly. The first contributor's write left no trace there, though the ledger kept it. | rebase takes `main`'s log and re-chains the branch's records onto it |
-| **Rebase's instructions leave the conflict** | it says to commit and push (`oto/route.py:634`). The branch still sits on the old base, so the merge conflicted in 5 files. | it says `git reset --soft <onto>`, commit, and `git push --force-with-lease`, which merged cleanly in the test; the curate skill does this for the person |
-| **A generated file is tracked** | `graph.previous.json` is committed, and conflicts every time | stop tracking it (`oto/repo.py:259` adds it in the ingest workflow) |
+| **Assertion ids collide** | ids were the next number, so both people got `a-0001`. After merging, two facts cited one id for two people's different statements, and no gate noticed. Provenance was wrong, silently. | ids come from the content (`a-<hash>` of who, when and text), so they can't collide and stay stable through a rebase. Existing `a-NNNN` stay valid. `oto curate check` and the route gate refuse an id that names two lines of the log |
+| **An audit record is lost** | `oto route rebase` didn't touch `audit.jsonl`. The merged log held only the second contributor's record, and `oto audit` showed nothing wrong, because that one record chained correctly. The first contributor's write left no trace there, though the ledger kept it. | rebase takes `main`'s log and re-chains the branch's records onto it; each moved record names its old hash and the commit |
+| **Rebase's instructions leave the conflict** | it said to commit and push. The branch still sat on the old base, so the merge conflicted in 5 files. | it prints the git steps that put the change on the new `main` as one commit, ending in `git push --force-with-lease`, and the curate skill runs them for the person. This spec first proposed `git reset --soft`, but that keeps the old base's files in the index, so it would have undone whatever `main` changed meanwhile. The steps start the index from `main` instead and add only what this change touches |
+| **A generated file is tracked** | `graph.previous.json` was committed, and conflicted every time | it is ignored, and no workflow adds it. A repository that already tracks it needs `git rm --cached graph.previous.json` once |
 
 **Every second concurrent change needs a rebase.** The ledger, assertions and audit log are append-only,
 and `graph.json` changes too, so two branches from one `main` always conflict. With required up-to-date
@@ -325,9 +326,9 @@ Enterprise Cloud, the required reviewers work as they are.
 
 | Build | Why |
 |---|---|
-| Content-based assertion ids, and a check that refuses duplicates | two contributors collide today, and provenance is silently wrong |
-| `oto route rebase` carries the audit log and gives the right git steps | a merged change can lose another person's audit record, and the printed steps leave the conflict |
-| `graph.previous.json` untracked | it conflicts on every merge |
+| Content-based assertion ids, and a check that refuses duplicates (phase 0, done) | two contributors collided, and provenance was silently wrong |
+| `oto route rebase` carries the audit log and gives the right git steps (phase 0, done) | a merged change could lose another person's audit record, and the printed steps left the conflict |
+| `graph.previous.json` untracked (phase 0, done) | it conflicted on every merge |
 | The merge queue out of the branch rules, or only on Enterprise Cloud | GitHub's docs say Team can't use it on private repositories, so it may refuse the whole ruleset; not yet tried |
 | Deploy secrets in the `oto-main` environment; previews without the store token | contributors can reach them today |
 | Promotion by a pull request on `oto.promote.json` | required reviewers aren't available on Team |
@@ -631,9 +632,7 @@ belongs to phase 3, because its reviewed route needs a second person.
 | Two authors' unrelated additions conflict in 6 of 6 files; 1 of 4 with the three fixes | the test above, run on a scratch copy |
 | The workspace root declares no plugin; only `trial/.claude/settings.json` does | a fresh workspace's tracked files |
 | The gate's approval is any `APPROVED` review | `oto/repo.py:980` |
-| Assertion ids are the next number | `oto/curate/assertions.py:60` |
-| `oto route rebase` never touches the audit log, and says to commit and push | `oto/route.py:514`, `:634` |
-| Two contributors: duplicate id, a lost audit record, 5 files in conflict after rebase's steps, a clean merge after re-parenting | the test above, run on a scratch copy |
+| Two contributors both merge: distinct ids, both audit records, both facts | `tests/test_two_contributors.py` |
 | The branch rules include a merge queue, and require up-to-date checks | `oto/repo.py:1123`, `:1121` |
 | Deploy secrets are repository secrets on a job with no environment; previews use the store token | `oto/repo.py:367`, `:407`, `:427`, `:1053` |
 | `oto-main` already holds the deploy key, for `main` alone | `oto/repo.py:166` |

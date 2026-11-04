@@ -208,9 +208,12 @@ list `session`, or a confirmed change to a class outside `session.classes` (a de
 say, on a board where cards move on the owner's word), goes to a reviewer. Tell the person before
 they expect the change to merge on its own.
 `oto route show --base origin/main` says, before the push, which route the change will take and
-why. If `main` moved meanwhile, `oto route rebase --onto origin/main` re-applies the facts through
-the gates and the confirmation still holds, since the fingerprint is over facts; commit and push
-again.
+why. If `main` moved meanwhile, which happens whenever someone else merged first, `git fetch origin`
+and `oto route rebase --onto origin/main` re-apply the facts through the gates, and the confirmation
+still holds, since the fingerprint is over facts. Run the steps it prints, in order, for the person:
+they put the change on the new `main` as one commit under the person's name, then replace the branch
+with `git push --force-with-lease`. A conflict means both sides changed the same fact or file: nothing
+was written, so tell the person what clashed.
 
 **Never write a confirmation the person did not give.** `--confirm` goes with their name, after
 they said yes to the exact diff you showed; never the pipeline's name, never yours, never on a
@@ -262,7 +265,7 @@ Every fact derived from the statement carries:
 
 ```json
 "source_type": "human_assertion",
-"sources": ["assertion:a-0007"]
+"sources": ["assertion:a-3f9c1e7b2d40"]
 ```
 
 A fact citing an assertion that is not in the log is a **blocking** error. That check is what makes the

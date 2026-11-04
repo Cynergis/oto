@@ -243,7 +243,9 @@ Actions itself, whose token any workflow on any branch can ask for. Every workfl
 checks` runs `oto lock --check`, so the same checks give the same verdicts and an engine upgrade is
 a pull request that moves the lock. A pull request that fell behind `main` re-applies its facts with
 `oto route rebase --onto origin/main`, through the gates; the fingerprint is over facts, so the
-confirmation holds whenever the facts are the same.
+confirmation holds whenever the facts are the same. It re-chains the audit log too, and prints the git
+steps that put the change on the new `main` as one commit. Assertion ids come from who, when and what, so
+two branches can't be given the same one.
 
 The corpus under `build/documents/` is committed in a repository, because it is an input to the
 build and to every review. Nothing reaches `graph.json` on `main` except through a pull request:

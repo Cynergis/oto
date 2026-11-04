@@ -136,6 +136,31 @@ def drift(project):
     return out
 
 
+def take_release(project):
+    """Record the release of the pack this project now derives from, or the next run offers the same one again. Returns (old, new) when it moved, else None."""
+    from . import packs as _packs
+    config_path = project.config_path
+    with open(config_path, encoding="utf-8") as f:
+        config = json.load(f)
+    found = config.get("ontology") or {}
+    pack = found.get("pack") or {}
+    directory = _packs.dir_for(pack.get("name")) if pack.get("name") else None
+    if directory is None:
+        return None
+    manifest = _packs.read(directory)
+    if int(pack.get("release") or 0) == int(manifest["release"]):
+        return None
+    old = pack.get("release")
+    pack["release"] = manifest["release"]
+    embedded = (manifest.get("ontology") or {}).get("release")
+    if embedded is not None:
+        found["release"] = embedded
+    with open(config_path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(config, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    return old, manifest["release"]
+
+
 def write(project):
     """Write ontology.config.json from the packs. Returns the path."""
     config = compose(project)

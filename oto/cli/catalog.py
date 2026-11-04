@@ -198,9 +198,12 @@ def _remote(args):
             from ._common import resolve as _resolve
             project = _resolve(args)
             if _derived.mode(project) == _derived.DERIVED:
+                moved = _derived.take_release(project)
                 _derived.write(project)
                 print("re-derived ontology.config.json from %s; then: oto ontology check, oto build"
                       % ", ".join("%s @%s" % (n, r) for n, r in _derived.releases(project)))
+                if moved:
+                    print("  the pack moved from release %s to %s" % moved)
                 routed = _derived.write_routes(project)
                 if routed:
                     print("re-derived routes from %s: %s%s%s"

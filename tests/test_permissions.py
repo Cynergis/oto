@@ -584,3 +584,10 @@ def test_making_a_graph_names_its_steward_and_store(tmp_path):
     assert found["stewards"] == ["dana"] and found["store"] == "acme/kb-store"
     assert not sandbox._name_the_creator(root, "acme/kb", "someone-else", None), "a steward already named stays"
     assert access.load(root)["stewards"] == ["dana"]
+
+
+def test_a_refusal_says_githubs_reason_not_just_the_status():
+    body = json.dumps({"message": "Validation Failed", "errors": [{"code": "custom", "message": "seat_limit You must purchase at least one more seat to add this user as a collaborator."}]})
+    assert "at least one more seat" in repo.gh_reason(body, "gh: Validation Failed (HTTP 422)")
+    assert repo.gh_reason("", "gh: Not Found (HTTP 404)") == "gh: Not Found (HTTP 404)"
+

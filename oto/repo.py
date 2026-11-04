@@ -1474,6 +1474,13 @@ def _github(token=None, gh=None):
     return run
 
 
+def gh_reason(out, err):
+    """Why GitHub refused, in its words. `gh` says "Validation Failed (HTTP 422)" on stderr, and the reason is in the body on stdout: a seat limit, say."""
+    found = _json(out, {}) if out else {}
+    details = [e.get("message") for e in (found.get("errors") or []) if isinstance(e, dict) and e.get("message")] if isinstance(found, dict) else []
+    return "; ".join(details) or (isinstance(found, dict) and found.get("message")) or (err or out or "").strip()[-300:]
+
+
 def _json(text, default):
     try:
         value = json.loads(text)

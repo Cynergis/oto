@@ -4,6 +4,82 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.21.0 — 2026-11-04
+
+**People, permissions and many graphs.** Six pull requests (184 to 189): phases 0, 2, 3, 4 and 5 of
+[the people and graphs spec](docs/plans/people-and-graphs.md), on top of phase 1 in 0.20.1. Several people can now work on one
+vocabulary and one graph, and a graph's access is a file reviewed like code. The server on Cloud Run is built but not yet deployed.
+
+**Only phase 1 has run on real services.** The rest passes its tests against fakes and local repositories. Sections 38 to 42 of
+[the end-to-end guide](docs/E2E-TESTING.md) are written and not yet run, so try them on a scratch repository before relying on them for a client.
+
+```bash
+uv tool install --force "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v0.21.0"
+```
+
+### Two people on one graph
+
+- **Assertion ids come from who said what, and when**, so two branches can't get the same one. Old numbered ids stay valid, and the gates refuse one id naming two statements.
+- **`oto route rebase` keeps the record.** It moves the branch's audit records onto `main`'s log and prints git steps that merge cleanly. It refuses another file both sides changed, and uncommitted work.
+- **An approval counts only if it deserves to.** It must be of the head commit, by someone who didn't write it and who has write access, and whom the access file at the base names, when it names anyone.
+- **`graph.previous.json` is no longer tracked**, because it conflicted on every merge.
+
+### Two people on one vocabulary
+
+- **`oto pack format`** keeps the pack's files canonical, and `oto pack check --strict` now holds them to it.
+- **`oto pack rebase --onto <ref>`** merges a branch term by term, and stops only when one term was changed two ways.
+- **`oto pack diff --base <ref>`** says what moved, and `oto pack check --against <release>` names what would break a graph already on the pack.
+- **`oto repo rules --apply`** sets a workspace's own rules: the check, one approval, code owners on the vocabulary, and release tags for maintainers.
+- **`oto sandbox up --clone <repo>`** starts from a repository that exists, and never commits, pushes or touches the rules.
+
+### Permissions
+
+- **`.github/oto-access.json`** says who holds each role. `oto repo access --apply` sets GitHub to match, `--check` reports drift, and `--owners` writes `CODEOWNERS` from the stewards.
+- **`oto repo commit`** has GitHub make and sign the commit, so the session route needs no key on the computer. `--by` is then the person's GitHub login.
+- **Promotion is a pull request** on `oto.promote.json`, which stewards own.
+- **`oto sandbox up --repo`** makes the store beside a new graph, names its creator the steward, and sets the topic `oto-graph`.
+
+### Secrets
+
+- **The deploy job reads its secrets from the environment `oto-main`**, which only `main` deploys from, because a workflow on any branch can read a repository secret. Previews hold no store token, and keep an artifact.
+- **`pack-publish.yml` reads its token from `oto-release`**, which only release tags deploy from.
+
+### The platform
+
+- **`oto registry graphs --org <org>`** fills a directory in the registry from the topic `oto-graph`, and refuses two graphs with one slug. The catalog lists them, and `oto graphs add <slug>` finds the address there.
+- **`oto registry fleet`** is one view of every graph: engine and pack against the newest, last deploy, stale pull requests and access drift.
+- **`oto-pack-update`** opens a pull request when the graph's pack has a new release.
+- **`oto repo retire --confirm <owner/name>`** archives a graph and its store. `--neo4j` also deletes that graph's nodes.
+
+### The server on Cloud Run
+
+- **`oto serve --iap`** verifies the identity-aware proxy's signature on every request, so who asks is the email Google signed. It needs the new `cloud` extra and `OTO_IAP_AUDIENCE`.
+- **`POST /mcp`** speaks MCP's HTTP transport, and **`OTO_READ_LOG`** logs every read under the person's name. `--iap` turns the log on.
+- **`oto-server`** builds the container and deploys it, once `OTO_GCP_PROJECT` is set. `oto graphs add <name> --server <url>` connects a sandbox with no login in it, though signing in from the gateway is still the main open question.
+- **`kg_call`** sends `OTO_CALL_TOKEN_<SLUG>`, else `OTO_CALL_TOKEN`.
+
+### Changes that need a step in a repository that already exists
+
+A release doesn't rewrite a repository's workflows. To get the new ones, generate a fresh set and copy over what you need, by a pull request, since code owners own `.github/`. Don't use `oto init --force` in an existing project: it overwrites your configuration.
+
+```bash
+oto init --repo --slug <your slug> --name "<your name>" --project /tmp/oto-fresh
+```
+
+**A knowledge repository:**
+
+- **Workflows:** copy `.github/workflows/` from that folder. The gate's new approval rule lives in `oto-route.yml`, so it doesn't apply until you do.
+- **`graph.previous.json`:** add it to `.gitignore`, then run `git rm --cached graph.previous.json` once.
+- **Secrets:** run `gh secret set NEO4J_PASSWORD --env oto-main`, and the same for `OTO_QUERY_REPO_TOKEN`, then delete the repository secrets of those names. The old ones keep working until you do, and stay readable from any branch.
+- **Branch rules:** take the `merge_queue` rule out of `.github/oto-rules.json` before running `oto repo rules --apply`. GitHub's docs say the Team plan refuses it on a private repository.
+- **Promotion:** the deploy workflow's promote jobs now run only with the repository variable `OTO_PROMOTE_ON_MERGE` set to `true`, for a plan with required reviewers on environments. Otherwise, promote through `oto.promote.json`.
+
+**A pack workspace:**
+
+- **Canonical files:** run `oto pack format .`, or `oto pack check --strict` now fails.
+- **The trial's copies:** generate a fresh workspace with `oto pack new <name> --to /tmp/oto-fresh`, copy its `.gitignore` and `.github/`, then run `git rm --cached trial/ontology.config.json trial/questions.json trial/rules.json`, leaving out any that aren't tracked.
+- **The registry's token:** put it in the new environment with `gh secret set OTO_REGISTRY_TOKEN --env oto-release`, which `oto repo rules --apply` creates.
+
 ## 0.20.1 — 2026-11-04
 
 **Read graphs live from a sandbox.** One pull request (182), phase 1 of

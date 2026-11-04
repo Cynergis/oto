@@ -359,7 +359,12 @@ graph by graph, and every answer comes from Neo4j at that moment. A graph you ha
 
 No file holds a password, but the login sits inside the sandbox, where Claude could read it and do whatever it
 allows. So this suits a small, trusted team. [docs/plans/people-and-graphs.md](docs/plans/people-and-graphs.md)
-has the reasoning, and the separate server that makes access per person.
+has the reasoning.
+
+The server on Cloud Run makes access per person, revocable and logged. The graph's `oto-server` workflow deploys `oto serve --iap` behind Google's
+identity-aware proxy, where only the server holds the database login. It verifies who asks on every request, so removing someone refuses their next one, and every
+read is logged under their name. `oto graphs add <name> --server <url>` connects a sandbox to it, with no login inside. Signing in from a sandbox's gateway hasn't been tried
+on a real server yet.
 
 ## Measuring whether the answers are good
 

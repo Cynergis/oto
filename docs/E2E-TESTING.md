@@ -23,7 +23,7 @@ beside it (`tools/e2e_core.sh`) that the suite runs. Start there; this document 
 
 The sections follow the order the features were built, and [ADR-0006](adr/0006-the-core-and-the-packs.md)
 draws one line through them. The **core**, the knowledge graph with its tools and its deploy, is
-sections 1 to 17, 19, 20, 23 to 27, 33 to 41: install, a project, documents in, the vocabulary, rules,
+sections 1 to 17, 19, 20, 23 to 27, 33 to 42: install, a project, documents in, the vocabulary, rules,
 authoring under the gates, time, query and serve, evaluation, Neo4j, repository mode, the query
 repository, specs and decisions, an ontology of your own, tools, deploy, audit and tracing, graphs
 that know each other, the engine's own CI, the ontology explorer, the pack seams, the three routes into main, the routes' policy a pack carries, and the sandbox kit. Drive these first: they are
@@ -51,6 +51,7 @@ composes it, or fetched by `oto init --ontology <name>` itself on a machine that
 | A GitHub organisation where you can create repositories, secrets and variables | 11, 12, 13, 16 | the knowledge repository, the query repository, the engine's CI |
 | A Neo4j reachable from GitHub Actions (a public endpoint, or a self-hosted runner beside it) | 11 | repository variable `NEO4J_URI`, secret `NEO4J_PASSWORD` in the environment `oto-main` |
 | A token that can write to the query repository | 11, 13 | secret `OTO_QUERY_REPO_TOKEN` in the environment `oto-main` |
+| A Google Cloud project with Cloud Run, IAP and Secret Manager, and two Google accounts | 42 | the workflow's variables `OTO_GCP_PROJECT`, `OTO_GCP_REGION`, `OTO_GCP_WORKLOAD_IDENTITY_PROVIDER`, `OTO_GCP_SERVICE_ACCOUNT` |
 | A second GitHub account, with read access to a test repository | 38, 39, 40 | it approves a pull request and is not counted |
 | Your deny terms for the publishability gate | 16 | `OTO_DENY_TERMS` in your shell, and as a secret on the engine repository |
 
@@ -1781,3 +1782,36 @@ oto registry graphs . --org <org>                # it has left the directory
 
 Pass when the fleet shows every graph's versions and drift in one view, and says so for a graph it can't read; a pack's release opens a pull request on the reviewed route; `oto graphs add <slug>`
 needs no address; and a retired graph is archived, not deleted, and gone from the directory.
+
+## 42. The server on Cloud Run: signed in as a person, removed, and logged
+
+[docs/plans/people-and-graphs.md](plans/people-and-graphs.md), phase 5. Exercises: the container and its workflow, `oto serve --iap`, the MCP endpoint, the read log, `oto graphs add --server` and `kg_call`
+with a credential. `tests/test_server.py` runs a real server process behind signed requests, with a key of its own; this runs what only Google Cloud can show.
+
+```bash
+printf '%s' '<user>' | gcloud secrets create <slug>-neo4j-user --data-file=-         # the graph's login, in Secret Manager: nowhere else
+read -rs "P?Password: " && printf '%s' "$P" | gcloud secrets create <slug>-neo4j-password --data-file=-; unset P
+gh variable set OTO_GCP_PROJECT --body <project>; gh variable set OTO_GCP_REGION --body <region>
+gh variable set OTO_GCP_WORKLOAD_IDENTITY_PROVIDER --body <provider>; gh variable set OTO_GCP_SERVICE_ACCOUNT --body <deployer>
+gh workflow run oto-server.yml                                                         # builds the container, and deploys <slug>-kg behind the proxy
+
+# access, one person at a time
+gcloud beta iap web add-iam-policy-binding --resource-type=cloud-run --service=<slug>-kg --region=<region> --member=user:<first> --role=roles/iap.httpsResourceAccessor
+curl -s -o /dev/null -w '%{http_code}\n' https://<service>.run.app/mcp                   # refused, or sent to Google's sign-in: no way in unsigned
+
+# from a sandbox: no login inside it
+oto graphs add <name> --server https://<service>.run.app/mcp --project ~/graphs-try/project && oto sandbox up --name graphs-try
+sbx exec graphs-try -- sh -c 'env | grep -c NEO4J'                                      # 0
+#   in Claude Desktop, on graphs-try.sbx: ask a question the graph can answer
+
+# who read what
+gcloud logging read 'jsonPayload.event="oto.read"' --limit 5                            # the question, under the person's email
+
+# removing them
+gcloud beta iap web remove-iam-policy-binding --resource-type=cloud-run --service=<slug>-kg --region=<region> --member=user:<first> --role=roles/iap.httpsResourceAccessor
+#   their next question is refused, and nobody else is affected
+```
+
+Pass when the container builds with no token in it; the database login is only in Secret Manager; a person signed in through IAP queries the graph through their sandbox's gateway; removing them refuses their next request;
+and the read is logged under their name. **Signing in from the gateway is what this section has to settle.** IAP takes an OIDC identity token rather than MCP's OAuth discovery, so `sbx mcp add --url` may need
+`--header` with a stored secret, whose token expires within an hour, or a small proxy run on the computer.

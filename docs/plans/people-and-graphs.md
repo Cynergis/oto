@@ -1,7 +1,8 @@
 # Spec: people, permissions and many graphs
 
-Status: proposed on 2026-11-04, and reviewed capability by capability that day. Nothing here is built unless
-the last section says it exists. Commands marked *new* do not exist yet.
+Status: proposed on 2026-11-04, reviewed capability by capability that day, and built that day through phase 5. Each
+phase ran on real services only where the build plan says so: much of it needs other accounts or a Google Cloud project,
+and "Not yet run on real services" below lists it.
 
 Three capabilities, and how to run them as a platform:
 
@@ -53,7 +54,7 @@ route rebase` is needed in both cases. What is lost is merging several ready cha
 | **Store** | a built, read-only copy, used for previews, promotion and offline work: the facts, and the documents' extracted text as passages, not the files | a query repository, one branch per environment | one per graph |
 | **Graph directory** | which graphs the organisation has, and how to reach them | inside the registry | one per organisation |
 | **Graph connections** | which graphs this person uses: a folder of connection settings per graph, and a server for each in `.mcp.json` | the project folder of the person's sandbox | one per graph |
-| **Server on Cloud Run** (later) | `oto serve --http`, which alone holds the database login | your Google Cloud project | one per graph |
+| **Server on Cloud Run** | `oto serve --http --iap`, which alone holds the database login | your Google Cloud project | one per graph |
 
 ```mermaid
 flowchart LR
@@ -473,33 +474,33 @@ Desktop itself, and two instances with separate logins, which AuraDB Free's sing
 
 So one server per graph is the design for now, and a single entry point waits for the Cloud Run server.
 
-### Later: the server on Cloud Run
+### The server on Cloud Run
 
-The separate server is a later improvement, and it is what makes access truly per person, revocable and logged.
+The separate server is what makes access truly per person, revocable and logged. Phase 5 built it, and it hasn't been deployed yet.
 
 ```text
 Claude in the sandbox  --signed in as A-->  oto serve on Cloud Run  --server's login-->  Neo4j
 ```
 
-- **Running it.** A container with `oto-kg[neo4j]`, running `oto serve --http 0.0.0.0:$PORT`. The engine already reads
-  its login from the environment, which Secret Manager can fill. One service per graph, because one process serves one
-  graph; idle services can scale to zero, at the cost of a slower first question.
-- **Per-person access.** Deploy with `--iap`, and grant or remove people one at a time with `roles/iap.httpsResourceAccessor`.
-  Removal takes effect on the next request, and the person never held the database login.
-- **It fits the sandbox.** `sbx mcp add northwind --url https://...` registers the server. The sandbox tool handles the
-  sign-in or header on the computer, so no secret enters the sandbox, and nothing else about the sandbox changes. Only the
-  `.mcp.json` entries go.
+- **Running it.** The `oto-server` workflow builds a container from a pinned wheel of the engine, with no token inside, and runs `oto serve --iap --http 0.0.0.0:$PORT`. The engine reads its login from the
+  environment, which Secret Manager fills. One service per graph, because one process serves one graph; idle services can scale to zero, at the cost of a slower first question.
+- **Who asks.** `--iap` needs `OTO_IAP_AUDIENCE` and the `cloud` extra, and refuses to start without them. It verifies the proxy's signed assertion on every request, ES256 only, against Google's published keys,
+  so who asks is the email Google signed, and a stated `X-Oto-Principal` counts for nothing. `OTO_SERVE_TOKEN` isn't needed, and `/rpc`, `/mcp`, `/api` and the views all sit behind it.
+- **Per-person access.** Grant or remove people one at a time with `roles/iap.httpsResourceAccessor`. Removal takes effect on their next request, and the person never held the database login.
+- **The MCP endpoint.** `POST /mcp` speaks MCP's streamable HTTP transport with JSON answers: a notification gets 202, a batch is answered as one, and `GET` gets 405, since it opens no stream.
+- **The read log.** `oto serve --iap` logs every read as one JSON line on stderr, which Cloud Run sends to Cloud Logging: who, which tool, what they asked, shortened, and never the answer. `OTO_READ_LOG` also turns it on
+  anywhere else, to stderr or a file.
+- **It fits the sandbox.** `oto graphs add <name> --server <url>` writes a connection with no login, and `oto sandbox up` registers it with `sbx mcp add` and attaches it with `sbx mcp load`. No secret enters the sandbox.
+- **Forwarded calls.** `kg_call` sends `OTO_CALL_TOKEN_<SLUG>`, else `OTO_CALL_TOKEN`, so a graph behind a token no longer answers 401.
 - **Different access inside one graph** becomes possible, because the server sees every request and could filter per
-  person. OTO's policy pack models principals, roles and rules, but only `kg_read` enforces them today (`oto/serve/engine.py:1240`).
+  person. OTO's policy pack models principals, roles and rules, but only `kg_read` enforces them today (`oto/serve/engine.py`). Behind the proxy the principal is `principal`'s email, so a policy has to name people that way.
 
-**Still unproven or missing:**
+**Still unproven:**
 
-- The engine won't start beyond localhost without `OTO_SERVE_TOKEN` (`oto/serve/http.py:74`), so it needs a setting for
-  running behind IAP. That token is shared by everyone, and `X-Oto-Principal` is a header the caller states
-  (`oto/serve/http.py:193`), so neither is identity.
-- `POST /rpc` has not been tried as an MCP endpoint through the sandbox's gateway.
-- Signing in through IAP from the gateway is untested.
-- There is no container or deploy workflow, and no log of who read what. Refused reads are recorded today; permitted ones are not.
+- **Signing in from the sandbox's gateway.** IAP takes an OIDC identity token rather than MCP's OAuth discovery, so `sbx mcp add --url` may need `--header` with a stored secret, whose token expires within an hour, or a small
+  proxy run on the computer. This is the main open question, and E2E section 42 has to settle it.
+- **`gcloud beta run deploy --iap`.** The workflow has never run, and neither has the container: building it needs a base image I didn't download without asking. Nothing has been deployed.
+- **The real proxy's assertion.** The server is tested against assertions signed with a test key, in the shape Google documents.
 
 ### A copy, as an option
 
@@ -517,7 +518,7 @@ store repository is then the permission, no database is involved, and the copy c
 | A graph's description from the pack's summary, or set when the graph is created | it was boilerplate | phase 1 |
 | The plugin's own server stays out of the way in a folder of connections | it added 22 tools that answered nothing | phase 1 |
 | The query-knowledge skill asks each graph and answers per graph | graphs on one pack look alike | phase 1 |
-| The Cloud Run container and deploy workflow, a setting for IAP, the MCP endpoint, a read log, and `kg_call` sending a credential | see above | phase 5 |
+| The Cloud Run container and deploy workflow, a setting for IAP, the MCP endpoint, a read log, and `kg_call` sending a credential | see above | phase 5, not yet deployed |
 
 ## Operating the platform
 
@@ -550,7 +551,7 @@ uv tool install "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v<ve
 | See one graph | anyone with access | `oto status`, `oto deploy status` | exists |
 | See all graphs | platform owner | `oto registry fleet`, from the directory: engine, pack release, last deploy, stale pull requests, access drift | built |
 | Audit a change | steward, auditor | the ledger with its confirmations, `audit.jsonl`, route verdicts on pull requests, GitHub's audit log | exists |
-| Audit a read | steward, auditor | nothing records it for now; the server's read log, later | new |
+| Audit a read | steward, auditor | the server's read log, in Cloud Logging; nothing records a read made with a Neo4j login | built, for the server |
 | Correct a wrong fact | contributor | curate it: the new fact supersedes the old one, and nothing is overwritten | exists |
 | Retire a graph | steward | `oto repo retire --confirm <owner/name> [--neo4j]`: archive both repositories, leave the directory, delete its nodes from Neo4j | built |
 | Recover | platform owner | rebuild from the repository; stores are derived | exists |
@@ -590,6 +591,8 @@ graph's versions and drift.
 
 Each phase ends with a real test, recorded in `docs/E2E-TESTING.md`.
 
+**Not yet run on real services.** Phase 1 ran on real Aura. Everything else below passes its automated tests against fakes and local repositories, and these have not run for real: E2E section 38 (phase 0: the rules on a private Team repository, a read-only approval, a branch's reach), section 39 (phase 2: a workspace's rules, a tag publishing to a private registry), section 40 (phase 3: permissions, whether a commit GitHub makes shows as verified), section 41 (phase 4: the directory, a pack update's pull request, retiring), section 42 (phase 5: all of it on Google Cloud).
+
 | Phase | Delivers | Done when |
 |---|---|---|
 | **0. Fixes** | content-based assertion ids; `oto route rebase` keeps the audit log and gives the right git steps; `graph.previous.json` untracked; the merge queue out of the rules on Team; deploy secrets in `oto-main`, previews without the store token; the gate counts only qualified approvers; `require_pr` and `connection.secret` implemented or removed | two contributors confirm different facts and both merge: distinct assertion ids, both audit records, both facts. On real GitHub, with a second account: the rules apply on a private Team repository, a read-only approval doesn't pass, a branch workflow can't read the deploy secrets, and the code-owner and deploy-key checks of E2E section 34 pass |
@@ -609,7 +612,7 @@ belongs to phase 3, because its reviewed route needs a second person.
 | Where do answers come from? | live from Neo4j | the requirement; a local copy is only an option |
 | How do people work? | in an OTO sandbox that holds every tool | one way in, with nothing else to install |
 | How does a sandbox reach Neo4j, for now? | the login in its environment (option A) | the simplest; its risks are stated in capability 3 |
-| Is there a separate server? | later, on Cloud Run | it is what makes access per person, revocable and logged |
+| Is there a separate server? | yes, on Cloud Run: built in phase 5, not yet deployed | it is what makes access per person, revocable and logged |
 | How do Aura instances map to access? | one instance per access boundary | a login reads every graph in its database |
 
 ## Decisions still open

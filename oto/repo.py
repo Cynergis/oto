@@ -597,6 +597,69 @@ jobs:
           gh pr view oto/pack-update --json number > /dev/null 2>&1 || gh pr create --head oto/pack-update --title "A new release of the pack $pack" --body-file update.md
 """
 
+SERVER_DOCKERFILE = """# The graph's server on Cloud Run: `oto serve` alone holds the database login, from Secret Manager, and people reach it signed in through
+# the identity-aware proxy. Built by .github/workflows/oto-server.yml, which puts the engine's wheel and the project's config beside this file.
+FROM python:3.12-slim
+WORKDIR /app
+COPY wheels/ /wheels/
+RUN pip install --no-cache-dir "$(ls /wheels/*.whl)[neo4j,cloud]"
+COPY project.config.json /app/project.config.json
+CMD ["sh", "-c", "exec oto serve --project /app --iap --http 0.0.0.0:${PORT:-8080}"]
+"""
+
+SERVER_WORKFLOW = """name: oto server
+
+# The graph's server on Cloud Run (docs/plans/people-and-graphs.md): `oto serve`, which alone holds the database login, behind the identity-aware proxy. Grant or
+# remove a person with roles/iap.httpsResourceAccessor, which takes effect on their next request, and every read is logged in Cloud Logging under their name.
+# Off until the repository variables are set: OTO_GCP_PROJECT, OTO_GCP_REGION, and for the deploy OTO_GCP_WORKLOAD_IDENTITY_PROVIDER and OTO_GCP_SERVICE_ACCOUNT.
+# Secret Manager holds {slug}-neo4j-user and {slug}-neo4j-password.
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ "oto.lock.json", "project.config.json", ".github/oto-server/**" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    if: vars.OTO_GCP_PROJECT != ''
+    runs-on: ubuntu-latest
+    environment: {main_environment}
+    env:
+      ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
+      OTO_ENGINE_TOKEN: ${{{{ secrets.OTO_ENGINE_TOKEN }}}}
+      SERVICE: {slug}-kg
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Reach the engine repository when it is private
+        run: if [ -n "$OTO_ENGINE_TOKEN" ]; then git config --global url."https://x-access-token:${{OTO_ENGINE_TOKEN}}@github.com/".insteadOf "https://github.com/"; fi
+      - name: Install the engine from its repository
+        run: {pip}
+      - name: The container's context, with no token in it
+        run: |
+          python -m pip wheel --no-deps -w .github/oto-server/wheels "oto-kg @ git+${{ENGINE}}${{ENGINE_REF}}"
+          cp project.config.json .github/oto-server/project.config.json
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{{{ vars.OTO_GCP_WORKLOAD_IDENTITY_PROVIDER }}}}
+          service_account: ${{{{ vars.OTO_GCP_SERVICE_ACCOUNT }}}}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Deploy it behind the proxy
+        run: |
+          number=$(gcloud projects describe "${{{{ vars.OTO_GCP_PROJECT }}}}" --format="value(projectNumber)")
+          gcloud beta run deploy "$SERVICE" --source .github/oto-server --project "${{{{ vars.OTO_GCP_PROJECT }}}}" --region "${{{{ vars.OTO_GCP_REGION }}}}" \\
+            --iap --no-allow-unauthenticated --quiet \\
+            --set-secrets "NEO4J_USER={slug}-neo4j-user:latest,NEO4J_PASSWORD={slug}-neo4j-password:latest" \\
+            --set-env-vars "OTO_IAP_AUDIENCE=/projects/$number/locations/${{{{ vars.OTO_GCP_REGION }}}}/services/$SERVICE,OTO_READ_LOG=stderr"
+"""
+
 ACCESS = """name: oto access
 
 # Permissions are a file, reviewed like code (.github/oto-access.json). When it changes on main, this sets GitHub to match;
@@ -635,9 +698,11 @@ jobs:
         run: {pip}
       - name: Set GitHub to match the file, when it changed
         if: github.event_name == 'push'
-        run: if [ -n "$GH_TOKEN" ]; then oto repo access --apply --project . --repo "${{{{ github.repository }}}}"; else echo "no OTO_ACCESS_TOKEN in {main_environment}: the file is not applied"; fi
+        run: |
+          if [ -n "$GH_TOKEN" ]; then oto repo access --apply --project . --repo "${{{{ github.repository }}}}"; else echo "no OTO_ACCESS_TOKEN in {main_environment}, so the file is not applied"; fi
       - name: Say whether GitHub has drifted from it
-        run: if [ -n "$GH_TOKEN" ]; then oto repo access --check --project . --repo "${{{{ github.repository }}}}"; else echo "no OTO_ACCESS_TOKEN in {main_environment}: nothing checked"; fi
+        run: |
+          if [ -n "$GH_TOKEN" ]; then oto repo access --check --project . --repo "${{{{ github.repository }}}}"; else echo "no OTO_ACCESS_TOKEN in {main_environment}, so nothing is checked"; fi
 """
 
 AUTHOR = r'''name: oto author
@@ -1743,6 +1808,8 @@ def files(slug, name, engine=None, architecture=False):
         os.path.join(".github", "workflows", "oto-promote.yml"): PROMOTE.format(pip=pip, engine=engine, main_environment=MAIN_ENVIRONMENT),
         os.path.join(".github", "workflows", "oto-access.yml"): ACCESS.format(pip=pip, engine=engine, main_environment=MAIN_ENVIRONMENT),
         os.path.join(".github", "workflows", "oto-pack-update.yml"): PACK_UPDATE.format(pip=pip, engine=engine),
+        os.path.join(".github", "workflows", "oto-server.yml"): SERVER_WORKFLOW.format(pip=pip, engine=engine, slug=slug, main_environment=MAIN_ENVIRONMENT),
+        os.path.join(".github", "oto-server", "Dockerfile"): SERVER_DOCKERFILE,
         RULES_FILE: rules_text(),
         _access.FILE: _access.starter_text(),
         os.path.join(".github", "workflows", "oto-author.yml"): fill(AUTHOR),

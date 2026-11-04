@@ -115,6 +115,8 @@ elif args[:1] == ["stop"]:
     state["sandboxes"][args[-1]]["running"] = False
 elif args[:2] == ["setup", "ssh"]:
     state["ssh"] = True
+elif args[:1] == ["mcp"]:
+    pass
 save()
 sys.stdout.write(out)
 sys.stderr.write(err)

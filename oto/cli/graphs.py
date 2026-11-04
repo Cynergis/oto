@@ -79,7 +79,7 @@ def cmd_graphs(args):
             print("oto: graphs add takes a name and the graph's address: oto graphs add <name> --uri neo4j+s://<id>.databases.neo4j.io", file=sys.stderr)
             return 1
         uri, database, slug, label, subject = args.uri, args.database, args.slug, args.label, args.subject
-        if not uri:
+        if not uri and not args.server:
             from .. import directory as _directory
             listed = _directory.lookup(args.name)
             if listed is None:
@@ -91,11 +91,15 @@ def cmd_graphs(args):
                 return 1
             uri, database = where["uri"], database or where.get("database")
             slug, label, subject = slug or listed.get("slug"), label or listed.get("label"), subject or listed.get("subject")
-        done = _connections.add(root, args.name, uri, database=database, slug=slug, label=label, subject=subject)
+        done = _connections.add(root, args.name, uri, database=database, slug=slug, label=label, subject=subject, server=args.server)
         if done["already"]:
             print("%s is already here; nothing changed" % done["name"])
+        elif args.server:
+            print("added the graph %s, read through its server at %s. `oto sandbox up` registers it with the sandbox tool as %s: no login enters the sandbox" % (done["name"], args.server, done["server"]))
         else:
             print("added the graph %s, read through the server %s (%s)" % (done["name"], done["server"], _connections.MCP_FILE))
+        if args.server:
+            return 0
         print("  its login goes in %s, in your terminal's environment and never in a file; `oto sandbox up` passes those into the sandbox it makes"
               % " and ".join(done["variables"]))
         return 0
@@ -135,6 +139,7 @@ def register(sub):
                              "login is set; rm <name>: take one out")
     graphs.add_argument("name", nargs="?", help="for add and rm: the graph's name here, lowercase with hyphens; its server is <name>-kg")
     graphs.add_argument("--uri", default=None, help="for add: the graph's Neo4j address, e.g. neo4j+s://<id>.databases.neo4j.io (default: from the registry's directory, by the name)")
+    graphs.add_argument("--server", default=None, help="for add: the graph's server on Cloud Run, its https /mcp URL, in place of a Neo4j address: no login enters the sandbox")
     graphs.add_argument("--database", default=None, help="for add: the database in that instance (on a new Aura instance, usually its id; default neo4j)")
     graphs.add_argument("--slug", default=None, help="for add: the slug the graph was loaded under, which selects it in the database (default: the name)")
     graphs.add_argument("--label", default=None, help="for add: what to call the graph (default: from the name)")

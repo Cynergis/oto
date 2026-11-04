@@ -1294,6 +1294,14 @@ ROUTE_OF = {"kg_entity": "entity", "kg_neighbors": "neighbors", "kg_search": "se
             "kg_brief": "brief", "kg_dependencies": "dependencies"}
 
 
+def call_headers(target):
+    """What a forwarded call carries to a graph behind a token: `OTO_CALL_TOKEN_<SLUG>`, that graph's own, else `OTO_CALL_TOKEN`. From the environment only."""
+    slug = str((target.get("attributes") or {}).get("slug") or str(target.get("id") or "").replace("graph.", ""))
+    own = "OTO_CALL_TOKEN_%s" % re.sub(r"[^A-Z0-9]+", "_", slug.upper())
+    token = (os.environ.get(own) or os.environ.get("OTO_CALL_TOKEN") or "").strip()
+    return {"Authorization": "Bearer %s" % token} if token else {}
+
+
 def call_text(graph, tool, arguments=None, timeout=15):
     """One tool call forwarded to a dependency over HTTP: GET <reach>/api/<route>?<arguments>, the
     dependency's text back, prefixed with where it came from. One hop: a forwarded call is never
@@ -1318,7 +1326,7 @@ def call_text(graph, tool, arguments=None, timeout=15):
         query[k] = json.dumps(v) if isinstance(v, (dict, list)) else str(v)
     url = reach.rstrip("/") + "/api/" + ROUTE_OF[tool] + ("?" + urllib.parse.urlencode(query) if query else "")
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as r:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=call_headers(target)), timeout=timeout) as r:
             body = json.loads(r.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         try:
@@ -1598,14 +1606,17 @@ def respond(req, caller=None):
         if STORE is None:
             return message({"content": [{"type": "text", "text": no_data_message()}], "isError": True})
         from .. import tracing
+        from . import readlog as _readlog
         with tracing.span("kg." + (name[3:] if name.startswith("kg_") else name), tool=name, arguments=args) as span:
             try:
                 text = tool["fn"](args)
                 tracing.annotate(span, **{"result.chars": len(text or ""), "result.error": False})
+                _readlog.record(CALLER, name, args, True, graph=SLUG)
                 return message({"content": [{"type": "text", "text": text}], "isError": False})
             except Exception as e:
                 log("tool error", name, e)
                 tracing.annotate(span, **{"result.error": True, "result.exception": type(e).__name__})
+                _readlog.record(CALLER, name, args, False, graph=SLUG)
                 return message({"content": [{"type": "text", "text": f"error: {e}"}], "isError": True})
     if mid is not None:
         return message(error={"code": -32601, "message": f"method not found: {method}"})

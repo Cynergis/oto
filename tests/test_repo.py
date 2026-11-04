@@ -1,5 +1,7 @@
 """A project laid out for GitHub, and a plugin that installs the engine on demand."""
 import json
+
+import pytest
 import os
 import tempfile
 
@@ -320,3 +322,15 @@ def test_a_preview_is_built_for_every_pull_request():
     assert "gh pr comment" in preview and "--edit-last" in preview, "one comment per pull request, edited on every push"
     guide = files["CLAUDE.md"]
     assert "preview" in guide.lower()
+
+
+def test_every_generated_workflow_is_valid_yaml_with_jobs():
+    """GitHub ignores a workflow it can't parse, without a word: an unquoted `: ` in a shell line did this to oto-access.yml."""
+    yaml = pytest.importorskip("yaml")
+    from oto import directory
+    from oto.model import packs
+    texts = {path: text for path, text in repo.files("acme", "Acme", architecture=True).items() if path.endswith(".yml")}
+    texts.update({"pack-check": packs.PACK_CHECK_WORKFLOW, "pack-publish": packs.PACK_PUBLISH_WORKFLOW, "oto-graphs": directory.WORKFLOW})
+    for name, text in texts.items():
+        assert yaml.safe_load(text).get("jobs"), name
+

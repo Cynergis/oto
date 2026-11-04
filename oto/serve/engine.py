@@ -59,6 +59,8 @@ if os.environ.get("OTO_PROJECT_CONFIG") and os.path.exists(os.path.join(os.path.
     PROJECT_ROOT = os.path.dirname(os.path.abspath(os.environ["OTO_PROJECT_CONFIG"]))
 #: How the store is being served: live, or a preview (built on command, or on every change).
 MODE = {"regime": "live"}
+#: What this server tells its host about itself: what a connection's graph holds (oto graphs add --subject)
+INSTRUCTIONS = "%s: %s" % (_pcfg.get("name"), _pcfg["description"].strip()) if (_pcfg.get("description") or "").strip() else None
 SLUG = _pcfg.get("slug") or "oto"
 NAME = _pcfg.get("name") or "OTO"
 SERVER_NAME = _pcfg.get("server_name") or ("%s-kg" % SLUG)
@@ -1576,13 +1578,17 @@ def respond(req, caller=None):
 
     if method == "initialize":
         proto = params.get("protocolVersion", DEFAULT_PROTOCOL)
-        return message({"protocolVersion": proto, "capabilities": {"tools": {}}, "serverInfo": SERVER_INFO})
+        result = {"protocolVersion": proto, "capabilities": {"tools": {}}, "serverInfo": SERVER_INFO}
+        if INSTRUCTIONS:
+            result["instructions"] = INSTRUCTIONS
+        return message(result)
     if method == "notifications/initialized":
         return None                      # notification, no reply
     if method == "ping":
         return message({})
     if method == "tools/list":
-        return message({"tools": [{k: t[k] for k in ("name", "description", "inputSchema")} for t in TOOLS]})
+        offered = [] if MODE.get("connections") else TOOLS
+        return message({"tools": [{k: t[k] for k in ("name", "description", "inputSchema")} for t in offered]})
     if method == "tools/call":
         name = params.get("name"); args = params.get("arguments") or {}
         tool = TOOL_BY_NAME.get(name)
@@ -1604,6 +1610,14 @@ def respond(req, caller=None):
     if mid is not None:
         return message(error={"code": -32601, "message": f"method not found: {method}"})
     return None                          # unknown notification: ignored
+
+
+def hold_connections(servers):
+    """This server runs in a folder of connections: each graph has a server of its own, and the 22 tools
+    here would answer nothing and crowd theirs. It offers none, and says where to ask."""
+    global INSTRUCTIONS
+    MODE["connections"] = list(servers)
+    INSTRUCTIONS = "This folder holds connections to graphs, each with a server of its own: %s. Nothing here answers on its own: ask those." % ", ".join(servers)
 
 
 def handle(req):

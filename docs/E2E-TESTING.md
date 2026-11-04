@@ -23,7 +23,7 @@ beside it (`tools/e2e_core.sh`) that the suite runs. Start there; this document 
 
 The sections follow the order the features were built, and [ADR-0006](adr/0006-the-core-and-the-packs.md)
 draws one line through them. The **core**, the knowledge graph with its tools and its deploy, is
-sections 1 to 17, 19, 20, 23 to 27, 33 to 36: install, a project, documents in, the vocabulary, rules,
+sections 1 to 17, 19, 20, 23 to 27, 33 to 37: install, a project, documents in, the vocabulary, rules,
 authoring under the gates, time, query and serve, evaluation, Neo4j, repository mode, the query
 repository, specs and decisions, an ontology of your own, tools, deploy, audit and tracing, graphs
 that know each other, the engine's own CI, the ontology explorer, the pack seams, the three routes into main, the routes' policy a pack carries, and the sandbox kit. Drive these first: they are
@@ -44,7 +44,8 @@ composes it, or fetched by `oto init --ontology <name>` itself on a machine that
 | [uv](https://docs.astral.sh/uv/) on each machine | all | nothing else has to be installed |
 | Docker, for a local Neo4j 5 | 10 | `docker run ... neo4j:5` |
 | LibreOffice, only for `.doc`, `.ppt`, `.xls` | 3 | found on the PATH as `soffice` |
-| Docker Sandboxes 0.51 or later (`sbx`), signed in to a Docker account | 36 | `sbx login` |
+| Docker Sandboxes 0.51 or later (`sbx`), signed in to a Docker account | 36, 37 | `sbx login` |
+| A Neo4j instance holding a loaded graph, such as Aura | 37 | its login, in your terminal only |
 | A token that can read the engine repository, only if you install from a private fork of it | 11, 12 | repository secret `OTO_ENGINE_TOKEN` |
 | An Anthropic API key | 6 (`oto draft`), 11, 12, 14 | `ANTHROPIC_API_KEY` in your shell; the repository secret of the same name |
 | A GitHub organisation where you can create repositories, secrets and variables | 11, 12, 13, 16 | the knowledge repository, the query repository, the engine's CI |
@@ -1591,3 +1592,37 @@ Claude kit's `CLAUDE.md` carries the kit's note; only `oto@cynergis-engine` is i
 lock has switched off the account's plugins and connectors. In Claude Desktop, a session on the SSH
 connection `oto-kit-try.sbx` starts in the project folder, and asked which plugins are on, its Claude
 answers from `claude plugin list`, not from the claude.ai account.
+
+## 37. Live reads from a sandbox: one person, several graphs, each answer from Neo4j
+
+[docs/plans/people-and-graphs.md](plans/people-and-graphs.md), capability 3. Exercises: `oto graphs add`, `list` and `rm`; the
+kit's Neo4j driver; `oto sandbox up` passing each graph's login by name and allowing its host; a server per graph; the plugin's
+own server staying out of the way; `oto status` on connections; and a graph with no login. On a computer with Docker Sandboxes
+0.51 or later, and a Neo4j instance holding a graph loaded with `oto deploy`.
+
+```bash
+oto graphs add one --uri neo4j+s://<id>.databases.neo4j.io --database <database> --slug <the slug it was loaded under> --subject "<what it holds>" --project ~/graphs-try/project
+oto graphs add other --uri neo4j+s://<id>.databases.neo4j.io --slug no-such-graph --subject "A graph with no login" --project ~/graphs-try/project
+oto graphs list --project ~/graphs-try/project   # names ONE_NEO4J_* and OTHER_NEO4J_*; NO LOGIN beside both
+grep -c PASSWORD= ~/graphs-try/project/.mcp.json   # 0: the files name the variables, and hold no value
+
+oto sandbox up --name graphs-try --check         # warns that the logins are not set, and changes nothing
+export ONE_NEO4J_USER=<user>
+read -rs "ONE_NEO4J_PASSWORD?Password: " && export ONE_NEO4J_PASSWORD
+oto graphs rm other --project ~/graphs-try/project
+oto sandbox up --name graphs-try --approve-anthropic   # passes ONE_NEO4J_* by name; allows **.neo4j.io:7687 for this sandbox alone
+sbx policy ls graphs-try --wide | grep neo4j     # the rule, scoped to sandbox:graphs-try
+
+oto graphs add other --uri neo4j+s://<id>.databases.neo4j.io --slug no-such-graph --project ~/graphs-try/project
+oto sandbox up --name graphs-try                 # warns: the sandbox holds no OTHER_NEO4J_*, and it is not replaced
+sbx exec graphs-try -- oto status --project "$HOME/graphs-try/project"     # both graphs; login set, NO LOGIN
+
+oto sandbox rm graphs-try                        # the login goes with it; the folders stay
+```
+
+In Claude Desktop, a session on `graphs-try.sbx`, in the project folder, before removing it: ask a question the first graph can answer.
+
+Pass when no file holds a password and no command line carries one; the rule is scoped to the sandbox; the answer gives the graph's
+own facts with their sources and dates; the graph with no login is reported as unable to read, and the other still answers; the
+plugin's own server offers no tools in that folder; and a Claude Code session outside bypass mode asks at most once to approve
+each server. `oto status --project graphs/one` inside says it is serving Neo4j, with the build it reads.

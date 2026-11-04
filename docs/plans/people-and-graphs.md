@@ -375,24 +375,28 @@ slug, name, Neo4j address and `serve.backend: neo4j`. There are no documents and
 password either, only the names of the variables that do.
 
 **One OTO server per graph.** It also adds an entry to the folder's `.mcp.json`, which maps that graph's own login
-onto the fixed names the engine reads. `NEO4J_URI` must not be set, because it overrides the graph's own address
-(`oto/targets/neo4j.py:59`).
+onto the fixed names the engine reads.
 
 ```json
 {"mcpServers": {
   "northwind-kg": {"command": "oto", "args": ["serve", "--project", "graphs/northwind"],
-    "env": {"NEO4J_USER": "${NORTHWIND_NEO4J_USER}", "NEO4J_PASSWORD": "${NORTHWIND_NEO4J_PASSWORD}"}},
+    "env": {"NEO4J_USER": "${NORTHWIND_NEO4J_USER:-}", "NEO4J_PASSWORD": "${NORTHWIND_NEO4J_PASSWORD:-}", "NEO4J_URI": "", "NEO4J_AUTH": ""}},
   "acme-kg": {"command": "oto", "args": ["serve", "--project", "graphs/acme"],
-    "env": {"NEO4J_USER": "${ACME_NEO4J_USER}", "NEO4J_PASSWORD": "${ACME_NEO4J_PASSWORD}"}}
+    "env": {"NEO4J_USER": "${ACME_NEO4J_USER:-}", "NEO4J_PASSWORD": "${ACME_NEO4J_PASSWORD:-}", "NEO4J_URI": "", "NEO4J_AUTH": ""}}
 }}
 ```
 
-**What `oto sandbox up` does with them** (*new*). It reads the graphs in the folder, passes each graph's variables
-into the sandbox from the terminal's environment, so the values stay out of the command line and shell history, and
-allows each graph's host on port 7687 for that sandbox alone.
+An unset variable gives an empty login, so that graph's server starts and says it can't read, and the others are not
+affected. Emptying `NEO4J_URI` and `NEO4J_AUTH` stops either from sending a graph elsewhere or lending it another's login.
 
-**The sandbox has what it needs** (*new*). The kit installs `oto-kg[intake,neo4j]`. It installs `[intake]` today
-(`kits/oto-gcp/files/home/.oto/init.sh:28`), so a sandbox has no Neo4j driver.
+**What `oto sandbox up` does with them.** It reads the graphs in the folder, passes each graph's variables into the
+sandbox from the terminal's environment, so the values stay out of the command line and shell history, and allows each
+graph's host for that sandbox alone. On Aura the rule is `**.neo4j.io:7687`, because the driver goes on from the
+instance's address to whichever server its routing table names, under that domain, and the name changes: `0200`, `0201`
+and `0202` on one instance so far. The narrower `*.databases.neo4j.io:7687` fails with "Failed to obtain connection
+towards 'READ' server".
+
+**The sandbox has what it needs.** The kit installs `oto-kg[intake,neo4j]`, and the session start's install command keeps it.
 
 **Logins are set when the sandbox is made.** Adding a graph with a new login means making the sandbox again. Its
 folders stay, and what is only inside it goes.
@@ -413,7 +417,8 @@ here: Claude would write raw queries, bypassing OTO's current-facts rule and its
 
 - **The agent can read the password.** Claude runs in the sandbox with `--dangerously-skip-permissions` and can reach
   GitHub, so a malicious document could get the password read and sent out. With a full-control login, the agent could
-  also change or delete the graph. Use a read-only login if the Aura tier offers one.
+  also change or delete the graph. Use a read-only login if the Aura tier offers one. AuraDB Free doesn't appear to:
+  the login tried holds the role `console_admin_free_<id>` and may not list roles (creating one was not tried).
 - **It is not per-person access by itself.** Each person's sandbox holds a Neo4j password. Removing one person from a
   shared login means changing the password for everyone, and nothing records who read what.
 
@@ -431,11 +436,23 @@ needs checking.
 ### Graphs on one pack look alike
 
 They share their classes, and OTO flags them as near-duplicates. So a general question reaches all of them, and Claude
-should ask each one and answer per graph, unless the question names one. The query-knowledge skill says this (*new*).
+should ask each one and answer per graph, unless the question names one. The query-knowledge skill says this.
 
-### Tested on 2026-11-04, on scratch graphs with SQLite
+### Tested on 2026-11-04, on real AuraDB Free from a sandbox
 
-Nothing here has run against real Neo4j, or through a sandbox's network rule.
+| Test | Result |
+|---|---|
+| A login passed with `sbx create -e` | reaches `sbx exec` and SSH, the route Claude Desktop uses |
+| `oto query overview`, and the server's read tools | answer from Neo4j; the folder holds only settings, and an empty `build` folder |
+| Claude in the sandbox, asked which work items are blocked | answers with sources and dates |
+| Two graphs through `oto graphs add`, one with a login | the one answers; the other reports it has no login; the plugin's own server offers 0 tools |
+| `oto status` on a connection and on a folder of them | says what each is, and for a connection which build it serves |
+| `enabledMcpjsonServers` in the folder's settings, project or local | `claude mcp list` still says "Pending approval", so OTO doesn't write it |
+
+Not tried on real Aura: `oto sandbox up` end to end, which needs a released kit (E2E section 37), a session in Claude Desktop
+itself, and two instances with separate logins, which AuraDB Free's single instance rules out.
+
+### Tested the same day, on scratch graphs with SQLite
 
 | Test | Result |
 |---|---|
@@ -444,12 +461,10 @@ Nothing here has run against real Neo4j, or through a sandbox's network rule.
 | A folder holding only connection settings | `oto serve` starts and names the graph, and stops only at the missing Neo4j driver |
 | One entry point: a concierge graph with `kg_call` | routes and answers, but needs an HTTP server per graph and the concierge project |
 | `kg_call` to a graph behind a token | refused with a 401, because it sends no credential |
-| `oto status` on a connection-only folder | **crashes** on the missing vocabulary file |
-| The description of a graph on a pack | **boilerplate** from the generated file's note ("Derived from garage: this file is..."), which weakens routing |
+| `oto status` on a connection-only folder | crashed on the missing vocabulary file, before phase 1 |
+| The description of a graph on a pack | boilerplate from the generated file's note ("Derived from garage: this file is..."), before phase 1 |
 
-So one server per graph is the design for now, and a single entry point waits for the Cloud Run server. From the code
-and not tested: the plugin's own server has nothing to serve in that folder (`oto/cli/query.py:82`), so it adds 22 tools
-that answer nothing useful.
+So one server per graph is the design for now, and a single entry point waits for the Cloud Run server.
 
 ### Later: the server on Cloud Run
 
@@ -486,16 +501,16 @@ store repository is then the permission, no database is involved, and the copy c
 
 ### What to build
 
-| Build | Why |
-|---|---|
-| The kit installs the Neo4j driver, and the session start's install command keeps it | a sandbox has no driver today (`hooks/engine.sh:7` would also remove it on upgrade) |
-| `oto graphs add`, `list`, `rm` | connection folders and `.mcp.json` entries are written by hand today |
-| `oto sandbox up` passes each graph's login and allows its host | it does neither today |
-| `oto status` handles a connection-only folder | it crashes |
-| A graph's description from the pack's summary, or set when the graph is created | it is boilerplate today (`oto/graphs.py:101`) |
-| The plugin's own server stays out of the way in a folder of connections | it adds 22 tools that answer nothing useful |
-| The query-knowledge skill asks each graph and answers per graph | graphs on one pack look alike |
-| Later: the Cloud Run container and deploy workflow, a setting for IAP, the MCP endpoint, a read log, and `kg_call` sending a credential | see above |
+| Build | Why | State |
+|---|---|---|
+| The kit installs the Neo4j driver, and the session start's install command keeps it | a sandbox had no driver | phase 1 |
+| `oto graphs add`, `list`, `rm` | connection folders and `.mcp.json` entries were written by hand | phase 1 |
+| `oto sandbox up` passes each graph's login and allows its host | it did neither | phase 1 |
+| `oto status` handles a connection and a folder of them | it crashed | phase 1 |
+| A graph's description from the pack's summary, or set when the graph is created | it was boilerplate | phase 1 |
+| The plugin's own server stays out of the way in a folder of connections | it added 22 tools that answered nothing | phase 1 |
+| The query-knowledge skill asks each graph and answers per graph | graphs on one pack look alike | phase 1 |
+| The Cloud Run container and deploy workflow, a setting for IAP, the MCP endpoint, a read log, and `kg_call` sending a credential | see above | phase 5 |
 
 ## Operating the platform
 
@@ -596,7 +611,7 @@ belongs to phase 3, because its reviewed route needs a second person.
 | Stay on Team, or move to Enterprise Cloud? | stay on Team, and design around it | promotion by pull request and rebases cover what Team lacks; revisit if many people confirm at once, or an auditor requires environment approvals |
 | Set the organisation's base permission to `none`? | yes, before real client work | otherwise every member reads every graph's documents; it affects every repository in the organisation, so it needs checking first |
 | Is GitHub the only identity for changing a graph? | yes, to start | no user database to build or secure |
-| Which Aura tier, and does it offer read-only logins? | check before phase 1 | a read-only login removes the risk of an agent changing the graph; per-person logins may need a higher tier |
+| Which Aura tier for real client work? | a tier with read-only logins | the instance tried is AuraDB Free, whose login is its admin; a read-only login removes the risk of an agent changing the graph, and per-person logins may need a higher tier |
 | How does the session route get verified commits? | test GitHub's API-created commits first (signed by GitHub with no keys to manage, in a sandbox or not); the fallback is signing keys, through the kit's `ssh-agent@1` and `git-identity@1` in a sandbox | the first needs no setup per person; neither has been tried here |
 | Who sees the directory? | everyone in the organisation | a graph's name and subject are visible, its contents aren't; a client's name may rule this out |
 | Are client documents allowed in a repository at all? | decide before real client work | the repository's readers can read them, and history keeps them; the same goes for transcripts (open in the plan for the routes) |
@@ -631,9 +646,8 @@ belongs to phase 3, because its reviewed route needs a second person.
 | Neo4j credentials and URI come from fixed environment names | `oto/targets/neo4j.py:46`, `:59` |
 | `connection.secret` is validated and not read by the Neo4j store; `require_pr` is validated and printed only | `oto/deploy.py:11`, `:145` |
 | `oto sync` clones or updates one store | `oto/publish.py:209` |
-| The kit installs `[intake]` only; the session start's install command says the same | `kits/oto-gcp/files/home/.oto/init.sh:28`, `hooks/engine.sh:7` |
-| A graph's description falls back on the vocabulary's `_about` note | `oto/graphs.py:101` |
-| One server per graph, a connection-only folder, the 401 from `kg_call`, the `oto status` crash | the test in capability 3, on scratch graphs |
+| One server per graph, a connection-only folder, the 401 from `kg_call` | the test in capability 3, on scratch graphs |
+| Connections, their servers and their logins | `oto/connections.py` |
 | `sbx mcp add --command` runs on the computer, with no flag for its environment; custom secrets swap HTTP headers only | `sbx` 0.51's help, and Docker's MCP gateway docs |
 | The store holds passages of the documents' text, and publish copies the whole store | `oto/targets/sqlite.py:130`, `oto/publish.py:129` |
 | Environments and promotion | `oto/deploy.py` |

@@ -25,6 +25,7 @@ One module per command, in the order a project moves through them:
     status.py      oto status                   where the project is, and the next step
     lock.py        oto lock                     the engine, plugins and ontologies a project is built with
     sandbox.py     oto sandbox                  Claude Code with OTO in a Docker sandbox, for Claude Desktop or a terminal
+    graphs.py      oto graph, oto graphs        a graph's descriptor and dependencies; the graphs a folder reads live from Neo4j
     bench.py       oto bench                    measure answer quality
     feedback.py    oto feedback                 a complaint becomes a gold question
     publishable.py oto publishable              no client name or credential in a repository about to be published
@@ -77,7 +78,7 @@ COMMANDS = CORE_COMMANDS + tuple(_pack_modules(_FOUND))
 GROUPS = {
     "core": ("init", "status", "lock", "sandbox", "ingest", "capture", "clipboard", "ontology", "lexicon", "pack", "registry", "repo", "route", "rules", "tools",
              "curate", "decide", "deploy", "connectors", "draft", "vet", "build", "preview", "query", "publish", "publishable", "bench",
-             "feedback", "audit", "graph", "version"),
+             "feedback", "audit", "graph", "graphs", "version"),
     "packs": tuple((c["name"], c["label"]) for c in _FOUND),
 }
 

@@ -98,7 +98,7 @@ def describe(project, vocabulary=None, graph=None, reach=None, subject=None):
     identity = project.identity()
     cfg = project.config()
     if not (subject or "").strip():
-        subject = (vocabulary.get("_summary") or vocabulary.get("_about") or "").strip()
+        subject = (cfg.get("description") or vocabulary.get("_summary") or "").strip()    # never `_about`: a generated file's note to its reader
         subject = "%s: %s" % (identity["name"], subject) if subject else identity["name"]
     return {"id": node_id(identity["slug"]), "label": identity["name"], "subject": subject.split("\n")[0][:300],
             "classes": main_classes(vocabulary, graph), "reach": reach or identity["server_name"], "slug": identity["slug"],

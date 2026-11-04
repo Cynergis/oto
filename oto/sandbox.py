@@ -15,7 +15,9 @@ which `sbx` runs from 0.51 on (`MIN_SBX`). `up` does everything a person would o
   is written only when the caller says the person agreed (`approve_anthropic`), never on its own;
 - creates the project and code folders and the sandbox, with the Google Cloud project's id as
   `PROJECT`, and waits until OTO is ready inside it;
-- sets up SSH, so `<name>.sbx` reaches the sandbox (Claude Desktop's Code tab, VS Code, a terminal).
+- sets up SSH, so `<name>.sbx` reaches the sandbox (Claude Desktop's Code tab, VS Code, a terminal);
+- passes the login of each graph in the folder (oto/connections.py) from this environment by name, and
+  allows each graph's host for this sandbox alone, so the graph answers live from Neo4j.
 
 Inside, only the plugins installed in the sandbox load: the kit's `lock-plugins` switches off what
 Claude Desktop brings from the person's computer and what their claude.ai account brings, at every
@@ -41,6 +43,7 @@ import datetime
 import time
 
 from . import __version__
+from . import connections as _connections
 from . import repo as _repo
 
 KIT_REPO = "ghcr.io/cynergis/oto-gcp"
@@ -650,6 +653,22 @@ def first_push(project_dir, url, token=None, kind="knowledge"):
     return _run(["git", "-C", project_dir, "rev-parse", "--short", "HEAD"], timeout=60)[1].strip()
 
 
+def _allow_graph_hosts(sbx, name, rules, report):
+    """Let this sandbox alone reach its graphs on the Bolt port, once each. A failure is said, not fatal: the graph's own server says it can't reach Neo4j."""
+    if not rules:
+        return
+    code, out, err = sbx("policy", "ls", name, "--json")
+    have = out if code == 0 else ""
+    for rule in rules:
+        if '"%s"' % rule in have:
+            continue
+        code, out, err = sbx("policy", "allow", "network", "--sandbox", name, rule)
+        if code == 0:
+            report["done"].append("allowed %s for this sandbox alone, so it can reach its graphs" % rule)
+        else:
+            report["warnings"].append("%s could not be allowed for the sandbox: %s; its graphs can't be reached until it is" % (rule, (err or out).strip()[-200:]))
+
+
 def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=False, init_policy=None,
        recreate=False, check=False, wait=600, say=None, allow_outside=False, publish=None,
        kind=None, repo=None, no_repo=False, token_env=None, pack=None):
@@ -738,7 +757,22 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
                                       % (name, ", ".join(existing["folders"]) or "no folder", project_dir))
     report["kind"] = kind
     report["repository"] = _github_url(repo) if repo else None
+    graphs = _connections.logins(report["project"] or project_dir)
+    report["graphs"] = [{"name": g["name"], "server": g["server"], "variables": g["variables"]} for g in graphs]
+    logins = [v for g in graphs for v in g["variables"]]
+    logins = [v for i, v in enumerate(logins) if v not in logins[:i]]
+    rules = [g["rule"] for g in graphs if g["rule"]]
+    rules = [r for i, r in enumerate(rules) if r not in rules[:i]]
+    unset = [v for v in logins if not os.environ.get(v)]
+    if unset and not check and (recreate or not existing):             # before anything is made or removed
+        raise SandboxError("a sandbox made now could not read its graphs: %s %s not set in this terminal" % (" and ".join(unset), "is" if len(unset) == 1 else "are"),
+                           "set them here, and run again; a password read with `read -rs` stays out of the shell's history. A graph you have no login for: oto graphs rm <name>")
     if check:
+        if logins:
+            report["done"].append("would pass the graphs' logins into the sandbox, by name, from this terminal's environment (%s), and allow %s for it alone"
+                                  % (", ".join(logins), " and ".join(rules) or "no host"))
+        if unset:
+            report["warnings"].append("%s %s not set in this terminal: a sandbox made now could not read those graphs" % (" and ".join(unset), "is" if len(unset) == 1 else "are"))
         if kind:
             report["done"].append("would lay out %s in %s" % ("an ontology workspace for the pack %s" % name if kind == "ontology"
                                                            else "a knowledge project%s" % (" on the pack %s" % pack if pack else ""), project_dir))
@@ -823,6 +857,8 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         args += ["-e", "%s=%s" % (PROJECT_DIR_ENV, project_dir), "-e", "%s=%s" % (CODE_DIR_ENV, code_dir)]
         if allow_outside:
             args += ["-e", "%s=allowed" % OUTSIDE]
+        for variable in logins:              # by name: sbx takes the value from this environment, so it stays off the command line
+            args += ["-e", variable]
         code, out, err = sbx(*args, timeout=1800)
         if code != 0:
             raise SandboxError("sbx could not create the sandbox: %s" % (err or out).strip()[-600:])
@@ -830,6 +866,9 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         if ports:
             report["done"].append(_published_words(mapping, moved) + ", for oto serve inside")
             report["ports"] = [{"port": p, "host_port": h, "host": "127.0.0.1"} for h, p in mapping]
+        if logins:
+            report["done"].append("passed the graphs' logins into the sandbox, by name, from this terminal's environment: %s" % ", ".join(logins))
+    _allow_graph_hosts(sbx, name, rules, report)
     if repo and token and _github_url(repo).startswith(GITHUB):
         code, out, err = sbx("secret", "set", "github", "--sandbox", name, "--token", token, "-f", timeout=120)
         if code != 0:
@@ -839,6 +878,12 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
     say("waiting for OTO to be ready inside it")
     line = _oto_line(sbx, name, wait=wait)
     report["oto"] = line
+    if existing and logins:                  # names only: printenv's output goes nowhere, so no value is ever read out
+        code, out, err = sbx("exec", name, "--", "sh", "-c", 'for v in "$@"; do printenv "$v" >/dev/null || echo "$v"; done', "sh", *logins)
+        absent = out.split() if code == 0 else []
+        if absent:
+            report["warnings"].append("the sandbox %s holds no %s: a login is set when the sandbox is made. With %s in this terminal, run again with "
+                                      "--recreate (what is only inside it is lost; its folders stay)" % (name, " or ".join(absent), "it" if len(absent) == 1 else "them"))
     if existing and project_id:
         code, out, err = sbx("exec", name, "--", "printenv", "PROJECT")
         if out.strip() != project_id:
@@ -916,6 +961,10 @@ def next_steps(report):
              "  Name: OTO (%s). SSH host: %s.sbx. Leave the port and the identity file empty." % (name, name),
              "  Choose that connection, then the folder %s." % (report["project"] or "you work in"),
              "Or in a terminal: sbx run --name %s" % name]
+    if report.get("graphs"):
+        lines += ["In the sandbox each graph has a server of its own: %s. Ask in the project folder, and each answer comes from Neo4j at that moment."
+                  % ", ".join(g["server"] for g in report["graphs"]),
+                  "  A login is set when the sandbox is made: after adding a graph with a new one, oto sandbox up --recreate (its folders stay)."]
     ports = [(e["port"], e.get("host_port", e["port"])) for e in report.get("ports") or []]
     if ports:
         lines += ["To see a served graph: in the sandbox, oto serve --project . --http %d (it binds all interfaces there, no token needed);"

@@ -35,6 +35,10 @@ elif args == ["ls", "--json"]:
                        "last_used_at": box.get("last_used_at")} for name, box in state["sandboxes"].items()])
 elif args[:1] == ["ls"]:
     out = "SANDBOX   AGENT   STATUS   PORTS   WORKSPACE   CREATED\n"
+elif args[:3] == ["policy", "allow", "network"]:
+    state.setdefault("rules", {}).setdefault(args[args.index("--sandbox") + 1], []).append(args[-1])
+elif args[:2] == ["policy", "ls"] and len(args) > 2:
+    out = json.dumps({"rules": [{"resources": state.get("rules", {}).get(args[2], [])}]})
 elif args[:2] == ["policy", "ls"]:
     if state["policy"]:
         out = "NAME   TYPE\nbalanced network\n"
@@ -57,7 +61,8 @@ elif args[:1] == ["create"]:
         if a == "--name":
             name = rest.pop(0)
         elif a == "-e":
-            k, v = rest.pop(0).split("=", 1)
+            item = rest.pop(0)
+            k, v = item.split("=", 1) if "=" in item else (item, os.environ.get(item, ""))
             env[k] = v
         elif a == "-p":
             host_port, sandbox_port = rest.pop(0).split(":")
@@ -79,6 +84,8 @@ elif args[:1] == ["exec"]:
                                              "switched_off": [] if allowed else ["engineering"] + box.get("given", []),
                                              "account_plugins_off": not allowed, "account_skills_off": not allowed,
                                              "connectors_off": not allowed, "hook": not allowed, "locked": not allowed}) + "\n"
+    elif command[:2] == ["sh", "-c"] and "printenv" in command[2]:
+        out = "".join(v + "\n" for v in command[4:] if not box["env"].get(v))
     elif command[:2] == ["sh", "-c"] and "lock-plugins\" --names" in command[2]:
         box["given"] = box.get("given", []) + command[4:]
     elif command[:2] == ["sh", "-c"] and "claude plugin install" in command[2]:
@@ -772,3 +779,101 @@ def test_the_sandbox_skill_sends_an_older_sandbox_tool_to_its_upgrade():
         skill = f.read()
     assert "`sbx_supported` false" in skill and sandbox.MIN_SBX in skill
     assert "brew upgrade docker/tap/sbx" in skill and "winget upgrade" in skill
+
+
+# ---- graphs read live from Neo4j (docs/plans/people-and-graphs.md, capability 3) ----
+
+AURA = "neo4j+s://abc123.databases.neo4j.io"
+LOGINS = {"NORTHWIND_NEO4J_USER": "north-user", "NORTHWIND_NEO4J_PASSWORD": "north-secret", "ACME_NEO4J_USER": "acme-user", "ACME_NEO4J_PASSWORD": "acme-secret"}
+
+
+def _graphs(tmp_path, *names, uri=AURA):
+    from oto import connections
+    project = tmp_path / "box" / "project"
+    for name in names:
+        connections.add(str(project), name, uri)
+    return str(tmp_path / "box")
+
+
+def _logins(monkeypatch, **only):
+    for key, value in (only or LOGINS).items():
+        monkeypatch.setenv(key, value)
+
+
+def test_up_passes_each_graphs_login_by_name_and_allows_its_host_for_that_sandbox(fake, tmp_path, monkeypatch):
+    directory = _graphs(tmp_path, "northwind", "acme")
+    _logins(monkeypatch)
+    report = sandbox.up(name="box", directory=directory, approve=True, wait=5)
+    create = fake.calls("create")[0]
+    for variable in LOGINS:
+        assert ["-e", variable] == create[create.index(variable) - 1:create.index(variable) + 1], "by name: the value stays out of the command line"
+    called = json.dumps(fake.read()["calls"])
+    for value in LOGINS.values():
+        assert value not in called
+        assert value not in json.dumps(report)
+    assert fake.read()["sandboxes"]["box"]["env"]["ACME_NEO4J_PASSWORD"] == "acme-secret", "and it reaches the sandbox"
+    assert fake.read()["rules"]["box"] == ["**.neo4j.io:7687"], "one rule for both, for this sandbox alone"
+    assert [g["server"] for g in report["graphs"]] == ["acme-kg", "northwind-kg"]
+    assert any("acme-kg" in line and "northwind-kg" in line for line in sandbox.next_steps(report))
+
+
+def test_up_stops_before_making_a_sandbox_that_could_not_read_a_graph(fake, tmp_path, monkeypatch):
+    directory = _graphs(tmp_path, "northwind", "acme")
+    _logins(monkeypatch, NORTHWIND_NEO4J_USER="north-user", NORTHWIND_NEO4J_PASSWORD="north-secret")
+    with pytest.raises(sandbox.SandboxError) as caught:
+        sandbox.up(name="box", directory=directory, approve=True, wait=5)
+    assert "ACME_NEO4J_USER" in str(caught.value) and "ACME_NEO4J_PASSWORD" in str(caught.value) and "NORTHWIND" not in str(caught.value)
+    assert caught.value.fix, "it says what to do"
+    assert not fake.calls("create")
+
+
+def test_recreating_also_stops_first_when_a_login_is_missing(fake, tmp_path, monkeypatch):
+    directory = _graphs(tmp_path, "northwind")
+    _logins(monkeypatch, NORTHWIND_NEO4J_USER="north-user", NORTHWIND_NEO4J_PASSWORD="north-secret")
+    sandbox.up(name="box", directory=directory, approve=True, wait=5)
+    monkeypatch.delenv("NORTHWIND_NEO4J_PASSWORD")
+    with pytest.raises(sandbox.SandboxError):
+        sandbox.up(name="box", directory=directory, recreate=True, wait=5)
+    assert "box" in fake.read()["sandboxes"], "the sandbox that worked is not removed for one that would not"
+
+
+def test_check_says_what_would_pass_and_what_is_missing_and_changes_nothing(fake, tmp_path, monkeypatch):
+    directory = _graphs(tmp_path, "northwind", "acme")
+    _logins(monkeypatch, NORTHWIND_NEO4J_USER="north-user", NORTHWIND_NEO4J_PASSWORD="north-secret")
+    report = sandbox.up(name="box", directory=directory, approve=True, check=True)
+    said = " ".join(report["done"])
+    assert "NORTHWIND_NEO4J_PASSWORD" in said and "**.neo4j.io:7687" in said
+    assert any("ACME_NEO4J_PASSWORD" in w for w in report["warnings"])
+    assert "north-secret" not in json.dumps(report)
+    assert not fake.calls("create") and not fake.read().get("rules")
+
+
+def test_up_again_keeps_one_rule_and_says_when_a_graph_added_later_has_no_login_inside(fake, tmp_path, monkeypatch):
+    directory = _graphs(tmp_path, "northwind")
+    _logins(monkeypatch, NORTHWIND_NEO4J_USER="north-user", NORTHWIND_NEO4J_PASSWORD="north-secret")
+    sandbox.up(name="box", directory=directory, approve=True, wait=5)
+    report = sandbox.up(name="box", directory=directory, wait=5)
+    assert fake.read()["rules"]["box"] == ["**.neo4j.io:7687"] and not report["warnings"]
+    _graphs(tmp_path, "acme")
+    report = sandbox.up(name="box", directory=directory, wait=5)
+    assert len(fake.calls("create")) == 1, "a sandbox in use is not replaced without being asked"
+    assert any("ACME_NEO4J_PASSWORD" in w and "--recreate" in w for w in report["warnings"]), report["warnings"]
+    assert not any("NORTHWIND" in w for w in report["warnings"])
+
+
+def test_a_project_of_its_own_on_neo4j_passes_the_engines_names(fake, tmp_path, monkeypatch):
+    project = tmp_path / "box" / "project"
+    project.mkdir(parents=True)
+    (project / "project.config.json").write_text(json.dumps({"slug": "p", "name": "P", "serve": {"backend": "neo4j"}, "neo4j": {"uri": "bolt://db.internal:7700"}}))
+    monkeypatch.setenv("NEO4J_USER", "the-user")
+    monkeypatch.setenv("NEO4J_PASSWORD", "the-secret")
+    sandbox.up(name="box", directory=str(tmp_path / "box"), approve=True, wait=5)
+    create = fake.calls("create")[0]
+    assert "NEO4J_USER" in create and "NEO4J_PASSWORD" in create and "the-secret" not in create
+    assert fake.read()["rules"]["box"] == ["db.internal:7700"]
+
+
+def test_a_sandbox_with_no_graphs_is_made_as_before(fake, tmp_path):
+    report = sandbox.up(name="box", directory=str(tmp_path / "box"), approve=True, wait=5)
+    assert not fake.read().get("rules") and not report.get("graphs")
+    assert not any("server of its own" in line for line in sandbox.next_steps(report))

@@ -56,8 +56,8 @@ def test_the_oto_gcp_kit_carries_this_engine():
     assert "OTO_SOURCE" not in text, "the engine init.sh installs is the one the plugin runs (ADR-0014)"
     assert "the OTO engine %s," % version in text, "kits/oto-gcp/oto-gcp.yaml: the description names the engine %s" % version
     init = _read("kits", "oto-gcp", "files", "home", ".oto", "init.sh")
-    assert '"oto-kg[intake] @ git+https://github.com/Cynergis/oto@v%s"' % version in init, \
-        "kits/oto-gcp/files/home/.oto/init.sh installs v%s" % version
+    assert '"oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v%s"' % version in init, \
+        "kits/oto-gcp/files/home/.oto/init.sh installs v%s, with the driver a sandbox reads a graph live through" % version
     assert "ghcr.io/cynergis/oto-gcp:%s " % version in _read("kits", "README.md"), "kits/README.md runs the kit at %s" % version
 
 
@@ -220,6 +220,6 @@ def test_the_end_to_end_guide_walks_the_kit_on_the_sandbox_tool_it_needs():
     from oto import sandbox
     guide = _read("docs", "E2E-TESTING.md")
     section = guide[guide.index("## 36. The sandbox kit"):]
-    assert "33 to 36" in guide and "Docker Sandboxes %s or later" % sandbox.MIN_SBX[:-2] in guide
+    assert "33 to 37" in guide and "Docker Sandboxes %s or later" % sandbox.MIN_SBX[:-2] in guide
     assert "older than the kit needs (%s or later)" % sandbox.MIN_SBX in section and "--kit kits/oto-gcp" in section
     assert "/usr/share/sandbox/kit/" in section and "This is an OTO sandbox" in section and "oto sandbox rm oto-kit-try" in section

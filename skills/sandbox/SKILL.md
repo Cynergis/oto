@@ -3,10 +3,12 @@ name: sandbox
 description: >-
   Set up a Docker sandbox with Claude Code and OTO inside, made from OTO's ready-made kit, and
   connect Claude Desktop's Code tab (or a terminal) to it: a sandbox for an ontology to make (a
-  workspace, released as a pack) or for a graph on one (a knowledge project on the pack). Checks
+  workspace, released as a pack), for a graph on one (a knowledge project on the pack), or for reading
+  graphs live from Neo4j. Checks
   what the computer has, asks the person for the few answers only they can give, runs the setup and
   says the one step left in Claude Desktop. Use when someone says "set up the sandbox", "run OTO in
-  a sandbox", "a sandbox for the ontology", "a sandbox for our graph", "I want to use OTO from
+  a sandbox", "a sandbox for the ontology", "a sandbox for our graph", "read our graphs from a
+  sandbox", "I want to use OTO from
   Claude Desktop", "connect Desktop to the sandbox", or asks whether their sandbox is ready. Runs
   on the person's own computer, not inside a sandbox.
 ---
@@ -40,7 +42,7 @@ runs (ADR-0014): `oto sandbox ...`. When it is not installed, the session start 
 command that installs it, at the plugin's release:
 
 ```bash
-uv tool install --force "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v<the plugin's version>"
+uv tool install --force "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v<the plugin's version>"
 ```
 
 Without `uv`, say that one small tool is needed first and give its installer: on a Mac or Linux
@@ -69,6 +71,35 @@ starts from must be on their computer first: a registry that lists it (`oto regi
 `oto pack add <name>`. A pack still in the making is not released yet: say so, and offer the
 workspace sandbox first, or a knowledge project with no pack, which grows a vocabulary of its own
 the way every project was made before this decision.
+
+## A sandbox that reads graphs live
+
+Someone who only asks questions of graphs already in Neo4j needs neither of those. Their project
+folder holds connections, with no documents and no copy, and every answer comes from Neo4j at that
+moment. For each graph, its steward gives them its address, its database, the slug it was loaded under
+and its login. The login comes through a password manager, never in this conversation: if they paste
+one here, say so and ask them to change it.
+
+Say what this accepts, once: the login sits inside the sandbox, so Claude there could read it, and could
+do whatever that login may do. A read-only login is better where their Aura tier offers one. With a
+yes, on their computer, one per graph:
+
+```bash
+oto graphs add <name> --uri neo4j+s://<id>.databases.neo4j.io --database <database> --slug <slug> --subject "<what it holds>" --project ~/<sandbox>/project
+```
+
+Then they set each login in their own terminal, and make the sandbox from that same terminal, because it
+reads the logins from there. Hand these over rather than running them: `oto graphs list` names the
+variables, and `read -rs` keeps a password out of the shell's history.
+
+```bash
+export <NAME>_NEO4J_USER=<user>
+read -rs "<NAME>_NEO4J_PASSWORD?Password: " && export <NAME>_NEO4J_PASSWORD
+oto sandbox up --name <sandbox>
+```
+
+A login is set when the sandbox is made. A graph with a new login means making the sandbox again
+(`--recreate`, after their yes): its folders stay, and what is only inside it goes.
 
 ## 1. Where things stand
 

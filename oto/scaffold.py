@@ -227,7 +227,7 @@ def _ontology_record(name, ontologies, bases, pack=None):
 
 
 def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, ontology=None,
-         repo=False, engine=None, pack=None, empty=False, concierge=False):
+         repo=False, engine=None, pack=None, empty=False, concierge=False, description=None):
     """Create or top up a project. Never overwrites authored data unless force is set.
 
     One of `slug` and `name` is enough: the other derives from it. With an ontology, the vocabulary
@@ -383,6 +383,9 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
         "vocabulary": vocabulary_mode,
         "oto_version": __version__,
     }
+    said = (description or (pack_info["manifest"].get("summary") if pack_info else "") or "").strip()
+    if said:
+        config["description"] = said
     if ontology_record:
         config["ontology"] = ontology_record
     if vocabulary_mode == _derived.DERIVED:

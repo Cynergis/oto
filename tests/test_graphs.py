@@ -185,3 +185,54 @@ def test_ontology_check_warns_on_near_duplicates_and_depend_warns_when_declaring
 def test_describe_takes_a_subject_so_a_near_duplicate_can_be_sharpened(plan):
     code, out = _cli("graph", "describe", "--subject", "The payments plan: settlement work and who waits on it", "--project", plan)
     assert code == 0 and json.loads(out)["subject"] == "The payments plan: settlement work and who waits on it", out
+
+
+# ---- what a graph says it holds: never the note a generated file carries for its reader ----
+
+def _pack(tmp_path, monkeypatch, summary):
+    from test_pack_workspace import GARAGE_CONFIG, GARAGE_QUESTIONS, GARAGE_RATIONALE, GARAGE_SAMPLE
+    monkeypatch.setenv("OTO_PACKS", str(tmp_path / "packs"))
+    monkeypatch.setenv("OTO_ONTOLOGIES", str(tmp_path / "ontologies"))
+    code, out = _cli("pack", "new", "garage", "--to", str(tmp_path / "ws"), "--maintainer", "Test Driver")
+    assert code == 0, out
+    workspace = tmp_path / "ws" / "garage"
+    for name, payload in (("ontology.config.json", GARAGE_CONFIG), ("ontology.rationale.json", GARAGE_RATIONALE),
+                          ("questions.json", GARAGE_QUESTIONS), ("sample.graph.json", GARAGE_SAMPLE)):
+        (workspace / "ontology" / "garage" / name).write_text(json.dumps(payload, indent=2))
+    (workspace / "ontology" / "garage" / "README.md").write_text("# Garage\n\nBuses, where they are based, who maintains them.\n")
+    manifest = json.loads((workspace / "manifest.json").read_text())
+    manifest["summary"] = summary
+    (workspace / "manifest.json").write_text(json.dumps(manifest, indent=2))
+    import shutil
+    shutil.copytree(str(workspace), str(tmp_path / "packs" / "garage"), ignore=shutil.ignore_patterns("trial", ".github"))
+
+
+def test_a_graph_on_a_pack_says_what_the_pack_is_about_not_the_files_note(tmp_path, monkeypatch):
+    _pack(tmp_path, monkeypatch, "Buses, where they are based and who maintains them")
+    root = str(tmp_path / "fleet")
+    code, out = _cli("init", "--name", "Northwind fleet", "--slug", "northwind", "--project", root, "--pack", "garage")
+    assert code == 0, out
+    assert json.load(open(os.path.join(root, "project.config.json")))["description"] == "Buses, where they are based and who maintains them"
+    code, out = _cli("graph", "describe", "--project", root)
+    subject = json.loads(out)["subject"]
+    assert subject == "Northwind fleet: Buses, where they are based and who maintains them", subject
+    assert "Derived from" not in subject
+
+
+def test_a_description_given_when_the_graph_is_made_wins_over_the_packs(tmp_path, monkeypatch):
+    _pack(tmp_path, monkeypatch, "Buses, where they are based and who maintains them")
+    root = str(tmp_path / "fleet")
+    code, out = _cli("init", "--name", "Northwind fleet", "--slug", "northwind", "--project", root, "--pack", "garage",
+                     "--description", "The Northwind depot's buses")
+    assert code == 0, out
+    assert json.loads(_cli("graph", "describe", "--project", root)[1])["subject"] == "Northwind fleet: The Northwind depot's buses"
+    found, _graph = _descriptor(root)
+    assert found[0]["attributes"]["subject"] == "Northwind fleet: The Northwind depot's buses", "the descriptor it wrote says the same"
+
+
+def test_a_graph_with_nothing_to_say_about_itself_gives_its_name(tmp_path):
+    root = str(tmp_path / "bare")
+    with contextlib.redirect_stdout(io.StringIO()):
+        init(root, slug="bare", name="A bare graph")
+    subject = json.loads(_cli("graph", "describe", "--project", root)[1])["subject"]
+    assert subject == "A bare graph", "the vocabulary file's note for its reader is not a description: %s" % subject

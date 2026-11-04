@@ -16,7 +16,7 @@ one, and its folders stay.
 Claude Code with everything an OTO product on Google Cloud needs:
 
 - **OTO:** the engine plugin from its own marketplace (`oto@cynergis-engine`, Cynergis/oto) and the engine
-  itself at the version in `oto-gcp.yaml`, installed as the `oto` command that the plugin runs; the `cynergis` marketplace
+  itself at the version in `oto-gcp.yaml`, with its document parsers and Neo4j driver, installed as the `oto` command that the plugin runs; the `cynergis` marketplace
   (Cynergis/oto-registry) is added but none of its packs is installed: a sandbox starts with the engine
   alone, and the packs a project needs are turned on from the session with the packs skill
   (`/oto:packs`), which installs them for the project and records them in its lock;

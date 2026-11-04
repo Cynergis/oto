@@ -85,6 +85,8 @@ def field(name):
             return args[i + 1].split("=", 1)[1]
 if target == "user":
     answer({"login": state.get("me", "dana")})
+if target.endswith("/invitations"):
+    answer([{"invitee": {"login": k}, "permissions": v} for k, v in sorted(state.get("invitations", {}).get("/".join(target.split("/")[1:3]), {}).items())])
 parts = target.split("/")
 if parts[0] == "orgs" and len(parts) == 2:
     answer({"default_repository_permission": state.get("base", "none")})
@@ -105,6 +107,9 @@ if parts[0] == "repos":
     if parts[3:] == ["teams"]:
         answer([{"slug": k.split("/")[1], "organization": {"login": k.split("/")[0]}, "permission": v} for k, v in sorted(held["teams"].items())])
     if parts[3] == "collaborators":
+        if method == "PUT" and state.get("invite") and parts[4] != state.get("me", "dana"):
+            state.setdefault("invitations", {}).setdefault(repo_name, {})[parts[4]] = {"pull": "read", "push": "write"}.get(field("permission"), field("permission"))
+            answer({"invitee": {"login": parts[4]}, "permissions": field("permission")})
         if method == "PUT":
             held["users"][parts[4]] = field("permission")
         elif method == "DELETE":
@@ -591,3 +596,93 @@ def test_a_refusal_says_githubs_reason_not_just_the_status():
     assert "at least one more seat" in repo.gh_reason(body, "gh: Validation Failed (HTTP 422)")
     assert repo.gh_reason("", "gh: Not Found (HTTP 404)") == "gh: Not Found (HTTP 404)"
 
+
+
+# ---- what a real second person found: a review has to reach the gate's own run ----
+
+def _workflow(name):
+    return repo.files("kb", "KB")[os.path.join(".github", "workflows", name)]
+
+
+def test_there_is_only_ever_one_gate_on_a_commit():
+    """A review that ran the gate as a second workflow run left two checks called `oto route`, and GitHub blocks the merge on a failure in either."""
+    yaml = pytest.importorskip("yaml")
+    gate = yaml.safe_load(_workflow("oto-route.yml"))
+    triggers = gate[True]                     # YAML reads the key `on` as true
+    assert list(triggers) == ["pull_request"]
+    review = yaml.safe_load(_workflow("oto-route-review.yml"))
+    assert list(review[True]) == ["pull_request_review"] and review[True]["pull_request_review"]["types"] == ["submitted", "dismissed"]
+    assert review["permissions"]["actions"] == "write", "starting a run again needs it"
+    assert all(job.get("name") != "oto route" for job in review["jobs"].values()), "a second check of that name is the bug"
+    named = [job.get("name") for found in repo.files("kb", "KB") if found.endswith(".yml") and "workflows" in found
+             for job in yaml.safe_load(repo.files("kb", "KB")[found])["jobs"].values()]
+    assert named.count("oto route") == 1
+
+
+def _review_step(tmp_path, runs):
+    log = tmp_path / "calls.txt"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _script(str(bin_dir / "gh"), '#!/bin/sh\necho "$*" >> "%s"\nif [ "$1 $2" = "run list" ]; then printf "%%s" "%s"; fi\n' % (log, runs))
+    done = subprocess.run(["bash", "-e", "-c", _step(_workflow("oto-route-review.yml"), "Run the gate again on this commit")], capture_output=True, text=True,
+                          env=dict(os.environ, PATH="%s:%s" % (bin_dir, os.environ["PATH"]), REPO="acme/board", HEAD="abc123"))
+    assert done.returncode == 0, done.stdout + done.stderr
+    return log.read_text().splitlines() if log.exists() else [], done.stdout
+
+
+def test_a_review_waits_for_the_gate_then_runs_it_again(tmp_path):
+    calls, _out = _review_step(tmp_path, "41")
+    assert calls[0].startswith("run list") and "--workflow oto-route.yml" in calls[0] and "--commit abc123" in calls[0] and "--event pull_request" in calls[0]
+    assert calls[1].startswith("run watch 41"), "a run still going can't be started again"
+    assert calls[2].startswith("run rerun 41")
+
+
+def test_a_review_before_the_gate_has_run_leaves_it_to_read_the_review(tmp_path):
+    calls, out = _review_step(tmp_path, "")
+    assert len(calls) == 1 and "reads this review when it runs" in out
+
+
+def test_a_comment_starts_nothing():
+    yaml = pytest.importorskip("yaml")
+    job = yaml.safe_load(_workflow("oto-route-review.yml"))["jobs"]["again"]
+    assert "commented" in job["if"]
+
+
+def test_the_gate_never_names_the_author_as_who_may_approve(tmp_path):
+    root = str(tmp_path / "kb")
+    init(root, slug="kb", name="KB", repo=True)
+    _git(root, "init", "-q", "-b", "main")
+    _git(root, "config", "user.email", "t@example.com")
+    _git(root, "config", "user.name", "T")
+    access.write(root, dict(access.starter(), stewards=["anna"], contributors=["ben"]))
+    _commit(root, "the access file")
+    base = _git(root, "rev-parse", "HEAD").strip()
+    with open(os.path.join(root, "a-note.md"), "w", encoding="utf-8") as f:
+        f.write("a note\n")
+    _commit(root, "a note")
+    said = "\n".join(route.check(root, base, authors=("anna",))["reasons"])
+    assert ": anna" not in said and "names nobody else" in said and "add a reviewer" in said
+    said = "\n".join(route.check(root, base, authors=("ben",))["reasons"])
+    assert said.endswith("who didn't write it: anna")
+
+
+def test_an_invitation_is_said_as_one_and_not_sent_twice(graph, github):
+    github.write(invite=True, repos={"acme/board": {"users": {"dana": "admin"}, "teams": {}}})
+    root, repository = graph, "acme/board"
+    access.write(root, dict(access.starter(), stewards=["dana"], contributors=["ben"]))
+    done = access.apply(root, repository)
+    assert any(line.startswith("ben") for line in done["invited"]) and not any("ben" in line for line in done["set"]), done
+    said = "\n".join(access.drift(root, repository))
+    assert "ben was invited" in said and "hasn't accepted" in said and "ben has no" not in said
+    again = access.apply(root, repository)
+    assert again["invited"] == [] and again["set"] == [] and any("ben" in line for line in again["waiting"])
+    code, out = _cli("repo", "access", "--apply", "--repo", "acme/board", "--project", root)
+    assert code == 0 and "still waiting for ben" in out and "nothing to change" not in out, out
+    assert sum(1 for call in github.read()["calls"] if "PUT" in call and any("collaborators/ben" in a for a in call)) == 1
+
+
+def test_someone_who_holds_nothing_directly_isnt_said_to_have_no_access(graph, github):
+    root, repository = graph, "acme/board"
+    access.write(root, dict(access.starter(), stewards=["dana"]))
+    said = "\n".join(access.drift(root, repository))
+    assert "dana has no direct access" in said, "an organisation's owner has access, and isn't listed as a collaborator"

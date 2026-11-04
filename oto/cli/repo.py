@@ -123,11 +123,15 @@ def _cmd_access(root, args):
         return 1
     for line in done["set"]:
         print("set %s" % line)
+    for line in done["invited"]:
+        print("invited %s" % line)
+    for line in done["waiting"]:
+        print("still waiting for %s" % line)
     for line in done["removed"]:
         print("removed %s" % line)
     for line in done["kept"]:
         print("kept %s" % line)
-    if not done["set"] and not done["removed"]:
+    if not done["set"] and not done["removed"] and not done["invited"] and not done["waiting"]:
         print("nothing to change: GitHub already matches %s" % _access.FILE)
     if done["owners_differ"]:
         print("note: %s isn't the stewards the file names: oto repo access --owners writes it, then commit it" % _repo.CODEOWNERS_FILE)

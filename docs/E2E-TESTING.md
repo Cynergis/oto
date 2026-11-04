@@ -1637,8 +1637,9 @@ each server. `oto status --project graphs/one` inside says it is serving Neo4j, 
 [docs/plans/people-and-graphs.md](plans/people-and-graphs.md), phase 0. Exercises what only GitHub can show: the branch rules on a
 private repository on the Team plan, whose approval the gate counts, what a workflow on a branch can read, and two people's facts
 merging. Needs a scratch private repository in an organisation on Team, its administrator signed in with `gh`, and a second account
-with read access, which takes a seat: with none free, GitHub refuses to add it. Section 34's last checks, the code owner's review and
-the deploy key, run here too. The code owner must be someone other than the author, or GitHub asks for no review.
+with read access, which takes a seat: with none free, GitHub refuses to add it, and a public repository with made-up data needs none. Section 34's last checks, the code
+owner's review and the deploy key, run here too. The code owner must be someone other than the author, or GitHub asks for no review. `reviewDecision` stays empty under these
+rules: to see the code-owner rule alone, take the required checks off the scratch rules for a moment.
 
 ```bash
 oto init --name "Two People" --slug two-people --project two-people --repo && cd two-people
@@ -1652,7 +1653,8 @@ gh api repos/<org>/two-people/collaborators/<second account> --method PUT -f per
 git checkout -b one && oto curate start --project . && oto curate apply --project . --by <you> --note "a change" && git add -A && git commit -m "A change" && git push -u origin HEAD && gh pr create --fill
 #   oto route says reviewed: needs one approving review
 gh pr review --approve                           # as the second account, with read access: the gate still says it needs one
-gh pr review --approve                           # as someone with write access who didn't write it: the gate passes
+gh pr review --approve                           # as someone with write access who didn't write it: `oto route review` starts the gate again, it passes, and the merge opens with nothing done by hand
+gh pr review --request-changes                   # by the same person: the gate fails again. Their approval brings it back
 git commit --allow-empty -m "Another push" && git push    # the approval was of the earlier commit: the gate needs one again
 
 # what a branch can reach
@@ -1686,7 +1688,7 @@ deploy key pushes to `main` past the rules.
 
 [docs/plans/people-and-graphs.md](plans/people-and-graphs.md), phase 2. Exercises: canonical files, the trial's generated copies untracked, the
 term-level rebase, the term-by-term diff, what is breaking, the workspace's rules and tag rules, and a sandbox from an existing repository. Needs a
-scratch private repository in an organisation on Team, a second account with write access, and a private registry to publish to. `tests/test_ontology_as_code.py`
+scratch private repository in an organisation on Team, a second account with write access (a public repository with made-up data needs no seat for it), and a private registry to publish to. `tests/test_ontology_as_code.py`
 runs the two authors on a bare repository; this runs what only GitHub can show.
 
 ```bash
@@ -1704,7 +1706,7 @@ oto sandbox up --name garage-two --clone <org>/garage --github-token-env GITHUB_
 #   each: a branch, the interview on one topic, oto pack format ., oto pack check . --strict, oto pack try ., a pull request
 #   the check posts what changed, term by term; the merge box wants one approval and a code owner's, so neither merges alone
 git fetch origin && oto pack rebase --onto origin/main                      # the second author, once the first merged; then the git steps it prints
-oto pack check . --against 1                                                # nothing breaking when both only added
+oto pack check . --against "$(git rev-list --max-parents=0 HEAD)"           # nothing breaking when both only added. A number works once a tag v<number> exists
 
 # a release
 git tag v2 && git push origin v2                                            # as the maintainer: pack publish runs from oto-release
@@ -1719,7 +1721,8 @@ and the check; only a maintainer can push a release tag; a workflow on a branch 
 
 [docs/plans/people-and-graphs.md](plans/people-and-graphs.md), phase 3. Exercises: the access file, `oto repo access`, the gate reading its reviewers at the base,
 a commit GitHub signs, promotion by a pull request, and the store made with the graph. `tests/test_permissions.py` runs these against fakes; this runs what only GitHub can
-show. Needs a scratch graph in an organisation on Team, a second account as the contributor, and a third with write access that the file doesn't name.
+show. Needs a scratch graph in an organisation on Team, a second account as the contributor, and a third with write access that the file doesn't name. With only two accounts, the
+second takes each role in turn. Someone outside the organisation gets an invitation: until they accept, `oto repo access --check` says so.
 
 ```bash
 oto sandbox up --name people-try --kind knowledge --repo <org>/people-try --github-token-env GITHUB_TOKEN --approve-anthropic

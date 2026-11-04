@@ -163,6 +163,20 @@ def _current(run, owner_name):
     return {"users": users, "teams": teams}
 
 
+def _invited(run, owner_name):
+    """Who has been invited and hasn't accepted: {login: permission}. They hold nothing until they do. Reading it takes admin, and without that nothing is known."""
+    from . import repo as _repo
+    code, out, _err = run("api", "repos/%s/invitations?per_page=100" % owner_name)
+    if code != 0:
+        return {}
+    found = {}
+    for invitation in _repo._json(out, []) or []:
+        login = (invitation.get("invitee") or {}).get("login")
+        if login:
+            found[login.lower()] = ROLE_NAMES.get(invitation.get("permissions"), invitation.get("permissions"))
+    return found
+
+
 def _differences(want, have):
     """(missing or wrong: [(kind, name, wanted, held)], extra: [(kind, name, held)]), names compared without case, as GitHub does."""
     wrong, extra = [], []
@@ -218,15 +232,23 @@ def apply(root, repository, token=None, gh=None):
         raise ProjectError("%s can't be applied:\n  - %s" % (FILE, "\n  - ".join(found)))
     run = _repo._github(token, gh)
     me = (_repo.github_login(token, gh) or "").lower()
-    out = {"set": [], "removed": [], "kept": [], "owners_differ": not _owners_match(root, access)}
+    out = {"set": [], "invited": [], "waiting": [], "removed": [], "kept": [], "owners_differ": not _owners_match(root, access)}
     for owner_name, on_store in _repositories(access, repository):
         want = wanted(access, store=on_store)
         wrong, extra = _differences(want, _current(run, owner_name))
+        invited = _invited(run, owner_name)
         for kind, name, permission, _held in wrong:
+            if kind == "users" and invited.get(name.lower()) == permission:
+                out["waiting"].append("%s to accept the invitation to %s" % (name, owner_name))    # asking again would only send them another email
+                continue
             code, said, err = _set(run, owner_name, kind, name, permission)
             if code != 0:
                 raise ProjectError("could not give %s %s on %s: %s" % (_word(kind, name), permission, owner_name, _repo.gh_reason(said, err)))
-            out["set"].append("%s: %s on %s" % (_word(kind, name), permission, owner_name))
+            answer = _repo._json(said, {}) if said else {}
+            if kind == "users" and isinstance(answer, dict) and answer.get("invitee"):
+                out["invited"].append("%s: %s on %s, once they accept the invitation GitHub just sent them" % (name, permission, owner_name))
+            else:
+                out["set"].append("%s: %s on %s" % (_word(kind, name), permission, owner_name))
         for kind, name, _held in extra:
             if kind == "users" and name.lower() == me:
                 out["kept"].append("%s on %s: you're running this, and the file doesn't name you. Add yourself, or have someone else remove you" % (name, owner_name))
@@ -263,8 +285,12 @@ def drift(root, repository, token=None, gh=None):
                    "Per-graph access needs it set to none" % base)
     for owner_name, on_store in _repositories(access, repository):
         wrong, extra = _differences(wanted(access, store=on_store), _current(run, owner_name))
+        invited = _invited(run, owner_name)
         for kind, name, permission, held in wrong:
-            out.append("%s has %s on %s, and the file gives %s" % (_word(kind, name), held or "no access", owner_name, permission))
+            if kind == "users" and name.lower() in invited:
+                out.append("%s was invited to %s and hasn't accepted yet: they hold nothing until they do" % (name, owner_name))
+                continue
+            out.append("%s has %s on %s, and the file gives %s" % (_word(kind, name), held or "no direct access", owner_name, permission))
         for kind, name, held in extra:
             out.append("%s still has %s on %s, and the file doesn't name them" % (_word(kind, name), held, owner_name))
     if not _owners_match(root, access):

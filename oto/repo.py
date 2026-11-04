@@ -12,7 +12,7 @@
     .github/workflows/oto-deploy.yml on a merge to main: build the store and publish it
     .github/workflows/oto-tools.yml   on a schedule: invoke the due read-only tools through the
                                       script under .github/scripts/, record, curate, open a PR
-    .github/workflows/oto-route.yml  on a pull request and on every review: the route gate (session,
+    .github/workflows/oto-route.yml  on a pull request, and again on every review (oto-route-review.yml): the route gate (session,
                                       guardrailed, reviewed) as a required check, docs/plans/graph-journeys.md
     .github/workflows/oto-preview.yml on a pull request: the store at its head, kept as an artifact of the run
                                       and linked in a comment; it holds no store token
@@ -1150,7 +1150,7 @@ ROUTE = """name: oto route
 # The route gate (docs/plans/graph-journeys.md). A pull request enters main by the route its content
 # decides: session (one ledger entry with a confirmation whose fingerprint is the fact-level diff),
 # guardrailed (ingest runs from the transcripts folder the project names), reviewed (anything else).
-# This check enforces the route's rule. It hands the engine the facts only GitHub knows, as flags: the
+# This check enforces the route's rule, and a review starts it again (oto-route-review.yml). It hands the engine the facts only GitHub knows, as flags: the
 # pull request's author and the commits' authors, whether every commit is verified, whether someone
 # qualified approved it. GitHub lets anyone with read access review, so an approval counts when it is of
 # this very commit, by someone who didn't write it and who may write here, and whom the base's
@@ -1161,8 +1161,6 @@ ROUTE = """name: oto route
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-  pull_request_review:
-    types: [submitted, dismissed]
 
 permissions:
   contents: read
@@ -1238,6 +1236,42 @@ jobs:
           fi
       - name: The gate
         run: test "${{{{ steps.verdict.outputs.code }}}}" = "0"
+"""
+
+ROUTE_REVIEW = """name: oto route review
+
+# A review changes the gate's answer, and that answer has to land on the gate's own run. Run from the review, the gate would be a second check called `oto route`,
+# and GitHub blocks a merge on a failure in either: an approved pull request would stay blocked by the failure from before the approval. So a review starts the
+# gate's run again, and a commit only ever has the one. This job must not be called `oto route`.
+
+on:
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions:
+  actions: write                    # to start the gate's run again
+  contents: read
+
+concurrency:
+  group: oto-route-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  again:
+    name: run the gate again
+    if: github.event.review.state != 'commented'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      HEAD: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Run the gate again on this commit
+        run: |
+          run=$(gh run list --repo "$REPO" --workflow oto-route.yml --commit "$HEAD" --event pull_request --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -z "$run" ]; then echo "no gate run on this commit yet: it reads this review when it runs"; exit 0; fi
+          gh run watch "$run" --repo "$REPO" > /dev/null 2>&1 || true      # a run still going can't be started again
+          gh run rerun "$run" --repo "$REPO"
 """
 
 PREVIEW = """name: oto preview
@@ -1861,6 +1895,7 @@ def files(slug, name, engine=None, architecture=False):
         os.path.join(".github", "workflows", "oto-checks.yml"): CHECKS.format(pip=pip, engine=engine),
         os.path.join(".github", "workflows", "oto-deploy.yml"): DEPLOY.format(pip=pip, engine=engine, slug=slug, main_environment=MAIN_ENVIRONMENT),
         os.path.join(".github", "workflows", "oto-route.yml"): ROUTE.format(pip=pip, engine=engine),
+        os.path.join(".github", "workflows", "oto-route-review.yml"): ROUTE_REVIEW,
         os.path.join(".github", "workflows", "oto-preview.yml"): PREVIEW.format(pip=pip, engine=engine, slug=slug),
         os.path.join(".github", "workflows", "oto-promote.yml"): PROMOTE.format(pip=pip, engine=engine, main_environment=MAIN_ENVIRONMENT),
         os.path.join(".github", "workflows", "oto-access.yml"): ACCESS.format(pip=pip, engine=engine, main_environment=MAIN_ENVIRONMENT),

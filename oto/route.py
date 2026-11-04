@@ -507,7 +507,11 @@ def check(root, base, head="HEAD", authors=(), approved=False, verified=False):
         named, teams = _named_at(root, out["base"])
         who = "someone with write access who didn't write it"
         if named is not None:
-            who = "someone the access file names who didn't write it: %s" % ", ".join(sorted(named) + ["the team %s" % t for t in teams])
+            wrote = {str(a).strip().lower() for a in authors}
+            may = sorted(login for login in named if login not in wrote) + ["the team %s" % t for t in teams]
+            who = "someone the access file names who didn't write it: %s" % ", ".join(may)
+            if not may:
+                out["reasons"].append("the access file at the base names nobody else who could approve this: add a reviewer to it first, by a pull request someone else writes and a steward approves")
         out["reasons"].append("needs one approving review on the pull request, of its head commit, from %s" % who)
     return out
 

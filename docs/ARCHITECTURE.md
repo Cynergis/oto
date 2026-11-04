@@ -66,7 +66,11 @@ Each of these is a pack of the registry: a vocabulary with the tools that work o
 project ([the plan](plans/ontology-workspace.md)): `oto pack new <name> --to <dir> [--extends <base,...>]` lays out the
 pack with a starter vocabulary the interview fills, the bases embedded, a `trial/` knowledge project beside the
 deliverable and two workflows (`pack-check.yml`, `pack-publish.yml`); `--from-project <dir>` opens a workspace from a
-project that grew its own vocabulary. `oto pack check <dir> --strict` holds the deliverable to the vocabulary's three
+project that grew its own vocabulary. Several people change it the way they change code ([pack_merge.py](../oto/model/pack_merge.py)):
+`oto pack format` keeps the pack's files canonical, `oto pack rebase --onto <ref>` merges a branch term by term, `oto pack diff --base
+<ref>` says what moved, and `oto pack check --against <release>` names what would break a graph already on it. `oto repo rules --apply`
+sets a workspace's own rules: the check, one approval, code owners on the vocabulary, release tags for maintainers.
+`oto pack check <dir> --strict` holds the deliverable to the vocabulary's three
 gates and the rationale; `oto pack try <dir>` writes the trial's vocabulary from the pack, builds it and asks its
 questions, leaving the trial's documents and graph its own; `oto pack publish` ships the pack and leaves `trial/` and
 `.github/` behind ([model/packs.py](../oto/model/packs.py)).

@@ -2,7 +2,12 @@
 """`oto pack`: the full extension a person installs into Claude Code.
 
     oto pack new <name> --ontology <name|name@r|dir> [--domain d] [--summary s] [--view <dir>]...
-    oto pack check [<dir>]            the self-check of the pack in the current directory, or one named
+    oto pack check [<dir>] [--strict] [--against <release>]
+                                      the self-check of the pack in the current directory, or one named; with
+                                      --against, what would break a graph on that release
+    oto pack format [<dir>]           write the pack's own files in canonical form, so they merge
+    oto pack diff [<dir>] --base <ref>  what changed since <ref>, term by term, for a pull request
+    oto pack rebase [<dir>] --onto <ref>  re-apply a branch onto a moved main, term by term, and say the git steps
     oto pack refresh [<name|dir>]     re-embed the ontology at its current release; regenerate the plugin files
     oto pack list                     every pack on this machine, and what a registry lists that is not here
     oto pack show <name|dir>          the manifest, the embedded ontology, the skills, the views, the checks
@@ -14,6 +19,7 @@
 A verb with a name acts on the catalog; `check` and `refresh` with no name act on the pack in
 the current directory.
 """
+import json
 import os
 import sys
 
@@ -25,6 +31,24 @@ def _here_or(which):
     directory = packs.dir_for(target if os.sep in target or target.startswith(".") else target) \
         or packs.dir_for(os.path.abspath(target))
     return directory
+
+
+def _against(directory, against):
+    """What would break a graph on that release: the check's last word, so a clean pack can still fail on it."""
+    from ..model import pack_merge as _merge
+    try:
+        before = _merge.resolve_release(directory, against)
+    except ValueError as exc:
+        print("  oto: %s" % exc)
+        return 1
+    breaking = _merge.changes(before, _merge.snapshot_here(directory))["breaking"]
+    if breaking:
+        print("  %d breaking change(s) against %s:" % (len(breaking), against))
+        for item in breaking:
+            print("    - %s" % item)
+        return 1
+    print("  nothing breaking against %s" % against)
+    return 0
 
 
 def cmd_pack(args):
@@ -114,9 +138,62 @@ def cmd_pack(args):
             print("  %d problem(s):" % len(problems))
             for problem in problems:
                 print("    - %s" % problem)
+        if args.against:
+            return max(_against(directory, args.against), 1 if problems else 0)
+        if problems:
             return 1
         print("  check clean")
         return 0
+
+    if verb == "format":
+        directory = _here_or(which)
+        if directory is None:
+            print("oto: %s is not a pack" % (which[0] if which else os.getcwd()), file=sys.stderr)
+            return 1
+        changed = packs.format_(directory)
+        print("wrote in canonical form: %s" % ", ".join(changed) if changed else "already in canonical form")
+        return 0
+
+    if verb == "diff":
+        directory = _here_or(which)
+        if directory is None or not args.base:
+            print("oto: diff needs a pack and --base <ref>" if args.base is None else "oto: %s is not a pack" % (which[0] if which else os.getcwd()), file=sys.stderr)
+            return 1
+        from ..model import pack_merge as _merge
+        from ..route import RouteError
+        try:
+            base = _merge.snapshot_at(directory, _merge._route._resolve(os.path.abspath(directory), args.base))
+        except RouteError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        print(_merge.render_changes(_merge.changes(base, _merge.snapshot_here(directory))))
+        return 0
+
+    if verb == "rebase":
+        directory = _here_or(which)
+        if directory is None or not args.onto:
+            print("oto: rebase needs a pack and --onto <ref>, the new main (origin/main)" if args.onto is None else "oto: %s is not a pack" % (which[0] if which else os.getcwd()), file=sys.stderr)
+            return 1
+        from ..model import pack_merge as _merge
+        from ..route import RouteError
+        try:
+            result = _merge.rebase(directory, args.onto)
+        except RouteError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        if args.json:
+            print(json.dumps(result, indent=2, ensure_ascii=False, sort_keys=True))
+        else:
+            print("rebase onto %s: %s" % (result["onto"][:12], "re-applied, term by term" if result["ok"] else "refused"))
+            for conflict in result["conflicts"]:
+                print("  conflict: %s" % conflict)
+            if result["steps"]:
+                print("  written: %s. Review them, then put this change on the new main, as yourself:" % (", ".join(result["written"]) or "nothing to merge"))
+                for step in result["steps"]:
+                    print("    %s" % step)
+            elif not result["ok"]:
+                print("  nothing written: settle what clashed with the other author")
+        return 0 if result["ok"] else 1
 
     if verb == "refresh":
         directory = _here_or(which)
@@ -145,7 +222,7 @@ def cmd_pack(args):
 def register(sub):
     pack = sub.add_parser("pack", help="the full extension a person installs into Claude Code: an ontology, its skills and its views")
     pack.add_argument("pack_command", nargs="?", default="list",
-                      choices=["new", "check", "try", "refresh", "list", "show", "add", "update", "rm", "remove", "publish"],
+                      choices=["new", "check", "try", "format", "diff", "rebase", "refresh", "list", "show", "add", "update", "rm", "remove", "publish"],
                       help="new <name> --ontology <name> scaffolds one; check [<dir>] validates it; refresh [<dir>] "
                            "re-embeds the ontology at its current release; list (default) shows every pack; "
                            "show <name> prints one; add <name|name@release|url> fetches one; update re-fetches "
@@ -156,7 +233,11 @@ def register(sub):
     pack.add_argument("--ontology", default=None, help="for new: the ontology to embed, a name on this machine, name@release, or a directory")
     pack.add_argument("--extends", default=None, help="for new without --ontology: the ontologies the starter vocabulary rests on, comma-separated (default oto-core)")
     pack.add_argument("--from-project", dest="from_project", default=None, help="for new: open a workspace from a project that grew its own vocabulary")
-    pack.add_argument("--strict", action="store_true", help="for check: hold the rationale to it too, a reason and a confirmation per term")
+    pack.add_argument("--strict", action="store_true", help="for check: hold the rationale to it too, a reason and a confirmation per term, and the canonical form")
+    pack.add_argument("--against", default=None, help="for check: say what would break a graph on this release: its number, whose tag is v<number>, a git ref, or a pack's directory")
+    pack.add_argument("--base", default=None, help="for diff: the ref to compare with (origin/main)")
+    pack.add_argument("--onto", default=None, help="for rebase: the new main to re-apply this branch onto (origin/main)")
+    pack.add_argument("--json", action="store_true", help="for rebase: machine-readable output, for a skill")
     pack.add_argument("--patterns", action="store_true",
                       help="for list: only the pattern packs (a pack whose manifest says what it is a design pattern of)")
     pack.add_argument("--playbooks", action="store_true",

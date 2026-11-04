@@ -23,7 +23,7 @@ beside it (`tools/e2e_core.sh`) that the suite runs. Start there; this document 
 
 The sections follow the order the features were built, and [ADR-0006](adr/0006-the-core-and-the-packs.md)
 draws one line through them. The **core**, the knowledge graph with its tools and its deploy, is
-sections 1 to 17, 19, 20, 23 to 27, 33 to 38: install, a project, documents in, the vocabulary, rules,
+sections 1 to 17, 19, 20, 23 to 27, 33 to 39: install, a project, documents in, the vocabulary, rules,
 authoring under the gates, time, query and serve, evaluation, Neo4j, repository mode, the query
 repository, specs and decisions, an ontology of your own, tools, deploy, audit and tracing, graphs
 that know each other, the engine's own CI, the ontology explorer, the pack seams, the three routes into main, the routes' policy a pack carries, and the sandbox kit. Drive these first: they are
@@ -51,7 +51,7 @@ composes it, or fetched by `oto init --ontology <name>` itself on a machine that
 | A GitHub organisation where you can create repositories, secrets and variables | 11, 12, 13, 16 | the knowledge repository, the query repository, the engine's CI |
 | A Neo4j reachable from GitHub Actions (a public endpoint, or a self-hosted runner beside it) | 11 | repository variable `NEO4J_URI`, secret `NEO4J_PASSWORD` in the environment `oto-main` |
 | A token that can write to the query repository | 11, 13 | secret `OTO_QUERY_REPO_TOKEN` in the environment `oto-main` |
-| A second GitHub account, with read access to a test repository | 38 | it approves a pull request and is not counted |
+| A second GitHub account, with read access to a test repository | 38, 39 | it approves a pull request and is not counted |
 | Your deny terms for the publishability gate | 16 | `OTO_DENY_TERMS` in your shell, and as a secret on the engine repository |
 
 Secrets live in the environment or in GitHub secrets, never in a file in either repository.
@@ -1679,3 +1679,36 @@ Pass when `oto repo rules --apply` sets the rules with no merge queue; a read-on
 passes it, and a push waits for a new one; the branch's job can't deploy to `oto-main`; both people's facts, distinct assertion ids and
 audit records are on `main`; a pull request editing `.github/` waits for the code owner, whatever the checks say; and the ingest workflow's
 deploy key pushes to `main` past the rules.
+
+## 39. An ontology designed together: two authors, one review, a release by tag
+
+[docs/plans/people-and-graphs.md](plans/people-and-graphs.md), phase 2. Exercises: canonical files, the trial's generated copies untracked, the
+term-level rebase, the term-by-term diff, what is breaking, the workspace's rules and tag rules, and a sandbox from an existing repository. Needs a
+scratch private repository in an organisation on Team, a second account with write access, and a private registry to publish to. `tests/test_ontology_as_code.py`
+runs the two authors on a bare repository; this runs what only GitHub can show.
+
+```bash
+oto pack new garage --to . --maintainer "<you>" && cd garage                # fill it with the ontology-interview skill
+oto pack format . && oto pack check . --strict && oto pack try .
+git init -b main && git add -A && git commit -m "The first vocabulary"
+git ls-files | grep -c 'trial/ontology.config.json'                         # 0: what oto pack try writes isn't tracked
+gh repo create <org>/garage --private --source . --push
+oto repo rules --apply --code-owner <you>                                   # asks for the code owners on main first: commit .github/CODEOWNERS, push, run it again
+gh variable set OTO_REGISTRY --body "https://github.com/<org>/<registry>"
+gh secret set OTO_REGISTRY_TOKEN --env oto-release
+
+# two authors, on unrelated terms
+oto sandbox up --name garage-two --clone <org>/garage --github-token-env GITHUB_TOKEN    # the second author: cloned, nothing pushed, no rules touched
+#   each: a branch, the interview on one topic, oto pack format ., oto pack check . --strict, oto pack try ., a pull request
+#   the check posts what changed, term by term; the merge box wants one approval and a code owner's, so neither merges alone
+git fetch origin && oto pack rebase --onto origin/main                      # the second author, once the first merged; then the git steps it prints
+oto pack check . --against 1                                                # nothing breaking when both only added
+
+# a release
+git tag v2 && git push origin v2                                            # as the maintainer: pack publish runs from oto-release
+#   as the other author, git push origin v3 is refused by the tag rules
+oto pack add garage && oto init --name "Team A" --pack garage --project team-a     # the release reached the registry
+```
+
+Pass when a fresh clone passes the check and the trial; both authors' terms merge with nothing resolved by hand; a pull request can't merge without an approval
+and the check; only a maintainer can push a release tag; a workflow on a branch can't read `OTO_REGISTRY_TOKEN`; and the tag publishes to the private registry.

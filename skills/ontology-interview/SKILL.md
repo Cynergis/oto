@@ -275,7 +275,9 @@ All under `<workspace>/ontology/<name>/`:
    - `validated_by` — **leave empty.** It is filled only when a person who knows the domain has
      actually confirmed the entry. Never guess it, and never put your own name in it.
 3. `questions.json` (Phase 4d): the Gate 1 questions, each with `who`, `why`, an `ask` that runs,
-   a `gate`, and `validated_by` empty until the person who asks it confirms it.
+   a `gate`, and `validated_by` empty until the person who asks it confirms it. Name each question
+   by topic (`deliverables-due-this-month`), never by the next number: two people working at once
+   would both take the same number.
 4. `sample.graph.json`: a small graph, a handful of nodes in the pack's own classes with the edges
    between them, written for the purpose and naming nobody real, from which every question answers.
    It is what a project started from the pack sees first, and what `oto pack check` asks the
@@ -336,6 +338,18 @@ When they confirm an entry, fill `validated_by` with their name and the date. Re
 is not. `oto pack check --strict` refuses the pack while a term lacks a confirmation, which is the
 release's gate: an ontology is released confirmed, or not released.
 
+## Two people on one vocabulary
+
+A workspace in a repository is changed the way code is: a branch per topic, a pull request, one
+approval. After writing the files, `oto pack format .` puts them in the canonical form `oto pack
+check --strict` holds them to, so unrelated additions rarely conflict. If `main` moved meanwhile,
+`git fetch origin` and `oto pack rebase --onto origin/main` merge the branch term by term, then
+run the steps it prints, in order, for the person. It stops only when one term was changed two
+ways: nothing was written, so tell the person what clashed, in their words, and who to talk to.
+`oto pack diff --base origin/main` says what the branch changes, term by term; the check workflow
+posts the same on the pull request. Before a release, `oto pack check --against <last release>`
+names what would break a graph already on the pack.
+
 ## Phase 8 — Release
 
 ```bash
@@ -343,7 +357,8 @@ oto pack publish --from <workspace> --to <registry url> --note "<what this relea
 ```
 
 The registry carries the pack, raises its release, tags it, and lists it in the marketplace; the
-workspace's `pack-publish.yml` does the same on a tag. From there a team starts a project on it
+workspace's `pack-publish.yml` does the same on a tag, which only a maintainer may push once the
+rules are set (`oto repo rules --apply`). From there a team starts a project on it
 (`oto pack add <name>`, `oto init --pack <name>`), its vocabulary derived from the pack, and a later
 release reaches them through `oto status`, `oto ontology diff` and `oto ontology update`. The trial
 project and the workflows stay behind; the pack is the deliverable.

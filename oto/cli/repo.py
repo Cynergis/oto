@@ -19,15 +19,14 @@ import json
 import os
 import sys
 
-from ._common import project_arguments, resolve as _resolve
+from ._common import project_arguments
 
 
 def cmd_repo(args):
     from .. import repo as _repo
     from ..project import ProjectError
 
-    project = _resolve(args)
-    root = project.data
+    root = os.path.abspath(args.project)
     if args.repo_command != "rules":
         print("oto: repo knows one verb, rules", file=sys.stderr)
         return 1
@@ -54,6 +53,14 @@ def cmd_repo(args):
     except ProjectError as exc:
         print("oto: %s" % exc, file=sys.stderr)
         return 1
+    if result.get("workspace"):
+        print("code owners: %s owns .github/, ontology/ and manifest.json (%s); a change to them needs that approval"
+              % (result.get("code_owner"), _repo.CODEOWNERS_FILE.replace(os.sep, "/")))
+        print("%s the branch rules %r on %s: pull requests required, the check pack check, one approval and a code owner's"
+              % ("created" if result["created"] else "replaced", _repo.RULES_NAME, _repo._owner_name(repository)))
+        print("release tags: only a maintainer or an administrator may make one (%s). The environment %s deploys from those tags alone: "
+              "put the registry's token there, gh secret set OTO_REGISTRY_TOKEN --env %s" % (result.get("tag_rules"), result.get("environment"), result.get("environment")))
+        return 0
     print("code owners: %s owns .github/ and oto.lock.json (%s); a change to them needs that approval"
           % (result.get("code_owner"), _repo.CODEOWNERS_FILE.replace(os.sep, "/")))
     print("main's deploy key: in the environment %s, which only main deploys from; the ingest and architecture workflows push with it"

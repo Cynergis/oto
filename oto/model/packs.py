@@ -38,6 +38,7 @@ import tempfile
 from .. import __version__
 from . import ontologies as _ontologies
 from . import ontology_manifest as _om
+from . import pack_merge as _merge
 
 MANIFEST_NAME = "manifest.json"
 USER_DIR_ENV = "OTO_PACKS"
@@ -549,68 +550,103 @@ def new(name, ontology=None, domain=None, summary=None, view_dirs=(), to=None, f
 TRIAL_DIR = "trial"
 
 
+def format_(directory):
+    """Write the pack's own files in canonical form. Returns the files it changed."""
+    return _merge.format_(directory)
+
+
 def is_workspace(directory):
     """A pack in the making, in a directory of its own: it has a trial project beside the deliverable."""
     return os.path.isdir(os.path.join(directory, TRIAL_DIR))
 WORKFLOWS_DIR = os.path.join(".github", "workflows")
 #: What `oto pack publish` leaves behind: the workspace's own, never the pack's
-WORKSPACE_ONLY = (TRIAL_DIR, ".github")
+WORKSPACE_ONLY = (TRIAL_DIR, ".github", ".claude", ".gitignore")
+WORKSPACE_GITIGNORE = """# What `oto pack try` writes from the pack beside it. Tracking these conflicts on every branch.
+trial/ontology.config.json
+trial/questions.json
+trial/rules.json
+# Sample documents may be a client's: stay out of the repository unless someone decides otherwise.
+trial/inbox/
+__pycache__/
+"""
 TRIAL_ABOUT = ("The trial project's vocabulary, written from the pack beside it by `oto pack try`: what ontology/%s composes "
                "with the bases it embeds. Do not edit it here; edit the pack's ontology/%s/ and run `oto pack try` again. "
                "The documents, proposals and graph of this project are its own and survive a try.")
+PRIVATE_ENGINE = """      - name: Reach the engine repository when it is private
+        run: if [ -n "$OTO_ENGINE_TOKEN" ]; then git config --global url."https://x-access-token:${OTO_ENGINE_TOKEN}@github.com/".insteadOf "https://github.com/"; fi
+"""
 PACK_CHECK_WORKFLOW = """name: pack check
 
 # On every pull request and push: the pack's own gates. `oto pack check --strict` holds the vocabulary to its
-# three gates (shapes, a question citing every term, a sample that answers) and the rationale (a reason and a
-# confirmation per term), then the pack's tests, when it carries some, run against the engine.
+# three gates (shapes, a question citing every term, a sample that answers), the rationale (a reason and a
+# confirmation per term) and its canonical form. `oto pack try` builds it in the trial project and asks its
+# questions. The pack's tests, when it carries some, run against the engine. On a pull request, one comment says
+# what changed, term by term, and what would break a graph already on the pack. The branch rules in
+# .github/oto-rules.json make this check required.
 on:
   pull_request:
   push:
     branches: [ main ]
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   check:
+    name: pack check
     runs-on: ubuntu-latest
+    env:
+      OTO_ENGINE_TOKEN: ${{ secrets.OTO_ENGINE_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # the base and the head, for the diff
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install the engine
-        run: python -m pip install "oto-kg @ git+https://github.com/Cynergis/oto"
+""" + PRIVATE_ENGINE + """      - name: Install the engine, at the release this workspace was made with
+        run: python -m pip install "oto-kg @ git+https://github.com/Cynergis/oto@v{engine_version}"
       - name: The pack's gates
         run: oto pack check . --strict
+      - name: Try it in the trial project
+        run: oto pack try .
       - name: The pack's tests, when it has some
         run: if [ -d tests ]; then python -m pip install pytest && python -m pytest tests -q -p no:cacheprovider; fi
+      - name: What changed, term by term
+        if: github.event_name == 'pull_request'
+        run: |
+          oto pack diff . --base "origin/${{ github.base_ref }}" > pack-diff.md
+          gh pr comment "${{ github.event.pull_request.number }}" --edit-last --body-file pack-diff.md || gh pr comment "${{ github.event.pull_request.number }}" --body-file pack-diff.md
 """
 PACK_PUBLISH_WORKFLOW = """name: pack publish
 
-# A release of the pack: on a tag, or by hand. `oto pack publish` raises the release, regenerates the plugin
-# files, appends the changelog note and pushes to the registry named in the repository variable OTO_REGISTRY
-# (its git URL), with the token in the secret OTO_REGISTRY_TOKEN when the registry is private.
+# A release of the pack, on a tag: `oto pack publish` raises the release, regenerates the plugin files, appends the
+# changelog note and pushes to the registry named in the repository variable OTO_REGISTRY (its git URL). The rules
+# in .github/oto-tag-rules.json keep release tags to maintainers, and the token in OTO_REGISTRY_TOKEN, when the
+# registry is private, is a secret of the environment {release_environment}, which only those tags deploy from.
 on:
   push:
     tags: [ "v*" ]
-  workflow_dispatch:
-    inputs:
-      note:
-        description: the changelog note for this release
-        required: true
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: {release_environment}
+    env:
+      OTO_ENGINE_TOKEN: ${{ secrets.OTO_ENGINE_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install the engine
-        run: python -m pip install "oto-kg @ git+https://github.com/Cynergis/oto"
+""" + PRIVATE_ENGINE + """      - name: Install the engine, at the release this workspace was made with
+        run: python -m pip install "oto-kg @ git+https://github.com/Cynergis/oto@v{engine_version}"
       - name: Publish the pack
         env:
           OTO_REGISTRY_TOKEN: ${{ secrets.OTO_REGISTRY_TOKEN }}
-        run: oto pack publish --from . --to "${{ vars.OTO_REGISTRY }}" --note "${{ github.event.inputs.note || github.ref_name }}"
+        run: oto pack publish --from . --to "${{ vars.OTO_REGISTRY }}" --note "${{ github.ref_name }}"
 """
 
 
@@ -646,8 +682,7 @@ def _starter(target, name, extends, domain):
              "sample.graph.json": {"nodes": [], "edges": []}}
     for filename, payload in files.items():
         with open(os.path.join(root, name, filename), "w", encoding="utf-8", newline="\n") as f:
-            json.dump(payload, f, indent=2, ensure_ascii=False)
-            f.write("\n")
+            f.write(_merge.canonical_text(filename, payload))
     with open(os.path.join(root, name, "README.md"), "w", encoding="utf-8", newline="\n") as f:
         f.write("# %s\n\nA vocabulary in the making. The interview writes the classes, the relations, why each exists and the "
                 "questions the graph must answer; this file says what the domain is and how to read a graph in it.\n" % name)
@@ -658,7 +693,7 @@ def _starter(target, name, extends, domain):
 def workspace(directory):
     """Give a pack directory what a workspace has: a trial project beside the deliverable and the two
     workflows. The trial starts bare; `try_` writes its vocabulary from the pack when the pack is usable."""
-    from .. import scaffold as _scaffold
+    from .. import repo as _repo, scaffold as _scaffold
     from . import lock as _lock
     name = read(directory)["name"]
     trial = os.path.join(directory, TRIAL_DIR)
@@ -681,7 +716,16 @@ def workspace(directory):
         path = os.path.join(directory, WORKFLOWS_DIR, filename)
         if not os.path.exists(path):
             with open(path, "w", encoding="utf-8", newline="\n") as f:
+                f.write(text.replace("{engine_version}", __version__).replace("{release_environment}", _repo.RELEASE_ENVIRONMENT))
+    for path, text in ((os.path.join(directory, ".gitignore"), WORKSPACE_GITIGNORE),
+                       (os.path.join(directory, _repo.RULES_FILE), _repo.workspace_rules_text()),
+                       (os.path.join(directory, _repo.TAG_RULES_FILE), _repo.tag_rules_text())):
+        if not os.path.exists(path):
+            with open(path, "w", encoding="utf-8", newline="\n") as f:
                 f.write(text)
+    if _lock.declared(directory) is None:                  # so an author who opens the workspace is offered the engine plugin, not only in trial/
+        _lock.declare(directory, [])
+    format_(directory)
     if not _ontologies.self_check(embedded_name(directory), roots=[embedded_root(directory)]):
         try_(directory)
     return trial
@@ -701,6 +745,7 @@ def try_(directory):
     trial = os.path.join(directory, TRIAL_DIR)
     if not os.path.exists(os.path.join(trial, "project.config.json")):
         workspace(directory)
+    format_(directory)
     project = Project.standard(trial)
     result = _ontologies.composed(name, roots=roots)
     config = dict(result["config"], name=project.config().get("name") or name)
@@ -919,6 +964,9 @@ def check(directory, strict=False):
         problems.append("no embedded ontology: ontology/<name>/ must hold the ontology the manifest names "
                         "(oto pack new, or oto pack refresh)")
         return problems
+    if strict:
+        for filename in _merge.not_canonical(directory):
+            problems.append("ontology/%s/%s is not in canonical form, so it conflicts more than it needs to: oto pack format" % (embedded_name(directory), filename))
     for problem in _ontologies.self_check(embedded_name(directory), roots=[embedded_root(directory)]):
         problems.append("ontology: %s" % problem)
     if not (own_config(directory).get("classes") or {}):

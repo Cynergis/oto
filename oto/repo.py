@@ -1085,11 +1085,15 @@ jobs:
 RULES_NAME = "oto main"
 RULES_FILE = os.path.join(".github", "oto-rules.json")
 ADMIN_ROLE = 5                                    # the repository role "admin", as rulesets name it
+MAINTAIN_ROLE = 2                                 # the repository role "maintain"
+TAG_RULES_FILE = os.path.join(".github", "oto-tag-rules.json")
+RELEASE_ENVIRONMENT = "oto-release"               # deploys from release tags alone; holds the registry's token
 MAIN_ENVIRONMENT = "oto-main"                     # deploys from the default branch alone; holds main's key
 DEPLOY_KEY_SECRET = "OTO_MAIN_DEPLOY_KEY"
 DEPLOY_KEY_TITLE = "oto main pushes"
 CODEOWNERS_FILE = os.path.join(".github", "CODEOWNERS")
 OWNED = ("/.github/", "/oto.lock.json")           # what the gate runs on: its workflows and rules, the engine's pin
+WORKSPACE_OWNED = ("/.github/", "/ontology/", "/manifest.json")     # on a pack workspace: and what every graph on the pack depends on
 RULES = {
     "_about": "The branch rules on main, set by `oto repo rules --apply` (or by `oto sandbox up --repo` when it creates the repository). "
               "Pull requests required; the checks `oto checks` and `oto route` required; zero approvals here, because the route gate "
@@ -1120,6 +1124,49 @@ def rules_text():
     return json.dumps(RULES, indent=2, ensure_ascii=False) + "\n"
 
 
+#: A pack workspace's branch rules (docs/plans/people-and-graphs.md, phase 2): a vocabulary is changed the way code is, so a
+#: pull request, the check, one approval and a code owner's on what graphs depend on, with nothing past them but an
+#: administrator by a pull request. No deploy key: a workspace's workflows never push to its main.
+WORKSPACE_RULES = {
+    "_about": "The branch rules on a pack workspace's main, set by `oto repo rules --apply`. Pull requests required; the check `pack check` required and up "
+              "to date; one approval, and a code owner's for the vocabulary and the manifest, which every graph on the pack depends on (.github/CODEOWNERS). "
+              "Past them only an administrator, by a pull request, and visibly.",
+    "name": RULES_NAME,
+    "target": "branch",
+    "enforcement": "active",
+    "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
+    "bypass_actors": [{"actor_id": ADMIN_ROLE, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}],
+    "rules": [
+        {"type": "deletion"},
+        {"type": "non_fast_forward"},
+        {"type": "pull_request", "parameters": {"required_approving_review_count": 1, "dismiss_stale_reviews_on_push": True,
+                                                "require_code_owner_review": True, "require_last_push_approval": False,
+                                                "required_review_thread_resolution": False}},
+        {"type": "required_status_checks", "parameters": {"strict_required_status_checks_policy": True, "do_not_enforce_on_create": False,
+                                                          "required_status_checks": [{"context": "pack check"}]}},
+    ],
+}
+#: Who may release: a tag v<anything> starts `pack publish`, so only maintainers and administrators may make, move or delete one
+TAG_RULES = {
+    "_about": "A tag v<anything> on a pack workspace publishes the pack to the registry, so only a maintainer or an administrator may make, move or delete one.",
+    "name": "oto release tags",
+    "target": "tag",
+    "enforcement": "active",
+    "conditions": {"ref_name": {"include": ["refs/tags/v*"], "exclude": []}},
+    "bypass_actors": [{"actor_id": ADMIN_ROLE, "actor_type": "RepositoryRole", "bypass_mode": "always"},
+                      {"actor_id": MAINTAIN_ROLE, "actor_type": "RepositoryRole", "bypass_mode": "always"}],
+    "rules": [{"type": "creation"}, {"type": "update"}, {"type": "deletion"}],
+}
+
+
+def workspace_rules_text():
+    return json.dumps(WORKSPACE_RULES, indent=2, ensure_ascii=False) + "\n"
+
+
+def tag_rules_text():
+    return json.dumps(TAG_RULES, indent=2, ensure_ascii=False) + "\n"
+
+
 def _owner_name(repo):
     """`owner/name` from that, or from a GitHub URL."""
     value = (repo or "").strip()
@@ -1144,10 +1191,20 @@ def _handle(owner):
     return owner if owner.startswith("@") else "@" + owner
 
 
-def code_owners_text(owner):
+def is_workspace(root):
+    """A pack workspace rather than a knowledge project: a pack's manifest, and no project config of its own."""
+    return os.path.exists(os.path.join(root, "manifest.json")) and not os.path.exists(os.path.join(root, "project.config.json"))
+
+
+def code_owners_text(owner, owned=OWNED):
     """`.github/CODEOWNERS`: `owner` (a login, or an organisation's team as org/team) owns what the route
     gate runs on, so the branch rules' code-owner review holds a change to it at GitHub, where no workflow
     can answer for it."""
+    if owned is WORKSPACE_OWNED:
+        head = ["# Written by `oto repo rules --apply`. A pack workspace's code owners: its workflows and rules under .github/, and",
+                "# the vocabulary and manifest every graph on the pack depends on. The branch rules require their approval.",
+                ""]
+        return "\n".join(head + ["%-16s %s" % (path, _handle(owner)) for path in owned]) + "\n"
     head = ["# Written by `oto repo rules --apply`. What the route gate runs on: its workflows and rules under",
             "# .github/, and the lock that pins the engine they install. The branch rules (.github/oto-rules.json)",
             "# require a code owner's approval for a change to these, which GitHub holds: a pull request cannot",
@@ -1174,7 +1231,7 @@ def write_code_owners(root, owner):
     path = os.path.join(root, CODEOWNERS_FILE)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(code_owners_text(owner))
+        f.write(code_owners_text(owner, WORKSPACE_OWNED if is_workspace(root) else OWNED))
     return _handle(owner)
 
 
@@ -1270,13 +1327,102 @@ def _main_key(run, owner_name, default_branch):
     return added.get("id")
 
 
+def _release_environment(run, owner_name):
+    """The environment only a release tag deploys from, which holds the registry's token. Its secret is the person's to set."""
+    import tempfile
+    from .project import ProjectError
+
+    def must(step, result):
+        code, out, err = result
+        if code != 0:
+            raise ProjectError("could not %s on %s: %s" % (step, owner_name, (err or out).strip()[-400:]))
+        return out
+
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
+        json.dump({"deployment_branch_policy": {"protected_branches": False, "custom_branch_policies": True}}, f)
+        temp = f.name
+    try:
+        must("set up the environment %s" % RELEASE_ENVIRONMENT,
+             run("api", "--method", "PUT", "repos/%s/environments/%s" % (owner_name, RELEASE_ENVIRONMENT), "--input", temp))
+    finally:
+        os.unlink(temp)
+    policies_path = "repos/%s/environments/%s/deployment-branch-policies" % (owner_name, RELEASE_ENVIRONMENT)
+    policies = _json(must("read the environment's tags", run("api", policies_path)), {}).get("branch_policies") or []
+    if not any(p.get("name") == "v*" and p.get("type") == "tag" for p in policies):
+        must("let release tags deploy to the environment", run("api", "--method", "POST", policies_path, "-f", "name=v*", "-f", "type=tag"))
+
+
+def _put_ruleset(run, owner_name, payload, hint=""):
+    """A ruleset of that name replaced, else created. Returns (created, id)."""
+    import tempfile
+    from .project import ProjectError
+    code, out, _err = run("api", "repos/%s/rulesets" % owner_name)
+    existing = _json(out, []) if code == 0 else []
+    found = [r for r in existing if isinstance(r, dict) and r.get("name") == payload.get("name")]
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
+        json.dump(payload, f)
+        temp = f.name
+    try:
+        if found:
+            code, out, err = run("api", "--method", "PUT", "repos/%s/rulesets/%s" % (owner_name, found[0].get("id")), "--input", temp)
+        else:
+            code, out, err = run("api", "--method", "POST", "repos/%s/rulesets" % owner_name, "--input", temp)
+    finally:
+        try:
+            os.unlink(temp)
+        except OSError:
+            pass
+    if code != 0:
+        raise ProjectError("could not set the rules %r on %s: %s%s" % (payload.get("name"), owner_name, (err or out).strip()[-400:], hint))
+    return not found, found[0].get("id") if found else _json(out, {}).get("id")
+
+
+def apply_workspace_rules(root, repo, token=None, gh=None, code_owner=None):
+    """Set up a pack workspace's repository, through the GitHub CLI: the code owners first, which must be on the default branch
+    before the rules ask for them; the environment only release tags deploy from; the branch rules; the tag rules. Returns
+    {created, id, code_owner, environment, tag_rules, warnings, workspace: True}."""
+    from .project import ProjectError
+    owner_name = _owner_name(repo)
+    if "/" not in owner_name:
+        raise ProjectError("the repository must be owner/name (or its GitHub URL): %r" % repo)
+    payloads = []
+    for relative, default in ((RULES_FILE, WORKSPACE_RULES), (TAG_RULES_FILE, TAG_RULES)):
+        try:
+            with open(os.path.join(root, relative), encoding="utf-8") as f:
+                payloads.append({k: v for k, v in json.load(f).items() if not str(k).startswith("_")})
+        except FileNotFoundError:
+            payloads.append({k: v for k, v in default.items() if not str(k).startswith("_")})
+        except (OSError, ValueError) as exc:
+            raise ProjectError("the rules in %s can't be read: %s" % (relative, exc))
+    run = _github(token, gh)
+    default_branch = _json(run("api", "repos/%s" % owner_name)[1], {}).get("default_branch") or "main"
+    owner = code_owner_of(root)
+    if code_owner or not owner:
+        chosen = code_owner or github_login(token, gh)
+        if not chosen:
+            raise ProjectError("no code owner for %s: the GitHub CLI says nobody is signed in; pass --code-owner <login or org/team>" % CODEOWNERS_FILE)
+        if _handle(chosen) != owner:
+            owner = write_code_owners(root, chosen)
+    code, _out, _err = run("api", "repos/%s/contents/.github/CODEOWNERS?ref=%s" % (owner_name, default_branch))
+    if code != 0:
+        raise ProjectError("the code owners are not on %s of %s yet: %s names %s here; commit it to %s and push it, then run `oto repo rules --apply` again: "
+                           "the rules ask for a code owner's approval, so the owners come first" % (default_branch, owner_name, CODEOWNERS_FILE, owner, default_branch))
+    _release_environment(run, owner_name)
+    created, ruleset = _put_ruleset(run, owner_name, payloads[0])
+    _put_ruleset(run, owner_name, payloads[1])
+    return {"created": created, "id": ruleset, "code_owner": owner, "environment": RELEASE_ENVIRONMENT, "tag_rules": payloads[1].get("name"), "warnings": [], "workspace": True}
+
+
 def apply_rules(root, repo, token=None, gh=None, code_owner=None):
     """Set up the GitHub repository `owner/name` for the route gate, through the GitHub CLI, in this order:
     the code owners (`.github/CODEOWNERS`, naming `code_owner`, or the signed-in person when the file is
     not there yet), which must be on the default branch before the rules ask for them; main's deploy key,
     in the environment oto-main; then the branch rules of `.github/oto-rules.json`, a ruleset of that name
-    replaced, else created. Returns {created, id, code_owner, environment, key, warnings}."""
+    replaced, else created. Returns {created, id, code_owner, environment, key, warnings}. A pack workspace
+    has rules of its own (apply_workspace_rules)."""
     from .project import ProjectError
+    if is_workspace(root):
+        return apply_workspace_rules(root, repo, token=token, gh=gh, code_owner=code_owner)
     path = os.path.join(root, RULES_FILE)
     try:
         with open(path, encoding="utf-8") as f:

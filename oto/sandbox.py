@@ -631,6 +631,34 @@ def github_repository(repo, token, check=False, gh=None):
     return url
 
 
+def _token_header(url, token):
+    """The token in a git command's own header, never in a remote URL or a file."""
+    if not (token and url.startswith(GITHUB)):
+        return []
+    import base64
+    return ["-c", "http.extraheader=AUTHORIZATION: basic %s" % base64.b64encode(("x-access-token:" + token).encode("utf-8")).decode("ascii")]
+
+
+def _clone(project_dir, url, token=None):
+    """Clone an existing repository into the project folder, which is empty or missing. It only reads: nothing commits or pushes."""
+    os.makedirs(os.path.dirname(project_dir), exist_ok=True)
+    code, out, err = _run(["git"] + _token_header(url, token) + ["clone", "-q", url, project_dir], timeout=600)
+    if code != 0:
+        raise SandboxError("could not clone %s: %s" % (url, (err or out).strip()[-300:]),
+                           "check the repository exists and you may read it; for a private one, put a token in an environment variable and name it with --github-token-env <VAR>")
+
+
+def _clone_state(project_dir, url):
+    """Whether the project folder can take a clone of `url`: "empty" (or missing), "same" (already cloned from there), or "other"."""
+    if not os.path.isdir(project_dir) or not os.listdir(project_dir):
+        return "empty"
+    if os.path.isdir(os.path.join(project_dir, ".git")):
+        code, out, _err = _run(["git", "-C", project_dir, "remote", "get-url", "origin"], timeout=60)
+        if code == 0 and out.strip().rstrip("/") in (url.rstrip("/"), url.rstrip("/")[:-4] if url.rstrip("/").endswith(".git") else url.rstrip("/") + ".git"):
+            return "same"
+    return "other"
+
+
 def first_push(project_dir, url, token=None, kind="knowledge"):
     """Put the laid-out folder under git, with `origin` at the repository, and push its first commit.
     The token, when there is one, goes in the push's own header, never in the remote URL or a file."""
@@ -642,11 +670,7 @@ def first_push(project_dir, url, token=None, kind="knowledge"):
     remotes = _run(["git", "-C", project_dir, "remote"], timeout=60)[1].split()
     if "origin" not in remotes:
         _git(project_dir, "remote", "add", "origin", url)
-    header = []
-    if token and url.startswith(GITHUB):
-        import base64
-        header = ["-c", "http.extraheader=AUTHORIZATION: basic %s" % base64.b64encode(("x-access-token:" + token).encode("utf-8")).decode("ascii")]
-    code, out, err = _run(["git", "-C", project_dir] + header + ["push", "-q", "-u", "origin", "main"], timeout=300)
+    code, out, err = _run(["git", "-C", project_dir] + _token_header(url, token) + ["push", "-q", "-u", "origin", "main"], timeout=300)
     if code != 0:
         raise SandboxError("the first push to %s failed: %s" % (url, (err or out).strip()[-300:]),
                            "check the repository exists and the token in the variable you named may push to it")
@@ -671,7 +695,7 @@ def _allow_graph_hosts(sbx, name, rules, report):
 
 def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=False, init_policy=None,
        recreate=False, check=False, wait=600, say=None, allow_outside=False, publish=None,
-       kind=None, repo=None, no_repo=False, token_env=None, pack=None):
+       kind=None, repo=None, no_repo=False, token_env=None, pack=None, clone=None):
     """Make the sandbox ready. Returns a report: what was found, what was done, what is next.
     Raises SandboxError, with what the person does about it, when a step cannot go on.
 
@@ -680,8 +704,12 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
     created on GitHub with the token in the environment variable `token_env` when it is owner/name,
     pushed once from here, and the token stored for the sandbox as the sandbox tool's own GitHub
     secret, so the agent inside pushes without the token ever entering the sandbox. `no_repo` says
-    the project is local to the folders."""
+    the project is local to the folders. `clone` (owner/name, a URL or a path) starts from a repository
+    that exists, for the second person on: it clones into an empty project folder and stores the token
+    the same way, and it never commits, pushes or touches branch rules or deploy keys."""
     say = say or (lambda line: None)
+    if clone and (kind or repo or no_repo):
+        raise SandboxError("--clone starts from a repository that exists, so it takes no --kind, --repo or --no-repo", "")
     if kind is not None and kind not in KINDS:
         raise SandboxError("the kind is one of %s, not %r" % (" or ".join(KINDS), kind), "")
     if repo and no_repo:
@@ -690,6 +718,8 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         raise SandboxError("a %s project is backed by a repository unless you say it is not" % kind,
                            "pass --repo <owner/name> (created for you, with the token in --github-token-env), or --no-repo for a project local to the folders")
     token = os.environ.get(token_env) if token_env else None
+    if token_env and not token and clone and not check:
+        raise SandboxError("the variable %s is empty" % token_env, "put a token with the repo scope in it, or leave --github-token-env out for a public repository")
     if repo and _github_url(repo).startswith(GITHUB) and not token and not check:
         raise SandboxError("creating and pushing to %s needs a GitHub token, and %s" % (repo, ("the variable %s is empty" % token_env) if token_env else "no variable was named"),
                            "put a token with the repo scope in an environment variable and name it with --github-token-env <VAR>; the value is never written anywhere")
@@ -756,7 +786,20 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
             report["warnings"].append("the sandbox %s already works on %s, not %s: run again with --recreate to change it"
                                       % (name, ", ".join(existing["folders"]) or "no folder", project_dir))
     report["kind"] = kind
-    report["repository"] = _github_url(repo) if repo else None
+    report["repository"] = _github_url(repo or clone) if repo or clone else None
+    if clone:
+        state = _clone_state(report["project"] or project_dir, report["repository"])
+        if state == "other":
+            raise SandboxError("%s already holds something else, so nothing was cloned into it" % (report["project"] or project_dir),
+                               "choose another --name or --dir, or move what is there")
+        if state == "empty" and not check:
+            say("cloning %s" % report["repository"])
+            _clone(report["project"] or project_dir, report["repository"], token)
+            report["done"].append("cloned %s into %s: nothing committed or pushed" % (report["repository"], report["project"] or project_dir))
+        elif state == "empty":
+            report["done"].append("would clone %s into %s: nothing committed or pushed" % (report["repository"], report["project"] or project_dir))
+        else:
+            report["done"].append("reused %s, already cloned from %s" % (report["project"] or project_dir, report["repository"]))
     graphs = _connections.logins(report["project"] or project_dir)
     report["graphs"] = [{"name": g["name"], "server": g["server"], "variables": g["variables"]} for g in graphs]
     logins = [v for g in graphs for v in g["variables"]]
@@ -827,10 +870,14 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
             from .project import ProjectError
             try:
                 rules = _repo.apply_rules(project_dir, url[len(GITHUB):-len(".git")], token=token, gh=_tool("OTO_GH", "gh"))
-                report["done"].append("set the branch rules on main from %s (%s): pull requests required, the checks oto checks and oto route, "
-                                      "no approvals at the branch level but %s's for what the gate runs on; main's deploy key "
-                                      "is in the environment %s, for the two workflows that push to main"
-                                      % (_repo.RULES_FILE, "created" if rules["created"] else "replaced", rules.get("code_owner"), rules.get("environment")))
+                if rules.get("workspace"):
+                    report["done"].append("set the branch rules on main from %s: pull requests required, the check pack check, one approval and %s's as code owner; "
+                                          "release tags are limited to maintainers" % (_repo.RULES_FILE, rules.get("code_owner")))
+                else:
+                    report["done"].append("set the branch rules on main from %s (%s): pull requests required, the checks oto checks and oto route, "
+                                          "no approvals at the branch level but %s's for what the gate runs on; main's deploy key "
+                                          "is in the environment %s, for the two workflows that push to main"
+                                          % (_repo.RULES_FILE, "created" if rules["created"] else "replaced", rules.get("code_owner"), rules.get("environment")))
                 for warning in rules.get("warnings") or []:
                     report.setdefault("warnings", []).append(warning)
             except ProjectError as exc:
@@ -869,12 +916,12 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         if logins:
             report["done"].append("passed the graphs' logins into the sandbox, by name, from this terminal's environment: %s" % ", ".join(logins))
     _allow_graph_hosts(sbx, name, rules, report)
-    if repo and token and _github_url(repo).startswith(GITHUB):
+    if (repo or clone) and token and _github_url(repo or clone).startswith(GITHUB):
         code, out, err = sbx("secret", "set", "github", "--sandbox", name, "--token", token, "-f", timeout=120)
         if code != 0:
             report["warnings"].append("the GitHub token could not be stored for the sandbox: %s; pushes from inside will ask for it" % (err or out).strip()[-200:])
         else:
-            report["done"].append("stored the token as the sandbox's own GitHub secret: the agent inside pushes to %s, and the token never enters the sandbox" % _github_url(repo))
+            report["done"].append("stored the token as the sandbox's own GitHub secret: the agent inside pushes to %s, and the token never enters the sandbox" % _github_url(repo or clone))
     say("waiting for OTO to be ready inside it")
     line = _oto_line(sbx, name, wait=wait)
     report["oto"] = line

@@ -105,7 +105,7 @@ A second person clones it:
 git clone https://github.com/<org>/client-engagement
 ```
 
-Or, to work in a sandbox, makes one from it (*new*; see below):
+Or, to work in a sandbox, makes one from it:
 
 ```bash
 oto sandbox up --name client-engagement --clone <org>/client-engagement --github-token-env GITHUB_TOKEN
@@ -118,8 +118,8 @@ Then each of them follows the same workflow as for code:
    terms, the reason for each, who confirmed it, the questions the graph must answer, rules and a sample.
 3. `oto pack check . --strict` and `oto pack try .` hold it to the gates.
 4. Open a pull request. CI runs the gates and posts what changed, term by term, flagging what would
-   break a graph already using the pack (*new*).
-5. If `main` moved and the branch conflicts, run `oto pack rebase --onto origin/main` (*new*). It merges
+   break a graph already using the pack.
+5. If `main` moved and the branch conflicts, run `oto pack rebase --onto origin/main`. It merges
    term by term and stops only on a real clash, such as two people defining one class differently.
 6. A pack maintainer reviews and merges.
 7. When enough has merged, a maintainer pushes a tag. The workflow runs `oto pack publish`, and every
@@ -137,7 +137,7 @@ Then each of them follows the same workflow as for code:
 - **What can go wrong with a shared vocabulary:** a release that removes a class breaks every graph on
   it. Releases are plain numbers, so the check has to say what is breaking.
 
-### Two authors today: the workflow runs, but it is not yet as easy as code
+### Two authors: built in phase 2
 
 Tested on 2026-11-04 with two simulated authors, a local bare repository and hand-written edits rather than
 the real interview. Both branched from one `main`, and each added a different class, relation, reason,
@@ -146,36 +146,35 @@ The second **conflicted in all 6 files it touched**, though the two authors adde
 
 | Cause | Files | Fix |
 |---|---|---|
-| New terms land at the same spot in each JSON file | 4 | canonical JSON: sorted keys, and the sample's nodes and edges in a stable order |
-| `oto pack try` rewrites the trial's copies of the vocabulary and questions, which git tracks | 2 | stop tracking what `try` writes |
-| Both authors take the next question number, `GQ3` | within `questions.json` | name questions by topic |
+| New terms land at the same spot in each JSON file | 4 | canonical JSON: sorted keys, and the sample's nodes and edges in a stable order (`oto pack format`, held by `oto pack check --strict`) |
+| `oto pack try` rewrites the trial's copies of the vocabulary and questions, which git tracked | 2 | a workspace's `.gitignore` leaves out what `try` writes, and the trial's `inbox/`, since sample documents may be a client's |
+| Both authors take the next question number, `GQ3` | within `questions.json` | the interview skill names questions by topic |
 
 With those three fixes applied by hand, the same test conflicted in **1 file of 4**: `questions.json`, where
 the two new questions sorted next to each other. Two inserts at one spot conflict in git whatever the format,
 so sorting makes conflicts rarer without ending them.
 
-That is what `oto pack rebase` is for. A term-level merge knows that two new terms never clash, and it reports
-only what does: the same term changed on both sides. It follows `oto route rebase`, which re-applies a stale
-pull request's facts onto a new `main`. A git merge driver would not do, because GitHub's merge button doesn't
-run one.
+That is what `oto pack rebase --onto <ref>` is for. A term-level merge knows that two new terms never clash, and
+it reports only what does: the same term changed two ways. It prints the same git steps as `oto route rebase`. A git
+merge driver would not do, because GitHub's merge button doesn't run one. `tests/test_ontology_as_code.py` runs the
+two authors to a clean merge, with nothing resolved by hand.
 
-Until then, these conflicts are additive and mean keeping both sides, by hand or with Claude.
-
-### What to build
+### What was built
 
 | Build | Why |
 |---|---|
-| Canonical JSON for the pack's files, written by the engine and held by `oto pack check` | two unrelated additions conflict in all four vocabulary files (see the test above) |
-| The trial's generated copies untracked (`ontology.config.json`, `questions.json`, `rules.json`) | `oto pack try` rewrites them on every branch, so they conflict on every merge |
-| Topic-named question ids, in the interview skill | the next number collides whenever two people add a question |
+| Canonical JSON for the pack's files, written by the engine and held by `oto pack check --strict` | two unrelated additions conflicted in all four vocabulary files |
+| The trial's generated copies untracked, and `trial/inbox` ignored | `oto pack try` rewrote them on every branch; sample documents may be a client's (an open question in ADR-0012) |
+| Topic-named question ids, in the interview skill | the next number collided whenever two people added a question |
 | `oto pack rebase --onto <ref>`: a term-level merge | the conflicts sorting can't prevent |
-| `oto sandbox up --clone <repo>` (see capability 2) | a sandbox can't start from an existing repository in one step |
-| The workspace declares the `oto` plugin at its root | only `trial/` declares it, so Claude Code doesn't offer the plugin to an author who opens the workspace |
-| A workspace profile for `oto repo rules`: required check `pack check`, one approval, code owners on `ontology/` and `manifest.json`, release tags limited to maintainers | a workspace gets no branch rules today; anyone with write can push to `main` or tag a release |
-| `pack-check.yml` runs `oto pack try`, pins the engine, and posts the term-level diff | it runs the check only, on an unpinned engine, with nothing for a reviewer to read |
+| `oto sandbox up --clone <repo>` (see capability 2) | a sandbox couldn't start from an existing repository in one step |
+| The workspace declares the `oto` plugin at its root | only `trial/` declared it, so Claude Code didn't offer the plugin to an author who opened the workspace |
+| A workspace profile for `oto repo rules`: required check `pack check`, one approval, code owners on `ontology/` and `manifest.json`, release tags limited to maintainers | a workspace got no branch rules; anyone with write could push to `main` or tag a release |
+| `pack-check.yml` runs `oto pack try`, pins the engine, and posts the term-level diff (`oto pack diff`) | it ran the check only, on an unpinned engine, with nothing for a reviewer to read |
 | `oto pack check --against <release>`: names what is breaking | releases are integers with no breaking-change signal |
-| A registry that accepts publishes by deploy key, as `main` already does on a knowledge repository | `publish_pack` pushes straight to the registry's branch, which branch rules would refuse |
-| `trial/inbox` ignored by git by default | sample documents may be a client's (an open question in ADR-0012) |
+| `pack-publish.yml` reads the registry's token from the environment `oto-release`, which only release tags deploy from | any workflow on a branch could read a repository secret |
+
+Not built: a registry that accepts publishes by deploy key. `publish_pack` pushes straight to the registry's branch, which is fine until someone puts branch rules on the registry, and OTO doesn't set any there.
 
 ## Capability 2: permissions on a graph
 
@@ -239,7 +238,7 @@ oto build --project northwind-engagement
 oto sandbox up --name northwind-engagement --clone <org>/northwind-engagement --github-token-env GITHUB_TOKEN
 ```
 
-`--clone` (*new*) clones into `~/<name>/project` when that folder is empty, creates the sandbox over it,
+`--clone` clones into `~/<name>/project` when that folder is empty, creates the sandbox over it,
 installs the plugins the project declares, and stores the person's token as that sandbox's own GitHub secret.
 It never pushes, never commits and never touches branch rules or deploy keys, and it refuses a folder that
 already holds something else.
@@ -336,7 +335,7 @@ Enterprise Cloud, the required reviewers work as they are.
 | Deploy secrets in the `oto-main` environment; previews without the store token (phase 0, done) | contributors could reach them |
 | Promotion by a pull request on `oto.promote.json` | required reviewers aren't available on Team |
 | The gate counts only qualified reviewers (phase 0, done; the access file narrows it in phase 3) | an approval from anyone with read access passed |
-| `oto sandbox up --clone` | `--repo` commits and pushes (`oto/sandbox.py:631`) and re-applies the rules, so it is unsafe on an existing repository |
+| `oto sandbox up --clone` (phase 2, done) | `--repo` commits and pushes and re-applies the rules, so it is unsafe on an existing repository |
 | `oto repo access` and the access file | permissions are set by hand in GitHub today, with no review or drift check |
 | Verified commits, in a sandbox and on a person's computer | the session route falls back to reviewed without them |
 | The store repository created with the graph | it is a manual step today |

@@ -108,7 +108,7 @@ def cmd_sandbox(args):
                              approve=args.approve_anthropic, init_policy=args.init_policy, recreate=args.recreate,
                              check=args.check, wait=args.wait, say=say, allow_outside=args.allow_outside_plugins,
                              publish=args.publish if args.publish is not None else None,
-                             kind=args.kind, repo=args.repo, no_repo=args.no_repo, token_env=args.github_token_env, pack=args.pack)
+                             kind=args.kind, repo=args.repo, no_repo=args.no_repo, token_env=args.github_token_env, pack=args.pack, clone=args.clone)
     except _sandbox.SandboxError as e:
         if args.json:
             print(json.dumps({"ok": False, "problem": str(e), "fix": e.fix}, indent=2))
@@ -162,6 +162,8 @@ def register(sub):
                    help="lay the project out before the sandbox is made: a knowledge project (on --pack when named), or an ontology workspace (a pack in the making)")
     p.add_argument("--pack", help="for --kind knowledge: the pack the project starts from (installed on this computer)")
     p.add_argument("--repo", help="back the project with a git repository: owner/name (created private on GitHub with the token in --github-token-env), a URL, or a path")
+    p.add_argument("--clone", help="start from a repository that exists, owner/name, a URL or a path: cloned into an empty project folder, with the token in --github-token-env "
+                                   "stored as the sandbox's GitHub secret; it never commits, pushes or touches branch rules")
     p.add_argument("--no-repo", dest="no_repo", action="store_true", help="the project is local to the folders: no repository")
     p.add_argument("--github-token-env", dest="github_token_env", metavar="VAR",
                    help="the environment variable holding a GitHub token with the repo scope; used to create and push, and stored as the sandbox's GitHub secret; never written anywhere")

@@ -66,6 +66,18 @@ def cmd_serve(args):
 
     from ..project import ProjectError
 
+    iap_audience = None
+    if getattr(args, "iap", False):
+        from ..serve import iap as _iap
+        if not args.http:
+            print("oto serve: --iap is for a server over HTTP behind the proxy: pass --http [HOST:]PORT", file=sys.stderr)
+            return 1
+        problem = _iap.setup_problem()
+        if problem:
+            print("oto serve: refused: %s" % problem, file=sys.stderr)
+            return 1
+        iap_audience = os.environ[_iap.AUDIENCE_ENV].strip()
+        os.environ.setdefault("OTO_READ_LOG", "stderr")
     try:
         if getattr(args, "preview", False) or getattr(args, "watch", False):
             project = _resolve(args)
@@ -134,7 +146,7 @@ def cmd_serve(args):
                 engine.MODE["watching"] = list(_preview.WATCHED)
         try:
             _http.serve(engine, args.http, app_dir=app_dir, project_root=project_root, identity=identity,
-                        token=_http.token_from_env(), cors=args.cors or (), mounts=mounts, catalog=catalog)
+                        token=_http.token_from_env(), cors=args.cors or (), mounts=mounts, catalog=catalog, iap=iap_audience)
         except _http.BindError as exc:
             print("oto serve: refused: %s" % exc, file=sys.stderr)
             return 1
@@ -168,6 +180,9 @@ def register(sub):
                        help="serve over HTTP instead of stdio: POST /rpc, GET /api/graph and the tool routes. Binds to "
                             "127.0.0.1 unless a host is given; any other host requires OTO_SERVE_TOKEN in the "
                             "environment, and every call must then carry it as a bearer token")
+    serve.add_argument("--iap", action="store_true",
+                       help="with --http: run behind Google's identity-aware proxy, as on Cloud Run: every request's signature is verified against OTO_IAP_AUDIENCE, "
+                            "who asks is the email Google signed, and every read is logged under it (needs the cloud extra)")
     serve.add_argument("--cors", action="append", default=None, metavar="ORIGIN",
                        help="with --http: allow a browser app served from ORIGIN to call this server (repeatable; "
                             "`*` for any). Off by default")

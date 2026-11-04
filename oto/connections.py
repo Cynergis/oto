@@ -109,12 +109,32 @@ def _check_address(uri):
         raise ProjectError("the address is not one a Neo4j driver takes (%s): it looks like neo4j+s://<id>.databases.neo4j.io" % ", ".join(SCHEMES))
 
 
-def add(root, name, uri, database=None, slug=None, label=None, subject=None):
+def _add_server(root, name, url, slug=None, label=None, subject=None):
+    """A connection to a graph's server: no Neo4j, and no login in the sandbox. The sandbox tool registers it, and handles the sign-in on the computer."""
+    parts = urlsplit(url or "")
+    if parts.scheme != "https" or not parts.hostname or parts.username or parts.password:
+        raise ProjectError("a server's address is an https URL with no login in it, like https://<service>.run.app/mcp")
+    server = server_name(name)
+    config = {"slug": slug or name, "name": label or name.replace("-", " ").title(), "server_name": server, "server": {"url": url}}
+    if subject:
+        config["description"] = subject
+    path = os.path.join(_folder(root, name), CONFIG_FILE)
+    existing = _read_json(path)
+    if existing is not None and existing != config:
+        raise ProjectError("a graph named %s is already here, and differs: oto graphs rm %s first" % (name, name))
+    _write_json(path, config)
+    return {"name": name, "server": server, "variables": [], "already": existing is not None, "server_url": url}
+
+
+def add(root, name, uri, database=None, slug=None, label=None, subject=None, server=None):
     """Write the connection. Returns {name, server, variables, already}. The same graph added again
-    changes nothing; a different one under that name is refused."""
+    changes nothing; a different one under that name is refused. With `server`, a connection to the
+    graph's server on Cloud Run instead of to its Neo4j."""
     root = os.path.abspath(os.path.expanduser(root))
     if not NAME.match(name or ""):
         raise ProjectError("a graph's name is lowercase letters, digits and single hyphens, not %r" % name)
+    if server:
+        return _add_server(root, name, server, slug=slug, label=label, subject=subject)
     _check_address(uri)
     slug = slug or name
     if not SLUG.match(slug):
@@ -152,10 +172,11 @@ def _described(name, config):
     default_user, default_password = variables(name)
     user, password = login.get("user") or default_user, login.get("password") or default_password
     neo4j = config.get("neo4j") or {}
+    url = (config.get("server") or {}).get("url")
     return {"name": name, "slug": config.get("slug"), "label": config.get("name"), "description": config.get("description"),
-            "uri": neo4j.get("uri"), "database": neo4j.get("database"), "server": config.get("server_name") or server_name(name),
-            "variables": [user, password], "rule": rule(neo4j.get("uri")),
-            "login": bool(os.environ.get(user) and os.environ.get(password))}
+            "uri": neo4j.get("uri") or url, "database": neo4j.get("database"), "server": config.get("server_name") or server_name(name),
+            "variables": [] if url else [user, password], "rule": None if url else rule(neo4j.get("uri")), "server_url": url,
+            "login": True if url else bool(os.environ.get(user) and os.environ.get(password))}
 
 
 def listed(root):
@@ -198,8 +219,16 @@ def logins(root):
             out.append({"name": slug, "server": config.get("server_name") or server_name(slug), "uri": uri,
                         "variables": ["NEO4J_USER", "NEO4J_PASSWORD"], "rule": rule(uri)})
     for graph in listed(root):
-        out.append({key: graph[key] for key in ("name", "server", "uri", "variables", "rule")})
+        if not graph["server_url"]:
+            out.append({key: graph[key] for key in ("name", "server", "uri", "variables", "rule")})
     return out
+
+
+def servers(root):
+    """The graphs this folder reaches through a server: [{name, url}], for the sandbox tool to register."""
+    if not os.path.isdir(root):
+        return []
+    return [{"name": graph["server"], "url": graph["server_url"]} for graph in listed(root) if graph["server_url"]]
 
 
 def remove(root, name):

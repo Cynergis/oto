@@ -710,6 +710,20 @@ def first_push(project_dir, url, token=None, kind="knowledge"):
     return _run(["git", "-C", project_dir, "rev-parse", "--short", "HEAD"], timeout=60)[1].strip()
 
 
+def _register_servers(sbx, name, servers, report):
+    """The graphs reached through a server: registered with the sandbox tool and attached to this sandbox's gateway, so no login enters it. A failure is said, not fatal."""
+    for server in servers:
+        code, out, err = sbx("mcp", "add", server["name"], "--url", server["url"])
+        if code != 0 and "exist" not in (err or out).lower():
+            report["warnings"].append("%s could not be registered with the sandbox tool: %s" % (server["name"], (err or out).strip()[-200:]))
+            continue
+        code, out, err = sbx("mcp", "load", server["name"], "--sandbox", name)
+        if code != 0:
+            report["warnings"].append("%s could not be attached to the sandbox: %s" % (server["name"], (err or out).strip()[-200:]))
+        else:
+            report["done"].append("attached the server %s (%s) to this sandbox's gateway" % (server["name"], server["url"]))
+
+
 def _allow_graph_hosts(sbx, name, rules, report):
     """Let this sandbox alone reach its graphs on the Bolt port, once each. A failure is said, not fatal: the graph's own server says it can't reach Neo4j."""
     if not rules:
@@ -965,6 +979,7 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         if logins:
             report["done"].append("passed the graphs' logins into the sandbox, by name, from this terminal's environment: %s" % ", ".join(logins))
     _allow_graph_hosts(sbx, name, rules, report)
+    _register_servers(sbx, name, _connections.servers(report["project"] or project_dir), report)
     if (repo or clone) and token and _github_url(repo or clone).startswith(GITHUB):
         code, out, err = sbx("secret", "set", "github", "--sandbox", name, "--token", token, "-f", timeout=120)
         if code != 0:

@@ -120,6 +120,11 @@ oto sandbox up --name <sandbox>
 A login is set when the sandbox is made. A graph with a new login means making the sandbox again
 (`--recreate`, after their yes): its folders stay, and what is only inside it goes.
 
+A graph with a server on Cloud Run needs no login in the sandbox: `oto graphs add <name> --server
+https://<service>.run.app/mcp`, and `oto sandbox up` attaches it to the sandbox's gateway. Access is then
+theirs alone, and it can be taken away from them alone. Signing in through the gateway hasn't been tried
+on a real server yet, so say so if they ask for this.
+
 ## 1. Where things stand
 
 Run `oto sandbox status --name <name> --json` (`oto-sandbox` unless the person named one). Read it

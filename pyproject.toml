@@ -24,7 +24,7 @@ intake = ["python-docx", "python-pptx", "pypdfium2", "pdfplumber", "beautifulsou
 # rdflib (BSD-3-Clause) reads the RDF export back in the tests, and pyshacl (Apache-2.0) checks that
 # the SHACL the export writes finds what the engine finds. Never runtime dependencies: the export is
 # written, and the shapes are evaluated, by the stdlib compile path.
-dev = ["pytest", "rdflib", "pyshacl", "opentelemetry-sdk>=1.20"]
+dev = ["pytest", "rdflib", "pyshacl", "opentelemetry-sdk>=1.20", "cryptography>=42", "pyyaml"]
 # Benchmarking only. Never a runtime dependency: the engine must never need a model to answer.
 # fastembed is Apache-2.0, onnxruntime MIT, numpy BSD-3-Clause.
 bench = ["fastembed", "numpy"]
@@ -32,6 +32,8 @@ bench = ["fastembed", "numpy"]
 draft = ["anthropic>=0.40"]
 # Loading the built graph into a self-hosted Neo4j. The driver is Apache-2.0. Optional target.
 neo4j = ["neo4j>=5"]
+# `oto serve --iap`: verifying the signature of Google's identity-aware proxy, on Cloud Run.
+cloud = ["cryptography>=42"]
 # Reading a real ontology (OWL, RDFS, SKOS, any RDF syntax) with `oto ontology import --file`.
 # rdflib is BSD-3-Clause. The compile path never needs it: the export is written by the stdlib.
 rdf = ["rdflib>=7"]
@@ -46,7 +48,7 @@ postgres = ["pg8000>=1.30"]
 bigquery = ["google-cloud-bigquery>=3.20"]
 # Everything a full installation uses at once: extraction, the production store, the drafter, the
 # benchmark baseline and the ontology reader. Not the test tooling, which is `dev`.
-all = ["python-docx", "python-pptx", "pypdfium2", "pdfplumber", "beautifulsoup4", "lxml", "openpyxl",
+all = ["cryptography>=42", "python-docx", "python-pptx", "pypdfium2", "pdfplumber", "beautifulsoup4", "lxml", "openpyxl",
        "neo4j>=5", "anthropic>=0.40", "fastembed", "numpy", "rdflib>=7", "pg8000>=1.30", "google-cloud-bigquery>=3.20"]
 
 [project.scripts]

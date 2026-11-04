@@ -2,6 +2,7 @@
 """The HTTP front end: the same engine, the same store, over HTTP for a browser or a script.
 
     POST /rpc                     the JSON-RPC 2.0 messages stdio takes, unchanged
+    POST /mcp                     the same, as MCP's streamable HTTP transport has it: a notification gets 202, and a host registers this URL
     GET  /api/tools               the tool list
     GET  /api/<tool>?<args>       one tool: its text, and the rows behind it where the store has them
     GET  /api/graph               the whole graph as data (serve/payload.py), what an app projects from
@@ -24,6 +25,9 @@ never written to a file or a log. Who asks, for the tools the policy holds to a 
 on a graph whose vocabulary declares PolicyRule, roadmap E5), comes from `X-Oto-Principal:
 principal.<id>` and, for an agent, `X-Oto-Agent: agent.<id>`; stdio reads OTO_PRINCIPAL and OTO_AGENT. Cross-origin calls are refused unless `--cors <origin>` names
 the origin (or `*`), for a hosted app calling a separate server.
+
+Behind Google's identity-aware proxy (`--iap`, serve/iap.py), the server may bind anywhere with no token, because it verifies the proxy's signature on every
+request, and who asks is the email Google signed: a stated X-Oto-Principal counts for nothing. Every read is logged under that name (serve/readlog.py).
 """
 import hmac
 import json
@@ -144,7 +148,7 @@ def _pack_routes(project_root):
         return {}
 
 
-def make_handler(engine, app_dir=None, project_root=None, identity=None, token=None, cors=(), mounts=None, catalog=None):
+def make_handler(engine, app_dir=None, project_root=None, identity=None, token=None, cors=(), mounts=None, catalog=None, iap=None):
     """`app_dir` is served at /; each of `mounts`, [(name, directory)], at /<name>/ with its own data
     files, so a project's views sit side by side under one home page; `catalog` is served as
     /views.json for that page. A view's relative addresses (data.json, api/...) resolve under its prefix."""
@@ -191,7 +195,9 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
             self.end_headers()
 
         def _caller(self):
-            """Who asks, from X-Oto-Principal and X-Oto-Agent (roadmap E5); empty when the headers are absent."""
+            """Who asks, from X-Oto-Principal and X-Oto-Agent (roadmap E5); empty when the headers are absent. Behind the proxy, who Google signed, and nothing a caller states."""
+            if iap:
+                return {"principal": self._identity}
             out = {}
             for key, header in (("principal", "X-Oto-Principal"), ("agent", "X-Oto-Agent")):
                 value = (self.headers.get(header) or "").strip()
@@ -212,7 +218,18 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
 
         def _authorised(self, parsed):
             """True when no token is required or the request carries it. A first visit from a browser,
-            `GET /?oto_token=<token>`, is answered with the cookie and a redirect to the same path."""
+            `GET /?oto_token=<token>`, is answered with the cookie and a redirect to the same path. Behind the proxy, the
+            proxy's signature decides on every request, and a read that isn't a tool's is logged here."""
+            if iap:
+                from . import iap as _iap, readlog as _readlog
+                try:
+                    self._identity = _iap.verify(self.headers.get(_iap.HEADER), iap)
+                except _iap.IapError as exc:
+                    self._json(401, {"error": "this server is reached signed in through its identity-aware proxy: %s" % exc})
+                    return False
+                if self.command in ("GET", "HEAD"):
+                    _readlog.record({"principal": self._identity}, "%s %s" % (self.command, parsed.path), dict(urllib.parse.parse_qsl(parsed.query)), True, graph=engine.SLUG)
+                return True
             if not token:
                 return True
             if self.command in ("GET", "HEAD"):
@@ -281,8 +298,8 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
             parsed = urllib.parse.urlsplit(self.path)
             if not self._authorised(parsed):
                 return None
-            if parsed.path != "/rpc":
-                return self._json(404, {"error": "not found; POST /rpc"})
+            if parsed.path not in ("/rpc", "/mcp"):
+                return self._json(404, {"error": "not found; POST /rpc or POST /mcp"})
             length = int(self.headers.get("Content-Length") or 0)
             raw = self.rfile.read(length) if length else b""
             try:
@@ -296,6 +313,11 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
                     return self._json(200, answers)
                 msg = engine.respond(req, caller=caller)
             if msg is None:
+                if parsed.path == "/mcp":
+                    self.send_response(202)
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return None
                 return self._json(204, {})
             return self._json(200, msg)
 
@@ -304,6 +326,8 @@ def make_handler(engine, app_dir=None, project_root=None, identity=None, token=N
             if not self._authorised(parsed):
                 return None
             path = parsed.path
+            if path == "/mcp":                   # no stream from this server: MCP's transport has a client carry on with POST
+                return self._json(405, {"error": "this server opens no stream: POST /mcp"})
             args = _coerce(urllib.parse.parse_qs(parsed.query))
             if catalog is not None and path == "/views.json":
                 return self._json(200, catalog)
@@ -519,13 +543,14 @@ class Server:
     """A running HTTP front end. `serve_forever` blocks; `start` runs it on a thread (tests)."""
 
     def __init__(self, engine, host="127.0.0.1", port=8765, app_dir=None, project_root=None, identity=None,
-                 token=None, cors=(), mounts=None, catalog=None):
-        check_bind(host, token)
+                 token=None, cors=(), mounts=None, catalog=None, iap=None):
+        if not iap:                          # behind the proxy every request is verified, whatever the bind
+            check_bind(host, token)
         self.engine = engine
         self.token = token
         self.cors = tuple(cors or ())
         self.httpd = ThreadingHTTPServer((host, port), make_handler(engine, app_dir, project_root, identity, token, cors,
-                                                                    mounts=mounts, catalog=catalog))
+                                                                    mounts=mounts, catalog=catalog, iap=iap))
         self.httpd.daemon_threads = True
         self.thread = None
 
@@ -557,14 +582,14 @@ class Server:
             self.httpd.server_close()
 
 
-def serve(engine, bind, app_dir=None, project_root=None, identity=None, token=None, cors=(), mounts=None, catalog=None):
+def serve(engine, bind, app_dir=None, project_root=None, identity=None, token=None, cors=(), mounts=None, catalog=None, iap=None):
     """Run the front end until interrupted. Raises BindError for a bind beyond this machine with no token.
     Inside an OTO sandbox a bare port binds all interfaces, so the port the sandbox publishes reaches it
     from the person's computer, and the message says the address to open there."""
     inside = inside_sandbox()
     host, port = parse_bind(bind, default_host=default_host(inside))
     server = Server(engine, host, port, app_dir=app_dir, project_root=project_root, identity=identity, token=token, cors=cors,
-                    mounts=mounts, catalog=catalog)
+                    mounts=mounts, catalog=catalog, iap=iap)
     engine.log("http: serving on %s%s%s%s" % (server.url, (" with app %s" % app_dir) if app_dir else "",
                                               " (token required)" if token else "",
                                               (" cors=%s" % ",".join(server.cors)) if server.cors else ""))
@@ -577,6 +602,8 @@ def serve(engine, bind, app_dir=None, project_root=None, identity=None, token=No
         print("  in this sandbox the server listens on all interfaces; on your computer, open http://localhost:%d/ "
               "(the port the sandbox publishes: oto sandbox status lists them)" % server.address[1], file=sys.stderr, flush=True)
         engine.log("http: inside an OTO sandbox, bound to %s: reachable from the computer through the published port" % host)
+    elif iap:
+        engine.log("http: behind the identity-aware proxy: every request is verified, and every read logged under the person's name")
     elif host not in LOOPBACK:
         engine.log("WARNING: bound to %s, reachable beyond this machine; every call must carry the token" % host)
     server.serve_forever()

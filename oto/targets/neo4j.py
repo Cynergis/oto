@@ -26,6 +26,7 @@ from ..project import ProjectError
 from . import neo4j_map as _map
 
 DEFAULT_BATCH = 500
+DELETE_BATCH = 1000
 
 
 def available():
@@ -153,6 +154,26 @@ def load(driver, database, planned, batch=DEFAULT_BATCH):
     run("MATCH (n {project: $project}) WHERE n.load <> $load DETACH DELETE n", project=project, load=load_id)
     run("MATCH ({project: $project})-[r]-() WHERE r.load <> $load DELETE r", project=project, load=load_id)
     return statements
+
+
+def open_driver(conf):
+    """A driver for `settings(project)`'s connection."""
+    from neo4j import GraphDatabase
+    return GraphDatabase.driver(conf["uri"], auth=conf["auth"])
+
+
+def delete_project(driver, database, project):
+    """Delete one graph's nodes and their relationships, a batch at a time, and nothing of any other graph. Returns how many nodes went."""
+    if not project:
+        raise ProjectError("delete_project needs the graph's slug: without one it would match every graph")
+    total = 0
+    while True:
+        _records, summary, _keys = driver.execute_query("MATCH (n {project: $project}) WITH n LIMIT $batch DETACH DELETE n",
+                                                        {"project": project, "batch": DELETE_BATCH}, database_=database)
+        deleted = summary.counters.nodes_deleted
+        total += deleted
+        if deleted < DELETE_BATCH:
+            return total
 
 
 def _load_number(driver, database, project):

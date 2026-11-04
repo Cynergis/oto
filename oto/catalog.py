@@ -375,7 +375,12 @@ def _index_page(index, pack_notes, registry_name, address, look=None):
             extra = ("extends %s" % ", ".join("<code>%s</code>" % _e(x) for x in entry["extends"])) if entry.get("extends") else "the base every ontology rests on"
             body.append(_card("ontology", "ontologies/%s/index.html" % _e(entry["name"]), entry, extra,
                               " ".join(str(x) for x in (entry["name"], entry.get("summary"), entry.get("domain"), " ".join(entry.get("extends") or []), "ontology"))))
-    body.append("</div></section><p class=\"none\" id=\"nothing\" style=\"display:none\">Nothing matches.</p>")
+    body.append("</div></section>")
+    graphs = index.get("graphs") or []
+    if graphs:
+        body.append("<section class=\"group\"><h2>Graphs</h2><ul>%s</ul></section>"
+                    % "".join("<li><b>%s</b>: %s <code>%s</code></li>" % (_e(g.get("label") or g.get("slug")), _e(g.get("subject") or ""), _e(g.get("repository") or "")) for g in graphs))
+    body.append("<p class=\"none\" id=\"nothing\" style=\"display:none\">Nothing matches.</p>")
     return _page("%s, an OTO registry" % look["title"], "".join(body), 0, registry_name, address, look, search=True)
 
 

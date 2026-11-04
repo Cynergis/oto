@@ -87,7 +87,8 @@ Making a graph also makes its private store repository beside it and names the p
 OTO_QUERY_REPO_TOKEN --env oto-main`, with a token that can write to the store alone. To add or remove
 someone, they change that file in a pull request, and `oto repo access --apply` sets GitHub to match
 (`--check` says where it has drifted). Only people it names as reviewers or stewards can approve a
-change on the reviewed route. Check that the organisation's base permission is `none`: otherwise every
+change on the reviewed route. `oto registry fleet` shows every graph's versions and drift in one view,
+for whoever looks after the platform, and `oto repo retire` archives a graph when it's done. Check that the organisation's base permission is `none`: otherwise every
 member can read every repository, whatever the file says.
 
 ## A sandbox that reads graphs live

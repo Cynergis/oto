@@ -29,6 +29,29 @@ def cmd_deploy(args):
         return 0
     config = _deploy.load(project)
     problems = _deploy.problems(config)
+    from ..project import ProjectError
+    try:
+        problems = problems + _deploy.promotion_problems(config, _deploy.read_promotions(project))
+    except ProjectError as exc:
+        problems = problems + [str(exc)]
+
+    if args.deploy_command == "promote":
+        if not args.by:
+            print("oto: promote needs --by <who approved the pull request>: the record names them", file=sys.stderr)
+            return 1
+        if not _deploy.read_promotions(project):
+            print("no %s: nothing to promote. It names the commit each environment should hold, and a pull request on it is the approval" % _deploy.PROMOTE_FILE)
+            return 0
+        try:
+            entries = _deploy.apply_promotions(project, args.by)
+        except ProjectError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        for entry in entries:
+            print("promoted %s -> %s: %s, approved by %s" % (entry.get("from"), entry.get("environment"), entry.get("source"), args.by))
+        if not entries:
+            print("each environment already holds what %s names" % _deploy.PROMOTE_FILE)
+        return 0
 
     if args.deploy_command == "check":
         if problems:
@@ -67,9 +90,11 @@ def cmd_deploy(args):
 
 def register(sub):
     deploy = sub.add_parser("deploy", help="the deploy config (oto.deploy.json): check it, write a starter, see what each environment holds")
-    deploy.add_argument("deploy_command", nargs="?", default="check", choices=["check", "init", "status"],
+    deploy.add_argument("deploy_command", nargs="?", default="check", choices=["check", "init", "status", "promote"],
                         help="check validates the config (the default); init writes a starter with --repo and --to; "
-                             "status reads the query repository and says what each environment holds and who approved it")
+                             "status reads the query repository and says what each environment holds and who approved it; "
+                             "promote --by <who> moves each environment to the commit oto.promote.json names, what the promote workflow runs")
+    deploy.add_argument("--by", default=None, help="for promote: who approved the pull request on oto.promote.json")
     project_arguments(deploy)
     deploy.add_argument("--repo", default=None, help="for init: the repository the graph is compiled from, owner/name")
     deploy.add_argument("--to", default=None, help="for init: the query repository the store is published to")

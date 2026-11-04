@@ -504,7 +504,11 @@ def check(root, base, head="HEAD", authors=(), approved=False, verified=False):
         out["reasons"].append("passes: approved by a reviewer")
     else:
         out["ok"] = False
-        out["reasons"].append("needs one approving review on the pull request")
+        named, teams = _named_at(root, out["base"])
+        who = "someone with write access who didn't write it"
+        if named is not None:
+            who = "someone the access file names who didn't write it: %s" % ", ".join(sorted(named) + ["the team %s" % t for t in teams])
+        out["reasons"].append("needs one approving review on the pull request, of its head commit, from %s" % who)
     return out
 
 
@@ -521,6 +525,35 @@ def qualified_reviewers(reviews, head_sha, authors=()):
             standing[login] = review
     return sorted(login for login, review in standing.items()
                   if review["state"] == "APPROVED" and review.get("commit_id") == head_sha and login.lower() not in known)
+
+
+def _named_at(root, ref):
+    """(logins lowercased, teams) whose approval the base's access file counts, or (None, None) with no such file, or none filled in.
+    The base's, because a pull request never names its own reviewer."""
+    from . import access as _access
+    text = read_at(root, ref, _access.FILE.replace(os.sep, "/"))
+    try:
+        found = json.loads(text) if text else None
+    except ValueError:
+        found = None
+    logins, teams = _access.who_may_approve(found if isinstance(found, dict) else None)
+    return ({l.lower() for l in logins}, teams) if logins is not None else (None, None)
+
+
+def approver_lines(root, reviews, head_sha, base, authors=()):
+    """Who the workflow should ask GitHub about, one per line: `login` when that's all it takes, or `login org/team ...` when they count
+    only as a member of one of those teams. Someone the base's access file doesn't name, and no team could make count, isn't listed."""
+    logins = qualified_reviewers(reviews, head_sha, authors)
+    named, teams = _named_at(root, _resolve(root, base))
+    if named is None:
+        return logins
+    out = []
+    for login in logins:
+        if login.lower() in named:
+            out.append(login)
+        elif teams:
+            out.append("%s %s" % (login, " ".join(teams)))
+    return out
 
 
 def render(result):
@@ -598,7 +631,7 @@ def _rechained_audit(root, onto_sha, base_sha, head_sha, graph_version):
     return out
 
 
-def rebase(root, onto, head="HEAD"):
+def rebase(root, onto, head="HEAD", verified=False):
     """For a pull request that fell behind: re-apply the facts it adds over its base onto `onto` (the
     new main), through the gates, in the working tree. The fact-level diff from the merge base to
     `head` is applied to the graph at `onto`: the nodes added, the nodes changed (when `onto` still
@@ -610,7 +643,8 @@ def rebase(root, onto, head="HEAD"):
     entries, onto, base, head, steps}: `holds` says the confirmation's fingerprint still equals the
     diff, None without a confirmation, and `steps` are the git commands that put this change on
     `onto` as one commit. The person (or their skill) runs them, because the session route trusts
-    commits by the confirmer; nothing here touches git."""
+    commits by the confirmer; nothing here touches git. With `verified`, the steps end in a commit
+    GitHub makes (`oto repo commit`), which is verified with no key on this computer."""
     from . import audit as _audit
     from .curate import assertions as _assertions
     from .project import Project
@@ -724,14 +758,21 @@ def rebase(root, onto, head="HEAD"):
     out["fingerprint"] = fingerprint
     confirmation = shown.get("confirmation")
     out["holds"] = (confirmation.get("fingerprint") == fingerprint) if confirmation else None
-    out["steps"] = _steps(root, onto_sha, others, shown["entries"])
+    out["steps"] = _steps(root, onto_sha, others, shown["entries"], verified=verified)
     return out
 
 
-def git_steps(onto_sha, paths, note):
+def git_steps(onto_sha, paths, note, verified_on=None):
     """Put a change on `onto` as one commit, holding the working tree as a rebase left it. The index starts
     from `onto`, so a file main changed meanwhile stays main's: only what this change touches is added. The
-    last checkout brings main's other files into the working tree."""
+    last checkout brings main's other files into the working tree. With `verified_on`, a branch, the commit
+    is made by GitHub (`oto repo commit`), so it is verified with no key on this computer."""
+    if verified_on:
+        return ["git reset -q %s" % onto_sha,
+                "git add -- %s" % " ".join(shlex.quote(p) for p in paths),
+                "git push --force-with-lease origin HEAD:refs/heads/%s" % verified_on,
+                "oto repo commit --message %s" % shlex.quote(note),
+                "git checkout -q -- ."]
     return ["git reset -q %s" % onto_sha,
             "git add -- %s" % " ".join(shlex.quote(p) for p in paths),
             "git commit -q -m %s" % shlex.quote(note),
@@ -739,11 +780,12 @@ def git_steps(onto_sha, paths, note):
             "git push --force-with-lease origin HEAD"]
 
 
-def _steps(root, onto_sha, others, entries):
+def _steps(root, onto_sha, others, entries, verified=False):
     paths = [p for p in REBASED_FILES if p != PREVIOUS and os.path.exists(os.path.join(root, p))]
     paths += [p for p in sorted(others) if os.path.exists(os.path.join(root, p)) or _blob(root, onto_sha, p)]
     note = next((e.get("note") for e in reversed(entries) if e.get("note")), None) or "This change, on the new main"
-    return git_steps(onto_sha, paths, note)
+    branch = _git(root, "rev-parse", "--abbrev-ref", "HEAD")[1].strip() if verified else None
+    return git_steps(onto_sha, paths, note, verified_on=branch)
 
 
 def render_rebase(result):

@@ -38,6 +38,7 @@ from .project import ProjectError
 
 NAME = "oto.deploy.json"
 RECORD = "PROMOTIONS.jsonl"
+PROMOTE_FILE = "oto.promote.json"
 CONNECTORS = ("sqlite", "neo4j")
 AUTH = ("basic", "oidc", "token", "workload-identity", "file", "env", "adc", "service-account")
 KEYS = ("repo", "graph", "connector", "connection", "publish", "environments", "promotion", "overlay")
@@ -245,6 +246,55 @@ def loaded_and_valid(project):
     if found:
         raise ProjectError("%s does not validate:\n  - %s" % (NAME, "\n  - ".join(found)))
     return config
+
+
+# ---- promotion by a pull request ----
+
+def read_promotions(project):
+    """{environment: commit} `oto.promote.json` asks for, or {} with no such file."""
+    target = os.path.join(project.data, PROMOTE_FILE)
+    if not os.path.exists(target):
+        return {}
+    try:
+        with open(target, encoding="utf-8") as f:
+            found = json.load(f)
+    except (OSError, ValueError) as exc:
+        raise ProjectError("%s can't be read: %s" % (PROMOTE_FILE, exc))
+    if not isinstance(found, dict):
+        raise ProjectError("%s maps each environment to the commit it should hold" % PROMOTE_FILE)
+    return {k: v for k, v in found.items() if not str(k).startswith("_")}
+
+
+def promotion_problems(config, wanted):
+    """What is wrong with what `oto.promote.json` asks for."""
+    out = []
+    names = chain(config)
+    for environment, commit in wanted.items():
+        if environment not in names:
+            out.append("%s names the environment %s, and %s has %s" % (PROMOTE_FILE, environment, NAME, " -> ".join(names)))
+        elif previous(config, environment) is None:
+            out.append("%s names %s, the first environment: a build is published there, nothing is promoted into it" % (PROMOTE_FILE, environment))
+        if not (isinstance(commit, str) and re.match(r"^[0-9a-f]{7,40}$", commit)):
+            out.append("%s gives %s %r, which is not a commit" % (PROMOTE_FILE, environment, commit))
+    return out
+
+
+def apply_promotions(project, by, kind="pull-request", token=None):
+    """Move each environment to the commit `oto.promote.json` names, in the order a build moves through them, skipping what is held already.
+    Returns the record entries appended."""
+    config = loaded_and_valid(project)
+    wanted = read_promotions(project)
+    found = promotion_problems(config, wanted)
+    if found:
+        raise ProjectError("%s does not validate:\n  - %s" % (PROMOTE_FILE, "\n  - ".join(found)))
+    held = status(project, token=token)
+    out = []
+    for environment in chain(config):
+        commit = wanted.get(environment)
+        if not commit or str((held.get(environment) or {}).get("source") or "").endswith(commit):
+            continue
+        out.append(promote(project, environment, commit, by=by, kind=kind, token=token))
+    return out
 
 
 # ---- the record and promotion ----

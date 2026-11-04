@@ -80,6 +80,16 @@ would lay a new project over theirs. `oto sandbox up --name <name> --clone <owne
 stores their token as that sandbox's own, and it never commits, pushes or touches the rules. It refuses
 a folder that already holds something else: say what's there, and ask them for another name.
 
+## Who may do what on a graph
+
+Making a graph also makes its private store repository beside it and names the person its steward in
+`.github/oto-access.json`, which stewards own. Tell them what is left: `gh secret set
+OTO_QUERY_REPO_TOKEN --env oto-main`, with a token that can write to the store alone. To add or remove
+someone, they change that file in a pull request, and `oto repo access --apply` sets GitHub to match
+(`--check` says where it has drifted). Only people it names as reviewers or stewards can approve a
+change on the reviewed route. Check that the organisation's base permission is `none`: otherwise every
+member can read every repository, whatever the file says.
+
 ## A sandbox that reads graphs live
 
 Someone who only asks questions of graphs already in Neo4j needs neither of those. Their project

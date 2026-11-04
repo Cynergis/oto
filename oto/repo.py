@@ -342,10 +342,12 @@ DEPLOY = """name: oto deploy
 # engine. The store is kept as a workflow artifact either way.
 #
 # With a deploy config (oto.deploy.json, `oto deploy init`), the config names the query repository
-# and the environments: the build is published to the first it names, and the promote jobs copy the
-# same store forward to the second and the third, one environment at a time, each behind a GitHub
-# Environment of the same name whose required reviewers are the approvers. A promote job whose
-# environment the config does not declare is skipped, so one environment needs no promotion at all.
+# and the environments, and the build is published to the first it names. A later one is reached by
+# a pull request on oto.promote.json, which stewards own (oto-promote.yml), since GitHub's Team plan
+# has no required reviewers on an environment on a private repository. With the repository variable
+# OTO_PROMOTE_ON_MERGE set to true, on a plan that has them, the promote jobs below copy the same store
+# forward instead, one environment at a time, each behind a GitHub Environment of the same name whose
+# required reviewers are the approvers. Without those reviewers they would promote every merge unapproved.
 # The record on the branch names the commit and who ran the approved job.
 #
 # Keep these secrets in the environment {main_environment} (gh secret set NEO4J_PASSWORD --env {main_environment}), which
@@ -446,7 +448,7 @@ jobs:
 
   promote-second:
     needs: build-and-publish
-    if: needs.build-and-publish.outputs.second != ''
+    if: needs.build-and-publish.outputs.second != '' && vars.OTO_PROMOTE_ON_MERGE == 'true'
     runs-on: ubuntu-latest
     environment: ${{{{ needs.build-and-publish.outputs.second }}}}   # its required reviewers are the approvers named in oto.deploy.json
     env:
@@ -471,7 +473,7 @@ jobs:
 
   promote-third:
     needs: [ build-and-publish, promote-second ]
-    if: needs.build-and-publish.outputs.third != ''
+    if: needs.build-and-publish.outputs.third != '' && vars.OTO_PROMOTE_ON_MERGE == 'true'
     runs-on: ubuntu-latest
     environment: ${{{{ needs.build-and-publish.outputs.third }}}}
     env:
@@ -495,6 +497,96 @@ jobs:
         run: oto publish --project . --to "${{{{ needs.build-and-publish.outputs.third }}}}" --promote "${{{{ github.sha }}}}" --by "${{{{ github.actor }}}}" --approver github
 """
 
+
+PROMOTE = """name: oto promote
+
+# Promotion is a pull request (docs/plans/people-and-graphs.md): oto.promote.json names the commit each environment should
+# hold, stewards own it, and merging it copies the same store forward, never a rebuild. Who approved the pull request is
+# recorded as the approver, in PROMOTIONS.jsonl on the environment's branch.
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ "oto.promote.json" ]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment: {main_environment}                # the query repository's token is there: no other branch's workflow reads it
+    env:
+      ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
+      OTO_ENGINE_TOKEN: ${{{{ secrets.OTO_ENGINE_TOKEN }}}}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Reach the engine repository when it is private
+        run: if [ -n "$OTO_ENGINE_TOKEN" ]; then git config --global url."https://x-access-token:${{OTO_ENGINE_TOKEN}}@github.com/".insteadOf "https://github.com/"; fi
+      - name: Install the engine from its repository
+        run: {pip}
+      - name: Who approved the pull request that merged this
+        id: approver
+        env:
+          GH_TOKEN: ${{{{ github.token }}}}
+        run: |
+          pr=$(gh api "repos/${{{{ github.repository }}}}/commits/${{{{ github.sha }}}}/pulls" --jq '.[0].number')
+          by=$(gh api "repos/${{{{ github.repository }}}}/pulls/$pr/reviews?per_page=100" --jq '[.[] | select(.state == "APPROVED")] | last | .user.login')
+          echo "by=$by" >> "$GITHUB_OUTPUT"
+      - name: Move each environment to the commit the file names
+        env:
+          OTO_QUERY_REPO_TOKEN: ${{{{ secrets.OTO_QUERY_REPO_TOKEN }}}}
+        run: oto deploy promote --project . --by "${{{{ steps.approver.outputs.by }}}}"
+"""
+
+ACCESS = """name: oto access
+
+# Permissions are a file, reviewed like code (.github/oto-access.json). When it changes on main, this sets GitHub to match;
+# every day, it says whether GitHub has drifted from it. Both need OTO_ACCESS_TOKEN, a secret of the environment
+# {main_environment} with admin on this repository and its store, which GITHUB_TOKEN isn't. Without it, this says so and does nothing.
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ ".github/oto-access.json" ]
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  access:
+    runs-on: ubuntu-latest
+    environment: {main_environment}
+    env:
+      ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
+      OTO_ENGINE_TOKEN: ${{{{ secrets.OTO_ENGINE_TOKEN }}}}
+      GH_TOKEN: ${{{{ secrets.OTO_ACCESS_TOKEN }}}}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Reach the engine repository when it is private
+        run: if [ -n "$OTO_ENGINE_TOKEN" ]; then git config --global url."https://x-access-token:${{OTO_ENGINE_TOKEN}}@github.com/".insteadOf "https://github.com/"; fi
+      - name: Install the engine from its repository
+        run: {pip}
+      - name: Set GitHub to match the file, when it changed
+        if: github.event_name == 'push'
+        run: if [ -n "$GH_TOKEN" ]; then oto repo access --apply --project . --repo "${{{{ github.repository }}}}"; else echo "no OTO_ACCESS_TOKEN in {main_environment}: the file is not applied"; fi
+      - name: Say whether GitHub has drifted from it
+        run: if [ -n "$GH_TOKEN" ]; then oto repo access --check --project . --repo "${{{{ github.repository }}}}"; else echo "no OTO_ACCESS_TOKEN in {main_environment}: nothing checked"; fi
+"""
 
 AUTHOR = r'''name: oto author
 
@@ -943,8 +1035,8 @@ ROUTE = """name: oto route
 # This check enforces the route's rule. It hands the engine the facts only GitHub knows, as flags: the
 # pull request's author and the commits' authors, whether every commit is verified, whether someone
 # qualified approved it. GitHub lets anyone with read access review, so an approval counts when it is of
-# this very commit, by someone who didn't write it and who may write here. The engine never calls
-# GitHub. When a session record does not hold, or a guardrail
+# this very commit, by someone who didn't write it and who may write here, and whom the base's
+# .github/oto-access.json names when it names anyone. The engine never calls GitHub. When a session record does not hold, or a guardrail
 # fails, the route moves to reviewed: the pull request is labelled and the reason posted, and a
 # person decides. The branch rules in .github/oto-rules.json make this check required.
 
@@ -966,6 +1058,7 @@ jobs:
     env:
       ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
       OTO_ENGINE_TOKEN: ${{{{ secrets.OTO_ENGINE_TOKEN }}}}
+      OTO_TEAMS_TOKEN: ${{{{ secrets.OTO_TEAMS_TOKEN }}}}   # read:org, only when the access file names a team
       GH_TOKEN: ${{{{ github.token }}}}
       PR: ${{{{ github.event.pull_request.number }}}}
       BASE: ${{{{ github.event.pull_request.base.ref }}}}
@@ -989,11 +1082,20 @@ jobs:
           for a in $authors; do flags="$flags --author $a"; done
           if [ "$(gh api "repos/${{{{ github.repository }}}}/pulls/$PR/commits" --jq '[.[].commit.verification.verified] | all')" = "true" ]; then flags="$flags --verified"; fi
           gh api "repos/${{{{ github.repository }}}}/pulls/$PR/reviews?per_page=100" > reviews.json
-          for login in $(oto route approvers --project . --reviews reviews.json $flags); do
+          oto route approvers --project . --reviews reviews.json --base "origin/$BASE" $flags > approvers.txt
+          while read -r login teams; do
             case "$(gh api "repos/${{{{ github.repository }}}}/collaborators/$login/permission" --jq .permission 2>/dev/null)" in
-              admin|write) flags="$flags --approved"; break ;;
+              admin|write) ;;
+              *) continue ;;
             esac
-          done
+            counts=""
+            if [ -z "$teams" ]; then counts=yes; fi
+            for team in $teams; do
+              # reading a team needs a token GITHUB_TOKEN isn't: with no OTO_TEAMS_TOKEN the lookup fails, and the approval doesn't count
+              if [ "$(GH_TOKEN="${{OTO_TEAMS_TOKEN:-$GH_TOKEN}}" gh api "orgs/${{team%%/*}}/teams/${{team##*/}}/memberships/$login" --jq .state 2>/dev/null)" = "active" ]; then counts=yes; fi
+            done
+            if [ -n "$counts" ]; then flags="$flags --approved"; break; fi
+          done < approvers.txt
           echo "flags=$flags" >> "$GITHUB_OUTPUT"
       - name: The route and its verdict
         id: verdict
@@ -1092,7 +1194,7 @@ MAIN_ENVIRONMENT = "oto-main"                     # deploys from the default bra
 DEPLOY_KEY_SECRET = "OTO_MAIN_DEPLOY_KEY"
 DEPLOY_KEY_TITLE = "oto main pushes"
 CODEOWNERS_FILE = os.path.join(".github", "CODEOWNERS")
-OWNED = ("/.github/", "/oto.lock.json")           # what the gate runs on: its workflows and rules, the engine's pin
+OWNED = ("/.github/", "/oto.lock.json", "/oto.promote.json")     # what the gate runs on: its workflows, rules and access file, the engine's pin; and what promotes a build
 WORKSPACE_OWNED = ("/.github/", "/ontology/", "/manifest.json")     # on a pack workspace: and what every graph on the pack depends on
 RULES = {
     "_about": "The branch rules on main, set by `oto repo rules --apply` (or by `oto sandbox up --repo` when it creates the repository). "
@@ -1377,6 +1479,76 @@ def _put_ruleset(run, owner_name, payload, hint=""):
     return not found, found[0].get("id") if found else _json(out, {}).get("id")
 
 
+#: GitHub signs a commit it makes through this mutation, so it shows as verified with no key on the person's computer
+CREATE_COMMIT = """mutation($input: CreateCommitOnBranchInput!) {
+  createCommitOnBranch(input: $input) { commit { oid url } }
+}"""
+
+
+def verified_commit(root, repo, message, token=None, gh=None):
+    """Make the staged change a commit through GitHub, so GitHub signs it: the session route needs verified commits by the confirmer, and this
+    works in a sandbox or on any computer, with no signing key. The branch must already be on GitHub at this commit. Afterwards the local branch
+    holds the new commit, and the tree is clean. Returns {oid, url, branch}."""
+    import base64
+    import subprocess
+    import tempfile
+    from .project import ProjectError
+
+    def git(*args):
+        return subprocess.run(["git", "-C", root] + list(args), capture_output=True)
+
+    def text(*args):
+        done = git(*args)
+        if done.returncode != 0:
+            raise ProjectError("git %s failed: %s" % (args[0], done.stderr.decode("utf-8", "replace").strip()[-300:]))
+        return done.stdout.decode("utf-8", "replace").strip()
+
+    owner_name = _owner_name(repo)
+    if "/" not in owner_name:
+        raise ProjectError("the repository must be owner/name (or its GitHub URL): %r" % repo)
+    branch, head = text("rev-parse", "--abbrev-ref", "HEAD"), text("rev-parse", "HEAD")
+    if branch in ("HEAD", "main", "master"):
+        raise ProjectError("this commits to the branch checked out, and that is %s: a change reaches main by a pull request, so make a branch first" % branch)
+    additions, deletions = [], []
+    for line in text("diff", "--cached", "--name-status", "--no-renames", "HEAD").splitlines():
+        status, path = line.split("\t", 1)
+        if status == "D":
+            deletions.append({"path": path})
+        else:
+            shown = git("show", ":" + path)
+            if shown.returncode != 0:
+                raise ProjectError("could not read %s from what is staged" % path)
+            additions.append({"path": path, "contents": base64.b64encode(shown.stdout).decode("ascii")})
+    if not additions and not deletions:
+        raise ProjectError("nothing is staged: git add what this commit holds first")
+    remote = text("ls-remote", "origin", "refs/heads/%s" % branch).split()
+    if not remote:
+        pushed = git("push", "-q", "origin", "HEAD:refs/heads/%s" % branch)
+        if pushed.returncode != 0:
+            raise ProjectError("could not put the branch %s on GitHub: %s" % (branch, pushed.stderr.decode("utf-8", "replace").strip()[-300:]))
+    elif remote[0] != head:
+        raise ProjectError("the branch %s moved on GitHub, or this one has commits it doesn't: GitHub holds %s and this is %s. Pull or push, then run this again" % (branch, remote[0][:12], head[:12]))
+    lines = message.strip().split("\n", 1)
+    payload = {"query": CREATE_COMMIT, "variables": {"input": {
+        "branch": {"repositoryNameWithOwner": owner_name, "branchName": branch},
+        "message": dict({"headline": lines[0]}, **({"body": lines[1].strip()} if len(lines) > 1 else {})),
+        "expectedHeadOid": head, "fileChanges": {"additions": additions, "deletions": deletions}}}}
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
+        json.dump(payload, f)
+        temp = f.name
+    try:
+        code, out, err = _github(token, gh)("api", "graphql", "--input", temp)
+    finally:
+        os.unlink(temp)
+    answer = _json(out, {}) or {}
+    commit = ((answer.get("data") or {}).get("createCommitOnBranch") or {}).get("commit") or {}
+    if code != 0 or not commit.get("oid"):
+        raise ProjectError("GitHub did not make the commit: %s" % (err or out).strip()[-400:])
+    text("fetch", "-q", "origin", branch)
+    text("reset", "-q", "--soft", commit["oid"])
+    return {"oid": commit["oid"], "url": commit.get("url"), "branch": branch}
+
+
 def apply_workspace_rules(root, repo, token=None, gh=None, code_owner=None):
     """Set up a pack workspace's repository, through the GitHub CLI: the code owners first, which must be on the default branch
     before the rules ask for them; the environment only release tags deploy from; the branch rules; the tag rules. Returns
@@ -1499,6 +1671,7 @@ def apply_rules(root, repo, token=None, gh=None, code_owner=None):
 def files(slug, name, engine=None, architecture=False):
     """Path -> content for everything `--repo` adds. `architecture`: the project composes the architecture
     pack (its vocabulary declares CodeModule), so the merge workflow that compiles it is written too."""
+    from . import access as _access
     engine = engine or ENGINE
     pip = PIP.format(engine="${ENGINE}")
     mcp = json.loads(json.dumps(MCP).replace("{slug}", slug).replace("{engine}", engine))
@@ -1515,7 +1688,10 @@ def files(slug, name, engine=None, architecture=False):
         os.path.join(".github", "workflows", "oto-deploy.yml"): DEPLOY.format(pip=pip, engine=engine, slug=slug, main_environment=MAIN_ENVIRONMENT),
         os.path.join(".github", "workflows", "oto-route.yml"): ROUTE.format(pip=pip, engine=engine),
         os.path.join(".github", "workflows", "oto-preview.yml"): PREVIEW.format(pip=pip, engine=engine, slug=slug),
+        os.path.join(".github", "workflows", "oto-promote.yml"): PROMOTE.format(pip=pip, engine=engine, main_environment=MAIN_ENVIRONMENT),
+        os.path.join(".github", "workflows", "oto-access.yml"): ACCESS.format(pip=pip, engine=engine, main_environment=MAIN_ENVIRONMENT),
         RULES_FILE: rules_text(),
+        _access.FILE: _access.starter_text(),
         os.path.join(".github", "workflows", "oto-author.yml"): fill(AUTHOR),
         os.path.join(".github", "workflows", "oto-review.yml"): fill(REVIEW),
         os.path.join(".github", "workflows", "oto-tools.yml"): fill(ACTIONS),

@@ -5,8 +5,9 @@
     oto route check --base <ref> [--head <ref>] [--author <id>]... [--approved] [--verified] [--json]
                                                                  the verdict: exit 0 when the route's rule holds
     oto route guardrails --base <ref> [--head <ref>] [--json]  the five guardrails on the change: additive, attributed, scope, clean, bounded
-    oto route approvers --reviews <file> [--head <ref>] [--author <id>]...
-                                                                 who approved this very commit and did not write it, one login a line
+    oto route approvers --reviews <file> [--base <ref>] [--head <ref>] [--author <id>]...
+                                                                 who approved this very commit and did not write it, one a line; with --base,
+                                                                 the ones its access file names (`login`), or could through a team (`login org/team`)
     oto route rebase --onto <ref> [--head <ref>] [--json]      re-apply the change onto a moved main through the gates, and say the git steps
 
 The author, the approval and the verification are what GitHub knows; the route workflow passes
@@ -28,7 +29,7 @@ def cmd_route(args):
             print("oto: rebase needs --onto <ref>, the new main to re-apply this change onto (origin/main)", file=sys.stderr)
             return 1
         try:
-            result = _route.rebase(root, args.onto, args.head or "HEAD")
+            result = _route.rebase(root, args.onto, args.head or "HEAD", verified=bool(args.verified))
         except _route.RouteError as exc:
             print("oto: %s" % exc, file=sys.stderr)
             return 1
@@ -45,8 +46,14 @@ def cmd_route(args):
         except (OSError, ValueError, _route.RouteError) as exc:
             print("oto: %s" % exc, file=sys.stderr)
             return 1
-        for login in _route.qualified_reviewers(reviews, head, authors=args.author or ()):
-            print(login)
+        try:
+            lines = _route.approver_lines(root, reviews, head, args.base, authors=args.author or ()) if args.base \
+                else _route.qualified_reviewers(reviews, head, authors=args.author or ())
+        except _route.RouteError as exc:
+            print("oto: %s" % exc, file=sys.stderr)
+            return 1
+        for line in lines:
+            print(line)
         return 0
     if not args.base:
         print("oto: route needs --base <ref>, the commit the pull request starts from (its base branch, or a sha)", file=sys.stderr)
@@ -88,7 +95,7 @@ def register(sub):
                        help="for check: an identity GitHub gives the pull request, its author's login or a commit's email (repeatable)")
     route.add_argument("--reviews", default=None, help="for approvers: a file holding what GitHub lists for the pull request's reviews")
     route.add_argument("--approved", action="store_true", help="for check: someone qualified approved the pull request")
-    route.add_argument("--verified", action="store_true", help="for check: every commit of the pull request is verified (signed)")
+    route.add_argument("--verified", action="store_true", help="for check: every commit of the pull request is verified (signed); for rebase: end in a commit GitHub makes, `oto repo commit`")
     route.add_argument("--json", action="store_true", help="machine-readable output, for the workflow")
     project_arguments(route)
     route.set_defaults(func=cmd_route)

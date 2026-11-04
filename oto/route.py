@@ -728,18 +728,22 @@ def rebase(root, onto, head="HEAD"):
     return out
 
 
-def _steps(root, onto_sha, others, entries):
-    """Put this change on `onto` as one commit, holding the working tree as `rebase` left it. The index
-    starts from `onto`, so a file main changed meanwhile stays main's: only what this change touches is
-    added. The last checkout brings main's other files into the working tree."""
-    paths = [p for p in REBASED_FILES if p != PREVIOUS and os.path.exists(os.path.join(root, p))]
-    paths += [p for p in sorted(others) if os.path.exists(os.path.join(root, p)) or _blob(root, onto_sha, p)]
-    note = next((e.get("note") for e in reversed(entries) if e.get("note")), None) or "This change, on the new main"
+def git_steps(onto_sha, paths, note):
+    """Put a change on `onto` as one commit, holding the working tree as a rebase left it. The index starts
+    from `onto`, so a file main changed meanwhile stays main's: only what this change touches is added. The
+    last checkout brings main's other files into the working tree."""
     return ["git reset -q %s" % onto_sha,
             "git add -- %s" % " ".join(shlex.quote(p) for p in paths),
             "git commit -q -m %s" % shlex.quote(note),
             "git checkout -q -- .",
             "git push --force-with-lease origin HEAD"]
+
+
+def _steps(root, onto_sha, others, entries):
+    paths = [p for p in REBASED_FILES if p != PREVIOUS and os.path.exists(os.path.join(root, p))]
+    paths += [p for p in sorted(others) if os.path.exists(os.path.join(root, p)) or _blob(root, onto_sha, p)]
+    note = next((e.get("note") for e in reversed(entries) if e.get("note")), None) or "This change, on the new main"
+    return git_steps(onto_sha, paths, note)
 
 
 def render_rebase(result):

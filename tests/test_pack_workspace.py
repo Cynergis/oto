@@ -78,6 +78,7 @@ def _fill(workspace, name="garage"):
             json.dump(payload, f, indent=2)
     with open(os.path.join(own, "README.md"), "w", encoding="utf-8") as f:
         f.write("# Garage\n\nBuses, where they are based, who maintains them. Edit it as the garage changes.\n")
+    packs.format_(workspace)
 
 
 # ---- the workspace ----

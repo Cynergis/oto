@@ -72,6 +72,14 @@ starts from must be on their computer first: a registry that lists it (`oto regi
 workspace sandbox first, or a knowledge project with no pack, which grows a vocabulary of its own
 the way every project was made before this decision.
 
+## A sandbox from a repository that exists
+
+The first person's sandbox makes the repository. Everyone after them starts from it, because `--repo`
+would lay a new project over theirs. `oto sandbox up --name <name> --clone <owner/name>
+--github-token-env <VAR>` clones it into an empty project folder, installs the plugins it declares and
+stores their token as that sandbox's own, and it never commits, pushes or touches the rules. It refuses
+a folder that already holds something else: say what's there, and ask them for another name.
+
 ## A sandbox that reads graphs live
 
 Someone who only asks questions of graphs already in Neo4j needs neither of those. Their project

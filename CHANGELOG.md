@@ -4,6 +4,35 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.20.1 — 2026-11-04
+
+**Read graphs live from a sandbox.** One pull request (182), phase 1 of
+[the people and graphs spec](docs/plans/people-and-graphs.md). A person who only asks questions of graphs already in
+Neo4j now needs a connection to each, with no documents and no copy. Upgrade by installing the engine at this release,
+with the Neo4j driver, then make your sandboxes again to get the new kit:
+
+```bash
+uv tool install --force "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v0.20.1"
+```
+
+- **`oto graphs add`, `list` and `rm`.** Each graph gets a folder holding its address and a server of its own in
+  `.mcp.json`, which maps that graph's login onto the names the engine reads. No file holds a password. A graph with
+  no login can't be read, and the other graphs' servers aren't affected.
+- **`oto sandbox up` passes each graph's login and allows its host.** Logins go by variable name, so their values stay
+  off the command line, and the network rule applies to that sandbox alone. It stops before making or replacing a sandbox
+  that couldn't read its graphs. A login is set when a sandbox is made, so adding a graph with a new one means `--recreate`.
+- **The kit installs the Neo4j driver.** So do the session start's install command and `oto lock --script`, so an upgrade
+  no longer removes it.
+- **`oto status` understands connections.** It describes a connection or a folder of them, where it used to crash.
+- **The plugin's own server steps aside in a folder of connections.** It offers no tools there and names the servers that answer.
+- **A graph says what it holds.** The description comes from the new `oto init --description` or the pack's summary, and
+  never from a generated file's note. A connection's server gives its description to Claude when it starts. A descriptor
+  already in a graph keeps its old text.
+- **The query-knowledge skill answers graph by graph.** It asks each graph that fits, and never merges facts across graphs.
+
+The login sits inside the sandbox, where Claude could read it and do whatever it allows, so this suits a small, trusted
+team. The spec covers that risk and the separate server that would give per-person access.
+
 ## 0.20.0 — 2026-11-03
 
 **One engine on a computer, and a project's lock is its own.** Two pull requests (178, 179). A minor release:

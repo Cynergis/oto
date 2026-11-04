@@ -225,7 +225,7 @@ def apply(root, repository, token=None, gh=None):
         for kind, name, permission, _held in wrong:
             code, said, err = _set(run, owner_name, kind, name, permission)
             if code != 0:
-                raise ProjectError("could not give %s %s on %s: %s" % (_word(kind, name), permission, owner_name, (err or said).strip()[-300:]))
+                raise ProjectError("could not give %s %s on %s: %s" % (_word(kind, name), permission, owner_name, _repo.gh_reason(said, err)))
             out["set"].append("%s: %s on %s" % (_word(kind, name), permission, owner_name))
         for kind, name, _held in extra:
             if kind == "users" and name.lower() == me:
@@ -233,7 +233,7 @@ def apply(root, repository, token=None, gh=None):
                 continue
             code, said, err = _unset(run, owner_name, kind, name)
             if code != 0:
-                raise ProjectError("could not remove %s from %s: %s" % (_word(kind, name), owner_name, (err or said).strip()[-300:]))
+                raise ProjectError("could not remove %s from %s: %s" % (_word(kind, name), owner_name, _repo.gh_reason(said, err)))
             out["removed"].append("%s from %s" % (_word(kind, name), owner_name))
     return out
 

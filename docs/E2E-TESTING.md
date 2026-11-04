@@ -1637,7 +1637,8 @@ each server. `oto status --project graphs/one` inside says it is serving Neo4j, 
 [docs/plans/people-and-graphs.md](plans/people-and-graphs.md), phase 0. Exercises what only GitHub can show: the branch rules on a
 private repository on the Team plan, whose approval the gate counts, what a workflow on a branch can read, and two people's facts
 merging. Needs a scratch private repository in an organisation on Team, its administrator signed in with `gh`, and a second account
-with read access. Section 34's last checks, the code owner's review and the deploy key, run here too.
+with read access, which takes a seat: with none free, GitHub refuses to add it. Section 34's last checks, the code owner's review and
+the deploy key, run here too. The code owner must be someone other than the author, or GitHub asks for no review.
 
 ```bash
 oto init --name "Two People" --slug two-people --project two-people --repo && cd two-people
@@ -1773,7 +1774,10 @@ oto registry fleet .                             # one view: engine and pack, ea
 # a new release of the pack reaches each graph as a pull request
 oto pack publish --from <workspace> --to https://github.com/<org>/<registry> --note "A new term"
 gh variable set OTO_REGISTRY --body "https://github.com/<org>/<registry>" --repo <org>/<graph>
+#   in the organisation's and the graph's settings, under Actions: let GitHub Actions create pull requests
 gh workflow run oto-pack-update.yml --repo <org>/<graph>    # opens oto/pack-update, with what changed and the facts it touches; oto route says reviewed
+#   GitHub starts no checks on a pull request the Actions token opened: close it and reopen it, and the gate runs
+gh workflow run oto-pack-update.yml --repo <org>/<graph>    # again before merging: the same pull request. After merging: nothing moves
 
 # retiring a graph
 oto repo retire --confirm <org>/<graph> --project <its folder>           # archives it and its store, off the topic. Nothing deleted

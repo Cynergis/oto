@@ -591,7 +591,18 @@ graph's versions and drift.
 
 Each phase ends with a real test, recorded in `docs/E2E-TESTING.md`.
 
-**Not yet run on real services.** Phase 1 ran on real Aura. Everything else below passes its automated tests against fakes and local repositories, and these have not run for real: E2E section 38 (phase 0: the rules on a private Team repository, a read-only approval, a branch's reach), section 39 (phase 2: a workspace's rules, a tag publishing to a private registry), section 40 (phase 3: permissions, whether a commit GitHub makes shows as verified), section 41 (phase 4: the directory, a pack update's pull request, retiring), section 42 (phase 5: all of it on Google Cloud).
+**Run on real services, 2026-11-04.** Phase 1 ran on real Aura. Phases 0, 2, 3 and 4 ran on private repositories in a real Team organisation with one seat, so with one person:
+
+| Section | Held on real GitHub | Not run |
+|---|---|---|
+| **38, phase 0** | the rules apply with no merge queue; a direct push is refused; a failing required check stops a merge; a branch's job is refused `oto-main` and `oto-release`; the deploy key pushes to main; two facts confirmed apart both merge, and the audit log verifies | anything needing a second person: a read-only approval not counting, a qualified person's approval, a code owner's approval |
+| **39, phase 2** | a workspace's rules and tag rules; the pack check and its comment, with a breaking change named; self-approval refused; `oto pack rebase` with no hand fixes; publishing to a private registry from a computer; a tag's run reaches the publish step; `oto sandbox up --clone` on the real kit pushes nothing and leaves no token | a tag's run finishing (it needs `OTO_REGISTRY_TOKEN` as a secret); a non-maintainer refused a tag |
+| **40, phase 3** | a commit GitHub makes shows as verified, and the gate passes it on the session route; the access file applied, checked and turned into code owners; drift names the organisation's base permission; a promotion with a recorded approver; the promote workflow refuses an empty approver | a second person's approval; a reader only reading; removing a person |
+| **41, phase 4** | the directory, the fleet view and the catalog; a new pack release opens one pull request on the reviewed route, and a second run moves nothing; retiring archives the repository and drops it from the directory | the update workflow running in Actions, since the organisation doesn't let Actions open pull requests, so its steps ran from a computer; `oto repo retire --neo4j` on real data |
+
+Section 42 (phase 5, Google Cloud) has not run. A second person needs a second seat: GitHub refuses a collaborator without one on a private repository (`seat_limit`), and a public repository needs none.
+
+These runs found bugs the fakes could not, all fixed: `oto checks` failed on every pull request, because a runner has no plugins and the lock names some; the preview's comment overwrote the gate's; `oto route rebase --verified` closed the pull request, because pointing a branch at main closes it for good; `oto-access.yml` was not valid YAML; `oto init --pack garage` took the name for a folder of that name in the working directory; a project on a pack never saw a new release, so the weekly update did nothing; and `oto repo access` hid why GitHub refused.
 
 | Phase | Delivers | Done when |
 |---|---|---|
@@ -660,9 +671,10 @@ belongs to phase 3, because its reviewed route needs a second person.
 | Environments and promotion | `oto/deploy.py` |
 
 From GitHub's documentation and not tried: that the merge queue rule is refused on a private Team repository,
-and that required reviewers are unavailable there. Read in the code and not tried on GitHub: whether a
-read-only reviewer's approval shows as `APPROVED` to `gh pr view`, and that a branch workflow can read the deploy
-secrets. The branch rules' code-owner review at zero approvals and the deploy key's bypass are also still untested
-on a real repository. Phase 0's test covers all of these, with a second GitHub account.
+and that required reviewers are unavailable there. Not tried on GitHub, for want of a second person: whether a
+read-only reviewer's approval shows as `APPROVED` to `gh pr view`, and the branch rules' code-owner review at zero
+approvals. With the author as the only code owner, GitHub reported no review decision on a change to the gate, and it
+was `oto route` that stopped the merge, so that run shows nothing about the code-owner rule. The deploy key's bypass
+held on a real repository, and a branch's job was refused the protected environments.
 
 A hostname and port rule does let Bolt out of a sandbox: phase 1 ran it on real Aura.

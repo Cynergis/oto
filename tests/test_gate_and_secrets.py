@@ -224,7 +224,7 @@ def test_a_preview_holds_no_token_and_keeps_the_store_as_an_artifact():
     assert "oto publish" not in text and "--delete" not in text and "closed" not in text
     assert "upload-artifact" in text and "build/acme.db" in text and "retention-days" in text
     assert "gh run download" in text, "the comment says how to read it"
-    assert "gh pr comment" in text
+    assert "oto repo comment" in text
 
 
 def test_the_project_guide_says_where_the_secrets_go():

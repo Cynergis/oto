@@ -466,6 +466,31 @@ def test_commit_refuses_when_the_branch_moved_on_github(signing):
     assert code != 0 and "moved" in out, out
 
 
+def test_replacing_moves_the_branch_straight_to_the_new_commit_and_cleans_up(signing):
+    root, calls = signing
+    origin = os.environ["FAKE_ORIGIN"]
+    _git(root, "checkout", "-q", "-b", "add-fact")
+    with open(os.path.join(root, "first.txt"), "w", encoding="utf-8") as f:
+        f.write("on the branch\n")
+    old = _commit(root, "the old commit")
+    _git(root, "push", "-q", "origin", "HEAD")
+    _git(root, "reset", "-q", "main")
+    os.remove(os.path.join(root, "first.txt"))
+    with open(os.path.join(root, "new.txt"), "w", encoding="utf-8") as f:
+        f.write("on the new main\n")
+    _git(root, "add", "-A")
+    code, out = _cli("repo", "commit", "--replace", "--message", "Rebased", "--repo", "acme/board", "--project", root)
+    assert code == 0, out
+    heads = subprocess.run(["git", "ls-remote", "--heads", origin], capture_output=True, text=True).stdout
+    assert "oto/commit-" not in heads, "the temporary branch is gone"
+    theirs = [line.split()[0] for line in heads.splitlines() if line.endswith("refs/heads/add-fact")][0]
+    assert theirs == _git(root, "rev-parse", "HEAD") and theirs != old
+    assert _git(root, "status", "--porcelain") == ""
+    assert _git(root, "rev-parse", "HEAD~1") == _git(root, "rev-parse", "main")
+    change = [c for c in calls() if c["args"][:2] == ["api", "graphql"]][0]["body"]["variables"]["input"]
+    assert change["branch"]["branchName"].startswith("oto/commit-"), "the branch itself never points at main"
+
+
 def test_a_rebase_can_end_in_a_verified_commit(tmp_path):
     from test_curate import _node, _project
     from test_route import _change
@@ -484,7 +509,8 @@ def test_a_rebase_can_end_in_a_verified_commit(tmp_path):
     result = route.rebase(root, "main", verified=True)
     assert result["ok"], result
     joined = " ; ".join(result["steps"])
-    assert "git push --force-with-lease origin HEAD:refs/heads/card" in joined and "oto repo commit" in joined and "git commit" not in joined, joined
+    assert "oto repo commit --replace" in joined and "git commit" not in joined, joined
+    assert "git push" not in joined, "pointing the branch at main, even for a moment, closes its pull request for good: real GitHub did this"
 
 
 # ---- promotion by pull request ----
@@ -558,3 +584,10 @@ def test_making_a_graph_names_its_steward_and_store(tmp_path):
     assert found["stewards"] == ["dana"] and found["store"] == "acme/kb-store"
     assert not sandbox._name_the_creator(root, "acme/kb", "someone-else", None), "a steward already named stays"
     assert access.load(root)["stewards"] == ["dana"]
+
+
+def test_a_refusal_says_githubs_reason_not_just_the_status():
+    body = json.dumps({"message": "Validation Failed", "errors": [{"code": "custom", "message": "seat_limit You must purchase at least one more seat to add this user as a collaborator."}]})
+    assert "at least one more seat" in repo.gh_reason(body, "gh: Validation Failed (HTTP 422)")
+    assert repo.gh_reason("", "gh: Not Found (HTTP 404)") == "gh: Not Found (HTTP 404)"
+

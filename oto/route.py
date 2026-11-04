@@ -770,8 +770,7 @@ def git_steps(onto_sha, paths, note, verified_on=None):
     if verified_on:
         return ["git reset -q %s" % onto_sha,
                 "git add -- %s" % " ".join(shlex.quote(p) for p in paths),
-                "git push --force-with-lease origin HEAD:refs/heads/%s" % verified_on,
-                "oto repo commit --message %s" % shlex.quote(note),
+                "oto repo commit --replace --message %s" % shlex.quote(note),
                 "git checkout -q -- ."]
     return ["git reset -q %s" % onto_sha,
             "git add -- %s" % " ".join(shlex.quote(p) for p in paths),

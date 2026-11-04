@@ -319,7 +319,8 @@ def test_a_preview_is_built_for_every_pull_request():
     assert "oto build --project ." in preview
     assert "vars.OTO_SITE_VIEW != ''" in preview and "build/site" in preview, "the workbench beside it when an app is named"
     assert "upload-artifact" in preview and "build/acme.db" in preview, "the store is kept as an artifact"
-    assert "gh pr comment" in preview and "--edit-last" in preview, "one comment per pull request, edited on every push"
+    assert "oto repo comment" in preview and "--marker oto-preview" in preview, "one comment per pull request, edited on every push"
+    assert "--edit-last" not in preview, "that edits another workflow's comment: real runs lost the gate's reasons to this one's link"
     guide = files["CLAUDE.md"]
     assert "preview" in guide.lower()
 
@@ -333,4 +334,41 @@ def test_every_generated_workflow_is_valid_yaml_with_jobs():
     texts.update({"pack-check": packs.PACK_CHECK_WORKFLOW, "pack-publish": packs.PACK_PUBLISH_WORKFLOW, "oto-graphs": directory.WORKFLOW})
     for name, text in texts.items():
         assert yaml.safe_load(text).get("jobs"), name
+
+
+FAKE_COMMENTS = r'''
+import json, os, sys
+args = sys.argv[1:]
+path = os.environ["FAKE_GH_STATE"]
+state = json.load(open(path))
+method = args[args.index("--method") + 1] if "--method" in args else "GET"
+target = next(a for a in args[1:] if a.startswith("repos/")).split("?")[0]
+body = json.load(open(args[args.index("--input") + 1]))["body"] if "--input" in args else None
+if method == "GET":
+    print(json.dumps(state["comments"]))
+elif method == "POST":
+    state["comments"].append({"id": len(state["comments"]) + 1, "body": body})
+    print(json.dumps(state["comments"][-1]))
+elif method == "PATCH":
+    number = int(target.rsplit("/", 1)[1])
+    [c for c in state["comments"] if c["id"] == number][0]["body"] = body
+    print("{}")
+json.dump(state, open(path, "w"))
+'''
+
+
+def test_each_workflow_keeps_its_own_comment(tmp_path, monkeypatch):
+    gh = tmp_path / "gh"
+    gh.write_text("#!/usr/bin/env python3\n" + FAKE_COMMENTS)
+    gh.chmod(0o755)
+    state = tmp_path / "state.json"
+    state.write_text(json.dumps({"comments": [{"id": 1, "body": "someone's own comment"}]}))
+    monkeypatch.setenv("OTO_GH", str(gh))
+    monkeypatch.setenv("FAKE_GH_STATE", str(state))
+    repo.upsert_comment("acme/board", 7, "oto-route", "needs a review")
+    repo.upsert_comment("acme/board", 7, "oto-preview", "the preview is here")
+    repo.upsert_comment("acme/board", 7, "oto-route", "passes")
+    assert repo.upsert_comment("acme/board", 7, "oto-other", "nothing yet", update_only=True) is None
+    bodies = [c["body"] for c in json.loads(state.read_text())["comments"]]
+    assert bodies == ["someone's own comment", "<!-- oto:oto-route -->\npasses", "<!-- oto:oto-preview -->\nthe preview is here"]
 

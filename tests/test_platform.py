@@ -318,3 +318,84 @@ def test_delete_project_touches_only_that_graph():
     assert ran[0][1] == {"project": "fleet", "batch": target.DELETE_BATCH} and ran[0][2] == "db1" and "{project: $project}" in ran[0][0]
     with pytest.raises(ProjectError):
         target.delete_project(Driver(), "db1", "")
+
+
+# ---- a graph on a pack really sees a new release: real runs found it never did ----
+
+@pytest.fixture
+def released(tmp_path, monkeypatch):
+    """A pack published to a registry, and a project started from it by name."""
+    from test_ontology_as_code import _add_term
+    from test_pack_workspace import _cli as _pack_cli, _fill
+    monkeypatch.setenv("OTO_REGISTRIES", str(tmp_path / "registries.json"))
+    monkeypatch.setenv("OTO_PACKS", str(tmp_path / "packs"))
+    monkeypatch.setenv("OTO_ONTOLOGIES", str(tmp_path / "ontologies"))
+    code, out = _pack_cli("pack", "new", "garage", "--to", str(tmp_path / "ws"), "--maintainer", "Test Driver", "--summary", "Buses")
+    assert code == 0, out
+    workspace = str(tmp_path / "ws" / "garage")
+    _fill(workspace)
+    registry_url = str(tmp_path / "registry.git")
+    import subprocess
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", registry_url], check=True)
+    code, out = _pack_cli("pack", "publish", "--from", workspace, "--to", registry_url, "--note", "first", "--registry-name", "acme")
+    assert code == 0, out
+    code, out = _pack_cli("registry", "add", registry_url)
+    assert code == 0, out
+    code, out = _pack_cli("pack", "add", "garage")
+    assert code == 0, out
+    root = str(tmp_path / "team")
+    code, out = _pack_cli("init", "--name", "Team", "--slug", "team", "--project", root, "--pack", "garage")
+    assert code == 0, out
+
+    def release():
+        _add_term(workspace, "Depot", "kept_at", "depot-of-a-bus")
+        assert _pack_cli("pack", "format", workspace)[0] == 0
+        code, out = _pack_cli("pack", "publish", "--from", workspace, "--to", registry_url, "--note", "Depots")
+        assert code == 0, out
+        assert _pack_cli("registry", "refresh")[0] == 0
+    return root, release, _pack_cli
+
+
+def test_a_bare_pack_name_is_never_taken_for_a_folder_of_that_name(tmp_path, monkeypatch, released):
+    root, _release, cli = released
+    (tmp_path / "here" / "garage").mkdir(parents=True)
+    monkeypatch.chdir(tmp_path / "here")
+    other = str(tmp_path / "other")
+    code, out = cli("init", "--name", "Other", "--slug", "other", "--project", other, "--pack", "garage")
+    assert code == 0, out
+    with open(os.path.join(other, "project.config.json"), encoding="utf-8") as f:
+        assert json.load(f)["vocabulary"] == "derived", "a folder here called garage made the project keep its own copy, cut off from the pack"
+
+
+def test_status_and_diff_see_a_new_release_of_the_pack_and_update_takes_it(released):
+    root, release, cli = released
+    with open(os.path.join(root, "project.config.json"), encoding="utf-8") as f:
+        assert json.load(f)["vocabulary"] == "derived"
+    code, out = cli("ontology", "diff", "--project", root)
+    assert code == 0 and "Nothing upstream to take" in out, out
+    release()
+    code, out = cli("status", "--project", root)
+    assert code == 0 and "@2 available" in out, out
+    assert cli("pack", "add", "garage", "--force")[0] == 0
+    code, out = cli("ontology", "diff", "--project", root)
+    assert code == 0 and "Depot" in out and "kept_at" in out and "release 2" in out, out
+    assert "oto ontology update" in out and "can be copied" not in out, "this text is the update pull request's description, and the vocabulary here comes from the pack"
+    code, out = cli("ontology", "update", "--project", root)
+    assert code == 0, out
+    with open(os.path.join(root, "ontology.config.json"), encoding="utf-8") as f:
+        assert "Depot" in json.load(f)["classes"]
+    with open(os.path.join(root, "project.config.json"), encoding="utf-8") as f:
+        assert json.load(f)["ontology"]["pack"]["release"] == 2, "or the next run offers the same release again"
+    code, out = cli("ontology", "diff", "--project", root)
+    assert code == 0 and "Nothing upstream to take" in out, out
+    code, out = cli("status", "--project", root)
+    assert "@2 available" not in out, out
+    assert cli("build", "--project", root)[0] == 0
+
+
+def test_the_update_pull_request_says_its_checks_need_a_person_to_start_them():
+    """GitHub starts no workflow for what the Actions token does, so the gate never runs on this pull request until someone reopens it."""
+    text = repo.files("acme", "Acme")[os.path.join(".github", "workflows", "oto-pack-update.yml")]
+    assert "close it and reopen it" in text
+    assert text.index("close it and reopen it") < text.index("gh pr create")
+

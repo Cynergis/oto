@@ -795,6 +795,11 @@ def _upstream(record):
     """(kind, url, ref, path) for where a project's ontology lives upstream, or a ProjectError."""
     from . import ontologies as _ontologies
     name = record.get("name")
+    pack = record.get("pack") or {}
+    if pack.get("name") and pack.get("registry"):
+        # the pack's release is what moves: publishing raises it, and the ontology it embeds keeps its number
+        reg, entry = find(pack["name"], kind="pack")
+        return "pack", None, None, None, int(entry.get("release") or 1) if entry else None, reg["name"] if reg else pack["registry"]
     if record.get("registry"):
         reg, entry = find(name)
         if entry is None:
@@ -832,7 +837,8 @@ def newer_release(record):
     kind, _url, _ref, _path, current, _where = _upstream(record)
     if current is None:
         return None
-    return current if int(current) > int(record.get("release") or 0) else None
+    held = (record.get("pack") or {}).get("release") if kind == "pack" else record.get("release")
+    return current if int(current) > int(held or 0) else None
 
 
 def diff_project(project):
@@ -853,7 +859,17 @@ def diff_project(project):
 
     work = old_work = None
     try:
-        if kind in ("built-in", "pack"):                      # on this machine: the engine's own, or the installed pack's copy
+        if kind == "pack":                                    # the pack as it's installed here: `oto pack add --force` fetches the newest
+            from . import packs as _packs
+            pack_dir = _packs.dir_for(record["pack"]["name"])
+            if pack_dir is None:
+                raise ProjectError("this project starts from the pack %s, which this machine does not have: oto pack add %s" % (record["pack"]["name"], record["pack"]["name"]))
+            new = _ontologies.composed(name, roots=[_packs.embedded_root(pack_dir)])
+            pack_manifest = _packs.read(pack_dir)
+            recorded = int(record["pack"].get("release") or 0)
+            new = dict(new, manifest=dict(new["manifest"], release=pack_manifest["release"], changelog=pack_manifest.get("changelog") or []))
+            roots_new = None
+        elif kind == "built-in":                              # on this machine: the engine's own
             new = _ontologies.composed(name)
             roots_new = None
         else:
@@ -906,7 +922,7 @@ def diff_project(project):
         changelog = [e for e in new["manifest"].get("changelog") or [] if int(e.get("release", 0)) > recorded]
         changelog.sort(key=lambda e: -int(e.get("release", 0)))
         return {"name": name, "recorded": recorded, "current": current, "where": where, "basis": basis, "tag": tag,
-                "changes": changes, "rules": rules, "questions": questions, "changelog": changelog}
+                "changes": changes, "rules": rules, "questions": questions, "changelog": changelog, "taken_whole": kind == "pack"}
     finally:
         for directory in (work, old_work):
             if directory:

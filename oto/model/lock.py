@@ -365,7 +365,9 @@ def write(project):
 def drift(project, lock=None):
     """What differs between the lock and this machine, as sentences; [] when they agree. The
     marketplaces' commits are not compared: a registry moves on while the plugins a project uses
-    stay at their versions."""
+    stay at their versions. A machine with no Claude Code plugins at all, such as a CI runner, has
+    no plugins to compare: `oto checks` holds it to the engine, and that real runs caught a lock
+    failing on every pull request for want of a plugin it would never use."""
     lock = lock if lock is not None else read(project)
     if lock is None:
         return ["no %s: oto lock writes it" % LOCK_NAME]
@@ -376,8 +378,8 @@ def drift(project, lock=None):
         out.append("the engine is %s here, locked at %s" % (here["version"], was.get("version")))
     elif was.get("commit") and here.get("commit") and was["commit"] != here["commit"]:
         out.append("the engine is %s at commit %s here, locked at %s" % (here["version"], here["commit"][:10], was["commit"][:10]))
-    locked = {p["id"]: p for p in lock.get("plugins") or []}
-    current = {p["id"]: p for p in now["plugins"]}
+    locked = {p["id"]: p for p in lock.get("plugins") or []} if _installs() else {}
+    current = {p["id"]: p for p in now["plugins"]} if _installs() else {}
     for key in sorted(locked):
         want, have = locked[key], current.get(key)
         if have is None or not have["installed"]:

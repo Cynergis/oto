@@ -365,7 +365,8 @@ def init(root, slug=None, name=None, namespace=None, prefix=None, force=False, o
         ontology_config = dict(ontology_config, name=name)
         # Every name resolved on this machine (a pack's copy, a fetched one): the vocabulary is theirs, not the
         # project's, and the file says so. A directory is a copy the project owns (docs/plans/ontology-workspace.md).
-        if not any(os.sep in given or os.path.isdir(given) for given in names):
+        # only a name that looks like a path is one: a folder here that happens to share the pack's name must not cut the project off from it
+        if not any(os.sep in given or given.startswith((".", "~")) for given in names):
             vocabulary_mode = _derived.DERIVED
             ontology_config["_about"] = _derived.about(names)
             ontology_config["_derived"] = {"from": [{"name": one, "release": _ontologies.manifest_for(one, roots)["release"]} for one in names],

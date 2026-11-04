@@ -4,8 +4,10 @@
 
     oto repo access [--apply | --check | --owners] [--repo owner/name]
                                                     who holds which role (.github/oto-access.json, oto/access.py)
-    oto repo commit --message <text> [--repo owner/name]
+    oto repo commit --message <text> [--replace] [--repo owner/name]
                                                     the staged change as a commit GitHub makes and signs
+    oto repo comment --pr <n> --marker <name> --body-file <file>
+                                                    one comment per marker on a pull request, edited on every run
 
     oto repo rules [--apply] [--repo owner/name] [--code-owner <login|org/team>]
                                                     the branch rules on main (.github/oto-rules.json):
@@ -27,6 +29,23 @@ import sys
 from ._common import project_arguments
 
 
+def _cmd_comment(root, args):
+    from .. import repo as _repo
+    from ..project import ProjectError
+    repository = args.repo or _repo.origin_repository(root)
+    if not repository or not args.pr or not args.marker or not args.body_file:
+        print("oto: comment needs --repo owner/name (or `origin`), --pr, --marker and --body-file", file=sys.stderr)
+        return 1
+    try:
+        with open(args.body_file, encoding="utf-8") as f:
+            body = f.read()
+        _repo.upsert_comment(repository, args.pr, args.marker, body, update_only=args.update_only)
+    except (OSError, ProjectError) as exc:
+        print("oto: %s" % exc, file=sys.stderr)
+        return 1
+    return 0
+
+
 def _cmd_commit(root, args):
     from .. import repo as _repo
     from ..project import ProjectError
@@ -38,7 +57,7 @@ def _cmd_commit(root, args):
         print("oto: no GitHub repository to commit to: pass --repo owner/name, or set `origin`", file=sys.stderr)
         return 1
     try:
-        done = _repo.verified_commit(root, repository, args.message)
+        done = _repo.verified_commit(root, repository, args.message, replace=args.replace)
     except ProjectError as exc:
         print("oto: %s" % exc, file=sys.stderr)
         return 1
@@ -126,6 +145,8 @@ def cmd_repo(args):
         return _cmd_commit(root, args)
     if args.repo_command == "retire":
         return _cmd_retire(root, args)
+    if args.repo_command == "comment":
+        return _cmd_comment(root, args)
     path = os.path.join(root, _repo.RULES_FILE)
     if not os.path.exists(path):
         print("oto: %s is not there: `oto init --repo` writes it (a project laid out before it existed: oto init --repo --force keeps your edits and adds what is missing)"
@@ -172,7 +193,7 @@ def cmd_repo(args):
 
 def register(sub):
     repo = sub.add_parser("repo", help="a project in a GitHub repository: the branch rules on main, shown or set (`oto init --repo` writes the workflows)")
-    repo.add_argument("repo_command", nargs="?", default="rules", choices=["rules", "access", "commit", "retire"],
+    repo.add_argument("repo_command", nargs="?", default="rules", choices=["rules", "access", "commit", "retire", "comment"],
                       help="rules shows .github/oto-rules.json; with --apply, sets it on the repository through the GitHub CLI. access shows "
                            ".github/oto-access.json; --apply sets GitHub to match, --check says where it drifted, --owners writes CODEOWNERS from the stewards. "
                            "commit makes the staged change a commit through GitHub, verified with no key on this computer. "
@@ -183,6 +204,11 @@ def register(sub):
     repo.add_argument("--check", action="store_true", help="for access: say where GitHub has drifted from the file, and exit 1 if it has")
     repo.add_argument("--owners", action="store_true", help="for access: write .github/CODEOWNERS from the stewards")
     repo.add_argument("--message", default=None, help="for commit: the commit's message")
+    repo.add_argument("--replace", action="store_true", help="for commit, after a rebase: replace what the branch holds on GitHub with this commit, keeping its pull request open")
+    repo.add_argument("--pr", default=None, help="for comment: the pull request's number")
+    repo.add_argument("--marker", default=None, help="for comment: names this comment, so the next run edits it rather than another's")
+    repo.add_argument("--body-file", dest="body_file", default=None, help="for comment: a file holding the comment")
+    repo.add_argument("--update-only", dest="update_only", action="store_true", help="for comment: edit the comment if it's there, and post nothing otherwise")
     repo.add_argument("--repo", default=None, help="the repository, owner/name (default: where `origin` points)")
     repo.add_argument("--code-owner", default=None,
                       help="who owns what the gate runs on, a login or org/team (default: the one .github/CODEOWNERS names, else whoever gh is signed in as)")

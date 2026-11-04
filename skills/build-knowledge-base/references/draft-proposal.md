@@ -88,7 +88,7 @@ faithful to the document and easy to check.
    ```json
    {"id": "blocker.vendor-api-outage", "type": "Blocker", "label": "Vendor API outage",
     "source_type": "human_assertion",
-    "sources": ["assertion:a-0012", "<the transcript's slug>"],
+    "sources": ["assertion:a-3f9c1e7b2d40", "<the transcript's slug>"],
     "summary": "<what the speaker said it is, in their words>",
     "evidence": [{"doc": "<the transcript's slug>", "where": "<the timestamp or the speaker's turn>",
                   "quote": "<the sentence they said>"}],

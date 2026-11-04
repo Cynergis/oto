@@ -243,7 +243,7 @@ provenance vetting.
 - **Undo.** `oto curate undo --project acme`.
 - **A correction someone said.** `oto capture --project acme --title "<topic>" --by "<who, role>"
   --at <date> --statement "<their words>"`, then the pipeline from stage 6. Or, locally,
-  `oto curate assert --text ... --by ... --at ...` and a fact citing `assertion:a-0001`.
+  `oto curate assert --text ... --by ... --at ...` and a fact citing the `assertion:a-...` it printed.
 - **A document that disappears.** Delete one file under `build/documents/` and run
   `oto vet --project acme`, then `oto vet --project acme --apply`.
 
@@ -1441,8 +1441,9 @@ mkdir -p inbox/transcripts && cp <a transcript> inbox/transcripts/ && git add -A
 oto route guardrails --project . --base origin/main --head origin/oto/run-<id>          # additive, attributed, scope, clean, bounded
 #   all hold: the pull request merges with no approval; one fails: labelled oto-route:reviewed, the findings posted, a person decides
 
-# a stale pull request, for the merge queue
-git checkout card && oto route rebase --project . --onto origin/main && git add -A && git commit -s -S -m "The card, on the new main" && git push
+# a stale pull request: someone else merged first
+git checkout card && git fetch origin && oto route rebase --project . --onto origin/main
+#   re-applied, the confirmation holds; run the git steps it prints, which end in git push --force-with-lease, and the pull request merges with no conflict
 
 # the engine pinned to the lock
 cat oto.lock.json | python3 -c "import json,sys; print(json.load(sys.stdin)['engine'])"; oto lock --engine-ref --project .
@@ -1519,7 +1520,7 @@ oto status --project .               # from the pack board @2: allowed, session;
 git init -q -b main && git add -A && git commit -qm "the board"
 git checkout -qb card && oto curate start --project .
 oto curate assert --project . --by "<your git email>" --at <today> --text "New card: refund status page, standard class of service; Ben works it."
-#   add to graph.candidate.json a Card citing it ("source_type": "human_assertion", "sources": ["assertion:a-0001"]) and its worked_by edge to person.ben
+#   add to graph.candidate.json a Card citing it ("source_type": "human_assertion", "sources": ["assertion:<the id it printed>"]) and its worked_by edge to person.ben
 oto curate check --project . && oto curate apply --project . --by "<your git email>" --note "the refund status card" --confirm
 git add -A && git commit -qm "The refund status card"
 oto route check --project . --base main --author "<your git email>" --verified                # route: session  passes

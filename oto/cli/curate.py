@@ -278,7 +278,8 @@ def cmd_curate(args):
     with open(project.ontology_config_path, encoding="utf-8") as f:
         vocabulary = _json.load(f)
     from ..curate import assertions as _assertions
-    findings = _diff.check(live, proposed, vocabulary, known_assertions=_assertions.known_ids(project))
+    findings = _diff.check(live, proposed, vocabulary, known_assertions=_assertions.known_ids(project),
+                           duplicate_assertions=_assertions.duplicates(_assertions.read(project)))
     from .. import route as _route
     for nid, detail in _route.transcript_findings(project, live, proposed):      # the guardrailed route's attribution, at drafting time
         findings.append(_diff.Finding(_diff.Finding.BLOCKING, nid, detail))

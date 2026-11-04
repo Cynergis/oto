@@ -11,7 +11,7 @@ import tempfile
 
 from oto import route
 from oto.cli import main
-from oto.curate import session
+from oto.curate import assertions, session
 
 from test_curate import _node, _project
 from test_route import _commit, _git
@@ -52,13 +52,16 @@ def _repository(root, settings=SETTINGS):
     return project, _commit(root, "the project")
 
 
+DANA = assertions.content_id("Dana Ortiz", "2026-11-02", "the data platform is blocked on the platform team")
+
+
 def _assert(project, by="Dana Ortiz", text="the data platform is blocked on the platform team"):
     code, out = _cli("curate", "assert", "--by", by, "--at", "2026-11-02", "--text", text, "--project", project.data)
     assert code == 0, out
-    return out.split()[1]           # "recorded a-0001"
+    return out.split()[1]           # "recorded a-<its id>"
 
 
-def _fact(nid, assertion="a-0001", **over):
+def _fact(nid, assertion=DANA, **over):
     base = dict(source_type="human_assertion", sources=["assertion:%s" % assertion, "standup"], source_doc="standup", summary="a statement")
     base.update(over)
     return _node(nid, **base)
@@ -139,7 +142,7 @@ def test_cited_and_attributed_a_fact_that_is_not_the_speakers_assertion_goes_to_
         assert not verdict["ok"] and verdict["route"] == route.REVIEWED
     with tempfile.TemporaryDirectory() as root:
         # an assertion, but citing no transcript document of the run
-        result, _verdict = _failing(root, None, nodes=[_fact("c.2", sources=["assertion:a-0001"], source_doc=None)])
+        result, _verdict = _failing(root, None, nodes=[_fact("c.2", sources=["assertion:" + DANA], source_doc=None)])
         assert "transcript" in _only(result, "attributed")
 
 

@@ -150,7 +150,7 @@ def fingerprint(canon):
     return hashlib.sha256(json.dumps(canon, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
-def check(live, candidate, vocabulary=None, known_assertions=None):
+def check(live, candidate, vocabulary=None, known_assertions=None, duplicate_assertions=()):
     """Every finding about the candidate, most severe first.
 
     `vocabulary` is the declared classes and properties. Without it the vocabulary checks are skipped,
@@ -228,6 +228,10 @@ def check(live, candidate, vocabulary=None, known_assertions=None):
         from . import assertions as _assertions
         for nid, detail in _assertions.check_nodes(nodes, known_assertions):
             findings.append(Finding(Finding.BLOCKING, nid, detail))
+    for identifier in duplicate_assertions:
+        findings.append(Finding(Finding.BLOCKING, "assertion:%s" % identifier,
+                                "this id names more than one line of the assertion log, so a fact citing it could mean either statement: "
+                                "a person gives each statement its own id, and points each fact at the right one"))
 
     # ---- contradiction: a fact changed with no supersession record ----
     decisions = _decisions(vocabulary)

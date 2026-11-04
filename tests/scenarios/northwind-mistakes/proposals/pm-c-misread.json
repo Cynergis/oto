@@ -1,5 +1,5 @@
 {
-  "source_doc": "assertion:a-0001",
+  "source_doc": "assertion:a-c3c6b1b1a0c6",
   "as_of": "2025-10-02",
   "nodes": [
     {
@@ -23,9 +23,9 @@
       "supersedes": "pm.pm-c",
       "change_note": "Dana Reyes: the PM-C interval is now 60,000 km.",
       "source_type": "human_assertion",
-      "source_doc": "assertion:a-0001",
+      "source_doc": "assertion:a-c3c6b1b1a0c6",
       "sources": [
-        "assertion:a-0001"
+        "assertion:a-c3c6b1b1a0c6"
       ]
     }
   ],

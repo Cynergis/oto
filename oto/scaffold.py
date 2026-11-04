@@ -96,6 +96,8 @@ PROJECT_GITIGNORE = """# build/ is entirely generated. Track it only if you deli
 build/
 *.db.new
 __pycache__/
+# What `oto curate undo` restores. It changes on every apply, so tracking it conflicts on every merge.
+graph.previous.json
 """
 
 

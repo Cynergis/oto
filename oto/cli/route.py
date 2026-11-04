@@ -5,7 +5,7 @@
     oto route check --base <ref> [--head <ref>] [--author <id>]... [--approved] [--verified] [--json]
                                                                  the verdict: exit 0 when the route's rule holds
     oto route guardrails --base <ref> [--head <ref>] [--json]  the five guardrails on the change: additive, attributed, scope, clean, bounded
-    oto route rebase --onto <ref> [--head <ref>] [--json]      re-apply the change onto a moved main through the gates (the merge queue)
+    oto route rebase --onto <ref> [--head <ref>] [--json]      re-apply the change onto a moved main through the gates, and say the git steps
 
 The author, the approval and the verification are what GitHub knows; the route workflow passes
 them in. The engine reads the two trees with git and never calls GitHub."""
@@ -63,7 +63,7 @@ def register(sub):
                        help="show says the route the change between --base and --head asks for, and why; check is the gate's "
                             "verdict given what GitHub knows (--author, --approved, --verified): exit 0 when the route's rule holds; "
                             "guardrails runs the five guardrails of the guardrailed route on the change and names what each caught; "
-                            "rebase --onto <ref> re-applies the change onto a moved main through the gates, in the working tree")
+                            "rebase --onto <ref> re-applies the change onto a moved main through the gates, in the working tree, and prints the git steps that put it there")
     route.add_argument("--base", default=None, help="the commit the pull request starts from: its base branch (origin/main) or a sha")
     route.add_argument("--head", default=None, help="the commit under review (default HEAD)")
     route.add_argument("--onto", default=None, help="for rebase: the new main to re-apply this change onto (origin/main)")

@@ -93,7 +93,8 @@ def commit(project, text, by, at, about, edit, action="work"):
 def gates(project, live, candidate, vocabulary):
     """The blocking findings the candidate would meet at `oto curate check`: the diff's checks, the
     declared shapes, the ontology's blocking policies."""
-    findings = [f for f in _diff.check(live, candidate, vocabulary, known_assertions=_assertions.known_ids(project))
+    findings = [f for f in _diff.check(live, candidate, vocabulary, known_assertions=_assertions.known_ids(project),
+                                       duplicate_assertions=_assertions.duplicates(_assertions.read(project)))
                 if f.severity == _diff.Finding.BLOCKING]
     nodes, edges = candidate.get("nodes") or [], candidate.get("edges") or []
     for item in _shapes.findings(vocabulary, nodes, edges):

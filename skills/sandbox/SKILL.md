@@ -195,7 +195,7 @@ later is the packs skill's job, inside.
 For a knowledge project with a repository on GitHub, `up` also sets the **branch rules** on its `main`: pull requests required, the
 checks `oto checks` and `oto route` required, no approvals at the branch level since the gate asks
 per route ([ADR-0013](../../docs/adr/0013-three-routes-into-main.md)) but a code owner's for what the
-gate runs on, the merge queue on. The person whose token made the repository is named its code owner,
+gate runs on. The person whose token made the repository is named its code owner,
 in the first commit, and the two workflows that push to `main` get a deploy key of their own, which
 only `main` can use. A warning that the rules were not set says why, and `oto repo rules --apply` in
 the project folder sets them later.

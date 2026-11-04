@@ -265,10 +265,10 @@ curate skill shows the change and they confirm it. That change takes one of thre
 
 Two rules of this model are not true yet, and both are required:
 
-1. **Reviewer means reviewer.** The gate counts any approving review (`oto/repo.py:980`), and GitHub's
-   documentation says anyone with read access can review. So an approval from someone with only read access
-   to the knowledge repository can pass the reviewed route. The gate must count only people named in the
-   access file at the base, and never the author.
+1. **Reviewer means reviewer.** GitHub's documentation says anyone with read access can review, so the gate
+   counted an approval from someone who could only read. Since phase 0 it counts an approval of the head commit,
+   by someone who didn't write it and who has write access. Phase 3 narrows that to the people named in the
+   access file at the base.
 2. **The session route must work for everyone.** It requires verified commits by the confirmer. A sandbox
    commits unsigned under a generic identity, and a person's own computer signs only if they set that up.
    Otherwise a confirmed change falls back to reviewed and waits. See the decisions below.
@@ -304,15 +304,18 @@ with many contributors confirming at once will feel this.
 
 ### Who can reach the secrets
 
-`NEO4J_PASSWORD` and `OTO_QUERY_REPO_TOKEN` are repository secrets, used by a job with no environment
-(`oto/repo.py:367`, `:407`, `:427`). GitHub gives repository secrets to workflows on any branch of the
-repository, so a contributor with write access could read them with a workflow on a branch. The same goes
-for `ANTHROPIC_API_KEY`. Code owners stop that workflow reaching `main`, but not from running on its branch.
+GitHub gives repository secrets to workflows on any branch of the repository, so a contributor with write
+access could read them with a workflow on a branch. Code owners stop that workflow reaching `main`, but not from
+running on its branch.
 
-The fix is the one `main`'s deploy key already uses: an environment that only `main` deploys from, with the
-secrets kept there. Team supports this. Previews are the exception, because they run on pull requests and
-publish with the store token (`oto/repo.py:1053`). They should keep the preview as a workflow artifact, or
-use a token that can write only to a preview store.
+Since phase 0, the deploy job reads `NEO4J_PASSWORD` and `OTO_QUERY_REPO_TOKEN` from the environment `oto-main`,
+the one `main`'s deploy key already uses, which only `main` deploys from. A repository secret of those names still
+works until it is moved, so an existing repository doesn't break, but it stays readable until then. A promote job
+reads from its own environment, so that one needs its own token, and needs narrowing to `main` by hand. Previews
+run on pull requests, so they hold no store token and keep the store as a workflow artifact.
+
+`ANTHROPIC_API_KEY` stays a repository secret, because the author and review workflows run on branches. A
+contributor with write access can read it, which is an accepted risk until those workflows change.
 
 ### Promotion without required reviewers
 
@@ -329,10 +332,10 @@ Enterprise Cloud, the required reviewers work as they are.
 | Content-based assertion ids, and a check that refuses duplicates (phase 0, done) | two contributors collided, and provenance was silently wrong |
 | `oto route rebase` carries the audit log and gives the right git steps (phase 0, done) | a merged change could lose another person's audit record, and the printed steps left the conflict |
 | `graph.previous.json` untracked (phase 0, done) | it conflicted on every merge |
-| The merge queue out of the branch rules, or only on Enterprise Cloud | GitHub's docs say Team can't use it on private repositories, so it may refuse the whole ruleset; not yet tried |
-| Deploy secrets in the `oto-main` environment; previews without the store token | contributors can reach them today |
+| The merge queue out of the branch rules (phase 0, done) | GitHub's docs say Team can't use it on private repositories, so it could refuse the whole ruleset |
+| Deploy secrets in the `oto-main` environment; previews without the store token (phase 0, done) | contributors could reach them |
 | Promotion by a pull request on `oto.promote.json` | required reviewers aren't available on Team |
-| The gate counts only qualified reviewers | an approval from anyone with read access to the knowledge repository passes today |
+| The gate counts only qualified reviewers (phase 0, done; the access file narrows it in phase 3) | an approval from anyone with read access passed |
 | `oto sandbox up --clone` | `--repo` commits and pushes (`oto/sandbox.py:631`) and re-applies the rules, so it is unsafe on an existing repository |
 | `oto repo access` and the access file | permissions are set by hand in GitHub today, with no review or drift check |
 | Verified commits, in a sandbox and on a person's computer | the session route falls back to reviewed without them |
@@ -450,8 +453,9 @@ should ask each one and answer per graph, unless the question names one. The que
 | `oto status` on a connection and on a folder of them | says what each is, and for a connection which build it serves |
 | `enabledMcpjsonServers` in the folder's settings, project or local | `claude mcp list` still says "Pending approval", so OTO doesn't write it |
 
-Not tried on real Aura: `oto sandbox up` end to end, which needs a released kit (E2E section 37), a session in Claude Desktop
-itself, and two instances with separate logins, which AuraDB Free's single instance rules out.
+E2E section 37 then ran on 0.20.1: the real `oto sandbox up` made the sandbox from the published kit, with the driver in it and the
+rule scoped to that sandbox, and Claude answered over SSH from the graph's own server. Not tried on real Aura: a session in Claude
+Desktop itself, and two instances with separate logins, which AuraDB Free's single instance rules out.
 
 ### Tested the same day, on scratch graphs with SQLite
 
@@ -631,10 +635,9 @@ belongs to phase 3, because its reviewed route needs a second person.
 | With neither `--kind` nor `--repo`, `oto sandbox up` reuses the folder and pushes nothing | `oto/sandbox.py`, `up`; also run on 2026-11-03 |
 | Two authors' unrelated additions conflict in 6 of 6 files; 1 of 4 with the three fixes | the test above, run on a scratch copy |
 | The workspace root declares no plugin; only `trial/.claude/settings.json` does | a fresh workspace's tracked files |
-| The gate's approval is any `APPROVED` review | `oto/repo.py:980` |
 | Two contributors both merge: distinct ids, both audit records, both facts | `tests/test_two_contributors.py` |
-| The branch rules include a merge queue, and require up-to-date checks | `oto/repo.py:1123`, `:1121` |
-| Deploy secrets are repository secrets on a job with no environment; previews use the store token | `oto/repo.py:367`, `:407`, `:427`, `:1053` |
+| Whose approval counts, what a job can read, the rules with no merge queue | `tests/test_gate_and_secrets.py`; on real GitHub, E2E section 38 |
+| `publish.require_pr` did nothing, so a new config leaves it out and an old one is told; the Neo4j store reads `NEO4J_PASSWORD` alone, so `connection.secret` naming another is refused | `oto/deploy.py` |
 | `oto-main` already holds the deploy key, for `main` alone | `oto/repo.py:166` |
 | The gate takes authors, approval and verification as flags | `oto/route.py:436` |
 | Code owners own `.github/` and the lock | `oto/repo.py:1100` |
@@ -643,7 +646,6 @@ belongs to phase 3, because its reviewed route needs a second person.
 | Descriptors and dependencies | `oto/graphs.py:162`, `:197` |
 | One server token; a stated principal | `oto/serve/http.py:54`, `:193` |
 | Neo4j credentials and URI come from fixed environment names | `oto/targets/neo4j.py:46`, `:59` |
-| `connection.secret` is validated and not read by the Neo4j store; `require_pr` is validated and printed only | `oto/deploy.py:11`, `:145` |
 | `oto sync` clones or updates one store | `oto/publish.py:209` |
 | One server per graph, a connection-only folder, the 401 from `kg_call` | the test in capability 3, on scratch graphs |
 | Connections, their servers and their logins | `oto/connections.py` |
@@ -657,5 +659,4 @@ read-only reviewer's approval shows as `APPROVED` to `gh pr view`, and that a br
 secrets. The branch rules' code-owner review at zero approvals and the deploy key's bypass are also still untested
 on a real repository. Phase 0's test covers all of these, with a second GitHub account.
 
-From Docker's documentation and not tried: that a hostname and port rule lets Bolt out of a sandbox. Nothing has run
-against real Neo4j from a sandbox; phase 1's test covers that.
+A hostname and port rule does let Bolt out of a sandbox: phase 1 ran it on real Aura.

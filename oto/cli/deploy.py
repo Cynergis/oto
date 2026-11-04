@@ -37,12 +37,14 @@ def cmd_deploy(args):
                 print("  %s" % problem)
             return 1
         print("%s validates: %s, graph %s, connector %s" % (_deploy.NAME, config["repo"], config["graph"], config["connector"]))
-        print("  publish to  %s%s" % (config["publish"]["to"], " (through a pull request)" if config["publish"].get("require_pr") else ""))
+        print("  publish to  %s" % config["publish"]["to"])
         print("  environments %s" % " -> ".join(_deploy.chain(config)))
         for name in _deploy.chain(config):
             who = _deploy.approvers(config, name)
             print("    %-8s %s" % (name, ("approved by " + ", ".join(who)) if who else "no approver: the build lands here"))
         print("  promotion   %s: the store one environment holds is copied to the next, never rebuilt" % config.get("promotion", _deploy.PROMOTION))
+        for note in _deploy.notes(config):
+            print("  note: %s" % note)
         return 0
 
     # status

@@ -508,6 +508,21 @@ def check(root, base, head="HEAD", authors=(), approved=False, verified=False):
     return out
 
 
+def qualified_reviewers(reviews, head_sha, authors=()):
+    """The logins whose standing decision approves `head_sha`, from the reviews GitHub lists for a pull
+    request, oldest first, and none of them an author: an approval of an earlier commit is of something
+    else, and a person's own doesn't count. A comment leaves a decision standing. Whether a login may
+    write here is the workflow's to ask, since only GitHub knows; the engine never calls it."""
+    known = {str(a).strip().lower() for a in authors if str(a).strip()}
+    standing = {}
+    for review in reviews if isinstance(reviews, list) else []:
+        login = (review.get("user") or {}).get("login") if isinstance(review, dict) else None
+        if login and review.get("state") in ("APPROVED", "CHANGES_REQUESTED", "DISMISSED"):
+            standing[login] = review
+    return sorted(login for login, review in standing.items()
+                  if review["state"] == "APPROVED" and review.get("commit_id") == head_sha and login.lower() not in known)
+
+
 def render(result):
     lines = ["route: %s%s" % (result["route"], ("  (proposed %s)" % result["proposed"]) if result.get("proposed") != result["route"] else "")]
     if "ok" in result:

@@ -8,7 +8,7 @@ the environments in the order a build moves through them, each with who may appr
 
     {"repo": "cynergis/client-kg", "graph": "product-kg", "connector": "neo4j",
      "connection": {"endpoint": "bolt://graph.dev.client.internal", "auth": "basic", "secret": "NEO4J_PASSWORD"},
-     "publish": {"to": "https://github.com/cynergis/client-kg-store", "require_pr": true, "site": false},
+     "publish": {"to": "https://github.com/cynergis/client-kg-store", "site": false},
      "environments": [{"name": "dev", "approvers": []},
                       {"name": "test", "approvers": ["kg-owners"]},
                       {"name": "prod", "approvers": ["kg-owners", "data-governance"]}],
@@ -42,6 +42,8 @@ CONNECTORS = ("sqlite", "neo4j")
 AUTH = ("basic", "oidc", "token", "workload-identity", "file", "env", "adc", "service-account")
 KEYS = ("repo", "graph", "connector", "connection", "publish", "environments", "promotion", "overlay")
 CONNECTION_KEYS = ("endpoint", "auth", "secret", "database", "note")
+#: the one variable the Neo4j store reads its password from (oto/targets/neo4j.py); an overlay's connector reads the one it names
+NEO4J_SECRET = "NEO4J_PASSWORD"
 OVERLAY_KEYS = ("connector", "connection", "native_read", "schema", "region")
 PROMOTION = "same-commit"
 ENV_NAME = re.compile(r"^[a-z][a-z0-9-]{0,31}$")
@@ -91,6 +93,9 @@ def problems(config):
         out.append("`connection` is required for neo4j: endpoint, auth and the secret's variable name")
     if connection is not None:
         out += _connection_problems(connection, "connection")
+    if connector == "neo4j" and isinstance(connection, dict) and isinstance(connection.get("secret"), str) \
+            and ENV_VAR.match(connection["secret"]) and connection["secret"] != NEO4J_SECRET:
+        out.append("`connection.secret` names %s, and the Neo4j store reads %s and no other variable: name that one, or leave it out" % (connection["secret"], NEO4J_SECRET))
     overlay = config.get("overlay")
     if overlay is not None:
         out += _overlay_problems(overlay)
@@ -120,6 +125,14 @@ def problems(config):
         out.append("`promotion` must be %r: the same build moves through the environments, never a rebuild" % PROMOTION)
     for kind in sorted({f.kind for f in _privacy.blocking(_privacy.scan(json.dumps(config, ensure_ascii=False)))}):
         out.append("%s found in the config: a secret never goes in the file; name the environment variable that holds it" % kind)
+    return out
+
+
+def notes(config):
+    """What a config says that has no effect. Not a problem: a config written by an older release stays valid."""
+    out = []
+    if isinstance(config.get("publish"), dict) and "require_pr" in config["publish"]:
+        out.append("`publish.require_pr` does nothing and can go: a publish pushes straight to the environment's branch of the query repository")
     return out
 
 
@@ -209,7 +222,7 @@ def starter(repo, to, graph, connector="sqlite"):
     config = {"_about": "Where this graph goes (oto deploy check validates it). Secrets are named, never written: "
                         "`connection.secret` is an environment variable's name.",
               "repo": repo, "graph": graph, "connector": connector,
-              "publish": {"to": to, "require_pr": True, "site": False},
+              "publish": {"to": to, "site": False},
               "environments": [{"name": "dev", "approvers": []},
                                {"name": "test", "approvers": ["kg-owners"]},
                                {"name": "prod", "approvers": ["kg-owners", "data-governance"]}],

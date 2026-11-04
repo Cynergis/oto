@@ -308,7 +308,7 @@ def test_the_check_workflow_pins_the_engine_tries_the_pack_and_posts_the_diff(tm
     text = _workflow(tmp_path, "pack-check.yml")
     assert "name: pack check" in text.split("jobs:")[1], "the job carries the name the rules require"
     assert "@v%s" % __version__ in text and "oto pack check . --strict" in text and "oto pack try ." in text
-    assert "oto pack diff . --base" in text and "gh pr comment" in text and "fetch-depth: 0" in text and "pull-requests: write" in text
+    assert "oto pack diff . --base" in text and "oto repo comment" in text and "--edit-last" not in text and "fetch-depth: 0" in text and "pull-requests: write" in text
 
 
 def test_the_publish_workflow_keeps_its_token_in_an_environment_only_release_tags_deploy_from(tmp_path):

@@ -502,3 +502,18 @@ def test_a_project_laid_out_for_a_sandbox_locks_the_sandboxs_plugins(claude):
     locked = json.load(open(os.path.join(root, lockfile.LOCK_NAME)))
     assert [p["id"] for p in locked["plugins"]] == ["oto@acme"] and locked["declared_by"] == ".claude/settings.json"
     assert sandbox.declared_plugins(root) == [], "nothing for up to install beside the kit's engine plugin"
+
+
+def test_a_machine_with_no_claude_code_plugins_is_held_to_the_engine_alone(tmp_path, monkeypatch):
+    """A CI runner has none: real runs failed `oto checks` on every pull request, for want of plugins it would never use."""
+    from oto.project import Project
+    from oto.scaffold import init
+    root = str(tmp_path / "kb")
+    init(root, slug="kb", name="KB")
+    project = Project.standard(root)
+    locked = dict(lockfile.read(project) or lockfile.make(project), plugins=[{"id": "oto@cynergis-engine", "version": "0.21.0"}, {"id": "report@cynergis", "version": "4.0.0"}])
+    monkeypatch.setattr(lockfile, "_installs", lambda: {})
+    assert lockfile.drift(project, locked) == []
+    monkeypatch.setattr(lockfile, "_installs", lambda: {"other@acme": [{"scope": "user", "version": "1.0.0"}]})
+    assert any("report@cynergis is locked" in d for d in lockfile.drift(project, locked)), "a computer with plugins is still held to them"
+

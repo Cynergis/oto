@@ -1229,9 +1229,11 @@ jobs:
             gh label create "oto-route:reviewed" --description "the route moved to reviewed: a person decides" --color B3261E --force
             gh pr edit "$PR" --add-label "oto-route:reviewed"
           fi
+          jq -r '"**oto route**: `\\(.route)`" + (if .proposed != .route then " (the content asked for `\\(.proposed)`)" else "" end) + (if .ok then ": passes" else ": does not pass yet" end) + "\\n\\n" + (.reasons | map("- " + .) | join("\\n"))' route.json > route.md
           if [ "$ok" != "true" ] || [ "$route" != "$proposed" ]; then
-            jq -r '"**oto route**: `\\(.route)`" + (if .proposed != .route then " (the content asked for `\\(.proposed)`)" else "" end) + (if .ok then ": passes" else ": does not pass yet" end) + "\\n\\n" + (.reasons | map("- " + .) | join("\\n"))' route.json > route.md
-            gh pr comment "$PR" --body-file route.md
+            oto repo comment --project . --repo "${{{{ github.repository }}}}" --pr "$PR" --marker oto-route --body-file route.md
+          else
+            oto repo comment --project . --repo "${{{{ github.repository }}}}" --pr "$PR" --marker oto-route --body-file route.md --update-only
           fi
       - name: The gate
         run: test "${{{{ steps.verdict.outputs.code }}}}" = "0"
@@ -1291,7 +1293,7 @@ jobs:
         run: |
           printf '%s\\n\\n%s\\n' "**oto preview**: the store at ${{{{ github.event.pull_request.head.sha }}}} is the artifact preview-pr-${{PR}} of run ${{{{ github.run_id }}}}." \\
             "- read it in a fresh checkout of this branch: gh run download ${{{{ github.run_id }}}} -n preview-pr-${{PR}} -D build, then oto serve --project . --http 8765" > preview.md
-          gh pr comment "$PR" --edit-last --body-file preview.md || gh pr comment "$PR" --body-file preview.md
+          oto repo comment --project . --repo "${{{{ github.repository }}}}" --pr "$PR" --marker oto-preview --body-file preview.md
 """
 
 #: The branch rules on main, as a GitHub ruleset. Pull requests required; the two checks required
@@ -1602,10 +1604,13 @@ CREATE_COMMIT = """mutation($input: CreateCommitOnBranchInput!) {
 }"""
 
 
-def verified_commit(root, repo, message, token=None, gh=None):
+def verified_commit(root, repo, message, token=None, gh=None, replace=False):
     """Make the staged change a commit through GitHub, so GitHub signs it: the session route needs verified commits by the confirmer, and this
     works in a sandbox or on any computer, with no signing key. The branch must already be on GitHub at this commit. Afterwards the local branch
-    holds the new commit, and the tree is clean. Returns {oid, url, branch}."""
+    holds the new commit, and the tree is clean. Returns {oid, url, branch}.
+
+    With `replace`, for a rebase: HEAD sits on the new main, and the branch on GitHub still holds the old commits. GitHub makes the commit on a temporary
+    branch, and the branch moves straight to it, because pointing the branch at main first, even for a moment, closes its pull request for good."""
     import base64
     import subprocess
     import tempfile
@@ -1639,7 +1644,13 @@ def verified_commit(root, repo, message, token=None, gh=None):
     if not additions and not deletions:
         raise ProjectError("nothing is staged: git add what this commit holds first")
     remote = text("ls-remote", "origin", "refs/heads/%s" % branch).split()
-    if not remote:
+    target = branch
+    if replace:
+        target = "oto/commit-%s" % head[:12]
+        pushed = git("push", "-q", "--force", "origin", "HEAD:refs/heads/%s" % target)
+        if pushed.returncode != 0:
+            raise ProjectError("could not make a temporary branch on GitHub: %s" % pushed.stderr.decode("utf-8", "replace").strip()[-300:])
+    elif not remote:
         pushed = git("push", "-q", "origin", "HEAD:refs/heads/%s" % branch)
         if pushed.returncode != 0:
             raise ProjectError("could not put the branch %s on GitHub: %s" % (branch, pushed.stderr.decode("utf-8", "replace").strip()[-300:]))
@@ -1647,7 +1658,7 @@ def verified_commit(root, repo, message, token=None, gh=None):
         raise ProjectError("the branch %s moved on GitHub, or this one has commits it doesn't: GitHub holds %s and this is %s. Pull or push, then run this again" % (branch, remote[0][:12], head[:12]))
     lines = message.strip().split("\n", 1)
     payload = {"query": CREATE_COMMIT, "variables": {"input": {
-        "branch": {"repositoryNameWithOwner": owner_name, "branchName": branch},
+        "branch": {"repositoryNameWithOwner": owner_name, "branchName": target},
         "message": dict({"headline": lines[0]}, **({"body": lines[1].strip()} if len(lines) > 1 else {})),
         "expectedHeadOid": head, "fileChanges": {"additions": additions, "deletions": deletions}}}}
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
@@ -1655,15 +1666,53 @@ def verified_commit(root, repo, message, token=None, gh=None):
         temp = f.name
     try:
         code, out, err = _github(token, gh)("api", "graphql", "--input", temp)
+        answer = _json(out, {}) or {}
+        commit = ((answer.get("data") or {}).get("createCommitOnBranch") or {}).get("commit") or {}
+        if code != 0 or not commit.get("oid"):
+            raise ProjectError("GitHub did not make the commit: %s" % (err or out).strip()[-400:])
+        text("fetch", "-q", "origin", target)
+        if replace:
+            lease = ["--force-with-lease=refs/heads/%s:%s" % (branch, remote[0])] if remote else []
+            pushed = git(*(["push", "-q"] + lease + ["origin", "%s:refs/heads/%s" % (commit["oid"], branch)]))
+            if pushed.returncode != 0:
+                raise ProjectError("GitHub made the commit %s, but the branch %s could not move to it: %s" % (commit["oid"][:12], branch, pushed.stderr.decode("utf-8", "replace").strip()[-300:]))
+            text("fetch", "-q", "origin", branch)
     finally:
         os.unlink(temp)
-    answer = _json(out, {}) or {}
-    commit = ((answer.get("data") or {}).get("createCommitOnBranch") or {}).get("commit") or {}
-    if code != 0 or not commit.get("oid"):
-        raise ProjectError("GitHub did not make the commit: %s" % (err or out).strip()[-400:])
-    text("fetch", "-q", "origin", branch)
+        if replace:
+            git("push", "-q", "origin", "--delete", "refs/heads/%s" % target)
     text("reset", "-q", "--soft", commit["oid"])
     return {"oid": commit["oid"], "url": commit.get("url"), "branch": branch}
+
+
+def upsert_comment(repo, pr, marker, body, token=None, gh=None, update_only=False):
+    """One comment per marker on a pull request, edited on every run. `gh pr comment --edit-last` edits the last comment by the same account, and every
+    workflow here is the same account, so one workflow's comment overwrote another's: real runs lost the gate's reasons to the preview's link. Returns its id,
+    or None when `update_only` and there is none yet."""
+    import tempfile
+    from .project import ProjectError
+    owner_name = _owner_name(repo)
+    head = "<!-- oto:%s -->" % marker
+    run = _github(token, gh)
+    code, out, err = run("api", "repos/%s/issues/%s/comments?per_page=100" % (owner_name, pr))
+    if code != 0:
+        raise ProjectError("could not read the comments on %s#%s: %s" % (owner_name, pr, (err or out).strip()[-300:]))
+    found = [c for c in _json(out, []) or [] if str(c.get("body") or "").startswith(head)]
+    if not found and update_only:
+        return None
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
+        json.dump({"body": "%s\n%s" % (head, body)}, f)
+        temp = f.name
+    try:
+        if found:
+            code, out, err = run("api", "--method", "PATCH", "repos/%s/issues/comments/%s" % (owner_name, found[0].get("id")), "--input", temp)
+        else:
+            code, out, err = run("api", "--method", "POST", "repos/%s/issues/%s/comments" % (owner_name, pr), "--input", temp)
+    finally:
+        os.unlink(temp)
+    if code != 0:
+        raise ProjectError("could not comment on %s#%s: %s" % (owner_name, pr, (err or out).strip()[-300:]))
+    return _json(out, {}).get("id")
 
 
 def apply_workspace_rules(root, repo, token=None, gh=None, code_owner=None):

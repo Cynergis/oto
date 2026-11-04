@@ -618,7 +618,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           oto pack diff . --base "origin/${{ github.base_ref }}" > pack-diff.md
-          gh pr comment "${{ github.event.pull_request.number }}" --edit-last --body-file pack-diff.md || gh pr comment "${{ github.event.pull_request.number }}" --body-file pack-diff.md
+          oto repo comment --project . --repo "${{ github.repository }}" --pr "${{ github.event.pull_request.number }}" --marker pack-diff --body-file pack-diff.md
 """
 PACK_PUBLISH_WORKFLOW = """name: pack publish
 

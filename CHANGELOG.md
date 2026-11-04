@@ -4,6 +4,41 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.21.1 — 2026-11-04
+
+**Fixes from the first run on real GitHub.** One pull request (191). Sections 38 to 41 of [the end-to-end guide](docs/E2E-TESTING.md) ran on private
+repositories in a real Team organisation, with one person, and found bugs the fakes could not. If you're on 0.21.0, take this release: there, `oto checks` fails on every pull
+request and the weekly pack update does nothing.
+
+```bash
+uv tool install --force "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v0.21.1"
+```
+
+Make your sandboxes again to get the new kit.
+
+**What has run:** [the spec's table](docs/plans/people-and-graphs.md) says what held. **Still not run:** anything needing a second person (an approval by someone else, a
+reader only reading, removing a person), the pack update and a tag's publish finishing inside Actions, `oto repo retire --neo4j` on real data, and section 42 on Google Cloud.
+Try those on a scratch repository before relying on them for a client.
+
+### Fixed
+
+- **`oto checks` failed on every pull request.** A runner has no plugins installed and the lock names some, so it reported drift. A runner is now held to the engine alone.
+- **The preview's comment overwrote the gate's.** Each now keeps its own comment, through the new `oto repo comment --marker`. A gate that passes only updates a comment already there.
+- **`oto route rebase --verified` closed the pull request for good.** `oto repo commit --replace` now moves the branch across in one step, and the pull request stays open.
+- **`oto init --pack garage` took the name for a folder** of that name in the working directory, and cut the project off from the pack. Only a name that looks like a path is one now.
+- **A project on a pack never saw a new release.** `oto status` and `oto ontology diff` now read the pack's release, and `oto ontology update` records what it took, so the next run stops offering it.
+- **`oto repo access` hid why GitHub refused.** It now gives GitHub's reason, such as a seat limit.
+- **The update pull request's description** told a project on a pack to copy terms by hand. It now says `oto ontology update` takes all of it, and that a person must close and reopen the pull request to start its checks, since GitHub starts none for what the Actions token does.
+
+### Changes that need a step in a repository that already exists
+
+A release doesn't rewrite a repository's workflows, so generate a fresh set as 0.21.0 describes and copy what you need, by a pull request.
+
+- **A knowledge repository:** run `oto lock` and copy `.github/workflows/` **in the same pull request**. The new workflows call `oto repo comment`, which an engine pinned at 0.21.0 doesn't have.
+- **A pack workspace:** copy `.github/workflows/` from a fresh `oto pack new`. Those workflows name the engine's release themselves.
+- **A project on a pack that says `"vocabulary": "own"`** may have hit the folder bug. If it should follow the pack, set `project.config.json` to `"vocabulary": "derived"`, then run `oto ontology update`. That replaces `ontology.config.json` with the pack's, so anything changed there by hand goes.
+- **The weekly pack update:** in the organisation's and the repository's settings, under Actions, let GitHub Actions create pull requests.
+
 ## 0.21.0 — 2026-11-04
 
 **People, permissions and many graphs.** Six pull requests (184 to 189): phases 0, 2, 3, 4 and 5 of

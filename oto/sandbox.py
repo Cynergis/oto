@@ -784,7 +784,7 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
             report["done"].append(creating + "would push the first commit to %s and store the token as the sandbox's GitHub secret" % url)
             if url.startswith(GITHUB) and (kind or "knowledge") == "knowledge":
                 report["done"].append("would set the branch rules on main from %s: pull requests required, the checks oto checks and oto route, "
-                                      "no approvals at the branch level but a code owner's for what the gate runs on, the merge queue on; "
+                                      "no approvals at the branch level but a code owner's for what the gate runs on; "
                                       "with them the code owners (%s, in the first commit) and main's deploy key, kept in the environment %s, "
                                       "for the two workflows that push to main" % (_repo.RULES_FILE, _repo.CODEOWNERS_FILE, _repo.MAIN_ENVIRONMENT))
         report["done"].append(("would remove and recreate the sandbox %s" % name) if existing and recreate else
@@ -828,7 +828,7 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
             try:
                 rules = _repo.apply_rules(project_dir, url[len(GITHUB):-len(".git")], token=token, gh=_tool("OTO_GH", "gh"))
                 report["done"].append("set the branch rules on main from %s (%s): pull requests required, the checks oto checks and oto route, "
-                                      "no approvals at the branch level but %s's for what the gate runs on, the merge queue on; main's deploy key "
+                                      "no approvals at the branch level but %s's for what the gate runs on; main's deploy key "
                                       "is in the environment %s, for the two workflows that push to main"
                                       % (_repo.RULES_FILE, "created" if rules["created"] else "replaced", rules.get("code_owner"), rules.get("environment")))
                 for warning in rules.get("warnings") or []:

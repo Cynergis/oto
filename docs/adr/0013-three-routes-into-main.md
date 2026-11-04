@@ -48,7 +48,10 @@ commits are verified), so the engine never calls GitHub. `oto init --repo` write
 which gathers the flags and runs the check on every pull request and every review, and
 `.github/oto-rules.json`, the branch rules on `main`: pull requests required, the checks `oto checks`
 and `oto route` required and up to date, zero approvals at the branch level because the gate asks
-per route, the merge queue on. Amended on 2026-11-03: a change to what the gate runs on (`.github/`,
+per route. Amended on 2026-11-04: no merge queue, which GitHub's Team plan refuses on a private
+repository; the checks being up to date already merge `graph.json` one pull request at a time, and
+an approval counts when it is of the head commit, by someone who didn't write it and who may write
+here. Amended on 2026-11-03: a change to what the gate runs on (`.github/`,
 `oto.lock.json`) needs a code owner's approval, which GitHub holds and no workflow can answer for; the
 ingest and architecture workflows push to `main` with a deploy key kept in an environment only `main`
 deploys from, and that key and an administrator (by a pull request) are the only ones past the rules.
@@ -66,8 +69,8 @@ approval. One fails: the route moves to `reviewed`, the pull request is labelled
 posted, and a person decides. `oto curate check` holds a transcript's facts to attribution while
 the run is open, so the author run cannot draft them otherwise.
 
-**The repository.** A preview per pull request (`oto-preview.yml`: the store at the head on
-`preview/pr-<n>` of the query repository, or a workflow artifact; one comment, edited on every
+**The repository.** A preview per pull request (`oto-preview.yml`: the store at the head as a
+workflow artifact, with no store token, since it runs from any branch; one comment, edited on every
 push) is where the `reviewed` route's approval is given. Every workflow installs the engine at the
 ref `oto.lock.json` records, and `oto checks` fails when the lock drifts, so the same checks give
 the same verdicts and an engine upgrade is a reviewed change. `oto route rebase --onto <ref>`

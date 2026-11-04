@@ -215,7 +215,7 @@ the rule is, the branch rules on `main` as a file (`.github/oto-rules.json`), an
 | `oto-deploy` | a merge to `main` | builds the store and keeps it; with a deploy config (`oto.deploy.json`, [deploy.py](../oto/deploy.py)) it checks the config, publishes the build to the first environment the config names, and the `promote-second` and `promote-third` jobs copy the same store forward to the next two, each behind a GitHub Environment of that name whose required reviewers are the approvers, and each skipped when the config declares no such environment; `PROMOTIONS.jsonl` on each environment's branch of the query repository records commit, hash, approver and time |
 | `oto-tools` | a daily cron | invokes the due read-only tools through the script under `.github/scripts/` (the caller, never OTO), records the responses, takes the proposals through the gates and opens a pull request |
 | `oto-route` | a pull request, and every review of it | the route gate ([ADR-0013](adr/0013-three-routes-into-main.md), below): gathers with `gh` what only GitHub knows, runs `oto route check`, labels the pull request and posts the reasons when the route moved to reviewed |
-| `oto-preview` | a pull request | builds the store at the head and publishes it to `preview/pr-<n>` of the query repository with the workbench beside it (or keeps it as an artifact), one comment edited on every push; deletes the branch when the pull request closes |
+| `oto-preview` | a pull request | builds the store at the head and keeps it as an artifact of the run with the workbench beside it, holding no store token, one comment edited on every push |
 
 **How a change reaches `main`.** A pull request takes one of three routes, decided by what it
 carries and never by a label ([route.py](../oto/route.py)): `session` when the one ledger entry it
@@ -232,7 +232,7 @@ review. A route only moves towards reviewed. The policy that decides is the base
 and one that changes what the gate reads or runs on (the routes, `oto.lock.json`, anything under
 `.github/`) goes to a person. The branch rules in `oto-rules.json` (pull requests
 required, the checks `oto checks` and `oto route` required, zero approvals at the branch level but a
-code owner's for what the gate runs on, the merge queue on) are set by `oto repo rules --apply`, or by
+code owner's for what the gate runs on) are set by `oto repo rules --apply`, or by
 `oto sandbox up --repo` when it creates the repository. `.github/CODEOWNERS` owns `.github/` and
 `oto.lock.json`, so a pull request cannot rewrite the gate's workflow, add one that answers to its
 check's name, or move the engine without an owner's approval, which GitHub holds. Past the rules go
@@ -260,7 +260,9 @@ the plugin's server and hooks run (`uv tool install`, [ADR-0014](adr/0014-one-en
 `pip` in a workflow, one URL in [repo.py](../oto/repo.py) overridable with `--engine` or the repository
 variable `OTO_ENGINE`.
 
-The deploy workflow has two targets. The self-hosted Neo4j is the production store (below). The
+The deploy workflow has two targets, and its secrets live in the environment `oto-main`, which only
+`main` deploys from, since a repository secret reaches a workflow on any branch. The self-hosted Neo4j is
+the production store (below). The
 query repository, when the repository variable `OTO_QUERY_REPO` names one and the secret
 `OTO_QUERY_REPO_TOKEN` can write to it (and the static site beside it when `OTO_SITE_VIEW` names
 a view), receives the built SQLite store on every merge through

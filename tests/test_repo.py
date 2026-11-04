@@ -137,6 +137,8 @@ if target == "user":
 if target.endswith("/rulesets") and method == "GET":
     answer(os.environ.get("FAKE_GH_LIST", "[]"))
 if "/rulesets" in target:
+    if os.environ.get("FAKE_GH_REFUSE_RULES"):
+        sys.stderr.write("gh: Validation Failed (HTTP 422)\n"); sys.exit(1)
     answer('{"id": 7, "name": "oto main"}')
 if "/contents/.github/CODEOWNERS" in target:
     if os.environ.get("FAKE_GH_NO_CODEOWNERS"):
@@ -179,7 +181,8 @@ def test_init_repo_writes_the_route_gate_and_the_branch_rules():
         assert kinds["pull_request"]["parameters"]["required_approving_review_count"] == 0, "approvals are the route gate's, per route"
         contexts = {c["context"] for c in kinds["required_status_checks"]["parameters"]["required_status_checks"]}
         assert contexts == {"oto checks", "oto route"}
-        assert "merge_queue" in kinds, "graph.json merges one pull request at a time"
+        assert "merge_queue" not in kinds and kinds["required_status_checks"]["parameters"]["strict_required_status_checks_policy"] is True, \
+            "up to date, so graph.json merges one pull request at a time, on a plan with no merge queue"
         actors = {(a["actor_type"], a.get("actor_id"), a["bypass_mode"]) for a in rules["bypass_actors"]}
         assert actors == {("DeployKey", None, "always"), ("RepositoryRole", 5, "pull_request")}, \
             "only the deploy key kept for main pushes past the rules, and an administrator by a pull request; never GitHub Actions, " \
@@ -307,15 +310,13 @@ def test_every_workflow_pins_the_engine_to_the_lock_and_the_checks_hold_the_mach
     assert "if [ -f oto.lock.json ]" in checks, "a project without a lock is not failed for it"
 
 
-def test_a_preview_is_built_for_every_pull_request_and_cleaned_up_when_it_closes():
+def test_a_preview_is_built_for_every_pull_request():
     files = repo.files("acme", "Acme")
     preview = files[os.path.join(".github", "workflows", "oto-preview.yml")]
-    assert "name: oto preview" in preview and "types: [opened, synchronize, reopened, closed]" in preview
+    assert "name: oto preview" in preview and "types: [opened, synchronize, reopened]" in preview
     assert "oto build --project ." in preview
-    assert 'oto publish --project . --repo "${{ vars.OTO_QUERY_REPO }}" --branch "preview/pr-${PR}"' in preview, "the store at the head, on a branch of the query repository"
-    assert "vars.OTO_SITE_VIEW != '' && '--site' || ''" in preview, "the workbench beside it when an app is named"
-    assert "upload-artifact" in preview and "build/acme.db" in preview, "without a query repository the store is kept as an artifact"
+    assert "vars.OTO_SITE_VIEW != ''" in preview and "build/site" in preview, "the workbench beside it when an app is named"
+    assert "upload-artifact" in preview and "build/acme.db" in preview, "the store is kept as an artifact"
     assert "gh pr comment" in preview and "--edit-last" in preview, "one comment per pull request, edited on every push"
-    assert "github.event.action == 'closed'" in preview and '--delete "preview/pr-${PR}"' in preview, "the branch goes when the pull request closes"
     guide = files["CLAUDE.md"]
     assert "preview" in guide.lower()

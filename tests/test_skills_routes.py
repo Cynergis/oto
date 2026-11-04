@@ -76,7 +76,7 @@ def test_the_documents_describe_the_routes():
     assert "Three routes into main" in e2e
     for words in ("CODEOWNERS", "OTO_MAIN_DEPLOY_KEY", "code owner's review", "git push origin HEAD:main"):
         assert words in e2e, "section 34 verifies what GitHub holds: " + words
-    for words in ("oto curate apply", "--confirm", "oto route show", "oto route check", "oto route guardrails", "oto route rebase", "oto repo rules --apply", "preview/pr-"):
+    for words in ("oto curate apply", "--confirm", "oto route show", "oto route check", "oto route guardrails", "oto route rebase", "oto repo rules --apply", "preview-pr-"):
         assert words in e2e, words
     readme = _read("README.md")
     assert "three routes" in readme.lower() and "oto route" in readme

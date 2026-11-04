@@ -39,7 +39,7 @@ def _git(bare, *args):
 
 
 GOOD = {"repo": "cynergis/client-kg", "graph": "acme", "connector": "sqlite",
-        "publish": {"to": "https://github.com/cynergis/client-kg-store", "require_pr": True},
+        "publish": {"to": "https://github.com/cynergis/client-kg-store"},
         "environments": [{"name": "dev", "approvers": []}, {"name": "test", "approvers": ["kg-owners"]},
                          {"name": "prod", "approvers": ["kg-owners", "data-governance"]}],
         "promotion": "same-commit"}
@@ -113,7 +113,7 @@ def test_deploy_check_reads_the_project_file_and_says_so(project):
 
 def _published(project, tmp_path, source="org/knowledge@abc123"):
     target = _bare(str(tmp_path))
-    config = dict(GOOD, publish={"to": target, "require_pr": False})
+    config = dict(GOOD, publish={"to": target})
     _write_config(project, config)
     manifest = pub.publish(project, target, source=source, environment="dev")
     return target, manifest
@@ -285,7 +285,7 @@ def test_the_workflow_names_the_environments_the_config_declares(project, tmp_pa
 def test_promotion_and_status_ignore_the_header_the_workspace_inherited(project, git_over_http, tmp_path, monkeypatch):
     # The promote jobs run in a checkout too: every call to the query repository sends its own token.
     _bare(git_over_http.root)
-    _write_config(project, dict(GOOD, publish={"to": git_over_http.base + "/query.git", "require_pr": False}))
+    _write_config(project, dict(GOOD, publish={"to": git_over_http.base + "/query.git"}))
     monkeypatch.chdir(git_over_http.workspace(str(tmp_path / "workspace")))
     pub.publish(project, source="org/knowledge@abc123", environment="dev")
     deploy.promote(project, "test", commit="abc123", by="Dana Reyes")

@@ -8,7 +8,7 @@
 
 The rules make the two checks required, `oto checks` and `oto route`, ask no approval at the branch
 level (the route gate asks per route, docs/plans/graph-journeys.md) except a code owner's for what the
-gate runs on (.github/CODEOWNERS: the workflows, the rules, the lock), and turn the merge queue on.
+gate runs on (.github/CODEOWNERS: the workflows, the rules, the lock).
 `--apply` sets up, in order: the code owners, which must be on main first; main's deploy key, kept in
 the environment oto-main that only main deploys from, which the ingest and architecture workflows push
 with; then the rules, which let that key and an administrator (by a pull request) past them, and
@@ -59,7 +59,7 @@ def cmd_repo(args):
     print("main's deploy key: in the environment %s, which only main deploys from; the ingest and architecture workflows push with it"
           % result.get("environment"))
     print("%s the branch rules %r on %s (ruleset %s): pull requests required, the checks oto checks and oto route, "
-          "no approvals at the branch level but a code owner's for what the gate runs on, the merge queue on; "
+          "no approvals at the branch level but a code owner's for what the gate runs on; "
           "past them only main's deploy key, and an administrator by a pull request"
           % ("created" if result["created"] else "replaced", _repo.RULES_NAME, _repo._owner_name(repository), result.get("id")))
     for warning in result.get("warnings") or []:

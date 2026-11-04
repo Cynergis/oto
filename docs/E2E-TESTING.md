@@ -23,7 +23,7 @@ beside it (`tools/e2e_core.sh`) that the suite runs. Start there; this document 
 
 The sections follow the order the features were built, and [ADR-0006](adr/0006-the-core-and-the-packs.md)
 draws one line through them. The **core**, the knowledge graph with its tools and its deploy, is
-sections 1 to 17, 19, 20, 23 to 27, 33 to 37: install, a project, documents in, the vocabulary, rules,
+sections 1 to 17, 19, 20, 23 to 27, 33 to 38: install, a project, documents in, the vocabulary, rules,
 authoring under the gates, time, query and serve, evaluation, Neo4j, repository mode, the query
 repository, specs and decisions, an ontology of your own, tools, deploy, audit and tracing, graphs
 that know each other, the engine's own CI, the ontology explorer, the pack seams, the three routes into main, the routes' policy a pack carries, and the sandbox kit. Drive these first: they are
@@ -49,8 +49,9 @@ composes it, or fetched by `oto init --ontology <name>` itself on a machine that
 | A token that can read the engine repository, only if you install from a private fork of it | 11, 12 | repository secret `OTO_ENGINE_TOKEN` |
 | An Anthropic API key | 6 (`oto draft`), 11, 12, 14 | `ANTHROPIC_API_KEY` in your shell; the repository secret of the same name |
 | A GitHub organisation where you can create repositories, secrets and variables | 11, 12, 13, 16 | the knowledge repository, the query repository, the engine's CI |
-| A Neo4j reachable from GitHub Actions (a public endpoint, or a self-hosted runner beside it) | 11 | repository variable `NEO4J_URI`, secret `NEO4J_PASSWORD` |
-| A token that can write to the query repository | 11, 13 | repository secret `OTO_QUERY_REPO_TOKEN` |
+| A Neo4j reachable from GitHub Actions (a public endpoint, or a self-hosted runner beside it) | 11 | repository variable `NEO4J_URI`, secret `NEO4J_PASSWORD` in the environment `oto-main` |
+| A token that can write to the query repository | 11, 13 | secret `OTO_QUERY_REPO_TOKEN` in the environment `oto-main` |
+| A second GitHub account, with read access to a test repository | 38 | it approves a pull request and is not counted |
 | Your deny terms for the publishability gate | 16 | `OTO_DENY_TERMS` in your shell, and as a secret on the engine repository |
 
 Secrets live in the environment or in GitHub secrets, never in a file in either repository.
@@ -368,18 +369,20 @@ cd acme-kb && git init -b main && git add -A && git commit -m "oto project"
 gh repo create <org>/acme-kb --private --source . --push
 gh secret set ANTHROPIC_API_KEY
 gh secret set OTO_ENGINE_TOKEN          # only if the engine is installed from a private fork
-gh variable set NEO4J_URI --body "bolt://<host>:7687"; gh secret set NEO4J_PASSWORD
+gh variable set NEO4J_URI --body "bolt://<host>:7687"
 gh repo create <org>/acme-query --private
-gh variable set OTO_QUERY_REPO --body "https://github.com/<org>/acme-query"; gh secret set OTO_QUERY_REPO_TOKEN
+gh variable set OTO_QUERY_REPO --body "https://github.com/<org>/acme-query"
 ```
 
 In the repository settings, under Actions, allow GitHub Actions to create and approve pull
 requests, and set the branch rules on `main` (`oto repo rules --apply`: pull requests required, the
 checks `oto checks` and `oto route` required, a code owner's approval for `.github/` and the lock,
-the merge queue on, and main's deploy key in the environment `oto-main` for the ingest run's commit;
-section 34). Then:
+and main's deploy key in the environment `oto-main` for the ingest run's commit; section 34). That makes
+the environment, which only `main` deploys from, so the deploy secrets go there. Then:
 
 ```bash
+gh secret set NEO4J_PASSWORD --env oto-main
+gh secret set OTO_QUERY_REPO_TOKEN --env oto-main
 cp <a document> inbox/ && git add inbox && git commit -m "ingest: <the document>" && git push
 ```
 
@@ -1410,7 +1413,7 @@ the `oto route` and `oto preview` workflows, the branch rules, the engine pinned
 On the `acme-kb` repository of section 11, after `oto repo rules --apply`. It stops first, once, to
 have `.github/CODEOWNERS` (naming you, or `--code-owner <login or org/team>`) committed to `main`;
 run it again after the push. Then the ruleset `oto main` appears under the repository's rules (`main`
-requires pull requests, the two checks and the merge queue, asks no approval of its own but a code
+requires pull requests and the two checks, up to date, asks no approval of its own but a code
 owner's for `.github/` and `oto.lock.json`, and lets only deploy keys and an administrator, by a pull
 request, past it); the environment `oto-main` deploys from `main` alone and holds the secret
 `OTO_MAIN_DEPLOY_KEY`; a deploy key `oto main pushes` with write access is under the deploy keys:
@@ -1426,9 +1429,9 @@ git add -A && git commit -s -S -m "The card" && git push -u origin card && gh pr
 
 # the reviewed route: what the pipeline drafted waits for one approval, given in the preview
 cp <a document> inbox/ && git add inbox && git commit -m "ingest: <the document>" && git push
-#   oto author opens the pull request; oto route says reviewed (no confirmation); oto preview comments the link
-oto sync --repo https://github.com/<org>/acme-query --branch preview/pr-<n> --dest preview && oto serve --project preview --http 8765
-gh pr review <n> --approve                                                              # the gate passes; the merge queue lands it
+#   oto author opens the pull request; oto route says reviewed (no confirmation); oto preview comments how to read it
+gh run download <run> -n preview-pr-<n> -D build && oto serve --project . --http 8765   # in a fresh checkout of that branch
+gh pr review <n> --approve                                                              # by someone who may write and didn't write it: the gate passes, and it merges
 
 # the guardrailed route: transcripts under five guardrails
 python3 - <<'PY'
@@ -1627,3 +1630,52 @@ Pass when no file holds a password and no command line carries one; the rule is 
 own facts with their sources and dates; the graph with no login is reported as unable to read, and the other still answers; the
 plugin's own server offers no tools in that folder; and a Claude Code session outside bypass mode asks at most once to approve
 each server. `oto status --project graphs/one` inside says it is serving Neo4j, with the build it reads.
+
+## 38. Two contributors on real GitHub: a read-only approval, a branch's reach, and the rules on a Team plan
+
+[docs/plans/people-and-graphs.md](plans/people-and-graphs.md), phase 0. Exercises what only GitHub can show: the branch rules on a
+private repository on the Team plan, whose approval the gate counts, what a workflow on a branch can read, and two people's facts
+merging. Needs a scratch private repository in an organisation on Team, its administrator signed in with `gh`, and a second account
+with read access. Section 34's last checks, the code owner's review and the deploy key, run here too.
+
+```bash
+oto init --name "Two People" --slug two-people --project two-people --repo && cd two-people
+git init -b main && git add -A && git commit -m "The graph"
+gh repo create <org>/two-people --private --source . --push
+oto repo rules --apply                           # asks for the code owners on main first: commit .github/CODEOWNERS, push, run it again
+gh secret set NEO4J_PASSWORD --env oto-main --body "a-test-value"
+gh api repos/<org>/two-people/collaborators/<second account> --method PUT -f permission=read
+
+# whose approval counts
+git checkout -b one && oto curate start --project . && oto curate apply --project . --by <you> --note "a change" && git add -A && git commit -m "A change" && git push -u origin HEAD && gh pr create --fill
+#   oto route says reviewed: needs one approving review
+gh pr review --approve                           # as the second account, with read access: the gate still says it needs one
+gh pr review --approve                           # as someone with write access who didn't write it: the gate passes
+git commit --allow-empty -m "Another push" && git push    # the approval was of the earlier commit: the gate needs one again
+
+# what a branch can reach
+git checkout main && git checkout -b reach && mkdir -p .github/workflows
+cat > .github/workflows/reach.yml <<'YML'
+on: push
+jobs:
+  reach:
+    runs-on: ubuntu-latest
+    environment: oto-main
+    steps:
+      - run: test -z "$SECRET"
+        env:
+          SECRET: ${{ secrets.NEO4J_PASSWORD }}
+YML
+git add -A && git commit -m "Reach" && git push -u origin HEAD
+#   the job is refused: the branch may not deploy to oto-main. Without the environment line it runs, and the secret is empty
+
+# two people's facts
+#   two clones, each on a branch: oto curate assert, the fact citing it, oto curate apply --confirm, a pull request. Merge the first
+git fetch origin && oto route rebase --project . --onto origin/main     # in the second clone; then the git steps it prints
+oto audit --project .                            # on main, after both: both people's records, and the chain holds
+```
+
+Pass when `oto repo rules --apply` sets the rules with no merge queue; a read-only approval leaves the gate waiting, a qualified one
+passes it, and a push waits for a new one; the branch's job can't deploy to `oto-main`; both people's facts, distinct assertion ids and
+audit records are on `main`; a pull request editing `.github/` waits for the code owner, whatever the checks say; and the ingest workflow's
+deploy key pushes to `main` past the rules.

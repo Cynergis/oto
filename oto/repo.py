@@ -14,11 +14,11 @@
                                       script under .github/scripts/, record, curate, open a PR
     .github/workflows/oto-route.yml  on a pull request and on every review: the route gate (session,
                                       guardrailed, reviewed) as a required check, docs/plans/graph-journeys.md
-    .github/workflows/oto-preview.yml on a pull request: the store at its head, published to preview/pr-<n> of
-                                      the query repository (or kept as an artifact) and linked in a comment
+    .github/workflows/oto-preview.yml on a pull request: the store at its head, kept as an artifact of the run
+                                      and linked in a comment; it holds no store token
     .github/oto-rules.json           the branch rules on main: pull requests required, the two checks,
                                       no approvals at the branch level but a code owner's for what the gate
-                                      runs on, the merge queue; past them only main's deploy key and an
+                                      runs on; past them only main's deploy key and an
                                       administrator by a pull request; `oto repo rules --apply`, which also
                                       writes .github/CODEOWNERS and puts main's key in the environment oto-main
     .gitignore                       generated files ignored, EXCEPT the corpus, which is an input
@@ -85,9 +85,9 @@ Every pull request takes a route decided by what it carries, and one required ch
 enforces the route's rule (docs/plans/graph-journeys.md in the engine). A change a person confirmed in
 their Claude session (`oto curate apply --confirm`, one ledger entry whose fingerprint is the diff) is
 the `session` route: it merges on its own once the confirmer is the author and the commits are verified.
-A change drafted from documents is `reviewed`: one approving review, given in the preview that
-`oto-preview.yml` builds for every pull request (the store at its head on the `preview/pr-<n>` branch
-of the query repository, or a workflow artifact; the link is a comment on the pull request). A change
+A change drafted from documents is `reviewed`: one approving review of its head commit, by someone who
+may write here and didn't write it, given in the preview that
+`oto-preview.yml` builds for every pull request (the store at its head, kept as an artifact of the run). A change
 drafted from the transcripts folder the project names is `guardrailed`. The branch rules that make the
 check required are in `.github/oto-rules.json`; `oto repo rules --apply` sets them. A change to what the
 gate runs on (`.github/`, `oto.lock.json`) needs the approval of a code owner `.github/CODEOWNERS` names,
@@ -129,7 +129,8 @@ through `oto curate` and let the pull request carry it.
 
 `oto serve` answers from the store named by `serve.backend` in `project.config.json`: `sqlite`,
 the local `build/` of this checkout, or `neo4j`, the shared self-hosted database the deploy
-workflow loads on every merge (repository variable `NEO4J_URI`, secret `NEO4J_PASSWORD`). With
+workflow loads on every merge (repository variable `NEO4J_URI`, and `gh secret set NEO4J_PASSWORD --env oto-main`,
+which only `main` deploys from). With
 `neo4j`, a reader needs `NEO4J_PASSWORD` (and `NEO4J_USER`) in the environment and no local build;
 the engine checks the connection at startup and says so, and never falls back on its own.
 `oto serve --backend sqlite` serves the local build meanwhile. `oto status` reports which store
@@ -347,6 +348,11 @@ DEPLOY = """name: oto deploy
 # environment the config does not declare is skipped, so one environment needs no promotion at all.
 # The record on the branch names the commit and who ran the approved job.
 #
+# Keep these secrets in the environment {main_environment} (gh secret set NEO4J_PASSWORD --env {main_environment}), which
+# only main deploys from, and never as repository secrets, which a workflow on any branch can read. A
+# promote job reads from its own environment instead, so give that one its own token, and let only main
+# deploy from it too (the repository's settings, Environments, Deployment branches).
+#
 # ENGINE is set once for each job, since the Neo4j load and the publish steps install or name the
 # engine too. No job pushes to this repository, so the checkout keeps no credential: git would send
 # it to the query repository in place of OTO_QUERY_REPO_TOKEN, and it can only see this repository.
@@ -368,6 +374,7 @@ permissions:
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    environment: {main_environment}                # the deploy secrets are there: no other branch's workflow reads them
     env:
       ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
     steps:
@@ -934,8 +941,10 @@ ROUTE = """name: oto route
 # decides: session (one ledger entry with a confirmation whose fingerprint is the fact-level diff),
 # guardrailed (ingest runs from the transcripts folder the project names), reviewed (anything else).
 # This check enforces the route's rule. It hands the engine the facts only GitHub knows, as flags: the
-# pull request's author and the commits' authors, whether every commit is verified, whether a review
-# approved it. The engine never calls GitHub. When a session record does not hold, or a guardrail
+# pull request's author and the commits' authors, whether every commit is verified, whether someone
+# qualified approved it. GitHub lets anyone with read access review, so an approval counts when it is of
+# this very commit, by someone who didn't write it and who may write here. The engine never calls
+# GitHub. When a session record does not hold, or a guardrail
 # fails, the route moves to reviewed: the pull request is labelled and the reason posted, and a
 # person decides. The branch rules in .github/oto-rules.json make this check required.
 
@@ -979,7 +988,12 @@ jobs:
           flags=""
           for a in $authors; do flags="$flags --author $a"; done
           if [ "$(gh api "repos/${{{{ github.repository }}}}/pulls/$PR/commits" --jq '[.[].commit.verification.verified] | all')" = "true" ]; then flags="$flags --verified"; fi
-          if [ "$(gh pr view "$PR" --json reviews --jq '[.reviews[] | select(.state == "APPROVED")] | length')" != "0" ]; then flags="$flags --approved"; fi
+          gh api "repos/${{{{ github.repository }}}}/pulls/$PR/reviews?per_page=100" > reviews.json
+          for login in $(oto route approvers --project . --reviews reviews.json $flags); do
+            case "$(gh api "repos/${{{{ github.repository }}}}/collaborators/$login/permission" --jq .permission 2>/dev/null)" in
+              admin|write) flags="$flags --approved"; break ;;
+            esac
+          done
           echo "flags=$flags" >> "$GITHUB_OUTPUT"
       - name: The route and its verdict
         id: verdict
@@ -1007,16 +1021,14 @@ jobs:
 PREVIEW = """name: oto preview
 
 # A preview of the graph for every pull request (docs/plans/graph-journeys.md, phase 4). A diff of
-# graph.json cannot be reviewed for what it says; the store built from the head can. With
-# OTO_QUERY_REPO set (and OTO_QUERY_REPO_TOKEN as a secret), the store is published to the branch
-# preview/pr-<n> of the query repository, with the workbench beside it when OTO_SITE_VIEW names an
-# app, and `oto sync --repo <it> --branch preview/pr-<n>` brings it to a machine; without a query
-# repository the store is kept as a workflow artifact. One comment on the pull request carries the
-# link and is edited on every push. When the pull request closes, the preview branch goes.
+# graph.json cannot be reviewed for what it says; the store built from the head can. It is kept as an
+# artifact of this run, with the workbench beside it when OTO_SITE_VIEW names an app, and one comment on
+# the pull request says how to read it and is edited on every push. This workflow runs from any branch,
+# so it holds no store token: a contributor's branch could read one from here.
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
@@ -1027,7 +1039,6 @@ env:
 
 jobs:
   preview:
-    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     env:
       ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
@@ -1047,48 +1058,27 @@ jobs:
       - name: Build the store at the head of the pull request
         run: oto build --project .
       - name: Build the workbench when an app is named
-        if: vars.OTO_QUERY_REPO != '' && vars.OTO_SITE_VIEW != ''
+        if: vars.OTO_SITE_VIEW != ''
         run: oto build --project . --only site --target site --view "${{{{ vars.OTO_SITE_VIEW }}}}"
-      - name: Publish it to the query repository's preview branch, when one is configured
-        if: vars.OTO_QUERY_REPO != ''
-        env:
-          OTO_QUERY_REPO_TOKEN: ${{{{ secrets.OTO_QUERY_REPO_TOKEN }}}}
-        run: oto publish --project . --repo "${{{{ vars.OTO_QUERY_REPO }}}}" --branch "preview/pr-${{PR}}" --source "${{{{ github.repository }}}}@${{{{ github.event.pull_request.head.sha }}}}" --engine "${{ENGINE}}" ${{{{ vars.OTO_SITE_VIEW != '' && '--site' || '' }}}}
-      - name: Keep the store as an artifact, when there is no query repository
-        if: vars.OTO_QUERY_REPO == ''
+      - name: Keep them as an artifact of this run
         uses: actions/upload-artifact@v4
         with:
           name: preview-pr-${{{{ github.event.pull_request.number }}}}
-          path: build/{slug}.db
+          path: |
+            build/{slug}.db
+            build/site
+          retention-days: 14
       - name: Say where the preview is, in one comment kept up to date
         run: |
-          if [ -n "${{{{ vars.OTO_QUERY_REPO }}}}" ]; then
-            repo="${{{{ vars.OTO_QUERY_REPO }}}}"; repo="${{repo#https://github.com/}}"; repo="${{repo%.git}}"
-            printf '%s\\n\\n%s\\n%s\\n' "**oto preview**: the store at ${{{{ github.event.pull_request.head.sha }}}}, on https://github.com/${{repo}}/tree/preview/pr-${{PR}}" \\
-              "- read it here: oto sync --repo https://github.com/${{repo}} --branch preview/pr-${{PR}} --dest preview, then oto serve --project preview --http 8765" \\
-              "- the branch goes when this pull request closes" > preview.md
-          else
-            printf '%s\\n\\n%s\\n' "**oto preview**: the store at ${{{{ github.event.pull_request.head.sha }}}} is the artifact preview-pr-${{PR}} of this run: ${{{{ github.server_url }}}}/${{{{ github.repository }}}}/actions/runs/${{{{ github.run_id }}}}" \\
-              "- download it beside a checkout of this branch as build/{slug}.db, then oto serve --project . --http 8765" > preview.md
-          fi
+          printf '%s\\n\\n%s\\n' "**oto preview**: the store at ${{{{ github.event.pull_request.head.sha }}}} is the artifact preview-pr-${{PR}} of run ${{{{ github.run_id }}}}." \\
+            "- read it in a fresh checkout of this branch: gh run download ${{{{ github.run_id }}}} -n preview-pr-${{PR}} -D build, then oto serve --project . --http 8765" > preview.md
           gh pr comment "$PR" --edit-last --body-file preview.md || gh pr comment "$PR" --body-file preview.md
-
-  cleanup:
-    if: github.event.action == 'closed' && vars.OTO_QUERY_REPO != ''
-    runs-on: ubuntu-latest
-    steps:
-      - name: Delete the preview branch of the query repository
-        env:
-          OTO_QUERY_REPO_TOKEN: ${{{{ secrets.OTO_QUERY_REPO_TOKEN }}}}
-        run: |
-          repo="${{{{ vars.OTO_QUERY_REPO }}}}"; repo="${{repo#https://github.com/}}"; repo="${{repo%.git}}"
-          git push "https://x-access-token:${{OTO_QUERY_REPO_TOKEN}}@github.com/${{repo}}.git" --delete "preview/pr-${{PR}}" || echo "no preview branch to delete"
 """
 
 #: The branch rules on main, as a GitHub ruleset. Pull requests required; the two checks required
 #: and up to date; no approvals at the branch level, because approvals are the route gate's, per
-#: route, except a code owner's for the files the gate itself runs on; the merge queue, so graph.json
-#: merges one pull request at a time. Past them: main's deploy key, which the ingest and architecture
+#: route, except a code owner's for the files the gate itself runs on. Up to date, so graph.json merges
+#: one pull request at a time, and whoever is behind runs `oto route rebase`. Past them: main's deploy key, which the ingest and architecture
 #: workflows push with from an environment only main deploys from, and an administrator by a pull
 #: request. Never GitHub Actions: any workflow on any branch can ask for its token. Keys starting with
 #: `_` are for the reader and are stripped before the ruleset is sent.
@@ -1104,8 +1094,8 @@ RULES = {
     "_about": "The branch rules on main, set by `oto repo rules --apply` (or by `oto sandbox up --repo` when it creates the repository). "
               "Pull requests required; the checks `oto checks` and `oto route` required; zero approvals here, because the route gate "
               "requires them per route (docs/plans/graph-journeys.md), except a code owner's for the files the gate runs on "
-              "(.github/CODEOWNERS: the workflows, these rules, the lock), which GitHub holds and no workflow can answer for; the merge "
-              "queue on, so graph.json merges one pull request at a time. Past them: the deploy key the ingest and architecture workflows "
+              "(.github/CODEOWNERS: the workflows, these rules, the lock), which GitHub holds and no workflow can answer for. The checks "
+              "must be up to date, so graph.json merges one pull request at a time and whoever is behind runs `oto route rebase`. Past them: the deploy key the ingest and architecture workflows "
               "push to main with, kept in the environment oto-main that only main deploys from, and an administrator, by a pull request "
               "and visibly. Never GitHub Actions itself: any workflow on any branch can ask for its token.",
     "name": RULES_NAME,
@@ -1122,9 +1112,6 @@ RULES = {
                                                 "required_review_thread_resolution": False}},
         {"type": "required_status_checks", "parameters": {"strict_required_status_checks_policy": True, "do_not_enforce_on_create": False,
                                                           "required_status_checks": [{"context": "oto checks"}, {"context": "oto route"}]}},
-        {"type": "merge_queue", "parameters": {"check_response_timeout_minutes": 60, "grouping_strategy": "ALLGREEN", "max_entries_to_build": 5,
-                                               "max_entries_to_merge": 5, "merge_method": "MERGE", "min_entries_to_merge": 1,
-                                               "min_entries_to_merge_wait_minutes": 5}},
     ],
 }
 
@@ -1353,7 +1340,11 @@ def apply_rules(root, repo, token=None, gh=None, code_owner=None):
         except OSError:
             pass
     if code != 0:
-        raise ProjectError("could not set the branch rules on %s: %s" % (owner_name, (err or out).strip()[-400:]))
+        hint = ""
+        if any(isinstance(r, dict) and r.get("type") == "merge_queue" for r in payload.get("rules") or []):
+            hint = (". %s still asks for a merge_queue, which GitHub's Team plan refuses on a private repository: take that rule out of the file, "
+                    "and whoever is behind main runs `oto route rebase`" % RULES_FILE)
+        raise ProjectError("could not set the branch rules on %s: %s%s" % (owner_name, (err or out).strip()[-400:], hint))
     created_id = _json(out, {}).get("id")
     return {"created": not found, "id": found[0].get("id") if found else created_id, "code_owner": owner,
             "environment": MAIN_ENVIRONMENT, "key": key, "warnings": warnings}
@@ -1375,7 +1366,7 @@ def files(slug, name, engine=None, architecture=False):
         "CLAUDE.md": CLAUDE_MD.format(name=name, engine=engine),
         os.path.join(".github", "workflows", "oto-ingest.yml"): INGEST.format(pip=pip, engine=engine),
         os.path.join(".github", "workflows", "oto-checks.yml"): CHECKS.format(pip=pip, engine=engine),
-        os.path.join(".github", "workflows", "oto-deploy.yml"): DEPLOY.format(pip=pip, engine=engine, slug=slug),
+        os.path.join(".github", "workflows", "oto-deploy.yml"): DEPLOY.format(pip=pip, engine=engine, slug=slug, main_environment=MAIN_ENVIRONMENT),
         os.path.join(".github", "workflows", "oto-route.yml"): ROUTE.format(pip=pip, engine=engine),
         os.path.join(".github", "workflows", "oto-preview.yml"): PREVIEW.format(pip=pip, engine=engine, slug=slug),
         RULES_FILE: rules_text(),

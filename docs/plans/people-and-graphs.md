@@ -187,12 +187,11 @@ branch rules:
 oto sandbox up --name northwind-engagement --kind knowledge --pack client-engagement --repo <org>/northwind-engagement --github-token-env GITHUB_TOKEN
 ```
 
-*New:* it also writes the access file naming the creator as steward, and creates the store repository
-beside it.
+It also writes the access file naming the creator as steward, and creates the store repository beside it.
 
 ### Who can do what: the access file
 
-`.github/oto-access.json` (*new*) says who holds each role. Stewards own it, because `.github/` is
+`.github/oto-access.json` says who holds each role. Stewards own it, because `.github/` is
 already under a code owner, so changing it is a pull request a steward approves.
 
 ```json
@@ -204,9 +203,9 @@ already under a code owner, so changing it is a pull request a steward approves.
 }
 ```
 
-`oto repo access --apply` (*new*) sets GitHub to match: repository permissions on both the knowledge
-and store repositories, and `CODEOWNERS` from the stewards. `oto repo access --check` (*new*) reports
-drift, on a schedule.
+`oto repo access --apply` sets GitHub to match: repository permissions on both the knowledge and store
+repositories. `oto repo access --owners` writes `CODEOWNERS` from the stewards. `oto repo access --check`
+reports drift, every day in the `oto-access` workflow.
 
 `readers` is only a record for now, of who was given the graph's Neo4j login: nothing applies or enforces it until the
 server on Cloud Run.
@@ -265,12 +264,15 @@ curate skill shows the change and they confirm it. That change takes one of thre
 Two rules of this model are not true yet, and both are required:
 
 1. **Reviewer means reviewer.** GitHub's documentation says anyone with read access can review, so the gate
-   counted an approval from someone who could only read. Since phase 0 it counts an approval of the head commit,
-   by someone who didn't write it and who has write access. Phase 3 narrows that to the people named in the
-   access file at the base.
+   counted an approval from someone who could only read. It now counts an approval of the head commit, by someone
+   who didn't write it and who has write access, and whom the access file at the base names, when it names anyone.
+   A team in that file needs `OTO_TEAMS_TOKEN`, with `read:org`, because `GITHUB_TOKEN` can't read a team; without
+   it the approval doesn't count.
 2. **The session route must work for everyone.** It requires verified commits by the confirmer. A sandbox
    commits unsigned under a generic identity, and a person's own computer signs only if they set that up.
-   Otherwise a confirmed change falls back to reviewed and waits. See the decisions below.
+   `oto repo commit` has GitHub make and sign the commit, with no key anywhere, and `oto route rebase --verified`
+   ends the same way. `--by` must then be the person's GitHub login, since that is what GitHub shows as the author.
+   Not yet tried on real GitHub.
 
 ### Two contributors: the record now survives both
 
@@ -319,10 +321,11 @@ contributor with write access can read it, which is an accepted risk until those
 ### Promotion without required reviewers
 
 Required reviewers on environments aren't available on private repositories on Team, so the deploy workflow's
-pause before `test` and `prod` doesn't exist there. Instead, promotion becomes a pull request on a file that
-stewards own (*new*): `oto.promote.json` names the commit each environment should hold. Merging it runs `oto
-publish --promote` with the steward who approved as `--by`, and `PROMOTIONS.jsonl` records it as before. On
-Enterprise Cloud, the required reviewers work as they are.
+pause before `test` and `prod` doesn't exist there. Without them those jobs would promote every merge, unapproved,
+so they now run only when the repository variable `OTO_PROMOTE_ON_MERGE` is `true`, for a plan that has them.
+Instead, promotion is a pull request on a file that stewards own: `oto.promote.json` names the commit each
+environment should hold. Merging it runs `oto deploy promote` with the person who approved as `--by`, and
+`PROMOTIONS.jsonl` records it as before.
 
 ### What to build
 
@@ -333,12 +336,12 @@ Enterprise Cloud, the required reviewers work as they are.
 | `graph.previous.json` untracked (phase 0, done) | it conflicted on every merge |
 | The merge queue out of the branch rules (phase 0, done) | GitHub's docs say Team can't use it on private repositories, so it could refuse the whole ruleset |
 | Deploy secrets in the `oto-main` environment; previews without the store token (phase 0, done) | contributors could reach them |
-| Promotion by a pull request on `oto.promote.json` | required reviewers aren't available on Team |
+| Promotion by a pull request on `oto.promote.json` (phase 3, done) | required reviewers aren't available on Team |
 | The gate counts only qualified reviewers (phase 0, done; the access file narrows it in phase 3) | an approval from anyone with read access passed |
 | `oto sandbox up --clone` (phase 2, done) | `--repo` commits and pushes and re-applies the rules, so it is unsafe on an existing repository |
-| `oto repo access` and the access file | permissions are set by hand in GitHub today, with no review or drift check |
-| Verified commits, in a sandbox and on a person's computer | the session route falls back to reviewed without them |
-| The store repository created with the graph | it is a manual step today |
+| `oto repo access` and the access file (phase 3, done) | permissions were set by hand in GitHub, with no review or drift check |
+| Verified commits, in a sandbox and on a person's computer (phase 3, done: `oto repo commit`) | the session route falls back to reviewed without them |
+| The store repository created with the graph (phase 3, done) | it was a manual step |
 
 ## Capability 3: one person, many graphs
 
@@ -537,13 +540,13 @@ uv tool install "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v<ve
 | Job | Who | How | Today |
 |---|---|---|---|
 | Add a reader | steward | gives them the graph's Neo4j login through a password manager; they run `oto graphs add`, and make their sandbox again if it needs a new login | new |
-| Add a contributor | steward | a pull request to the access file; a workflow applies it; they run `git clone` or `oto sandbox up --clone` | manual in GitHub |
+| Add a contributor | steward | a pull request to the access file; a workflow applies it; they run `git clone` or `oto sandbox up --clone` | built |
 | Remove a reader | steward | change the graph's Neo4j password, and everyone else who reads it updates theirs | new, and it affects everyone until the server exists |
-| Remove a contributor | organisation admin or steward | remove from the team; the drift check confirms it | GitHub works; no check |
+| Remove a contributor | organisation admin or steward | remove from the team, or from the access file; the drift check confirms it | built |
 | New pack release | maintainer, then stewards | a scheduled job opens an `oto ontology update` pull request on each graph, showing the diff and nodes touched; it takes the reviewed route | the commands exist; the job is new |
 | Upgrade the engine | platform owner | release; people upgrade when the session start says so; each graph moves its lock by pull request, with a code owner's approval | exists per graph |
-| Promote to production | steward | a pull request on `oto.promote.json`; same store, same commit, recorded in `PROMOTIONS.jsonl` | the promotion exists; the pull request is new |
-| Rotate secrets | steward | `oto repo rules --apply` replaces the deploy key; the database and store tokens are environment secrets (*new*); a new Neo4j password also reaches every reader's sandbox | partial |
+| Promote to production | steward | a pull request on `oto.promote.json`; same store, same commit, recorded in `PROMOTIONS.jsonl` | built |
+| Rotate secrets | steward | `oto repo rules --apply` replaces the deploy key; the database and store tokens are environment secrets; a new Neo4j password also reaches every reader's sandbox | partial |
 | See one graph | anyone with access | `oto status`, `oto deploy status` | exists |
 | See all graphs | platform owner | the directory: engine, pack release, last deploy, stale pull requests, access drift | new |
 | Audit a change | steward, auditor | the ledger with its confirmations, `audit.jsonl`, route verdicts on pull requests, GitHub's audit log | exists |
@@ -616,7 +619,7 @@ belongs to phase 3, because its reviewed route needs a second person.
 | Set the organisation's base permission to `none`? | yes, before real client work | otherwise every member reads every graph's documents; it affects every repository in the organisation, so it needs checking first |
 | Is GitHub the only identity for changing a graph? | yes, to start | no user database to build or secure |
 | Which Aura tier for real client work? | a tier with read-only logins | the instance tried is AuraDB Free, whose login is its admin; a read-only login removes the risk of an agent changing the graph, and per-person logins may need a higher tier |
-| How does the session route get verified commits? | test GitHub's API-created commits first (signed by GitHub with no keys to manage, in a sandbox or not); the fallback is signing keys, through the kit's `ssh-agent@1` and `git-identity@1` in a sandbox | the first needs no setup per person; neither has been tried here |
+| How does the session route get verified commits? | `oto repo commit` is built on GitHub's API-created commits (signed by GitHub with no keys to manage, in a sandbox or not); the fallback, if they don't show as verified, is signing keys, through the kit's `ssh-agent@1` and `git-identity@1` | the first needs no setup per person; E2E section 40 tries it on real GitHub |
 | Who sees the directory? | everyone in the organisation | a graph's name and subject are visible, its contents aren't; a client's name may rule this out |
 | Are client documents allowed in a repository at all? | decide before real client work | the repository's readers can read them, and history keeps them; the same goes for transcripts (open in the plan for the routes) |
 | Do readers get the documents' text? | yes by default, with an option to load facts only | quoting sources is much of a reader's value; some graphs will need the stricter form |

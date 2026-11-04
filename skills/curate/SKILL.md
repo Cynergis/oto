@@ -215,6 +215,12 @@ they put the change on the new `main` as one commit under the person's name, the
 with `git push --force-with-lease`. A conflict means both sides changed the same fact or file: nothing
 was written, so tell the person what clashed.
 
+The session route needs verified commits, and most computers and every sandbox don't sign. So in a
+repository, `--by` is the person's GitHub login, and instead of `git commit` you `git add` what the
+change touched and run `oto repo commit --message "<what changed>"`: GitHub makes and signs the commit,
+with no key on the computer. After a rebase, `oto route rebase --onto origin/main --verified` prints
+the steps that end the same way.
+
 **Never write a confirmation the person did not give.** `--confirm` goes with their name, after
 they said yes to the exact diff you showed; never the pipeline's name, never yours, never on a
 diff they have not seen.

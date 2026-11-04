@@ -23,7 +23,7 @@ beside it (`tools/e2e_core.sh`) that the suite runs. Start there; this document 
 
 The sections follow the order the features were built, and [ADR-0006](adr/0006-the-core-and-the-packs.md)
 draws one line through them. The **core**, the knowledge graph with its tools and its deploy, is
-sections 1 to 17, 19, 20, 23 to 27, 33 to 39: install, a project, documents in, the vocabulary, rules,
+sections 1 to 17, 19, 20, 23 to 27, 33 to 40: install, a project, documents in, the vocabulary, rules,
 authoring under the gates, time, query and serve, evaluation, Neo4j, repository mode, the query
 repository, specs and decisions, an ontology of your own, tools, deploy, audit and tracing, graphs
 that know each other, the engine's own CI, the ontology explorer, the pack seams, the three routes into main, the routes' policy a pack carries, and the sandbox kit. Drive these first: they are
@@ -51,7 +51,7 @@ composes it, or fetched by `oto init --ontology <name>` itself on a machine that
 | A GitHub organisation where you can create repositories, secrets and variables | 11, 12, 13, 16 | the knowledge repository, the query repository, the engine's CI |
 | A Neo4j reachable from GitHub Actions (a public endpoint, or a self-hosted runner beside it) | 11 | repository variable `NEO4J_URI`, secret `NEO4J_PASSWORD` in the environment `oto-main` |
 | A token that can write to the query repository | 11, 13 | secret `OTO_QUERY_REPO_TOKEN` in the environment `oto-main` |
-| A second GitHub account, with read access to a test repository | 38, 39 | it approves a pull request and is not counted |
+| A second GitHub account, with read access to a test repository | 38, 39, 40 | it approves a pull request and is not counted |
 | Your deny terms for the publishability gate | 16 | `OTO_DENY_TERMS` in your shell, and as a secret on the engine repository |
 
 Secrets live in the environment or in GitHub secrets, never in a file in either repository.
@@ -1712,3 +1712,44 @@ oto pack add garage && oto init --name "Team A" --pack garage --project team-a  
 
 Pass when a fresh clone passes the check and the trial; both authors' terms merge with nothing resolved by hand; a pull request can't merge without an approval
 and the check; only a maintainer can push a release tag; a workflow on a branch can't read `OTO_REGISTRY_TOKEN`; and the tag publishes to the private registry.
+
+## 40. Permissions on a graph: a contributor, a reviewer, a reader, and a person removed
+
+[docs/plans/people-and-graphs.md](plans/people-and-graphs.md), phase 3. Exercises: the access file, `oto repo access`, the gate reading its reviewers at the base,
+a commit GitHub signs, promotion by a pull request, and the store made with the graph. `tests/test_permissions.py` runs these against fakes; this runs what only GitHub can
+show. Needs a scratch graph in an organisation on Team, a second account as the contributor, and a third with write access that the file doesn't name.
+
+```bash
+oto sandbox up --name people-try --kind knowledge --repo <org>/people-try --github-token-env GITHUB_TOKEN --approve-anthropic
+#   made <org>/people-try-store beside it, named you the steward in .github/oto-access.json
+gh secret set OTO_QUERY_REPO_TOKEN --env oto-main --repo <org>/people-try      # a token that can write to the store alone
+gh secret set OTO_ACCESS_TOKEN --env oto-main --repo <org>/people-try          # admin on both repositories
+
+# who holds what: a pull request on the file, a steward's approval, and the workflow applies it
+#   add the second account to contributors, a third person to reviewers, someone to readers; oto repo access --owners; open the pull request; merge it
+oto repo access --check                                                         # GitHub matches the file; or it names the organisation's base permission when it isn't none
+
+# a contributor's confirmed fact, on the session route, with no key on their computer
+git clone https://github.com/<org>/people-try && cd people-try && git checkout -b my-fact     # as the contributor
+#   oto curate: a statement, the fact citing it, oto curate apply --by <their login> --confirm
+git add -A && oto repo commit --message "A confirmed fact" && gh pr create --fill
+#   oto route: session, passes, on a verified commit. It merges with no approval
+
+# a reviewer's approval, and one that doesn't count
+#   a document's facts, on the reviewed route. Approved by the account with write access the file doesn't name: oto route still waits
+#   approved by the reviewer the file names: oto route passes
+
+# a reader only reads: oto graphs add, in their sandbox, with the graph's Neo4j login; they have nothing on either repository
+
+# promotion
+oto deploy init --repo <org>/people-try --to https://github.com/<org>/people-try-store && git add -A && git commit -m "Environments" && gh pr create --fill
+printf '{"test": "%s"}\n' "$(git rev-parse origin/main)" > oto.promote.json && git checkout -b promote && git add -A && git commit -m "Promote to test" && gh pr create --fill
+#   a steward approves it, it merges, oto promote runs: oto deploy status says test holds that commit, approved by that steward
+
+# removing a person
+#   take the contributor out of the file, by a pull request; once it merges and the workflow applies it:
+oto repo access --check                                                         # matches; before the workflow ran, it said they still had access
+```
+
+Pass when the contributor's fact merges on the session route on a verified commit; the unnamed account's approval doesn't pass the gate and the reviewer's does; the reader holds nothing on
+either repository; promotion records the steward who approved it; and the drift check confirms the removal.

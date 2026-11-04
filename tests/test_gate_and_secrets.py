@@ -101,6 +101,7 @@ def workflow(tmp_path):
     init(root, slug="kb", name="KB", repo=True)
     _git(root, "init", "-q", "-b", "main")
     head = _commit(root, "the project")
+    _git(root, "update-ref", "refs/remotes/origin/main", "HEAD")
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     _script(str(bin_dir / "gh"), "#!%s\n%s" % (sys.executable, FAKE_GH))
@@ -115,7 +116,7 @@ def workflow(tmp_path):
         output = tmp_path / "output"
         output.write_text("")
         done = subprocess.run(["bash", "-e", "-c", script], cwd=root, capture_output=True, text=True,
-                              env=dict(os.environ, PATH="%s:%s" % (bin_dir, os.environ["PATH"]), PR="7", FAKE_GH_FACTS=str(facts), GITHUB_OUTPUT=str(output)))
+                              env=dict(os.environ, PATH="%s:%s" % (bin_dir, os.environ["PATH"]), PR="7", BASE="main", FAKE_GH_FACTS=str(facts), GITHUB_OUTPUT=str(output)))
         assert done.returncode == 0, done.stdout + done.stderr
         return output.read_text()
     return run, head

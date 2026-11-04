@@ -659,6 +659,39 @@ def _clone_state(project_dir, url):
     return "other"
 
 
+def _store_repository(project_dir, owner_name, token=None, gh=None):
+    """The store a graph publishes to, made beside it, private, and named in the repository variable the deploy workflow reads. Returns
+    (its URL, warnings): a failure is said, not fatal, since the graph works without a store."""
+    from . import repo as _repo_module
+    store = "%s-store" % owner_name
+    try:
+        url = github_repository(store, token, gh=gh)
+    except SandboxError as exc:
+        return None, ["the store repository %s was not created: %s" % (store, exc)]
+    code, out, err = _repo_module._github(token, gh or _tool("OTO_GH", "gh"))("variable", "set", "OTO_QUERY_REPO", "--repo", owner_name, "--body", url[:-len(".git")] if url.endswith(".git") else url)
+    if code != 0:
+        return url, ["the store %s exists, but the repository variable OTO_QUERY_REPO was not set: %s" % (store, (err or out).strip()[-200:])]
+    return url, []
+
+
+def _name_the_creator(project_dir, owner_name, login, store_url):
+    """The access file names whoever made the graph its steward, and its store. Returns True when it wrote."""
+    from . import access as _access
+    found = _access.load(project_dir)
+    if found is None:
+        found = _access.starter()
+    changed = False
+    if login and not found.get("stewards"):
+        found["stewards"] = [login]
+        changed = True
+    if store_url and not found.get("store"):
+        found["store"] = _repo._owner_name(store_url)
+        changed = True
+    if changed:
+        _access.write(project_dir, found)
+    return changed
+
+
 def first_push(project_dir, url, token=None, kind="knowledge"):
     """Put the laid-out folder under git, with `origin` at the repository, and push its first commit.
     The token, when there is one, goes in the push's own header, never in the remote URL or a file."""
@@ -826,6 +859,7 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
                 creating = "would create the private repository %s on GitHub with the token in %s, " % (url[len(GITHUB):-len(".git")], token_env or "(no variable named)")
             report["done"].append(creating + "would push the first commit to %s and store the token as the sandbox's GitHub secret" % url)
             if url.startswith(GITHUB) and (kind or "knowledge") == "knowledge":
+                report["done"].append("would create the private store repository %s-store beside it, and name you the graph's steward" % url[len(GITHUB):-len(".git")])
                 report["done"].append("would set the branch rules on main from %s: pull requests required, the checks oto checks and oto route, "
                                       "no approvals at the branch level but a code owner's for what the gate runs on; "
                                       "with them the code owners (%s, in the first commit) and main's deploy key, kept in the environment %s, "
@@ -852,16 +886,26 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         if url.startswith(GITHUB):
             report["done"].append("created (or found) the private repository %s on GitHub" % url[len(GITHUB):-len(".git")])
         rules_here = url.startswith(GITHUB) and os.path.exists(os.path.join(project_dir, _repo.RULES_FILE))
-        if rules_here and not _repo.code_owner_of(project_dir):
+        if rules_here:
             # the code owners travel in the first commit, so they are on main before the rules ask for them
             from .project import ProjectError
             try:
                 login = _repo.github_login(token, gh=_tool("OTO_GH", "gh"))
             except ProjectError:
                 login = None
-            if login:
+            if login and not _repo.code_owner_of(project_dir):
                 report["done"].append("named %s the code owner of what the route gate runs on (%s)"
                                       % (_repo.write_code_owners(project_dir, login), _repo.CODEOWNERS_FILE))
+            if login and not _repo.is_workspace(project_dir):
+                owner_name = url[len(GITHUB):-len(".git")]
+                store_url, store_warnings = _store_repository(project_dir, owner_name, token, gh=_tool("OTO_GH", "gh"))
+                report["warnings"] += store_warnings
+                if store_url:
+                    report["store"] = store_url
+                    report["done"].append("created (or found) the private store repository %s, which the deploy workflow publishes to. It needs a token that can write to it alone: "
+                                          "gh secret set OTO_QUERY_REPO_TOKEN --env %s" % (store_url, _repo.MAIN_ENVIRONMENT))
+                if _name_the_creator(project_dir, owner_name, login, store_url):
+                    report["done"].append("named %s the graph's steward (.github/oto-access.json)" % login)
         commit = first_push(project_dir, url, token=token, kind=kind or "knowledge")
         report["repository"] = url
         report["commit"] = commit

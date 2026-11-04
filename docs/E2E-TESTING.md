@@ -23,7 +23,7 @@ beside it (`tools/e2e_core.sh`) that the suite runs. Start there; this document 
 
 The sections follow the order the features were built, and [ADR-0006](adr/0006-the-core-and-the-packs.md)
 draws one line through them. The **core**, the knowledge graph with its tools and its deploy, is
-sections 1 to 17, 19, 20, 23 to 27, 33 to 40: install, a project, documents in, the vocabulary, rules,
+sections 1 to 17, 19, 20, 23 to 27, 33 to 41: install, a project, documents in, the vocabulary, rules,
 authoring under the gates, time, query and serve, evaluation, Neo4j, repository mode, the query
 repository, specs and decisions, an ontology of your own, tools, deploy, audit and tracing, graphs
 that know each other, the engine's own CI, the ontology explorer, the pack seams, the three routes into main, the routes' policy a pack carries, and the sandbox kit. Drive these first: they are
@@ -1753,3 +1753,31 @@ oto repo access --check                                                         
 
 Pass when the contributor's fact merges on the session route on a verified commit; the unnamed account's approval doesn't pass the gate and the reviewer's does; the reader holds nothing on
 either repository; promotion records the steward who approved it; and the drift check confirms the removal.
+
+## 41. The platform: one view of every graph, a pack's release reaching them, and retiring one
+
+[docs/plans/people-and-graphs.md](plans/people-and-graphs.md), phase 4. Exercises: the directory in the registry, `oto registry fleet`, `oto graphs add <slug>`, the scheduled
+pack update and `oto repo retire`. `tests/test_platform.py` runs these against a fake `gh`. Needs a registry, and two scratch graphs made with `oto sandbox up --repo`, which marks them
+with the topic `oto-graph`.
+
+```bash
+cd <the registry's checkout>
+oto registry graphs . --org <org>                # lists both graphs; registry.json gains `graphs`, and .github/workflows/oto-graphs.yml keeps it. Refuses two with one slug
+git add -A && git commit -m "The directory of graphs" && git push
+gh secret set OTO_DIRECTORY_TOKEN                # reads the organisation's repositories, for the scheduled job
+oto registry site . && open site/index.html      # the catalog lists the graphs
+oto registry add https://github.com/<org>/<registry> && oto graphs add <slug> --project ~/graphs-try/project    # the address comes from the directory
+oto registry fleet .                             # one view: engine and pack, each against the newest; last deploy; stale pull requests; access drift
+
+# a new release of the pack reaches each graph as a pull request
+oto pack publish --from <workspace> --to https://github.com/<org>/<registry> --note "A new term"
+gh variable set OTO_REGISTRY --body "https://github.com/<org>/<registry>" --repo <org>/<graph>
+gh workflow run oto-pack-update.yml --repo <org>/<graph>    # opens oto/pack-update, with what changed and the facts it touches; oto route says reviewed
+
+# retiring a graph
+oto repo retire --confirm <org>/<graph> --project <its folder>           # archives it and its store, off the topic. Nothing deleted
+oto registry graphs . --org <org>                # it has left the directory
+```
+
+Pass when the fleet shows every graph's versions and drift in one view, and says so for a graph it can't read; a pack's release opens a pull request on the reviewed route; `oto graphs add <slug>`
+needs no address; and a retired graph is archived, not deleted, and gone from the directory.

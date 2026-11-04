@@ -46,6 +46,29 @@ def _cmd_commit(root, args):
     return 0
 
 
+def _cmd_retire(root, args):
+    from .. import directory as _directory, repo as _repo
+    from ..project import ProjectError
+    repository = args.repo or _repo.origin_repository(root)
+    if not repository:
+        print("oto: no GitHub repository: pass --repo owner/name, or set `origin`", file=sys.stderr)
+        return 1
+    try:
+        done = _directory.retire(root, repository, args.confirm, neo4j=args.neo4j)
+    except ProjectError as exc:
+        print("oto: %s" % exc, file=sys.stderr)
+        return 1
+    print("archived %s, and took it off the directory's topic. Nothing was deleted, so unarchiving brings it back" % " and ".join(done["archived"]))
+    if done["nodes_deleted"] is not None:
+        print("deleted %d node(s) of this graph from Neo4j; every other graph there is untouched" % done["nodes_deleted"])
+    else:
+        print("its nodes are still in Neo4j: oto repo retire --neo4j, with the login in this terminal, deletes them")
+    for line in done["warnings"]:
+        print("  warning: %s" % line)
+    print("  anyone holding its Neo4j login still has that login: change the password if it's shared with nothing else")
+    return 0
+
+
 def _cmd_access(root, args):
     from .. import access as _access, repo as _repo
     from ..project import ProjectError
@@ -101,6 +124,8 @@ def cmd_repo(args):
         return _cmd_access(root, args)
     if args.repo_command == "commit":
         return _cmd_commit(root, args)
+    if args.repo_command == "retire":
+        return _cmd_retire(root, args)
     path = os.path.join(root, _repo.RULES_FILE)
     if not os.path.exists(path):
         print("oto: %s is not there: `oto init --repo` writes it (a project laid out before it existed: oto init --repo --force keeps your edits and adds what is missing)"
@@ -147,10 +172,13 @@ def cmd_repo(args):
 
 def register(sub):
     repo = sub.add_parser("repo", help="a project in a GitHub repository: the branch rules on main, shown or set (`oto init --repo` writes the workflows)")
-    repo.add_argument("repo_command", nargs="?", default="rules", choices=["rules", "access", "commit"],
+    repo.add_argument("repo_command", nargs="?", default="rules", choices=["rules", "access", "commit", "retire"],
                       help="rules shows .github/oto-rules.json; with --apply, sets it on the repository through the GitHub CLI. access shows "
                            ".github/oto-access.json; --apply sets GitHub to match, --check says where it drifted, --owners writes CODEOWNERS from the stewards. "
-                           "commit makes the staged change a commit through GitHub, verified with no key on this computer")
+                           "commit makes the staged change a commit through GitHub, verified with no key on this computer. "
+                           "retire --confirm <owner/name> archives a graph and its store and takes it off the directory")
+    repo.add_argument("--confirm", default=None, help="for retire: the repository's owner/name, typed out")
+    repo.add_argument("--neo4j", action="store_true", help="for retire: also delete this graph's nodes from Neo4j, with the login in this environment")
     repo.add_argument("--apply", action="store_true", help="set the rules, or the access file, on GitHub")
     repo.add_argument("--check", action="store_true", help="for access: say where GitHub has drifted from the file, and exit 1 if it has")
     repo.add_argument("--owners", action="store_true", help="for access: write .github/CODEOWNERS from the stewards")

@@ -51,8 +51,8 @@ route rebase` is needed in both cases. What is lost is merging several ready cha
 | **Knowledge repository** | one graph: documents, `graph.json`, ledger, routes, workflows | a GitHub repository | one per graph |
 | **Neo4j** | the live graph, where people's answers come from; the deploy workflow loads it on every merge | your Aura account | one instance per access boundary |
 | **Store** | a built, read-only copy, used for previews, promotion and offline work: the facts, and the documents' extracted text as passages, not the files | a query repository, one branch per environment | one per graph |
-| **Graph directory** *new* | which graphs the organisation has, and how to reach them | inside the registry | one per organisation |
-| **Graph connections** *new* | which graphs this person uses: a folder of connection settings per graph, and a server for each in `.mcp.json` | the project folder of the person's sandbox | one per graph |
+| **Graph directory** | which graphs the organisation has, and how to reach them | inside the registry | one per organisation |
+| **Graph connections** | which graphs this person uses: a folder of connection settings per graph, and a server for each in `.mcp.json` | the project folder of the person's sandbox | one per graph |
 | **Server on Cloud Run** (later) | `oto serve --http`, which alone holds the database login | your Google Cloud project | one per graph |
 
 ```mermaid
@@ -543,16 +543,16 @@ uv tool install "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v<ve
 | Add a contributor | steward | a pull request to the access file; a workflow applies it; they run `git clone` or `oto sandbox up --clone` | built |
 | Remove a reader | steward | change the graph's Neo4j password, and everyone else who reads it updates theirs | new, and it affects everyone until the server exists |
 | Remove a contributor | organisation admin or steward | remove from the team, or from the access file; the drift check confirms it | built |
-| New pack release | maintainer, then stewards | a scheduled job opens an `oto ontology update` pull request on each graph, showing the diff and nodes touched; it takes the reviewed route | the commands exist; the job is new |
+| New pack release | maintainer, then stewards | a scheduled job (`oto-pack-update`) opens an `oto ontology update` pull request on each graph, showing the diff and nodes touched; it takes the reviewed route | built |
 | Upgrade the engine | platform owner | release; people upgrade when the session start says so; each graph moves its lock by pull request, with a code owner's approval | exists per graph |
 | Promote to production | steward | a pull request on `oto.promote.json`; same store, same commit, recorded in `PROMOTIONS.jsonl` | built |
 | Rotate secrets | steward | `oto repo rules --apply` replaces the deploy key; the database and store tokens are environment secrets; a new Neo4j password also reaches every reader's sandbox | partial |
 | See one graph | anyone with access | `oto status`, `oto deploy status` | exists |
-| See all graphs | platform owner | the directory: engine, pack release, last deploy, stale pull requests, access drift | new |
+| See all graphs | platform owner | `oto registry fleet`, from the directory: engine, pack release, last deploy, stale pull requests, access drift | built |
 | Audit a change | steward, auditor | the ledger with its confirmations, `audit.jsonl`, route verdicts on pull requests, GitHub's audit log | exists |
 | Audit a read | steward, auditor | nothing records it for now; the server's read log, later | new |
 | Correct a wrong fact | contributor | curate it: the new fact supersedes the old one, and nothing is overwritten | exists |
-| Retire a graph | steward | archive both repositories, leave the directory, delete its nodes from Neo4j | new |
+| Retire a graph | steward | `oto repo retire --confirm <owner/name> [--neo4j]`: archive both repositories, leave the directory, delete its nodes from Neo4j | built |
 | Recover | platform owner | rebuild from the repository; stores are derived | exists |
 
 ### The order of an engine upgrade
@@ -563,12 +563,13 @@ shape, people upgrade first and graphs move their locks after. The release note 
 
 ### The graph directory
 
-`registry.json` gains a `graphs` section holding each graph's descriptor, the shape `oto graph describe`
-already prints, with its repositories and owners. A scheduled workflow in the registry fills it, from
-repositories carrying a topic such as `oto-graph`, so no graph needs a token that can write to the registry.
-The catalog site (`oto registry site`) lists them, `oto graphs add <slug>` resolves through it, and it refuses
-two graphs with one slug. That matters because two graphs with the same slug in one Neo4j database would
-overwrite each other.
+`registry.json` holds a `graphs` section with each graph's descriptor, the shape `oto graph describe` prints,
+with its repositories and owners. `oto registry graphs --org <org>` fills it, on a schedule in the registry's
+`oto-graphs` workflow, from repositories carrying the topic `oto-graph`, so no graph needs a token that can write
+to the registry. `oto sandbox up --repo` sets that topic. The catalog site (`oto registry site`) lists them,
+`oto graphs add <slug>` resolves through it, and it refuses two graphs with one slug, because in one Neo4j database
+they would overwrite each other. `oto registry fleet` reads each one fresh from GitHub for the one view of every
+graph's versions and drift.
 
 ### Limits to state plainly
 

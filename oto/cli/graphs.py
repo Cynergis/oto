@@ -75,10 +75,23 @@ def cmd_graphs(args):
     from .. import connections as _connections
     root = os.path.abspath(os.path.expanduser(args.project))
     if args.action == "add":
-        if not args.name or not args.uri:
+        if not args.name:
             print("oto: graphs add takes a name and the graph's address: oto graphs add <name> --uri neo4j+s://<id>.databases.neo4j.io", file=sys.stderr)
             return 1
-        done = _connections.add(root, args.name, args.uri, database=args.database, slug=args.slug, label=args.label, subject=args.subject)
+        uri, database, slug, label, subject = args.uri, args.database, args.slug, args.label, args.subject
+        if not uri:
+            from .. import directory as _directory
+            listed = _directory.lookup(args.name)
+            if listed is None:
+                print("oto: no graph named %s in the registries this computer knows: pass --uri neo4j+s://<id>.databases.neo4j.io" % args.name, file=sys.stderr)
+                return 1
+            where = listed.get("neo4j") or {}
+            if not where.get("uri"):
+                print("oto: the directory lists %s (%s) with no Neo4j address, so it can't be read live: ask a steward, or pass --uri" % (args.name, listed.get("repository")), file=sys.stderr)
+                return 1
+            uri, database = where["uri"], database or where.get("database")
+            slug, label, subject = slug or listed.get("slug"), label or listed.get("label"), subject or listed.get("subject")
+        done = _connections.add(root, args.name, uri, database=database, slug=slug, label=label, subject=subject)
         if done["already"]:
             print("%s is already here; nothing changed" % done["name"])
         else:
@@ -121,7 +134,7 @@ def register(sub):
                         help="add <name> --uri ADDRESS: a connection, and a server of its own; list (the default): what is here, and whose "
                              "login is set; rm <name>: take one out")
     graphs.add_argument("name", nargs="?", help="for add and rm: the graph's name here, lowercase with hyphens; its server is <name>-kg")
-    graphs.add_argument("--uri", default=None, help="for add: the graph's Neo4j address, e.g. neo4j+s://<id>.databases.neo4j.io")
+    graphs.add_argument("--uri", default=None, help="for add: the graph's Neo4j address, e.g. neo4j+s://<id>.databases.neo4j.io (default: from the registry's directory, by the name)")
     graphs.add_argument("--database", default=None, help="for add: the database in that instance (on a new Aura instance, usually its id; default neo4j)")
     graphs.add_argument("--slug", default=None, help="for add: the slug the graph was loaded under, which selects it in the database (default: the name)")
     graphs.add_argument("--label", default=None, help="for add: what to call the graph (default: from the name)")

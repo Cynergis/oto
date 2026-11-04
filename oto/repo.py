@@ -545,6 +545,58 @@ jobs:
         run: oto deploy promote --project . --by "${{{{ steps.approver.outputs.by }}}}"
 """
 
+PACK_UPDATE = """name: oto pack update
+
+# A new release of the pack this graph starts from reaches it as a pull request (docs/plans/people-and-graphs.md): the vocabulary re-derived, and
+# what changed and which facts it touches in the description. It takes the reviewed route: nobody confirmed it. It needs the repository variable
+# OTO_REGISTRY, the registry's git URL, and OTO_REGISTRY_TOKEN when that is private. In the repository's settings, under Actions, GitHub Actions
+# must be allowed to create pull requests.
+
+on:
+  schedule:
+    - cron: "41 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    if: vars.OTO_REGISTRY != ''
+    runs-on: ubuntu-latest
+    env:
+      ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
+      OTO_ENGINE_TOKEN: ${{{{ secrets.OTO_ENGINE_TOKEN }}}}
+      OTO_REGISTRY_TOKEN: ${{{{ secrets.OTO_REGISTRY_TOKEN }}}}
+      GH_TOKEN: ${{{{ github.token }}}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Reach the engine repository when it is private
+        run: if [ -n "$OTO_ENGINE_TOKEN" ]; then git config --global url."https://x-access-token:${{OTO_ENGINE_TOKEN}}@github.com/".insteadOf "https://github.com/"; fi
+      - name: Install the engine from its repository
+        run: {pip}
+      - name: Take the newest release, and open a pull request when anything moved
+        run: |
+          oto registry add "${{{{ vars.OTO_REGISTRY }}}}"
+          pack=$(python -c 'import json; print(((json.load(open("project.config.json")).get("ontology") or {{}}).get("pack") or {{}}).get("name") or "")')
+          if [ -z "$pack" ]; then echo "this graph starts from no pack: nothing to update"; exit 0; fi
+          oto pack add "$pack" --force
+          oto ontology diff --project . > update.md
+          oto ontology update --project .
+          if [ -z "$(git status --porcelain -- ontology.config.json project.config.json)" ]; then echo "already on the newest release of $pack"; exit 0; fi
+          git config user.name "oto pack update"
+          git config user.email "oto-pack-update@users.noreply.github.com"
+          git checkout -b oto/pack-update
+          git add ontology.config.json project.config.json
+          git commit -m "A new release of the pack $pack"
+          git push --force -u origin oto/pack-update
+          gh pr view oto/pack-update --json number > /dev/null 2>&1 || gh pr create --head oto/pack-update --title "A new release of the pack $pack" --body-file update.md
+"""
+
 ACCESS = """name: oto access
 
 # Permissions are a file, reviewed like code (.github/oto-access.json). When it changes on main, this sets GitHub to match;
@@ -1690,6 +1742,7 @@ def files(slug, name, engine=None, architecture=False):
         os.path.join(".github", "workflows", "oto-preview.yml"): PREVIEW.format(pip=pip, engine=engine, slug=slug),
         os.path.join(".github", "workflows", "oto-promote.yml"): PROMOTE.format(pip=pip, engine=engine, main_environment=MAIN_ENVIRONMENT),
         os.path.join(".github", "workflows", "oto-access.yml"): ACCESS.format(pip=pip, engine=engine, main_environment=MAIN_ENVIRONMENT),
+        os.path.join(".github", "workflows", "oto-pack-update.yml"): PACK_UPDATE.format(pip=pip, engine=engine),
         RULES_FILE: rules_text(),
         _access.FILE: _access.starter_text(),
         os.path.join(".github", "workflows", "oto-author.yml"): fill(AUTHOR),

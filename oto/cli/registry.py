@@ -8,10 +8,14 @@ runs on itself.
     oto registry refresh [<name>]
     oto registry check [<dir>]        in a registry checkout: the index matches the directories
     oto registry site [<dir>] [--out <dir>]   the catalog: a static site to browse before installing
+    oto registry graphs [<dir>] --org <org>   the directory: the organisation's graphs, from the topic oto-graph
+    oto registry fleet [<dir>] [--json]       every graph's versions, last deploy, stale pull requests, access drift
 
 A registry lists ontologies today and will list packs as well, which is why its verbs live under
 their own command rather than under `oto ontology`.
 """
+import argparse
+import json
 import os
 import sys
 
@@ -109,6 +113,26 @@ def cmd_registry(args):
             print("moved the %s pin to %s on branch %s" % (which[0], args.plugin_ref, result["branch"]))
             print("title: %s" % result["title"])
             return 0
+        if verb in ("graphs", "fleet"):
+            from .. import directory as _directory
+            root = os.path.abspath(which[0] if which else ".")
+            if verb == "graphs":
+                if not args.org:
+                    print("oto: graphs needs --org <organisation>: it reads the repositories there carrying the topic %s" % _directory.TOPIC, file=sys.stderr)
+                    return 1
+                entries = _directory.scan(args.org)
+                _directory.write_directory(root, entries)
+                print("%d graph(s) in the directory of %s:" % (len(entries), args.org))
+                for entry in entries:
+                    print("  %-22s %s  %s" % (entry["slug"], entry["repository"], entry["subject"]))
+                return 0
+            index = _registry.read_index(root)
+            if not index.get("graphs"):
+                print("no graph in this registry's directory yet: oto registry graphs %s --org <organisation>" % (which[0] if which else "."))
+                return 0
+            rows = _directory.fleet(index, now=args.now)
+            print(json.dumps({"graphs": rows}, indent=2, ensure_ascii=False, sort_keys=True) if args.json else _directory.render_fleet(rows))
+            return 0
         if verb == "site":
             from .. import catalog as _catalog
             root = os.path.abspath(which[0] if which else ".")
@@ -137,7 +161,7 @@ def cmd_registry(args):
 def register(sub):
     registry = sub.add_parser("registry", help="the registries this machine fetches ontologies from")
     registry.add_argument("registry_command", nargs="?", default="list",
-                          choices=["add", "list", "remove", "refresh", "check", "site", "plugin", "pin"],
+                          choices=["add", "list", "remove", "refresh", "check", "site", "plugin", "pin", "graphs", "fleet"],
                           help="add <git url> registers one; list (default) shows them; remove <name> forgets one "
                                "(what was fetched from it stays); refresh [<name>] re-reads the index; "
                                "check [<dir>] verifies a registry checkout: the index matches the directories; "
@@ -162,6 +186,9 @@ def register(sub):
     registry.add_argument("--as", dest="as_name", default=None,
                           help="for add: register it under this name instead of the name its index declares")
     registry.add_argument("--ref", default=None, help="for add: a branch or tag to read the index from")
+    registry.add_argument("--org", default=None, help="for graphs: the organisation whose repositories to read")
+    registry.add_argument("--json", action="store_true", help="for fleet: machine-readable output")
+    registry.add_argument("--now", default=None, help=argparse.SUPPRESS)
     registry.add_argument("--out", default=None, help="for site: the directory to write (default: <dir>/site)")
     registry.add_argument("--url", default=None, help="for site: what a person types to add this registry (default: the checkout's git remote)")
     registry.set_defaults(func=cmd_registry)

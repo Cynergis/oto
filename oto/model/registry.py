@@ -133,6 +133,18 @@ def index_problems(index, root=None):
     packs = index.get("packs", [])
     if not isinstance(packs, list):
         return out + ["registry.json `packs` must be a list"]
+    graphs = index.get("graphs", [])
+    if not isinstance(graphs, list):
+        return out + ["registry.json `graphs` must be a list"]
+    seen_graphs = {}
+    for entry in graphs:
+        if not isinstance(entry, dict) or not entry.get("slug") or not entry.get("repository"):
+            out.append("a graph in the directory needs a `slug` and a `repository`")
+        else:
+            seen_graphs.setdefault(entry["slug"], []).append(entry["repository"])
+    for slug, repositories in sorted(seen_graphs.items()):
+        if len(repositories) > 1:
+            out.append("the graphs %s share the slug %r: in one Neo4j database they would overwrite each other" % (", ".join(repositories), slug))
     extras = index.get("plugins", [])
     if not isinstance(extras, list):
         return out + ["registry.json `plugins` must be a list"]
@@ -491,6 +503,11 @@ def _write_index(work, index):
 def _scaffold_registry(work, index, engine):
     write_check_workflow(work, engine=engine)
     write_site_workflow(work, engine=engine)
+    from .. import __version__, directory as _directory
+    path = os.path.join(work, _directory.WORKFLOW_PATH)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(_directory.WORKFLOW.replace("{engine_version}", __version__))
     with open(os.path.join(work, "README.md"), "w", encoding="utf-8", newline="\n") as f:
         f.write("# %s: OTO ontologies and packs\n\nA registry. `oto registry add <this url>` on a machine, then "
                 "`oto ontology add <name>` or `oto pack add <name>`. Published by `oto ontology publish` and "

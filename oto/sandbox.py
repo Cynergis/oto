@@ -906,6 +906,11 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
                                           "gh secret set OTO_QUERY_REPO_TOKEN --env %s" % (store_url, _repo.MAIN_ENVIRONMENT))
                 if _name_the_creator(project_dir, owner_name, login, store_url):
                     report["done"].append("named %s the graph's steward (.github/oto-access.json)" % login)
+                code, out, err = _repo._github(token, _tool("OTO_GH", "gh"))("repo", "edit", owner_name, "--add-topic", "oto-graph")
+                if code == 0:
+                    report["done"].append("marked it with the topic oto-graph, so the registry's directory finds it")
+                else:
+                    report["warnings"].append("the repository wasn't marked with the topic oto-graph, so the registry's directory won't list it: %s" % (err or out).strip()[-200:])
         commit = first_push(project_dir, url, token=token, kind=kind or "knowledge")
         report["repository"] = url
         report["commit"] = commit

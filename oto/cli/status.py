@@ -220,6 +220,43 @@ def _store_status(root):
     return 0
 
 
+def _serve_line(neo):
+    if neo["reachable"] and neo["loaded"]:
+        return "serving Neo4j %s (%s), build_seq %s" % (neo["uri"], neo["database"], neo["build_seq"])
+    if neo["reachable"]:
+        return "Neo4j %s reachable, NO load of this project yet" % neo["uri"]
+    return "Neo4j NOT serving: %s" % neo["problem"]
+
+
+def _connection_status(root, args):
+    """A folder holding a graph's address and nothing else: there is no vocabulary or graph here to count."""
+    project = _resolve(args)
+    identity = project.identity()
+    state = _serving(project)
+    if args.json or args.snapshot:
+        print(json.dumps(dict(state, kind="connection", name=identity["name"], slug=identity["slug"], root=root), indent=2, sort_keys=True))
+        return 0
+    print("%s (slug %s): a connection to a graph in Neo4j, with no documents or local copy here" % (identity["name"], identity["slug"]))
+    print("  serve       %s" % _serve_line(state["neo4j"]))
+    return 0
+
+
+def _connections_status(root, args):
+    """A folder of connections: what each reads and whether its login is set. No round trip: the session start runs this."""
+    from .. import connections as _connections
+    from .graphs import connection_line
+    found = _connections.listed(root)
+    if args.json or args.snapshot:
+        print(json.dumps({"kind": "connections", "root": root, "graphs": found}, indent=2, sort_keys=True))
+        return 0
+    print("A folder of %d graph connection(s), each read live from Neo4j through a server of its own:" % len(found))
+    for graph in found:
+        print(connection_line(graph))
+    print()
+    print("next: ask a question here; a graph with no login can't be read")
+    return 0
+
+
 def cmd_status(args):
     from .. import publish as _publish
 
@@ -228,6 +265,11 @@ def cmd_status(args):
     root = os.path.abspath(args.project)
     if _publish.is_store(root):
         return _store_status(root)
+    from .. import connections as _connections
+    if _connections.is_connection(root):
+        return _connection_status(root, args)
+    if _connections.is_folder(root):
+        return _connections_status(root, args)
     project = _resolve(args)
     if args.snapshot:
         from .. import snapshot as _snapshot
@@ -328,14 +370,7 @@ def cmd_status(args):
     build = "not built" if not s["built"] else ("STALE, inputs changed since" if s["stale"] else "up to date")
     print("  build       %s" % build)
     if s["backend"] == "neo4j":
-        neo = s["neo4j"]
-        if neo["reachable"] and neo["loaded"]:
-            state = "serving Neo4j %s (%s), build_seq %s" % (neo["uri"], neo["database"], neo["build_seq"])
-        elif neo["reachable"]:
-            state = "Neo4j %s reachable, NO load of this project yet" % neo["uri"]
-        else:
-            state = "Neo4j NOT serving: %s" % neo["problem"]
-        print("  serve       %s" % state)
+        print("  serve       %s" % _serve_line(s["neo4j"]))
     else:
         print("  serve       sqlite, the local build (set serve.backend to neo4j for a shared live server)")
     print("  bench       %s" % ("gold set present" if s["gold_set"] else "no gold set"))

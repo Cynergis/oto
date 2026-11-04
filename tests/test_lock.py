@@ -150,7 +150,7 @@ def test_the_restore_script_rebuilds_the_locked_tools(claude, capsys):
     assert "claude plugin marketplace add %s" % where in script
     for key in ("claims@acme", "oto@acme", "tool@acme"):
         assert "claude plugin install %s" % key in script
-    assert 'uv tool install --force "oto-kg[intake] @ git+' in script and "OTO_SOURCE" not in script, \
+    assert 'uv tool install --force "oto-kg[intake,neo4j] @ git+' in script and "OTO_SOURCE" not in script, \
         "the installed engine is the one the plugin runs: nothing to export (ADR-0014)"
     notes = lockfile.warnings(lockfile.read(project))
     assert any("tool@acme comes from Acme/tool's default branch" in n for n in notes)

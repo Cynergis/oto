@@ -85,9 +85,9 @@ brackets. `all` is every one of them; a machine that only serves needs none.
 
 ```bash
 # On a machine, with uv installed: the engine, once, as the oto command. The plugin runs this one (ADR-0014).
-uv tool install "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v<version>"
+uv tool install "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v<version>"
 uv tool install --force "oto-kg[all] @ git+https://github.com/Cynergis/oto@v<version>"    # every extra
-uv tool install --force "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v<newer>"   # to upgrade it
+uv tool install --force "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v<newer>"   # to upgrade it
 
 # To develop the engine, install your checkout as the engine, and back to a release when done.
 uv tool install --force --editable ~/oto-doc/oto
@@ -337,6 +337,29 @@ aka: Press One
 Relationships (outgoing):
   installed_at → North Plant
 ```
+
+## Reading graphs live from a sandbox
+
+A person who asks questions of graphs already in Neo4j needs no documents and no copy, only a connection to
+each. On your computer, one per graph:
+
+```bash
+oto graphs add northwind --uri neo4j+s://<id>.databases.neo4j.io --database <database> --slug <slug> --subject "<what it holds>" --project ~/my-graphs/project
+```
+
+`oto graphs list` names the two variables that hold each graph's login, here `NORTHWIND_NEO4J_USER` and
+`NORTHWIND_NEO4J_PASSWORD`. Set them in your terminal, then make the sandbox from that same terminal:
+
+```bash
+oto sandbox up --name my-graphs
+```
+
+Each graph gets a server of its own in the folder's `.mcp.json`. Claude asks each graph that fits and answers
+graph by graph, and every answer comes from Neo4j at that moment. A graph you have no login for can't be read.
+
+No file holds a password, but the login sits inside the sandbox, where Claude could read it and do whatever it
+allows. So this suits a small, trusted team. [docs/plans/people-and-graphs.md](docs/plans/people-and-graphs.md)
+has the reasoning, and the separate server that makes access per person.
 
 ## Measuring whether the answers are good
 

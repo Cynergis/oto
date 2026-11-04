@@ -69,7 +69,7 @@ CLAUDE_MD = """# {name}: an OTO knowledge project
 This repository holds a knowledge graph's data and nothing else: the vocabulary, the curated graph,
 the ledger, the raw documents at their stations, and the corpus extracted from them. The engine is
 the `oto` command installed on the machine, once, at the release `oto.lock.json` records:
-`uv tool install "oto-kg[intake] @ git+{engine}@<that tag>"` (`oto lock --script` prints it). The OTO
+`uv tool install "oto-kg[intake,neo4j] @ git+{engine}@<that tag>"` (`oto lock --script` prints it). The OTO
 plugin and this repository's server run that one. The engine repository is private: on a machine,
 `gh auth login` then `gh auth setup-git` once, so `uv` and `pip` can clone it; in this repository's
 workflows the secret `OTO_ENGINE_TOKEN` does the same.

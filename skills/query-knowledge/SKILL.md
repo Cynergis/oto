@@ -23,6 +23,17 @@ ranked. One clear best: call it with `kg_call(graph, tool, arguments)` and answe
 back, saying which graph it came from. Two as close as each other: ask both, or ask the person which
 is meant. None says a word of the question: say so; never guess a graph.
 
+## When several graphs answer here
+
+A person may read several graphs from one folder, each through a server of its own (`northwind-kg`,
+`acme-kg`). Graphs on one pack look alike, so a general question reaches all of them:
+
+- **Ask each graph that could hold the answer.** A question that names one graph asks that one.
+- **Answer graph by graph**, naming each, with each fact's source and date, and never merge facts
+  across graphs: a contradiction between two graphs stays visible, and the person decides.
+- **A graph that can't read** (no login, or Neo4j out of reach): say so for that graph and answer from
+  the others. Never guess what it holds.
+
 ## Talking with the person
 
 - **Plain, natural language, in the person's words.** Never say question numbers, ids, class or

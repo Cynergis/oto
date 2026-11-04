@@ -4,7 +4,7 @@
 # sees, or not the plugin's release, with the command that fixes it; then the project's status.
 # Never fails: a session starts without the engine.
 release=$(sed -n 's/^ *"version": *"\([^"]*\)".*/\1/p' "$(dirname "$0")/../.claude-plugin/plugin.json" | head -1)
-install="uv tool install --force \"oto-kg[intake] @ git+https://github.com/Cynergis/oto@v$release\""
+install="uv tool install --force \"oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v$release\""
 if ! command -v oto >/dev/null 2>&1; then
   if [ -x "$HOME/.local/bin/oto" ]; then
     echo "OTO's engine is installed in ~/.local/bin but not on the PATH Claude Code sees: run uv tool update-shell, then restart Claude Code."

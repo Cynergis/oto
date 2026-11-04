@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""`oto graph`: this graph's descriptor, and the graphs it depends on (roadmap A1, A2)."""
+"""`oto graph`: this graph's descriptor, and the graphs it depends on (roadmap A1, A2). `oto graphs`: the graphs
+a folder reads live from Neo4j (oto/connections.py)."""
 import json
 import sys
 
@@ -67,7 +68,68 @@ def cmd_graph(args):
     return 0
 
 
+def cmd_graphs(args):
+    """`oto graphs`: the graphs this folder reads live from Neo4j, one connection each."""
+    import os
+
+    from .. import connections as _connections
+    root = os.path.abspath(os.path.expanduser(args.project))
+    if args.action == "add":
+        if not args.name or not args.uri:
+            print("oto: graphs add takes a name and the graph's address: oto graphs add <name> --uri neo4j+s://<id>.databases.neo4j.io", file=sys.stderr)
+            return 1
+        done = _connections.add(root, args.name, args.uri, database=args.database, slug=args.slug, label=args.label, subject=args.subject)
+        if done["already"]:
+            print("%s is already here; nothing changed" % done["name"])
+        else:
+            print("added the graph %s, read through the server %s (%s)" % (done["name"], done["server"], _connections.MCP_FILE))
+        print("  its login goes in %s, in your terminal's environment and never in a file; `oto sandbox up` passes those into the sandbox it makes"
+              % " and ".join(done["variables"]))
+        return 0
+    if args.action == "rm":
+        if not args.name:
+            print("oto: graphs rm takes the graph's name (oto graphs list)", file=sys.stderr)
+            return 1
+        done = _connections.remove(root, args.name)
+        print("removed the graph %s and its server %s" % (done["name"], done["server"]))
+        if done["kept"]:
+            print("  kept what the connection did not write, in %s/%s: %s" % (_connections.FOLDER, done["name"], ", ".join(done["kept"])))
+        print("  a sandbox made with its login still holds it: oto sandbox up --recreate makes one without it")
+        return 0
+    found = _connections.listed(root)
+    if args.json:
+        print(json.dumps({"graphs": found}, indent=2, ensure_ascii=False))
+        return 0
+    if not found:
+        print("no graph here: oto graphs add <name> --uri neo4j+s://<id>.databases.neo4j.io")
+        return 0
+    print("%d graph(s) read live from Neo4j:" % len(found))
+    for graph in found:
+        print(connection_line(graph))
+    return 0
+
+
+def connection_line(graph):
+    """One connection, for a person: never a login's value."""
+    login = "login set" if graph["login"] else "NO LOGIN: set %s" % " and ".join(graph["variables"])
+    return "  %-16s %s\n      %s%s, server %s; %s" % (graph["name"], graph["label"], graph["uri"], " (%s)" % graph["database"] if graph["database"] else "", graph["server"], login)
+
+
 def register(sub):
+    graphs = sub.add_parser("graphs", help="the graphs this folder reads live from Neo4j: add, list, rm")
+    graphs.add_argument("action", nargs="?", default="list", choices=["add", "list", "rm"],
+                        help="add <name> --uri ADDRESS: a connection, and a server of its own; list (the default): what is here, and whose "
+                             "login is set; rm <name>: take one out")
+    graphs.add_argument("name", nargs="?", help="for add and rm: the graph's name here, lowercase with hyphens; its server is <name>-kg")
+    graphs.add_argument("--uri", default=None, help="for add: the graph's Neo4j address, e.g. neo4j+s://<id>.databases.neo4j.io")
+    graphs.add_argument("--database", default=None, help="for add: the database in that instance (on a new Aura instance, usually its id; default neo4j)")
+    graphs.add_argument("--slug", default=None, help="for add: the slug the graph was loaded under, which selects it in the database (default: the name)")
+    graphs.add_argument("--label", default=None, help="for add: what to call the graph (default: from the name)")
+    graphs.add_argument("--subject", default=None, help="for add: what this graph holds, in a sentence: how Claude tells it from the others")
+    graphs.add_argument("--json", action="store_true", help="for list: machine-readable")
+    project_arguments(graphs)
+    graphs.set_defaults(func=cmd_graphs)
+
     graph = sub.add_parser("graph", help="this graph's descriptor, and the graphs it depends on")
     graph.add_argument("graph_command", nargs="?", default="dependencies", choices=["describe", "depend", "dependencies"],
                        help="describe prints this graph's descriptor (--record writes it into a project made before descriptors); "

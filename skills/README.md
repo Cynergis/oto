@@ -49,5 +49,5 @@ pack installs the engine plugin with it. Its `start` skill begins a project from
 
 Both run the engine installed on the machine, the `oto` command, and no copy of their own
 (ADR-0014). It is installed once with [uv](https://docs.astral.sh/uv/),
-`uv tool install "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v<version>"`, and the plugin's
+`uv tool install "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v<version>"`, and the plugin's
 session start says when it is missing or is not the plugin's release, with the command that fixes it.

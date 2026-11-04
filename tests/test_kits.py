@@ -56,8 +56,8 @@ def test_the_oto_gcp_kit_carries_this_engine():
     assert "OTO_SOURCE" not in text, "the engine init.sh installs is the one the plugin runs (ADR-0014)"
     assert "the OTO engine %s," % version in text, "kits/oto-gcp/oto-gcp.yaml: the description names the engine %s" % version
     init = _read("kits", "oto-gcp", "files", "home", ".oto", "init.sh")
-    assert '"oto-kg[intake] @ git+https://github.com/Cynergis/oto@v%s"' % version in init, \
-        "kits/oto-gcp/files/home/.oto/init.sh installs v%s" % version
+    assert '"oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v%s"' % version in init, \
+        "kits/oto-gcp/files/home/.oto/init.sh installs v%s, with the driver a sandbox reads a graph live through" % version
     assert "ghcr.io/cynergis/oto-gcp:%s " % version in _read("kits", "README.md"), "kits/README.md runs the kit at %s" % version
 
 

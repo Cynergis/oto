@@ -427,12 +427,12 @@ def _clone_url(source):
 
 
 def engine_pin(lock):
-    """What installs the locked engine: `oto-kg[intake] @ git+<repo>@<commit or tag>`."""
+    """What installs the locked engine: `oto-kg[intake,neo4j] @ git+<repo>@<commit or tag>`."""
     eng = lock.get("engine") or {}
     ref = eng.get("commit") or eng.get("tag") or "main"
     source = eng.get("source") if str(eng.get("source") or "").startswith(("http", "git@")) else ENGINE_REPO
     source = source[:-4] if source.endswith(".git") else source
-    return "oto-kg[intake] @ git+%s@%s" % (source, ref)
+    return "oto-kg[intake,neo4j] @ git+%s@%s" % (source, ref)
 
 
 def _restore_lines(lock):

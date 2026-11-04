@@ -59,7 +59,8 @@ def cmd_serve(args):
     A host may register this server for every directory it opens. Crashing in a directory that is
     not an OTO project would show the user a failed server for no reason; serving nothing, and
     saying why on every call, lets the same server start answering the moment the project exists
-    and is built, because the engine re-checks the database file before each query.
+    and is built, because the engine re-checks the database file before each query. A folder of
+    connections (oto/connections.py) has a server per graph already, so this one offers no tools.
     """
     import sys
 
@@ -74,14 +75,22 @@ def cmd_serve(args):
         else:
             engine = _engine(_target(args), args.backend)
     except ProjectError as exc:
+        from .. import connections as _connections
         root = os.path.abspath(args.project)
         os.environ["OTO_DB"] = os.path.join(root, "build", "oto.db")
         os.environ.pop("OTO_PROJECT_CONFIG", None)
         if args.backend:
             os.environ["OTO_STORE"] = args.backend
-        print("oto serve: %s\n  serving nothing until `oto init` and `oto build` have run here; "
-              "the server will pick the database up on the next call." % exc, file=sys.stderr)
+        try:
+            held = [g["server"] for g in _connections.listed(root)] if _connections.is_folder(root) else []
+        except ProjectError:
+            held = []
+        if not held:
+            print("oto serve: %s\n  serving nothing until `oto init` and `oto build` have run here; "
+                  "the server will pick the database up on the next call." % exc, file=sys.stderr)
         from ..serve import engine
+        if held:
+            engine.hold_connections(held)
     if args.http:
         from ..serve import http as _http
         from ..targets.site import resolve_app

@@ -26,7 +26,7 @@ def _release():
 
 
 def _install(version):
-    return 'uv tool install --force "oto-kg[intake] @ git+https://github.com/Cynergis/oto@v%s"' % version
+    return 'uv tool install --force "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v%s"' % version
 
 
 def _session_start(tmp_path, version=None, where="path"):
@@ -80,7 +80,7 @@ def test_an_engine_off_claude_codes_path_is_said(tmp_path):
 def test_a_project_repository_serves_with_the_installed_engine():
     files = repo.files("x", "X")
     assert json.loads(files[".mcp.json"])["mcpServers"]["x-kg"] == {"command": "oto", "args": ["serve", "--project", "."]}
-    assert "uvx" not in files["CLAUDE.md"] and 'uv tool install "oto-kg[intake] @ git+%s' % repo.ENGINE in files["CLAUDE.md"]
+    assert "uvx" not in files["CLAUDE.md"] and 'uv tool install "oto-kg[intake,neo4j] @ git+%s' % repo.ENGINE in files["CLAUDE.md"]
 
 
 def test_nothing_reads_oto_source_any_more():

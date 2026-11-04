@@ -9,7 +9,7 @@ def cmd_init(args):
     try:
         init(args.project, slug=args.slug, name=args.name, namespace=args.namespace, concierge=args.concierge,
              prefix=args.prefix, force=args.force, ontology=args.ontology,
-             repo=args.repo, engine=args.engine, pack=args.pack, empty=args.empty)
+             repo=args.repo, engine=args.engine, pack=args.pack, empty=args.empty, description=args.description)
     except ValueError as exc:
         print("oto: %s" % exc, file=sys.stderr)
         return 1
@@ -22,6 +22,8 @@ def register(sub):
                       help="the project's title, e.g. \"Acme Claims\"; the slug derives from it")
     init.add_argument("--slug", default=None,
                       help="short kebab id every generated name derives from (default: from --name)")
+    init.add_argument("--description", default=None,
+                      help="what this graph holds, in a sentence: how an agent tells it from other graphs (default: its pack's summary)")
     init.add_argument("--project", default=".", help="target folder (default: current directory)")
     init.add_argument("--namespace", default=None,
                       help="base IRI of the RDF export: instances under id/, the project's own terms "

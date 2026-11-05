@@ -248,7 +248,8 @@ def test_every_deploy_job_has_the_engine_for_all_its_steps_and_keeps_no_checkout
         assert "\n          ENGINE:" not in job, "%s: ENGINE on one step leaves the others that install or name the engine without it" % name
         assert "- uses: actions/checkout@v4\n        with:\n          persist-credentials: false\n" in job, \
             "%s: no job pushes here, and git would send the checkout's token to the query repository" % name
-    assert 'pip install "oto-kg[neo4j] @ git+${ENGINE}"' in jobs["build-and-publish"]
+    assert 'pip install "oto-kg[neo4j] @ git+${ENGINE}${ENGINE_REF}"' in jobs["build-and-publish"]
+    assert jobs["build-and-publish"].index("Pin the engine to the lock") < jobs["build-and-publish"].index("oto-kg[neo4j]"), "ENGINE_REF comes from that step"
     assert '--engine "${ENGINE}"' in jobs["build-and-publish"]
 
 

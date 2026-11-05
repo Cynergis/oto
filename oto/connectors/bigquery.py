@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
-"""The BigQuery overlay: a dataset read in place, never copied (roadmap K8, C1).
+"""BigQuery: a graph's store, and an overlay on a dataset that already exists (roadmap K8, C1).
 
-The catalog comes from the dataset's INFORMATION_SCHEMA (TABLES, COLUMNS, and the primary and
+As a store (`materialize`), a dataset of its own holds the built graph: `targets/bigquery.py` loads it and reads it back,
+and this is the interface over that. As an overlay, a dataset is read in place, never copied.
+
+The overlay's catalog comes from the dataset's INFORMATION_SCHEMA (TABLES, COLUMNS, and the primary and
 foreign key constraints BigQuery declares without enforcing); the query log from the region's
 INFORMATION_SCHEMA.JOBS_BY_PROJECT, the jobs that referenced the dataset, with the user that ran each; a native read is dry-run
 first, so a statement the words let through but BigQuery would execute as anything other than a
@@ -14,15 +17,17 @@ import os
 import types
 
 from . import Connector, select_only
+from .sqlite import SqliteConnector, snapshot_of
 from ..project import ProjectError
+from ..targets import bigquery as _target, sqlite as _sqlite
 
 MANIFEST = {
-    "name": "bigquery", "version": "0.1.0", "modes": ["overlay"], "query_language": "sql",
+    "name": "bigquery", "version": "0.2.0", "modes": ["materialize", "overlay"], "query_language": "sql",
     "capabilities": {"named_graphs": False, "schema_constraints": True, "transactions": False, "vector_index": True,
                      "full_text": True},
     "auth": ["adc", "service-account"], "conformance": "kit@1",
 }
-PROJECT_ENV, DATASET_ENV = "OTO_BIGQUERY_PROJECT", "OTO_BIGQUERY_DATASET"
+PROJECT_ENV, DATASET_ENV = _target.PROJECT_ENV, _target.DATASET_ENV
 DEFAULT_REGION = "us"
 DEFAULT_MAX_BYTES = 1 << 30
 LOG_LIMIT = 500
@@ -34,11 +39,7 @@ def connector():
 
 
 def available():
-    try:
-        from google.cloud import bigquery  # noqa: F401
-        return True
-    except ImportError:
-        return False
+    return _target.available()
 
 
 def _job_config(dry_run, max_bytes):
@@ -59,7 +60,7 @@ class BigQueryConnector(Connector):
         project_id = os.environ.get(PROJECT_ENV) or cfg.get("project")
         dataset = os.environ.get(DATASET_ENV) or cfg.get("dataset")
         if not (project_id and dataset):
-            raise ProjectError("bigquery overlay: set %s and %s, or `bigquery.project` and `bigquery.dataset` in project.config.json; "
+            raise ProjectError("bigquery: set %s and %s, or `bigquery.project` and `bigquery.dataset` in project.config.json; "
                                "credentials come from Application Default Credentials" % (PROJECT_ENV, DATASET_ENV))
         return {"project": project_id, "dataset": dataset, "region": cfg.get("region") or DEFAULT_REGION,
                 "max_bytes": int(cfg.get("max_bytes") or DEFAULT_MAX_BYTES)}
@@ -75,12 +76,7 @@ class BigQueryConnector(Connector):
         return {"project": project_id, "dataset": dataset, "region": overlay.get("region") or DEFAULT_REGION, "max_bytes": DEFAULT_MAX_BYTES}
 
     def connect(self, settings):
-        client = settings.get("client")
-        if client is None:
-            if not available():
-                raise ProjectError("the bigquery overlay needs its client: pip install \"oto-kg[bigquery]\"")
-            from google.cloud import bigquery
-            client = bigquery.Client(project=settings["project"])
+        client = _target.open_client(settings)
         return {"client": client, "project": settings["project"], "dataset": settings["dataset"],
                 "region": settings.get("region") or DEFAULT_REGION, "max_bytes": int(settings.get("max_bytes") or DEFAULT_MAX_BYTES)}
 
@@ -91,6 +87,74 @@ class BigQueryConnector(Connector):
                 close()
             except Exception:                               # noqa: BLE001 - closing is best effort
                 pass
+
+    def kit_settings(self, settings, name):
+        """The kit's stores are datasets of their own, beside the graph's: the project names where they all are, so it stays."""
+        return dict(settings, dataset="%s_kit_%s" % (settings["dataset"], name)) if name != "overlay" else settings
+
+    # ---- schema: tables are the same for every project, and the vocabulary compiles to no constraint ----
+    def apply_schema(self, session, vocabulary):
+        session["client"].create_dataset(_target._dataset(session["project"], session["dataset"], session["region"]), exists_ok=True)
+        _target.prepare(session["client"], session["project"], session["dataset"])
+        return 1
+
+    def schema_snapshot(self, session):
+        names = [t.table_id for t in session["client"].list_tables("%s.%s" % (session["project"], session["dataset"]))]
+        return sorted(n for n in names if n == _target.BUILDS)
+
+    # ---- the plan: the same rows the SQLite store holds ----
+    def plan(self, project):
+        return _sqlite.plan(project)
+
+    def drop(self, plan, node_id):
+        return SqliteConnector().drop(plan, node_id)
+
+    # ---- publish and read back ----
+    def publish(self, session, plan):
+        return _target.load(session["client"], session["project"], session["dataset"], plan)
+
+    def read_back(self, session, plan):
+        return _target.differences(session["client"], session["project"], session["dataset"], plan)
+
+    def snapshot(self, session, plan=None):
+        con, _record = _target.read(session["client"], session["project"], session["dataset"])
+        if con is None:
+            return {"ids": [], "entities": {}, "relationships": [], "rows": 0}
+        try:
+            return snapshot_of(con)
+        finally:
+            con.close()
+
+    # ---- the build stage ----
+    def stage(self, project):
+        """What `oto build` runs when the project targets BigQuery."""
+        if not _target.configured(project):
+            print("bigquery: not configured (no `bigquery.project` and `bigquery.dataset` in project.config.json, or `bigquery` not in targets); skipped")
+            return
+        settings = self.settings(project)
+        where = "%s.%s" % (settings["project"], settings["dataset"])
+        plan = self.plan(project)
+        session = self.connect(settings)
+        try:
+            try:
+                done = self.publish(session, plan)
+            except ProjectError:
+                raise
+            except Exception as exc:                        # noqa: BLE001 - the client's own hierarchy, in words
+                raise ProjectError("bigquery: could not load into %s: %s" % (where, exc))
+            counts = done["tables"]
+            if done["unchanged"]:
+                print("bigquery: %s already holds this build, as build %d" % (where, done["seq"]))
+            else:
+                print("bigquery: loaded %d nodes, %d edges, %d passages into %s, as build %d"
+                      % (counts.get("nodes", 0), counts.get("edges", 0), counts.get("docs", 0), where, done["seq"]))
+            if (getattr(project, "options", {}) or {}).get("verify"):
+                found = self.read_back(session, plan)
+                if found:
+                    raise ProjectError("bigquery: the loaded graph differs from the build:\n  - " + "\n  - ".join(found[:20]))
+                print("bigquery: verified: the loaded graph matches the build")
+        finally:
+            self.close(session)
 
     # ---- overlay ----
     def _prefix(self, session):

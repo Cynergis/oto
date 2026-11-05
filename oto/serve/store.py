@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""What the engine reads, behind one interface with two implementations.
+"""What the engine reads, behind one interface.
 
 The engine's answers are text built from rows. Everything that fetches a row lives here, so the
 same text code runs over the SQLite store (development, the plugin on every machine, the fallback)
@@ -9,7 +9,8 @@ the same queries through both and diffs the output.
 
 The SQLite store is loaded into memory and the file released, so a rebuild can swap the file
 under a running server. The Neo4j store is a live connection; a load retires the previous build
-in place, so it is always current.
+in place, so it is always current. The BigQuery store is the SQLite store over a copy of a load in
+BigQuery, so it answers exactly as the build does, and the engine looks for a newer load now and then.
 """
 import json
 import os
@@ -659,3 +660,51 @@ class Neo4jStore(Store):
     def passages(self):
         return self._run("MATCH (p:Passage {project: $project}) RETURN p.path AS path, p.title AS title, p.body AS body "
                          "ORDER BY path")
+
+
+# ============================ BigQuery ============================
+
+class BigQueryStore(SqliteStore):
+    """The newest finished load of a dataset, copied into memory (targets/bigquery.py). Every read is SqliteStore's."""
+    kind = "bigquery"
+
+    def __init__(self, con, client, where, record):
+        con.row_factory = sqlite3.Row
+        self.con, self.path, self._features = con, None, None
+        self.client, self.where, self.seq = client, where, int(record["seq"])
+
+    @classmethod
+    def from_config(cls, project_config):
+        """A store from a project config dict (its `bigquery` section) and the environment.
+
+        Raises ValueError naming what is missing, so the caller can say so at startup.
+        """
+        from ..project import ProjectError
+        from ..targets import bigquery as _target
+        where = _target.connection((project_config or {}).get("bigquery"))
+        if not (where["project"] and where["dataset"]):
+            raise ValueError("no BigQuery dataset: set `bigquery.project` and `bigquery.dataset` in project.config.json, or %s and %s"
+                             % (_target.PROJECT_ENV, _target.DATASET_ENV))
+        try:
+            client = _target.open_client(where)
+        except ProjectError as exc:
+            raise ValueError(str(exc))
+        con, record = _target.read(client, where["project"], where["dataset"])
+        if con is None:
+            raise ValueError("BigQuery %s.%s holds no load yet. Run `oto build --target bigquery`." % (where["project"], where["dataset"]))
+        return cls(con, client, where, record)
+
+    def close(self):
+        super().close()
+        close = getattr(self.client, "close", None)
+        if callable(close):
+            try:
+                close()
+            except Exception:                              # noqa: BLE001 - closing is best effort
+                pass
+
+    def newer(self):
+        """Whether a load other than this copy is now the newest. One small read, which bills nothing."""
+        from ..targets import bigquery as _target
+        last = _target.latest(self.client, self.where["project"], self.where["dataset"])
+        return bool(last) and int(last["seq"]) != self.seq

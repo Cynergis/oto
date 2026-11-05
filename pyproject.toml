@@ -44,7 +44,7 @@ otel = ["opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20", "opentelemetry-exp
 # The Postgres overlay (oto/connectors/postgres.py): a schema read in place. pg8000 is BSD-3-Clause,
 # pure Python. The compile path never needs it.
 postgres = ["pg8000>=1.30"]
-# The BigQuery overlay (oto/connectors/bigquery.py): a dataset read in place. Apache-2.0.
+# BigQuery (oto/targets/bigquery.py, oto/connectors/bigquery.py): a graph held in a dataset, or a dataset read in place. Apache-2.0.
 bigquery = ["google-cloud-bigquery>=3.20"]
 # Everything a full installation uses at once: extraction, the production store, the drafter, the
 # benchmark baseline and the ontology reader. Not the test tooling, which is `dev`.

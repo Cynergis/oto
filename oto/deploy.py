@@ -39,7 +39,7 @@ from .project import ProjectError
 NAME = "oto.deploy.json"
 RECORD = "PROMOTIONS.jsonl"
 PROMOTE_FILE = "oto.promote.json"
-CONNECTORS = ("sqlite", "neo4j")
+CONNECTORS = ("sqlite", "neo4j", "bigquery")
 AUTH = ("basic", "oidc", "token", "workload-identity", "file", "env", "adc", "service-account")
 KEYS = ("repo", "graph", "connector", "connection", "publish", "environments", "promotion", "overlay")
 CONNECTION_KEYS = ("endpoint", "auth", "secret", "database", "note")
@@ -92,6 +92,10 @@ def problems(config):
     connection = config.get("connection")
     if connector == "neo4j" and not isinstance(connection, dict):
         out.append("`connection` is required for neo4j: endpoint, auth and the secret's variable name")
+    if connector == "bigquery" and not isinstance(connection, dict):
+        out.append("`connection` is required for bigquery: endpoint (the Google Cloud project), database (the dataset) and auth")
+    if connector == "bigquery" and isinstance(connection, dict) and not connection.get("database"):
+        out.append("`connection.database` is required for bigquery: the dataset that holds this graph")
     if connection is not None:
         out += _connection_problems(connection, "connection")
     if connector == "neo4j" and isinstance(connection, dict) and isinstance(connection.get("secret"), str) \
@@ -230,6 +234,8 @@ def starter(repo, to, graph, connector="sqlite"):
               "promotion": PROMOTION}
     if connector == "neo4j":
         config["connection"] = {"endpoint": "bolt://localhost:7687", "auth": "basic", "secret": "NEO4J_PASSWORD"}
+    if connector == "bigquery":
+        config["connection"] = {"endpoint": "<your Google Cloud project>", "database": graph.replace("-", "_"), "auth": "workload-identity"}
     return config
 
 

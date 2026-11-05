@@ -124,6 +124,21 @@ jobs:
           PGPASSWORD: testpassword
         run: python -m pytest -q tests/test_overlay_stores.py
 
+  bigquery:
+    name: bigquery store and overlay, on the real client
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install with the bigquery extra
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[dev,bigquery]"
+      - name: Every call against the real client's signatures, objects and exceptions
+        run: python -m pytest -q tests/test_bigquery_store.py tests/test_overlay_stores.py
+
   kit:
     name: the sandbox kit builds with Docker's kit frontend
     runs-on: ubuntu-latest

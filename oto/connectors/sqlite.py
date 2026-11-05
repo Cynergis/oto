@@ -131,14 +131,9 @@ class SqliteConnector(Connector):
     def snapshot(self, session, plan=None):
         con = sqlite3.connect(session["path"])
         try:
-            entities = {r[0]: {"type": r[1], "label": r[2], "status": r[3]}
-                        for r in con.execute("SELECT id, type, label, status FROM nodes ORDER BY id")}
-            relationships = sorted([r[0], r[1], r[2], "derived" if r[3] == "derived" else "asserted"]
-                                   for r in con.execute("SELECT src, rel, dst, status FROM edges"))
-            rows = con.execute("SELECT count(*) FROM nodes").fetchone()[0]
+            return snapshot_of(con)
         finally:
             con.close()
-        return {"ids": sorted(entities), "entities": entities, "relationships": relationships, "rows": rows}
 
     def read_back(self, session, plan):
         got = self.snapshot(session, plan)
@@ -231,6 +226,16 @@ class SqliteConnector(Connector):
         print(f"{os.path.basename(path)}: {counts['nodes']} nodes, {counts['edges']} edges ({counts['derived']} derived), "
               f"{counts['passages']} passages, {counts['lexicon']} lexicon rows, {counts['terms']} terms, "
               f"{counts['questions']} questions -> {os.path.relpath(path, project.src)}")
+
+
+def snapshot_of(con):
+    """A store's contents in the kit's canonical shape, from an open connection to it."""
+    entities = {r[0]: {"type": r[1], "label": r[2], "status": r[3]}
+                for r in con.execute("SELECT id, type, label, status FROM nodes ORDER BY id")}
+    relationships = sorted([r[0], r[1], r[2], "derived" if r[3] == "derived" else "asserted"]
+                           for r in con.execute("SELECT src, rel, dst, status FROM edges"))
+    rows = con.execute("SELECT count(*) FROM nodes").fetchone()[0]
+    return {"ids": sorted(entities), "entities": entities, "relationships": relationships, "rows": rows}
 
 
 def _quote(name):

@@ -76,7 +76,7 @@ QUERIES = [
 SEARCHES = ["payments ledger", "halt", "risk"]
 
 
-def _project(root):
+def _project(root, neo4j=True):
     init(root, slug=PROJECT, name="Equivalence", ontology="software-architecture")
     project = Project.standard(root)
     with open(project.graph_path, encoding="utf-8") as f:
@@ -112,6 +112,8 @@ def _project(root):
         "CQ2": {"who": "architect", "question": "Which data stores have no decision behind them?", "why": "retirement",
                 "ask": {"when": [{"node": "d", "type": "DataStore"}, {"not_edge": ["d", "decided_by", "*"]}], "select": ["d"]},
                 "gate": "empty"}})
+    if not neo4j:                                              # the same graph, for another store's test
+        return project
     cfg = json.load(open(project.config_path, encoding="utf-8"))
     cfg["targets"] = ["sqlite", "neo4j"]
     cfg["neo4j"] = {"uri": os.environ["NEO4J_URI"], "database": os.environ.get("NEO4J_DATABASE") or "neo4j", "batch": 3}

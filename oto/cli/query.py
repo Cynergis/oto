@@ -81,8 +81,8 @@ def cmd_serve(args):
     try:
         if getattr(args, "preview", False) or getattr(args, "watch", False):
             project = _resolve(args)
-            if args.backend == "neo4j":
-                print("oto serve: a preview is always the local SQLite build; --backend neo4j ignored for it", file=sys.stderr)
+            if args.backend in ("neo4j", "bigquery"):
+                print("oto serve: a preview is always the local SQLite build; --backend %s ignored for it" % args.backend, file=sys.stderr)
             engine = _engine(_preview_target(args, project), "sqlite")
         else:
             engine = _engine(_target(args), args.backend)
@@ -159,8 +159,8 @@ def cmd_serve(args):
 
 
 def _backend_argument(parser):
-    parser.add_argument("--backend", choices=("sqlite", "neo4j"), default=None,
-                        help="serve from the local SQLite build or the configured Neo4j "
+    parser.add_argument("--backend", choices=("sqlite", "neo4j", "bigquery"), default=None,
+                        help="serve from the local SQLite build, the configured Neo4j or the configured BigQuery dataset "
                              "(default: the project's `serve.backend`, else sqlite)")
 
 

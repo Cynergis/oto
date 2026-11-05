@@ -7,7 +7,7 @@ reloads if it changed. The Neo4j store is a live connection to the production gr
 retires the previous build in place, so it is always current, and one server can be shared.
 
 The backend is chosen at startup, in this order: `OTO_STORE` in the environment (`oto serve
---backend` sets it), then `"serve": {"backend": "neo4j"}` in the project config, then SQLite.
+--backend` sets it), then `"serve": {"backend": "neo4j"}` or `"bigquery"` in the project config, then SQLite.
 With Neo4j the engine verifies the connection at startup and says so on stderr; if the database
 is unreachable it keeps running, answers every call with the reason, and retries the connection on
 the next call. It never falls back to SQLite on its own: a production setting that silently served
@@ -23,9 +23,9 @@ Two modes, one implementation:
 
 Every tool is temporality-aware and returns current facts by default.
 """
-import os, sys, json, sqlite3, re
+import os, sys, json, sqlite3, re, time
 
-from .store import SqliteStore, Neo4jStore
+from .store import BigQueryStore, SqliteStore, Neo4jStore
 from ..model import vocabulary as _vocab
 
 # MCP requires UTF-8; Windows consoles default to cp1252 which breaks chars like "→".
@@ -67,7 +67,7 @@ SERVER_NAME = _pcfg.get("server_name") or ("%s-kg" % SLUG)
 DB_NAME = _pcfg.get("db_name") or ("%s.db" % SLUG)
 CACHE_DIR = os.path.expanduser(_pcfg.get("cache_dir") or ("~/.%s-kg" % SLUG))
 ENV_DB = "%s_DB" % SLUG.upper()          # e.g. ACME_DB; kept for existing installs
-BACKENDS = ("sqlite", "neo4j")
+BACKENDS = ("sqlite", "neo4j", "bigquery")
 BACKEND = (os.environ.get("OTO_STORE") or (_pcfg.get("serve") or {}).get("backend") or "sqlite").lower()
 if BACKEND not in BACKENDS:
     sys.stderr.write("%s: unknown store backend %r; serving sqlite\n" % (SERVER_NAME, BACKEND))
@@ -137,8 +137,13 @@ DB = _resolve_db()
 DB_REFUSAL = schema_complaint(DB) if BACKEND == "sqlite" and DB and os.path.exists(DB) else None
 #: Why the Neo4j store is not serving, when it is not: unreachable, unloaded, or from the future.
 NEO4J_COMPLAINT = None
+#: Why the BigQuery store is not serving, when it is not: unreadable, unloaded, or from the future.
+BIGQUERY_COMPLAINT = None
+#: How many seconds a server waits between looks for a newer load in BigQuery: a question never waits on one otherwise.
+BIGQUERY_REFRESH = float(os.environ.get("OTO_BIGQUERY_REFRESH") or 60)
+_bigquery_looked = 0.0
 try:
-    if BACKEND == "neo4j":
+    if BACKEND in ("neo4j", "bigquery"):
         pass                                              # reported by ensure_fresh() below
     elif DB_REFUSAL:
         sys.stderr.write("%s: REFUSING %s\n  %s\n" % (SERVER_NAME, DB, DB_REFUSAL))
@@ -166,6 +171,8 @@ def log(*a):
 # only when the file actually changes.
 # Neo4j: the store is a live connection, current by construction. A failed connection is retried
 # on the next call, so a server started before the database came up recovers by itself.
+# BigQuery: the store is an in-memory copy of the newest finished load. Now and then a call looks for
+# a newer one and swaps it in; what's served stays served when that fails. With nothing yet, every call retries.
 STORE = None
 _db_sig = None        # (path, mtime_ns, size) of the currently-loaded sqlite file
 _pinned = False       # True when a caller installed a store with use(); freshness checks are then off
@@ -241,16 +248,64 @@ def _open_neo4j():
         % (store.uri, store.database, SLUG, store.meta("build_seq"), schema))
 
 
+def _open_bigquery():
+    """Copy the newest finished load into memory, and swap it in; record why not when it can't be."""
+    global STORE, BIGQUERY_COMPLAINT
+    try:
+        store = BigQueryStore.from_config(_pcfg)
+    except ValueError as exc:
+        BIGQUERY_COMPLAINT = str(exc)
+        log("bigquery:", BIGQUERY_COMPLAINT)
+        return
+    except Exception as exc:                                   # noqa: BLE001 - the client's own hierarchy
+        BIGQUERY_COMPLAINT = "cannot read BigQuery: %s" % exc
+        log("bigquery:", BIGQUERY_COMPLAINT)
+        return
+    schema = store.meta("schema_version")
+    found = int(schema) if schema is not None and str(schema).isdigit() else 0
+    if found > UNDERSTOOD_SCHEMA:
+        BIGQUERY_COMPLAINT = ("BigQuery holds project %r at schema %d and this engine understands %d. Upgrade the engine, "
+                              "or reload with a matching version." % (SLUG, found, UNDERSTOOD_SCHEMA))
+        store.close()
+        log("bigquery: REFUSING", BIGQUERY_COMPLAINT)
+        return
+    old, STORE, BIGQUERY_COMPLAINT = STORE, store, None
+    if old is not None:
+        old.close()
+    log("serving BigQuery %s.%s, load %d, build_seq=%s, schema=%s"
+        % (store.where["project"], store.where["dataset"], store.seq, store.meta("build_seq"), schema))
+
+
+def _refresh_bigquery():
+    """Open it if nothing is served yet; otherwise, at most every BIGQUERY_REFRESH seconds, look for a newer load."""
+    global _bigquery_looked
+    if STORE is None:
+        _bigquery_looked = time.monotonic()
+        _open_bigquery()
+        return
+    if time.monotonic() - _bigquery_looked < BIGQUERY_REFRESH:
+        return
+    _bigquery_looked = time.monotonic()
+    try:
+        if STORE.newer():
+            _open_bigquery()
+    except Exception as exc:                                   # noqa: BLE001 - what's served stays served
+        log("bigquery: could not look for a newer load, still serving load %s: %s" % (STORE.seq, exc))
+
+
 def ensure_fresh():
-    """Make the store current: reload a changed sqlite file, or connect to Neo4j if not yet
-    connected. A cheap no-op when nothing changed. Re-resolves the sqlite path each time so a
-    higher-priority db (env / local) that shows up later is picked up too."""
+    """Make the store current: reload a changed sqlite file, connect to Neo4j if not yet connected, or
+    look for a newer load in BigQuery. A cheap no-op when nothing changed. Re-resolves the sqlite path
+    each time so a higher-priority db (env / local) that shows up later is picked up too."""
     global DB
     if _pinned:
         return
     if BACKEND == "neo4j":
         if STORE is None:
             _open_neo4j()
+        return
+    if BACKEND == "bigquery":
+        _refresh_bigquery()
         return
     path = _resolve_db()
     cur = _sig(path)
@@ -278,6 +333,10 @@ def no_data_message():
         return ("%s serves from Neo4j and cannot right now:\n  %s\nThe engine retries on every call. "
                 "To serve the local build instead, start it with `--backend sqlite` (or OTO_STORE=sqlite)."
                 % (NAME, NEO4J_COMPLAINT or "not connected"))
+    if BACKEND == "bigquery":
+        return ("%s serves from BigQuery and cannot right now:\n  %s\nThe engine retries on every call. "
+                "To serve the local build instead, start it with `--backend sqlite` (or OTO_STORE=sqlite)."
+                % (NAME, BIGQUERY_COMPLAINT or "cannot read it yet"))
     if DB_REFUSAL:
         return ("%s has a knowledge database that this engine will not read:\n  %s\n"
                 "Fix: upgrade the engine, or rebuild the database with a matching version. "

@@ -193,10 +193,10 @@ def listed(root):
 
 
 def is_connection(root):
-    """A folder holding a graph's address and nothing of the graph: no vocabulary, served from Neo4j."""
+    """A folder holding a graph's address and nothing of the graph: no vocabulary, served from Neo4j or BigQuery."""
     config = _read_json(os.path.join(root, CONFIG_FILE))
     return bool(config) and not os.path.exists(os.path.join(root, "ontology.config.json")) \
-        and ((config.get("serve") or {}).get("backend") or "").lower() == "neo4j"
+        and ((config.get("serve") or {}).get("backend") or "").lower() in ("neo4j", "bigquery")
 
 
 def is_folder(root):

@@ -352,7 +352,7 @@ def _server_files():
 def test_a_graphs_repository_carries_a_container_and_a_deploy_workflow():
     files = _server_files()
     docker = files[os.path.join(".github", "oto-server", "Dockerfile")]
-    assert "--iap" in docker and "$PORT" in docker.replace("${PORT:-8080}", "$PORT") and "[neo4j,cloud]" in docker and "project.config.json" in docker
+    assert "--iap" in docker and "$PORT" in docker.replace("${PORT:-8080}", "$PORT") and "[neo4j,cloud,bigquery]" in docker and "project.config.json" in docker
     text = files[os.path.join(".github", "workflows", "oto-server.yml")]
     assert "gcloud" in text and "--iap" in text and "--no-allow-unauthenticated" in text
     assert "--set-secrets" in text and "NEO4J_PASSWORD=" in text, "the login comes from Secret Manager, never a file"
@@ -365,6 +365,163 @@ def test_the_container_builds_from_a_pinned_engine_with_no_token_inside():
     assert "Pin the engine to the lock" in text and "pip wheel" in text, "a wheel, so a private engine's token never enters the image"
     docker = _server_files()[os.path.join(".github", "oto-server", "Dockerfile")]
     assert "TOKEN" not in docker and "git+" not in docker
+
+
+# ---- deploying it: the workflow's own steps, run with a stand-in gcloud ----
+
+def _deploy_step(tmp_path, **env):
+    from test_gate_and_secrets import _script, _step
+    log = tmp_path / "gcloud.txt"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _script(str(bin_dir / "gcloud"), '#!/bin/sh\necho "$*" >> "%s"\nif [ "$1 $2" = "projects describe" ]; then echo 123; fi\n' % log)
+    text = _server_files()[os.path.join(".github", "workflows", "oto-server.yml")]
+    base = dict(os.environ, PATH="%s:%s" % (bin_dir, os.environ["PATH"]), SERVICE="fleet-kg", PROJECT="acme", REGION="europe-west1", DATASET="", RUNTIME="", MEMORY="1Gi")
+    done = subprocess.run(["bash", "-e", "-c", _step(text, "Deploy it behind the proxy")], capture_output=True, text=True, env=dict(base, **env))
+    assert done.returncode == 0, done.stdout + done.stderr
+    return log.read_text().splitlines(), done.stdout
+
+
+def test_a_graph_in_bigquery_deploys_with_no_database_login(tmp_path):
+    calls, _out = _deploy_step(tmp_path, DATASET="kg", RUNTIME="reader@acme.iam.gserviceaccount.com")
+    deploy = next(c for c in calls if c.startswith("run deploy"))
+    assert "--set-secrets" not in deploy, "there is no database login to hand it, and naming secrets that don't exist fails the deploy"
+    assert "OTO_STORE=bigquery" in deploy and "OTO_BIGQUERY_PROJECT=acme" in deploy and "OTO_BIGQUERY_DATASET=kg" in deploy
+    assert "--service-account reader@acme.iam.gserviceaccount.com" in deploy, "what it may read is what this identity may read"
+    assert "OTO_IAP_AUDIENCE=/projects/123/locations/europe-west1/services/fleet-kg" in deploy and "OTO_READ_LOG=stderr" in deploy
+
+
+def test_a_graph_in_neo4j_still_gets_its_login_from_secret_manager(tmp_path):
+    calls, _out = _deploy_step(tmp_path)
+    deploy = next(c for c in calls if c.startswith("run deploy"))
+    assert "--set-secrets NEO4J_USER=fleet-neo4j-user:latest,NEO4J_PASSWORD=fleet-neo4j-password:latest" in deploy and "OTO_STORE" not in deploy
+
+
+def test_the_deploy_puts_it_behind_the_proxy_and_lets_the_proxy_call_it(tmp_path):
+    """Google's docs: deploying with gcloud doesn't grant the proxy's service agent the invoker role, so every request would be refused."""
+    calls, _out = _deploy_step(tmp_path, DATASET="kg")
+    deploy = next(i for i, c in enumerate(calls) if c.startswith("run deploy"))
+    assert "--iap" in calls[deploy] and "--no-allow-unauthenticated" in calls[deploy] and "--source .github/oto-server" in calls[deploy]
+    grant = next(i for i, c in enumerate(calls) if c.startswith("run services add-iam-policy-binding"))
+    assert grant > deploy, "the service has to exist first"
+    assert "fleet-kg" in calls[grant] and "--member serviceAccount:service-123@gcp-sa-iap.iam.gserviceaccount.com" in calls[grant] and "--role roles/run.invoker" in calls[grant]
+    assert "--region europe-west1" in calls[grant] and "--project acme" in calls[grant]
+    assert not [c for c in calls if c.startswith("beta")], "Google's docs give the standard track for this"
+
+
+def test_the_copy_in_memory_gets_room_and_the_room_can_change(tmp_path):
+    calls, _out = _deploy_step(tmp_path, DATASET="kg", MEMORY="2Gi")
+    assert "--memory 2Gi" in next(c for c in calls if c.startswith("run deploy"))
+    text = _server_files()[os.path.join(".github", "workflows", "oto-server.yml")]
+    assert "vars.OTO_SERVER_MEMORY || '1Gi'" in text
+
+
+def test_it_warns_when_bigquery_is_read_by_the_default_identity(tmp_path):
+    calls, out = _deploy_step(tmp_path, DATASET="kg")
+    assert "--service-account" not in next(c for c in calls if c.startswith("run deploy"))
+    assert "::warning::" in out and "OTO_GCP_RUNTIME_SERVICE_ACCOUNT" in out
+
+
+def _deploy_workflow():
+    yaml = pytest.importorskip("yaml")
+    return yaml.safe_load(repo.files("fleet", "The Fleet")[os.path.join(".github", "workflows", "oto-deploy.yml")])
+
+
+def test_a_merge_loads_bigquery_only_when_a_dataset_is_named():
+    job = _deploy_workflow()["jobs"]["build-and-publish"]
+    assert job["permissions"]["id-token"] == "write", "signing in to Google Cloud with no stored key"
+    assert job["permissions"]["contents"] == "read"
+    names = [s.get("name") for s in job["steps"]]
+    sign_in, load = names.index("Sign in to Google Cloud, when the graph goes to BigQuery"), names.index("Load BigQuery, when a dataset is named")
+    assert names.index("Build every layer") < sign_in < load
+    for step in (job["steps"][sign_in], job["steps"][load]):
+        assert step["if"] == "vars.OTO_BIGQUERY_DATASET != ''"
+    auth = job["steps"][sign_in]
+    assert auth["uses"].startswith("google-github-actions/auth") and "OTO_GCP_WORKLOAD_IDENTITY_PROVIDER" in auth["with"]["workload_identity_provider"]
+    assert "OTO_GCP_LOAD_SERVICE_ACCOUNT" in auth["with"]["service_account"] and "OTO_GCP_SERVICE_ACCOUNT" in auth["with"]["service_account"]
+    env = job["steps"][load]["env"]
+    assert "OTO_GCP_PROJECT" in env["OTO_BIGQUERY_PROJECT"] and "OTO_BIGQUERY_DATASET" in env["OTO_BIGQUERY_DATASET"]
+    run = job["steps"][load]["run"]
+    assert "oto build --project . --only bigquery --target bigquery --verify" in run and "NEO4J" not in run
+
+
+@pytest.mark.parametrize("step, extra", [("Load BigQuery, when a dataset is named", "bigquery"), ("Load the self-hosted Neo4j, when one is configured", "neo4j")])
+def test_a_load_installs_the_engine_the_lock_names(step, extra):
+    """Neither load may run a different engine from the build that made what it loads."""
+    job = _deploy_workflow()["jobs"]["build-and-publish"]
+    run = next(s for s in job["steps"] if s.get("name") == step)["run"]
+    assert '"oto-kg[%s] @ git+${ENGINE}${ENGINE_REF}"' % extra in run
+
+
+def test_a_merge_loads_it_from_settings_in_the_workflow_alone(tmp_path, monkeypatch):
+    """The repository's config stays as it is, so a sandbox on this repository goes on reading its own build."""
+    from fake_bigquery import FakeClient
+    from oto.targets import bigquery as target
+    root = _built(str(tmp_path / "fleet"), "fleet", "The Fleet")
+    fake = FakeClient()
+    monkeypatch.setattr(target, "open_client", lambda settings: fake)
+    monkeypatch.setenv("OTO_BIGQUERY_PROJECT", "p")
+    monkeypatch.setenv("OTO_BIGQUERY_DATASET", "kg")
+    assert main(["build", "--project", root, "--only", "bigquery", "--target", "bigquery", "--verify"]) == 0
+    assert fake.rows("nodes__b1")
+    with open(os.path.join(root, "project.config.json"), encoding="utf-8") as f:
+        config = json.load(f)
+    assert "bigquery" not in config and "serve" not in config
+
+
+def test_a_container_holding_only_the_config_answers_from_bigquery_behind_the_proxy(tmp_path, key, monkeypatch):
+    """What Cloud Run runs, with all of it real but BigQuery and Google's signature: only project.config.json in the folder, and the store named by the environment."""
+    from fake_bigquery import FakeClient
+    from oto.targets import bigquery as target
+    root = _built(str(tmp_path / "fleet"), "fleet", "The Fleet")
+    fake = FakeClient()
+    monkeypatch.setattr(target, "open_client", lambda settings: fake)
+    monkeypatch.setenv("OTO_BIGQUERY_PROJECT", "p")
+    monkeypatch.setenv("OTO_BIGQUERY_DATASET", "kg")
+    assert main(["build", "--project", root, "--only", "bigquery", "--target", "bigquery"]) == 0
+    monkeypatch.undo()
+    saved = str(tmp_path / "bq.json")
+    fake.save(saved)
+    app = tmp_path / "app"
+    app.mkdir()
+    with open(os.path.join(root, "project.config.json"), encoding="utf-8") as f:
+        (app / "project.config.json").write_text(f.read())
+    keys = tmp_path / "keys.json"
+    keys.write_text(json.dumps({"keys": [_jwk(key)]}))
+    here = os.path.dirname(os.path.abspath(__file__))
+    script = ("import sys; sys.path.insert(0, %r); from fake_bigquery import FakeClient; from oto.targets import bigquery as t; "
+              "t.open_client = lambda settings: FakeClient.load(%r); from oto.cli import main; sys.exit(main(sys.argv[1:]))" % (here, saved))
+    env = dict(os.environ, OTO_IAP_AUDIENCE=AUDIENCE, OTO_IAP_KEYS_FILE=str(keys), PYTHONPATH=os.path.dirname(here), OTO_STORE="bigquery",
+               OTO_BIGQUERY_PROJECT="p", OTO_BIGQUERY_DATASET="kg")
+    for name in ("OTO_SERVE_TOKEN", "OTO_SANDBOX", "OTO_READ_LOG", "OTO_DB", "OTO_PROJECT_CONFIG"):
+        env.pop(name, None)
+    import socket
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    log = tmp_path / "server.log"
+    with open(log, "w") as out:
+        proc = subprocess.Popen([sys.executable, "-c", script, "serve", "--project", str(app), "--iap", "--http", "0.0.0.0:%d" % port], stdout=out, stderr=subprocess.STDOUT, env=env)
+    url = "http://127.0.0.1:%d" % port
+    try:
+        for _ in range(80):
+            try:
+                urllib.request.urlopen(url + "/api/tools", timeout=1)
+                break
+            except urllib.error.HTTPError:
+                break
+            except Exception:
+                time.sleep(0.25)
+        assert _post(url, COUNT)[0] == 401, "no way in unsigned"
+        code, body, _headers = _post(url, COUNT, _as(key))
+        assert code == 200, body + log.read_text()
+        assert json.loads(body)["result"]["content"][0]["text"].strip(), body
+        assert "serving BigQuery p.kg" in log.read_text(), log.read_text()
+        reads = [json.loads(line) for line in log.read_text().splitlines() if line.startswith("{") and "oto.read" in line]
+        assert reads and reads[-1]["principal"] == "dana@example.org", "the read is logged under the person's name"
+    finally:
+        proc.terminate()
+        proc.wait(timeout=10)
 
 
 # ---- reaching it from a sandbox ----

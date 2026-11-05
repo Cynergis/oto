@@ -483,7 +483,7 @@ Claude in the sandbox  --signed in as A-->  oto serve on Cloud Run  --server's l
 ```
 
 - **Running it.** The `oto-server` workflow builds a container from a pinned wheel of the engine, with no token inside, and runs `oto serve --iap --http 0.0.0.0:$PORT`. The engine reads its login from the
-  environment, which Secret Manager fills. One service per graph, because one process serves one graph; idle services can scale to zero, at the cost of a slower first question.
+  environment, which Secret Manager fills; with `OTO_BIGQUERY_DATASET` set there is no login, and it reads BigQuery as its own identity ([ADR-0015](../adr/0015-bigquery-holds-the-graph.md)). One service per graph, because one process serves one graph; idle services can scale to zero, at the cost of a slower first question.
 - **Who asks.** `--iap` needs `OTO_IAP_AUDIENCE` and the `cloud` extra, and refuses to start without them. It verifies the proxy's signed assertion on every request, ES256 only, against Google's published keys,
   so who asks is the email Google signed, and a stated `X-Oto-Principal` counts for nothing. `OTO_SERVE_TOKEN` isn't needed, and `/rpc`, `/mcp`, `/api` and the views all sit behind it.
 - **Per-person access.** Grant or remove people one at a time with `roles/iap.httpsResourceAccessor`. Removal takes effect on their next request, and the person never held the database login.
@@ -499,7 +499,7 @@ Claude in the sandbox  --signed in as A-->  oto serve on Cloud Run  --server's l
 
 - **Signing in from the sandbox's gateway.** IAP takes an OIDC identity token rather than MCP's OAuth discovery, so `sbx mcp add --url` may need `--header` with a stored secret, whose token expires within an hour, or a small
   proxy run on the computer. This is the main open question, and E2E section 42 has to settle it.
-- **`gcloud beta run deploy --iap`.** The workflow has never run, and neither has the container: building it needs a base image I didn't download without asking. Nothing has been deployed.
+- **`gcloud run deploy --iap`.** The workflow has never run, and neither has the container: building it needs a base image I didn't download without asking. Nothing has been deployed.
 - **The real proxy's assertion.** The server is tested against assertions signed with a test key, in the shape Google documents.
 
 ### A copy, as an option

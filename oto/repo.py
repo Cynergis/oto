@@ -30,7 +30,8 @@ lives is one string, `ENGINE`, overridable with `--engine` and, in the workflows
 The authoring and review workflows run Claude through the Claude Code Action with this engine's own
 plugin loaded from its repository, so the pipeline agent follows the same skills a person's Claude
 Code does; they need the repository secret ANTHROPIC_API_KEY. The deploy job keeps the store as a
-workflow artifact, loads the self-hosted Neo4j when NEO4J_URI is set, publishes the store to the
+workflow artifact, loads the self-hosted Neo4j when NEO4J_URI is set or BigQuery when
+OTO_BIGQUERY_DATASET is, publishes the store to the
 query repository when OTO_QUERY_REPO is set, and the static site beside it when OTO_SITE_VIEW names
 a view.
 """
@@ -135,6 +136,11 @@ which only `main` deploys from). With
 the engine checks the connection at startup and says so, and never falls back on its own.
 `oto serve --backend sqlite` serves the local build meanwhile. `oto status` reports which store
 serves and whether Neo4j holds a load of this project.
+
+On Google Cloud, the repository variable `OTO_BIGQUERY_DATASET` holds the graph in BigQuery instead: the
+deploy workflow loads it on every merge, and the server on Cloud Run (`oto-server.yml`) reads it. Nothing
+in `project.config.json` changes, so a checkout goes on reading its own build, and there is no login: each runs as an identity
+Google Cloud grants access to the dataset.
 """
 
 INGEST = """name: oto ingest
@@ -333,7 +339,9 @@ DEPLOY = """name: oto deploy
 
 # A merge to main is the graph changing. Build the store from it and publish it. With the
 # repository variable NEO4J_URI set (and NEO4J_PASSWORD as a secret), the graph is loaded into
-# the self-hosted Neo4j and verified: that is the production store. With OTO_QUERY_REPO set (and
+# the self-hosted Neo4j and verified: that is the production store. With OTO_BIGQUERY_DATASET set instead (and
+# OTO_GCP_PROJECT, and OTO_GCP_WORKLOAD_IDENTITY_PROVIDER with OTO_GCP_LOAD_SERVICE_ACCOUNT, or OTO_GCP_SERVICE_ACCOUNT, an identity with
+# roles/bigquery.dataEditor on the dataset and roles/bigquery.jobUser), it is loaded into BigQuery the same way, and no key is stored. With OTO_QUERY_REPO set (and
 # OTO_QUERY_REPO_TOKEN, a token that can write to it, as a secret), the SQLite store is also
 # published to that separate, read-only query repository, so readers need access to the store and
 # not to the documents; `oto sync --repo <it>` brings it to a machine, and `oto serve` serves the
@@ -377,6 +385,9 @@ jobs:
   build-and-publish:
     runs-on: ubuntu-latest
     environment: {main_environment}                # the deploy secrets are there: no other branch's workflow reads them
+    permissions:
+      contents: read
+      id-token: write                              # signing in to Google Cloud with no stored key, when the graph goes to BigQuery
     env:
       ENGINE: ${{{{ vars.OTO_ENGINE || '{engine}' }}}}
     steps:
@@ -417,12 +428,26 @@ jobs:
           NEO4J_USER: ${{{{ vars.NEO4J_USER || 'neo4j' }}}}
           NEO4J_PASSWORD: ${{{{ secrets.NEO4J_PASSWORD }}}}
         run: |
-          python -m pip install "oto-kg[neo4j] @ git+${{ENGINE}}"
+          python -m pip install "oto-kg[neo4j] @ git+${{ENGINE}}${{ENGINE_REF}}"
           python - <<'PY'
           import json; c = json.load(open("project.config.json")); c.setdefault("neo4j", {{}})["uri"] = "${{{{ vars.NEO4J_URI }}}}"
           c["neo4j"].setdefault("database", "${{{{ vars.NEO4J_DATABASE || 'neo4j' }}}}"); json.dump(c, open("project.config.json", "w"), indent=2)
           PY
           oto build --project . --only neo4j --target neo4j --verify
+      - name: Sign in to Google Cloud, when the graph goes to BigQuery
+        if: vars.OTO_BIGQUERY_DATASET != ''
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{{{ vars.OTO_GCP_WORKLOAD_IDENTITY_PROVIDER }}}}
+          service_account: ${{{{ vars.OTO_GCP_LOAD_SERVICE_ACCOUNT || vars.OTO_GCP_SERVICE_ACCOUNT }}}}
+      - name: Load BigQuery, when a dataset is named
+        if: vars.OTO_BIGQUERY_DATASET != ''
+        env:
+          OTO_BIGQUERY_PROJECT: ${{{{ vars.OTO_GCP_PROJECT }}}}
+          OTO_BIGQUERY_DATASET: ${{{{ vars.OTO_BIGQUERY_DATASET }}}}
+        run: |
+          python -m pip install "oto-kg[bigquery] @ git+${{ENGINE}}${{ENGINE_REF}}"
+          oto build --project . --only bigquery --target bigquery --verify
       - name: Keep the store
         uses: actions/upload-artifact@v4
         with:
@@ -598,22 +623,26 @@ jobs:
           gh pr view oto/pack-update --json number > /dev/null 2>&1 || gh pr create --head oto/pack-update --title "A new release of the pack $pack" --body-file update.md
 """
 
-SERVER_DOCKERFILE = """# The graph's server on Cloud Run: `oto serve` alone holds the database login, from Secret Manager, and people reach it signed in through
+SERVER_DOCKERFILE = """# The graph's server on Cloud Run: `oto serve` alone reaches the graph, by a login from Secret Manager or by its own identity on BigQuery, and people reach it signed in through
 # the identity-aware proxy. Built by .github/workflows/oto-server.yml, which puts the engine's wheel and the project's config beside this file.
 FROM python:3.12-slim
 WORKDIR /app
 COPY wheels/ /wheels/
-RUN pip install --no-cache-dir "$(ls /wheels/*.whl)[neo4j,cloud]"
+RUN pip install --no-cache-dir "$(ls /wheels/*.whl)[neo4j,cloud,bigquery]"
 COPY project.config.json /app/project.config.json
 CMD ["sh", "-c", "exec oto serve --project /app --iap --http 0.0.0.0:${PORT:-8080}"]
 """
 
 SERVER_WORKFLOW = """name: oto server
 
-# The graph's server on Cloud Run (docs/plans/people-and-graphs.md): `oto serve`, which alone holds the database login, behind the identity-aware proxy. Grant or
+# The graph's server on Cloud Run (docs/plans/people-and-graphs.md): `oto serve`, which alone reaches the graph, behind the identity-aware proxy. Grant or
 # remove a person with roles/iap.httpsResourceAccessor, which takes effect on their next request, and every read is logged in Cloud Logging under their name.
 # Off until the repository variables are set: OTO_GCP_PROJECT, OTO_GCP_REGION, and for the deploy OTO_GCP_WORKLOAD_IDENTITY_PROVIDER and OTO_GCP_SERVICE_ACCOUNT.
-# Secret Manager holds {slug}-neo4j-user and {slug}-neo4j-password.
+#
+# With OTO_BIGQUERY_DATASET set, it reads that dataset by the identity in OTO_GCP_RUNTIME_SERVICE_ACCOUNT, which needs only roles/bigquery.dataViewer on it, and
+# there is no login at all. The store is named here rather than in project.config.json, so a sandbox on this repository goes on reading its own build.
+# Without it, it reads Neo4j, and Secret Manager holds {slug}-neo4j-user and {slug}-neo4j-password. OTO_SERVER_MEMORY sets the container's memory (default 1Gi):
+# a copy of the graph is held in it when the store is BigQuery.
 
 on:
   push:
@@ -653,12 +682,27 @@ jobs:
           service_account: ${{{{ vars.OTO_GCP_SERVICE_ACCOUNT }}}}
       - uses: google-github-actions/setup-gcloud@v2
       - name: Deploy it behind the proxy
+        env:
+          PROJECT: ${{{{ vars.OTO_GCP_PROJECT }}}}
+          REGION: ${{{{ vars.OTO_GCP_REGION }}}}
+          DATASET: ${{{{ vars.OTO_BIGQUERY_DATASET }}}}
+          RUNTIME: ${{{{ vars.OTO_GCP_RUNTIME_SERVICE_ACCOUNT }}}}
+          MEMORY: ${{{{ vars.OTO_SERVER_MEMORY || '1Gi' }}}}
         run: |
-          number=$(gcloud projects describe "${{{{ vars.OTO_GCP_PROJECT }}}}" --format="value(projectNumber)")
-          gcloud beta run deploy "$SERVICE" --source .github/oto-server --project "${{{{ vars.OTO_GCP_PROJECT }}}}" --region "${{{{ vars.OTO_GCP_REGION }}}}" \\
-            --iap --no-allow-unauthenticated --quiet \\
-            --set-secrets "NEO4J_USER={slug}-neo4j-user:latest,NEO4J_PASSWORD={slug}-neo4j-password:latest" \\
-            --set-env-vars "OTO_IAP_AUDIENCE=/projects/$number/locations/${{{{ vars.OTO_GCP_REGION }}}}/services/$SERVICE,OTO_READ_LOG=stderr"
+          number=$(gcloud projects describe "$PROJECT" --format="value(projectNumber)")
+          settings="OTO_IAP_AUDIENCE=/projects/$number/locations/$REGION/services/$SERVICE,OTO_READ_LOG=stderr"
+          set -- --iap --no-allow-unauthenticated --quiet --memory "$MEMORY"
+          if [ -n "$RUNTIME" ]; then set -- "$@" --service-account "$RUNTIME"; fi
+          if [ -n "$DATASET" ]; then
+            settings="$settings,OTO_STORE=bigquery,OTO_BIGQUERY_PROJECT=$PROJECT,OTO_BIGQUERY_DATASET=$DATASET"
+            if [ -z "$RUNTIME" ]; then echo "::warning::OTO_GCP_RUNTIME_SERVICE_ACCOUNT is not set, so the server runs as the project's default identity, which may hold far more than it needs"; fi
+          else
+            set -- "$@" --set-secrets "NEO4J_USER={slug}-neo4j-user:latest,NEO4J_PASSWORD={slug}-neo4j-password:latest"
+          fi
+          gcloud run deploy "$SERVICE" --source .github/oto-server --project "$PROJECT" --region "$REGION" "$@" --set-env-vars "$settings"
+          # The proxy calls the service as its own service agent, and deploying with gcloud doesn't let it: without this, every request is refused.
+          gcloud run services add-iam-policy-binding "$SERVICE" --project "$PROJECT" --region "$REGION" \\
+            --member "serviceAccount:service-$number@gcp-sa-iap.iam.gserviceaccount.com" --role roles/run.invoker --quiet
 """
 
 ACCESS = """name: oto access

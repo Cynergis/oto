@@ -554,6 +554,69 @@ def test_up_registers_a_server_with_the_sandbox_tool(fake, tmp_path):  # noqa: F
     assert not fake.read().get("rules"), "no network rule: the gateway reaches it, from the computer"
 
 
+CLIENT = "123-abc.apps.googleusercontent.com"
+
+
+def test_a_connection_can_name_the_client_the_proxy_allows(tmp_path):
+    root = str(tmp_path / "folder")
+    done = connections.add(root, "fleet", None, server="https://fleet-kg-abc.a.run.app/mcp", client_id=CLIENT)
+    assert done["client_id"] == CLIENT and done["variables"] == []
+    with open(os.path.join(root, "graphs", "fleet", "project.config.json"), encoding="utf-8") as f:
+        config = json.load(f)
+    assert config["server"] == {"url": "https://fleet-kg-abc.a.run.app/mcp", "client_id": CLIENT}, "a client's id is no secret; its secret never goes in a file"
+    assert connections.servers(root) == [{"name": "fleet-kg", "url": "https://fleet-kg-abc.a.run.app/mcp", "client_id": CLIENT}]
+    assert connections.listed(root)[0]["client_id"] == CLIENT
+
+
+def test_a_connection_with_no_client_is_as_it_was(tmp_path):
+    root = str(tmp_path / "folder")
+    connections.add(root, "fleet", None, server="https://fleet-kg-abc.a.run.app/mcp")
+    with open(os.path.join(root, "graphs", "fleet", "project.config.json"), encoding="utf-8") as f:
+        assert json.load(f)["server"] == {"url": "https://fleet-kg-abc.a.run.app/mcp"}
+    assert connections.servers(root) == [{"name": "fleet-kg", "url": "https://fleet-kg-abc.a.run.app/mcp"}]
+
+
+@pytest.mark.parametrize("given", ["has space", "semi;colon", "$(id)", "-flag", ""])
+def test_a_client_id_that_isnt_one_is_refused(tmp_path, given):
+    from oto.project import ProjectError
+    with pytest.raises(ProjectError):
+        connections.add(str(tmp_path / "folder"), "fleet", None, server="https://fleet-kg-abc.a.run.app/mcp", client_id=given)
+
+
+def test_a_client_id_needs_a_server(tmp_path, capsys):
+    code = main(["graphs", "add", "fleet", "--uri", "neo4j+s://a.databases.neo4j.io", "--client-id", CLIENT, "--project", str(tmp_path / "folder")])
+    assert code == 1 and "--server" in capsys.readouterr().err
+
+
+def test_adding_one_says_how_to_sign_in_and_where_the_secret_goes(tmp_path, capsys):
+    code = main(["graphs", "add", "fleet", "--server", "https://fleet-kg-abc.a.run.app/mcp", "--client-id", CLIENT, "--project", str(tmp_path / "folder")])
+    out = capsys.readouterr().out
+    assert code == 0 and "sbx secret set mcp:fleet-kg:client_secret" in out and "sbx mcp auth fleet-kg" in out
+    assert main(["graphs", "list", "--project", str(tmp_path / "folder")]) == 0
+    assert "signs in through Google" in capsys.readouterr().out
+
+
+def test_up_registers_it_to_sign_in_through_google_with_no_browser_of_its_own(fake, tmp_path):  # noqa: F811
+    project = tmp_path / "box" / "project"
+    connections.add(str(project), "fleet", None, server="https://fleet-kg-abc.a.run.app/mcp", client_id=CLIENT)
+    report = sandbox.up(name="box", directory=str(tmp_path / "box"), approve=True, wait=5)
+    add = next(c for c in fake.calls("mcp") if c[:3] == ["mcp", "add", "fleet-kg"])
+    assert add == ["mcp", "add", "fleet-kg", "--url", "https://fleet-kg-abc.a.run.app/mcp", "--client-id", CLIENT,
+                   "--oauth-authorization-server", "https://accounts.google.com/.well-known/oauth-authorization-server",
+                   "--scope", "openid", "--scope", "email", "--skip-auth"], add
+    assert ["mcp", "load", "fleet-kg", "--sandbox", "box"] in fake.calls("mcp")
+    steps = "\n".join(sandbox.next_steps(report))
+    assert "sbx secret set mcp:fleet-kg:client_secret" in steps and "sbx mcp auth fleet-kg" in steps, steps
+    assert "about an hour" in steps, "the person should expect to sign in again"
+
+
+def test_up_on_a_server_with_no_client_asks_for_no_sign_in(fake, tmp_path):  # noqa: F811
+    project = tmp_path / "box" / "project"
+    connections.add(str(project), "fleet", None, server="https://fleet-kg-abc.a.run.app/mcp")
+    report = sandbox.up(name="box", directory=str(tmp_path / "box"), approve=True, wait=5)
+    assert "sbx mcp auth" not in "\n".join(sandbox.next_steps(report))
+
+
 def test_removing_a_server_connection(tmp_path):
     folder = str(tmp_path / "project")
     assert main(["graphs", "add", "fleet", "--server", "https://fleet-kg-abc.a.run.app/mcp", "--project", folder]) == 0

@@ -1809,7 +1809,10 @@ gcloud beta iap web add-iam-policy-binding --resource-type=cloud-run --service=<
 curl -s -o /dev/null -w '%{http_code}\n' https://<service>.run.app/mcp                   # refused, or sent to Google's sign-in: no way in unsigned
 
 # from a sandbox: no login inside it
-oto graphs add <name> --server https://<service>.run.app/mcp --project ~/graphs-try/project && oto sandbox up --name graphs-try
+#   a desktop OAuth client, in the console, with its id on the proxy's programmatic allowlist
+sbx secret set mcp:<name>-kg:client_secret                                              # prompts for the client's secret: never in a file
+oto graphs add <name> --server https://<service>.run.app/mcp --client-id <client id> --project ~/graphs-try/project && oto sandbox up --name graphs-try
+sbx mcp auth <name>-kg                                                                  # opens your browser; a sign-in lasts about an hour
 sbx exec graphs-try -- sh -c 'env | grep -c NEO4J'                                      # 0
 #   in Claude Desktop, on graphs-try.sbx: ask a question the graph can answer
 
@@ -1822,5 +1825,4 @@ gcloud beta iap web remove-iam-policy-binding --resource-type=cloud-run --servic
 ```
 
 Pass when the container builds with no token in it; the database login is only in Secret Manager; a person signed in through IAP queries the graph through their sandbox's gateway; removing them refuses their next request;
-and the read is logged under their name. **Signing in from the gateway is what this section has to settle.** IAP takes an OIDC identity token rather than MCP's OAuth discovery, so `sbx mcp add --url` may need
-`--header` with a stored secret, whose token expires within an hour, or a small proxy run on the computer.
+and the read is logged under their name. **Signing in from the gateway is what this section has to settle.** Google's docs say the proxy takes an access token with the `openid` and `email` scopes from an allowed client, which is what `--client-id` asks the sandbox tool for. If the sign-in fails, the fallback is a small proxy on the computer.

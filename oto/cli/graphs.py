@@ -78,6 +78,9 @@ def cmd_graphs(args):
         if not args.name:
             print("oto: graphs add takes a name and the graph's address: oto graphs add <name> --uri neo4j+s://<id>.databases.neo4j.io", file=sys.stderr)
             return 1
+        if args.client_id is not None and not args.server:
+            print("oto: --client-id signs in to a server: pass --server with it", file=sys.stderr)
+            return 1
         uri, database, slug, label, subject = args.uri, args.database, args.slug, args.label, args.subject
         if not uri and not args.server:
             from .. import directory as _directory
@@ -91,13 +94,16 @@ def cmd_graphs(args):
                 return 1
             uri, database = where["uri"], database or where.get("database")
             slug, label, subject = slug or listed.get("slug"), label or listed.get("label"), subject or listed.get("subject")
-        done = _connections.add(root, args.name, uri, database=database, slug=slug, label=label, subject=subject, server=args.server)
+        done = _connections.add(root, args.name, uri, database=database, slug=slug, label=label, subject=subject, server=args.server, client_id=args.client_id)
         if done["already"]:
             print("%s is already here; nothing changed" % done["name"])
         elif args.server:
             print("added the graph %s, read through its server at %s. `oto sandbox up` registers it with the sandbox tool as %s: no login enters the sandbox" % (done["name"], args.server, done["server"]))
         else:
             print("added the graph %s, read through the server %s (%s)" % (done["name"], done["server"], _connections.MCP_FILE))
+        if args.client_id:
+            print("  it signs in through Google, as you. On this computer: %s, which asks for your OAuth client's secret; then `oto sandbox up`; then %s, which opens your browser"
+                  % (_connections.secret_command(done["server"]), _connections.sign_in_command(done["server"])))
         if args.server:
             return 0
         print("  its login goes in %s, in your terminal's environment and never in a file; `oto sandbox up` passes those into the sandbox it makes"
@@ -129,6 +135,8 @@ def cmd_graphs(args):
 def connection_line(graph):
     """One connection, for a person: never a login's value."""
     login = "login set" if graph["login"] else "NO LOGIN: set %s" % " and ".join(graph["variables"])
+    if graph.get("client_id"):
+        login = "signs in through Google"
     return "  %-16s %s\n      %s%s, server %s; %s" % (graph["name"], graph["label"], graph["uri"], " (%s)" % graph["database"] if graph["database"] else "", graph["server"], login)
 
 
@@ -140,6 +148,7 @@ def register(sub):
     graphs.add_argument("name", nargs="?", help="for add and rm: the graph's name here, lowercase with hyphens; its server is <name>-kg")
     graphs.add_argument("--uri", default=None, help="for add: the graph's Neo4j address, e.g. neo4j+s://<id>.databases.neo4j.io (default: from the registry's directory, by the name)")
     graphs.add_argument("--server", default=None, help="for add: the graph's server on Cloud Run, its https /mcp URL, in place of a Neo4j address: no login enters the sandbox")
+    graphs.add_argument("--client-id", default=None, help="for add, with --server: the OAuth client the server's proxy allows, so the sandbox tool signs you in through Google. Its secret stays with the sandbox tool")
     graphs.add_argument("--database", default=None, help="for add: the database in that instance (on a new Aura instance, usually its id; default neo4j)")
     graphs.add_argument("--slug", default=None, help="for add: the slug the graph was loaded under, which selects it in the database (default: the name)")
     graphs.add_argument("--label", default=None, help="for add: what to call the graph (default: from the name)")

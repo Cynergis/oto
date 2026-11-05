@@ -121,9 +121,12 @@ A login is set when the sandbox is made. A graph with a new login means making t
 (`--recreate`, after their yes): its folders stay, and what is only inside it goes.
 
 A graph with a server on Cloud Run needs no login in the sandbox: `oto graphs add <name> --server
-https://<service>.run.app/mcp`, and `oto sandbox up` attaches it to the sandbox's gateway. Access is then
-theirs alone, and it can be taken away from them alone. Signing in through the gateway hasn't been tried
-on a real server yet, so say so if they ask for this.
+https://<service>.run.app/mcp --client-id <the OAuth client their team set up>`, and `oto sandbox up` attaches it
+to the sandbox's gateway. Access is then theirs alone, and it can be taken away from them alone. They do two things
+on their computer, and you can't do either for them: store the OAuth client's secret with the sandbox tool (`sbx secret set
+mcp:<name>-kg:client_secret`, which prompts for it, before `oto sandbox up`) and sign in (`sbx mcp auth <name>-kg`, which
+opens their browser, after it). A sign-in lasts about an hour, so tell them they'll sign in again when it stops answering. Never ask for the secret
+in this conversation. Signing in through the gateway hasn't been tried on a real server yet, so say so if they ask for this.
 
 ## 1. Where things stand
 

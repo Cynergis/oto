@@ -4,6 +4,44 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.21.2 — 2026-11-04
+
+**An approved pull request merges.** One pull request (193). Sections 38 to 41 of [the end-to-end guide](docs/E2E-TESTING.md) ran again with a real second person, on public scratch
+repositories. On 0.21.1 and earlier, an approved pull request on the reviewed route stays blocked until someone runs the gate again by hand. **Installing this release doesn't fix that
+in a repository that already exists:** it takes the step below.
+
+```bash
+uv tool install --force "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v0.21.2"
+```
+
+Make your sandboxes again to get the new kit.
+
+**What has run:** [the spec's table](docs/plans/people-and-graphs.md) says what held with two people. **Still not run:** a second person on a private repository or store, since that
+needs a seat; a promotion approved by a second person; `oto-access.yml` applying the file by itself; the pack update and a tag's publish finishing inside Actions; `oto repo retire --neo4j`
+on real data; a Claude Desktop session on a sandbox reading from Aura; and section 42 on Google Cloud. Try those on a scratch repository before relying on them for a client.
+
+The gate's new wording and the "still waiting" line below have only run in tests so far.
+
+### Fixed
+
+- **An approved pull request stayed blocked.** The gate ran again on a review as a second check called `oto route`, and GitHub blocks a merge on a failure in either, so the failure from before the approval kept blocking it. `oto-route.yml` now runs only on a pull request, and the new `oto-route-review.yml` starts that same run again on a review, so a commit only ever has one gate. A comment starts nothing.
+- **The gate named a pull request's author as who could approve it**, when nobody else was named. It now leaves the author out. If nobody is left, it says to add a reviewer to the access file first.
+- **`oto repo access` didn't say when someone had only been invited**, and sent the invitation again on every run. It now says who was invited and who is still waiting, and sends it once. `--check` says they hold nothing until they accept.
+- **`oto repo access --check` said an organisation's owner had no access.** It now says they have no direct access.
+- **The guide's `--against 1`** needed a tag that was never made. Section 39 now compares with the first commit.
+
+### Changes that need a step in a repository that already exists
+
+A release doesn't rewrite a repository's workflows, so generate a fresh set as 0.21.0 describes and copy what you need, by a pull request.
+
+- **A knowledge repository:** run `oto lock` and copy `.github/workflows/` **in the same pull request**. That brings the changed `oto-route.yml` and the new `oto-route-review.yml`, and it takes both for a review to count. Until it merges, re-run the failed `oto route` check by hand on each approved pull request.
+- **A pack workspace:** nothing to do. Nothing here changes what its workflows do.
+
+### Known, not fixed
+
+- `oto-author` goes red in a repository with no `ANTHROPIC_API_KEY` secret.
+- On a computer with Claude Code plugins, `oto lock` and `oto init --repo` name the ones there that depend on the engine, unless the project's `.claude/settings.json` declares its own. Read the lock before pushing it, above all to a public repository.
+
 ## 0.21.1 — 2026-11-04
 
 **Fixes from the first run on real GitHub.** One pull request (191). Sections 38 to 41 of [the end-to-end guide](docs/E2E-TESTING.md) ran on private

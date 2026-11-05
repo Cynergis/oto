@@ -209,7 +209,7 @@ Each phase is a pull request of the engine (and where noted, of the skills in it
   route and why. `oto route check --base <ref> --author <identity> [--approved] [--verified]`: the
   verdict for the route, exit 0 or 1, the reasons in words; the GitHub-only facts (reviews, commit
   verification, the author) come in as flags, so the engine never calls GitHub.
-- `oto init --repo` writes `oto-route.yml`: on `pull_request` and `pull_request_review`, computes
+- `oto init --repo` writes `oto-route.yml`: on `pull_request`, and started again on a review by `oto-route-review.yml`, computes
   the flags with `gh` (`gh pr view --json reviews,author,commits`), runs `oto route check`, posts
   the verdict as the check and, on a failing session record, labels the pull request and comments
   the reason. It also writes `.github/oto-rules.json` (pull requests required on `main`, the

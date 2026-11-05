@@ -173,7 +173,9 @@ def test_init_repo_writes_the_route_gate_and_the_branch_rules():
     with tempfile.TemporaryDirectory() as root:
         assert main(["init", "--name", "Board", "--project", root, "--repo"]) == 0
         workflow = open(os.path.join(root, ".github", "workflows", "oto-route.yml"), encoding="utf-8").read()
-        assert "name: oto route" in workflow and "pull_request_review" in workflow, "runs on the pull request and on every review"
+        assert "name: oto route" in workflow and "pull_request:" in workflow, "runs on the pull request, and a review starts it again"
+        again = open(os.path.join(root, ".github", "workflows", "oto-route-review.yml"), encoding="utf-8").read()
+        assert "pull_request_review" in again and "gh run rerun" in again
         assert "oto route check" in workflow and "--author" in workflow and "--verified" in workflow and "--approved" in workflow
         assert "oto-route:reviewed" in workflow, "a failing session record or guardrail labels the pull request"
         assert "fetch-depth: 0" in workflow, "both trees are needed"
@@ -300,7 +302,7 @@ def test_the_workflows_that_push_to_main_use_the_deploy_key_kept_for_main_and_tr
 def test_every_workflow_pins_the_engine_to_the_lock_and_the_checks_hold_the_machine_to_it():
     files = repo.files("acme", "Acme")
     for relative, text in files.items():
-        if not relative.endswith(".yml"):
+        if not relative.endswith(".yml") or relative.endswith("oto-route-review.yml"):       # that one only starts the gate again: no engine in it
             continue
         installs = text.count("Install the engine from its repository")
         assert installs, relative

@@ -3,6 +3,7 @@
 (docs/plans/people-and-graphs.md, capability 3).
 
     oto graphs add <name> --uri <neo4j address> [--database D] [--slug S] [--label L] [--subject TEXT]
+    oto graphs add <name> --server <https url> [--client-id ID]
     oto graphs list
     oto graphs rm <name>
 
@@ -34,6 +35,11 @@ SCHEMES = ("neo4j+s", "neo4j+ssc", "neo4j", "bolt+s", "bolt+ssc", "bolt")
 BOLT_PORT = 7687
 #: Aura's driver is routed from the instance's address to servers under this domain, whose names change
 AURA_DOMAIN = "neo4j.io"
+#: Signing in to a server behind Google's identity-aware proxy. The sandbox tool runs the sign-in on the computer and holds the
+#: token there; the proxy takes an access token with these scopes, from a client it has been told to allow.
+GOOGLE_AUTHORIZATION = "https://accounts.google.com/.well-known/oauth-authorization-server"
+GOOGLE_SCOPES = ("openid", "email")
+CLIENT_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 NAME = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 SLUG = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
@@ -109,13 +115,27 @@ def _check_address(uri):
         raise ProjectError("the address is not one a Neo4j driver takes (%s): it looks like neo4j+s://<id>.databases.neo4j.io" % ", ".join(SCHEMES))
 
 
-def _add_server(root, name, url, slug=None, label=None, subject=None):
-    """A connection to a graph's server: no Neo4j, and no login in the sandbox. The sandbox tool registers it, and handles the sign-in on the computer."""
+def secret_command(server):
+    """How a person stores their OAuth client's secret with the sandbox tool: it prompts, so the secret is never in a file or a shell's history."""
+    return "sbx secret set mcp:%s:client_secret" % server
+
+
+def sign_in_command(server):
+    return "sbx mcp auth %s" % server
+
+
+def _add_server(root, name, url, slug=None, label=None, subject=None, client_id=None):
+    """A connection to a graph's server: no Neo4j, and no login in the sandbox. The sandbox tool registers it, and handles the sign-in on the computer.
+    `client_id` names the OAuth client the proxy allows, which is no secret; the client's secret stays with the sandbox tool."""
     parts = urlsplit(url or "")
     if parts.scheme != "https" or not parts.hostname or parts.username or parts.password:
         raise ProjectError("a server's address is an https URL with no login in it, like https://<service>.run.app/mcp")
+    if client_id is not None and not CLIENT_ID.match(client_id):
+        raise ProjectError("that isn't an OAuth client's id: it looks like 123-abc.apps.googleusercontent.com")
     server = server_name(name)
     config = {"slug": slug or name, "name": label or name.replace("-", " ").title(), "server_name": server, "server": {"url": url}}
+    if client_id is not None:
+        config["server"]["client_id"] = client_id
     if subject:
         config["description"] = subject
     path = os.path.join(_folder(root, name), CONFIG_FILE)
@@ -123,18 +143,20 @@ def _add_server(root, name, url, slug=None, label=None, subject=None):
     if existing is not None and existing != config:
         raise ProjectError("a graph named %s is already here, and differs: oto graphs rm %s first" % (name, name))
     _write_json(path, config)
-    return {"name": name, "server": server, "variables": [], "already": existing is not None, "server_url": url}
+    return {"name": name, "server": server, "variables": [], "already": existing is not None, "server_url": url, "client_id": client_id}
 
 
-def add(root, name, uri, database=None, slug=None, label=None, subject=None, server=None):
+def add(root, name, uri, database=None, slug=None, label=None, subject=None, server=None, client_id=None):
     """Write the connection. Returns {name, server, variables, already}. The same graph added again
     changes nothing; a different one under that name is refused. With `server`, a connection to the
     graph's server on Cloud Run instead of to its Neo4j."""
     root = os.path.abspath(os.path.expanduser(root))
     if not NAME.match(name or ""):
         raise ProjectError("a graph's name is lowercase letters, digits and single hyphens, not %r" % name)
+    if client_id is not None and not server:
+        raise ProjectError("an OAuth client signs in to a server: pass --server with it")
     if server:
-        return _add_server(root, name, server, slug=slug, label=label, subject=subject)
+        return _add_server(root, name, server, slug=slug, label=label, subject=subject, client_id=client_id)
     _check_address(uri)
     slug = slug or name
     if not SLUG.match(slug):
@@ -176,6 +198,7 @@ def _described(name, config):
     return {"name": name, "slug": config.get("slug"), "label": config.get("name"), "description": config.get("description"),
             "uri": neo4j.get("uri") or url, "database": neo4j.get("database"), "server": config.get("server_name") or server_name(name),
             "variables": [] if url else [user, password], "rule": None if url else rule(neo4j.get("uri")), "server_url": url,
+            "client_id": (config.get("server") or {}).get("client_id"),
             "login": True if url else bool(os.environ.get(user) and os.environ.get(password))}
 
 
@@ -225,10 +248,17 @@ def logins(root):
 
 
 def servers(root):
-    """The graphs this folder reaches through a server: [{name, url}], for the sandbox tool to register."""
+    """The graphs this folder reaches through a server: [{name, url}, with client_id when it signs in through Google], for the sandbox tool to register."""
     if not os.path.isdir(root):
         return []
-    return [{"name": graph["server"], "url": graph["server_url"]} for graph in listed(root) if graph["server_url"]]
+    out = []
+    for graph in listed(root):
+        if graph["server_url"]:
+            entry = {"name": graph["server"], "url": graph["server_url"]}
+            if graph["client_id"]:
+                entry["client_id"] = graph["client_id"]
+            out.append(entry)
+    return out
 
 
 def remove(root, name):

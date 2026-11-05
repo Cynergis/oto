@@ -713,7 +713,14 @@ def first_push(project_dir, url, token=None, kind="knowledge"):
 def _register_servers(sbx, name, servers, report):
     """The graphs reached through a server: registered with the sandbox tool and attached to this sandbox's gateway, so no login enters it. A failure is said, not fatal."""
     for server in servers:
-        code, out, err = sbx("mcp", "add", server["name"], "--url", server["url"])
+        args = ["mcp", "add", server["name"], "--url", server["url"]]
+        if server.get("client_id"):                  # signing in is the person's, in their browser: it never holds this command up
+            args += ["--client-id", server["client_id"], "--oauth-authorization-server", _connections.GOOGLE_AUTHORIZATION]
+            for scope in _connections.GOOGLE_SCOPES:
+                args += ["--scope", scope]
+            args += ["--skip-auth"]
+            report.setdefault("sign_in", []).append(server["name"])
+        code, out, err = sbx(*args)
         if code != 0 and "exist" not in (err or out).lower():
             report["warnings"].append("%s could not be registered with the sandbox tool: %s" % (server["name"], (err or out).strip()[-200:]))
             continue
@@ -1076,6 +1083,11 @@ def next_steps(report):
         lines += ["In the sandbox each graph has a server of its own: %s. Ask in the project folder, and each answer comes from Neo4j at that moment."
                   % ", ".join(g["server"] for g in report["graphs"]),
                   "  A login is set when the sandbox is made: after adding a graph with a new one, oto sandbox up --recreate (its folders stay)."]
+    for server in report.get("sign_in") or []:
+        lines += ["%s signs in through Google, as you, and no token enters the sandbox. On this computer, once: %s, which asks for your OAuth client's secret; then %s, which opens your browser."
+                  % (server, _connections.secret_command(server), _connections.sign_in_command(server)),
+                  "  A sign-in lasts about an hour: when it stops answering, run %s again, or ask Claude to use the %s-authorize tool."
+                  % (_connections.sign_in_command(server), server)]
     ports = [(e["port"], e.get("host_port", e["port"])) for e in report.get("ports") or []]
     if ports:
         lines += ["To see a served graph: in the sandbox, oto serve --project . --http %d (it binds all interfaces there, no token needed);"

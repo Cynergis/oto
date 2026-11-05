@@ -497,8 +497,7 @@ Claude in the sandbox  --signed in as A-->  oto serve on Cloud Run  --server's l
 
 **Still unproven:**
 
-- **Signing in from the sandbox's gateway.** IAP takes an OIDC identity token rather than MCP's OAuth discovery, so `sbx mcp add --url` may need `--header` with a stored secret, whose token expires within an hour, or a small
-  proxy run on the computer. This is the main open question, and E2E section 42 has to settle it.
+- **Signing in from the sandbox's gateway.** `oto graphs add --server <url> --client-id <id>` makes `oto sandbox up` register the server with Google as its authorization server, the scopes `openid` and `email`, and no sign-in of its own; the person runs `sbx mcp auth <server>`. [Google's docs](https://docs.cloud.google.com/iap/docs/authentication-howto) say the proxy takes an access token with those scopes from a client on its programmatic allowlist, so no header or proxy is needed. It hasn't run. Google's sign-in page didn't refuse the `resource` parameter the tool sends, but a probe with no account can't get past the first screen. Google has no `offline_access` scope, so expect to sign in again each hour. If this fails, the fallback is a small proxy on the computer.
 - **`gcloud run deploy --iap`.** The workflow has never run, and neither has the container: building it needs a base image I didn't download without asking. Nothing has been deployed.
 - **The real proxy's assertion.** The server is tested against assertions signed with a test key, in the shape Google documents.
 

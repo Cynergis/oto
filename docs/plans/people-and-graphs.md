@@ -602,6 +602,15 @@ Each phase ends with a real test, recorded in `docs/E2E-TESTING.md`.
 
 Section 42 (phase 5, Google Cloud) has not run.
 
+**Retested on released 0.21.2, the same day,** on the public scratch repository, with the second account:
+
+- **The old gate:** set back to 0.21.1's workflows, an approved pull request stayed blocked, and re-running the failed check cleared it.
+- **The upgrade the changelog gives:** `oto lock` and `.github/workflows/` in one pull request gave one gate, and it merged on approval with no rerun and no admin.
+- **Nobody else to approve:** the gate said the access file names nobody else. A reviewer added by a later pull request could then approve the blocked one, and its gate passed. GitHub showed that pull request as behind `main`, and bringing it up to date is a new commit, which cancels the approval. That last step wasn't run.
+- **An invitation:** `oto repo access --apply` said invited, then still waiting, with one invitation sent. `--check` said they hold nothing until they accept, and once they did, `--apply` found nothing to change.
+
+The fix for the last bug below came after 0.21.2.
+
 These runs found bugs the fakes could not, all fixed:
 
 - **An approved pull request stayed blocked.** The gate ran again on a review as a second check called `oto route`, and GitHub blocks a merge on a failure in either, so the failure from before the approval held it. Now `oto-route-review.yml` starts the gate's own run again, and a commit only ever has the one. It held through an approval, changes requested, a comment, a dismissal, and an approval while the gate was still running.
@@ -613,6 +622,7 @@ These runs found bugs the fakes could not, all fixed:
 - A project on a pack never saw a new release, so the weekly update did nothing.
 - `oto repo access` hid why GitHub refused, said an organisation's owner had no access, and didn't say when someone had only been invited.
 - The gate named a pull request's author as who could approve it, when nobody else was named.
+- Once that was fixed, the gate's next line ended in a colon with nobody after it.
 
 | Phase | Delivers | Done when |
 |---|---|---|

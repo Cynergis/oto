@@ -662,6 +662,7 @@ def test_the_gate_never_names_the_author_as_who_may_approve(tmp_path):
     _commit(root, "a note")
     said = "\n".join(route.check(root, base, authors=("anna",))["reasons"])
     assert ": anna" not in said and "names nobody else" in said and "add a reviewer" in said
+    assert not any(line.rstrip().endswith(":") for line in said.splitlines()), said    # a real run: "who didn't write it: ", with nobody after it
     said = "\n".join(route.check(root, base, authors=("ben",))["reasons"])
     assert said.endswith("who didn't write it: anna")
 

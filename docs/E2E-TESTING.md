@@ -1722,7 +1722,9 @@ and the check; only a maintainer can push a release tag; a workflow on a branch 
 [docs/plans/people-and-graphs.md](plans/people-and-graphs.md), phase 3. Exercises: the access file, `oto repo access`, the gate reading its reviewers at the base,
 a commit GitHub signs, promotion by a pull request, and the store made with the graph. `tests/test_permissions.py` runs these against fakes; this runs what only GitHub can
 show. Needs a scratch graph in an organisation on Team, a second account as the contributor, and a third with write access that the file doesn't name. With only two accounts, the
-second takes each role in turn. Someone outside the organisation gets an invitation: until they accept, `oto repo access --check` says so.
+second takes each role in turn. Someone outside the organisation gets an invitation: until they accept, `oto repo access --check` says so, and `--apply` says it's still waiting and sends no other.
+
+If the file names only the person who wrote a pull request, the gate says the access file names nobody else who could approve it, and to add a reviewer first.
 
 ```bash
 oto sandbox up --name people-try --kind knowledge --repo <org>/people-try --github-token-env GITHUB_TOKEN --approve-anthropic

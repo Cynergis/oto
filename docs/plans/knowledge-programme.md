@@ -56,7 +56,7 @@ product ──satisfied by──► architecture & design ──built and run by
 | packs | an ontology unit + skills + views, depending on `oto` |
 | `prd-architecture-studio` v2 | Atlas, the front door of the arc; depends on `oto`; no vocabulary of its own |
 | a project repository (`oto init --repo`) | the team's graph changes by pull request |
-| a production store | Neo4j; BigQuery Graph later |
+| a production store | Neo4j, or BigQuery as plain tables ([ADR-0015](../adr/0015-bigquery-holds-the-graph.md)); BigQuery Graph later, if a need for GQL appears |
 
 ## 3. Workstreams
 

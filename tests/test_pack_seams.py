@@ -25,7 +25,7 @@ from oto.project import Project
 from oto.scaffold import init
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CORE_STAGES = ["knowledge", "rules", "ontology", "semantic", "sqlite", "neo4j", "site"]
+CORE_STAGES = ["knowledge", "rules", "ontology", "semantic", "sqlite", "neo4j", "bigquery", "site"]
 
 
 def _cli(*args):

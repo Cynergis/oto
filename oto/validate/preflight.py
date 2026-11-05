@@ -194,6 +194,11 @@ def _advisories(project, ontology_config, nodes, edges):
         if "neo4j" not in targets or not (cfg.get("neo4j") or {}).get("uri"):
             out.append("project.config.json serves from Neo4j (serve.backend) but the build does not load it: "
                        "add \"neo4j\" to targets and set neo4j.uri, or the server will answer nothing.")
+    elif backend == "bigquery":
+        targets = cfg.get("targets") or ["sqlite"]
+        if "bigquery" not in targets or not (cfg.get("bigquery") or {}).get("dataset"):
+            out.append("project.config.json serves from BigQuery (serve.backend) but the build does not load it: "
+                       "add \"bigquery\" to targets and set bigquery.project and bigquery.dataset, or the server will answer nothing.")
     elif backend != "sqlite":
         out.append("project.config.json names an unknown serve.backend %r; the engine serves sqlite." % backend)
 

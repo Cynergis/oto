@@ -47,7 +47,7 @@ def test_the_shipped_connectors_are_listed_with_valid_manifests():
     for name in connectors.available():
         manifest = connectors.get(name).MANIFEST
         assert connectors.manifest_problems(manifest) == [], name
-        assert manifest["name"] == name and manifest["modes"] == {"sqlite": ["materialize", "overlay"], "neo4j": ["materialize"]}.get(name, ["overlay"])
+        assert manifest["name"] == name and manifest["modes"] == {"sqlite": ["materialize", "overlay"], "bigquery": ["materialize", "overlay"], "neo4j": ["materialize"]}.get(name, ["overlay"])
         assert manifest["conformance"] == "kit@%d" % conformance.KIT_VERSION
     assert connectors.get("sqlite").MANIFEST["query_language"] == "sql" and connectors.get("neo4j").MANIFEST["query_language"] == "cypher"
     assert connectors.get("neo4j").MANIFEST["capabilities"]["full_text"] is True

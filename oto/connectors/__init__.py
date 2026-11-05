@@ -6,8 +6,8 @@ that store can do. Two modes exist: **materialize**, OTO pushes nodes and edges 
 (SQLite, Neo4j); **overlay**, OTO reads a store that already exists, in place, and never copies a
 row: its catalog, its query log, a read-only query. The overlay is the data semantic layer's way in
 (roadmap C1): `oto data introspect` turns the catalog into Table and Column facts. SQLite is both,
-the reference overlay every machine can run; Postgres (`postgres` extra) and BigQuery (`bigquery`
-extra) are overlays. The build stages, `oto data` and the served `kg_read` call connectors and
+the reference overlay every machine can run; Postgres (`postgres` extra) is an overlay, and BigQuery (`bigquery`
+extra) is both: it reads a dataset that exists in place, and it can hold a graph in a dataset of its own. The build stages, `oto data` and the served `kg_read` call connectors and
 nothing else of OTO talks to a store directly.
 
     MANIFEST        name, version, modes, query_language, capabilities, auth, conformance ("kit@N")
@@ -62,6 +62,12 @@ class Connector:
     names what one left out."""
     name = None
     MANIFEST = {}
+
+    def kit_settings(self, settings, name):
+        """The settings of one of the conformance kit's sessions: stores that don't collide with each other or the project's."""
+        if "project" in settings and name != "overlay":
+            return dict(settings, project="%s-kit-%s" % (settings["project"], name))
+        return settings
 
     def settings(self, project):
         raise NotImplementedError

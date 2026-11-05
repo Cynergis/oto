@@ -38,7 +38,7 @@ def generated_paths(project, only=None):
     layout = project.layout
     graph_files = [os.path.join(layout.graph, name) for name in GRAPH_FILES]
     owns = {"knowledge": [layout.entities] + graph_files, "rules": graph_files, "ontology": [layout.ontology],
-            "semantic": [layout.cards], "sqlite": [layout.database], "neo4j": [], "site": [layout.site]}
+            "semantic": [layout.cards], "sqlite": [layout.database], "neo4j": [], "bigquery": [], "site": [layout.site]}
     for stage in extensions.contributed_stages(project):             # a pack's stage owns the layout paths its manifest names
         owns[stage["name"]] = [getattr(layout, attr) for attr in stage["owns"] if hasattr(layout, attr)]
     out = []
@@ -61,6 +61,7 @@ STAGES = (
     ("semantic", "oto.compile.semantic"),
     ("sqlite", "oto.targets.sqlite"),
     ("neo4j", "oto.targets.neo4j"),          # optional: skipped unless the project configures it
+    ("bigquery", "oto.targets.bigquery"),    # optional: skipped unless the project configures it
     ("site", "oto.targets.site"),            # optional: the static site, when targeted
 )
 

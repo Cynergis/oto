@@ -123,14 +123,16 @@ def _ontology(project):
 
 
 def _serving(project):
-    """Which store `oto serve` reads here, and for Neo4j whether it can be reached and holds a load.
+    """Which store `oto serve` reads here, and for Neo4j or BigQuery whether it can be reached and holds a load.
 
     The check is one round trip with a short timeout, so `oto status` still answers when the
     database is down; that is exactly when the line matters.
     """
     cfg = project.config()
     backend = ((cfg.get("serve") or {}).get("backend") or "sqlite").lower()
-    out = {"backend": backend, "neo4j": None}
+    out = {"backend": backend, "neo4j": None, "bigquery": None}
+    if backend == "bigquery":
+        out["bigquery"] = _serving_bigquery(cfg)
     if backend != "neo4j":
         return out
     from ..targets import neo4j as _target
@@ -166,6 +168,24 @@ def _serving(project):
     return out
 
 
+def _serving_bigquery(cfg):
+    """Whether the dataset can be read and holds a load. One small read, which bills nothing."""
+    from ..targets import bigquery as _target
+    conf = _target.connection(cfg.get("bigquery"))
+    state = {"project": conf["project"], "dataset": conf["dataset"], "reachable": False, "loaded": False, "build_seq": None, "problem": None}
+    if not (conf["project"] and conf["dataset"]):
+        state["problem"] = "no dataset: set bigquery.project and bigquery.dataset, or %s and %s" % (_target.PROJECT_ENV, _target.DATASET_ENV)
+        return state
+    try:
+        record = _target.latest(_target.open_client(conf), conf["project"], conf["dataset"])
+        state["reachable"] = True
+        state["loaded"] = record is not None
+        state["build_seq"] = record["build_seq"] if record else None
+    except Exception as exc:                                          # noqa: BLE001 - the client's own hierarchy
+        state["problem"] = str(exc)
+    return state
+
+
 def _next(s):
     """One suggestion, in lifecycle order. The first unmet step is the next one."""
     if s["corpus"] == 0 and s["inbox"] > 0:
@@ -187,6 +207,11 @@ def _next(s):
         return "the server reads Neo4j and cannot: %s (oto serve --backend sqlite serves the local build meanwhile)" % neo["problem"]
     if neo and not neo["loaded"]:
         return "oto build --target neo4j: the server reads Neo4j and it holds no load of this project"
+    big = s.get("bigquery")
+    if big and not big["reachable"]:
+        return "the server reads BigQuery and cannot: %s (oto serve --backend sqlite serves the local build meanwhile)" % big["problem"]
+    if big and not big["loaded"]:
+        return "oto build --target bigquery: the server reads BigQuery and it holds no load of this project"
     if s["open_runs"]:
         return "oto ingest complete: %d file(s) are in the graph but still in processing/ (run %s)" % (
             s["processing"], s["open_runs"][-1])
@@ -220,7 +245,17 @@ def _store_status(root):
     return 0
 
 
-def _serve_line(neo):
+def _serve_line(state):
+    """What `oto serve` reads, from what _serving found."""
+    big = state.get("bigquery")
+    if big:
+        where = "%s.%s" % (big["project"], big["dataset"])
+        if big["reachable"] and big["loaded"]:
+            return "serving BigQuery %s, build_seq %s" % (where, big["build_seq"])
+        if big["reachable"]:
+            return "BigQuery %s readable, NO load of this project yet" % where
+        return "BigQuery NOT serving: %s" % big["problem"]
+    neo = state["neo4j"]
     if neo["reachable"] and neo["loaded"]:
         return "serving Neo4j %s (%s), build_seq %s" % (neo["uri"], neo["database"], neo["build_seq"])
     if neo["reachable"]:
@@ -237,7 +272,7 @@ def _connection_status(root, args):
         print(json.dumps(dict(state, kind="connection", name=identity["name"], slug=identity["slug"], root=root), indent=2, sort_keys=True))
         return 0
     print("%s (slug %s): a connection to a graph in Neo4j, with no documents or local copy here" % (identity["name"], identity["slug"]))
-    print("  serve       %s" % _serve_line(state["neo4j"]))
+    print("  serve       %s" % _serve_line(state))
     return 0
 
 
@@ -369,10 +404,10 @@ def cmd_status(args):
     print("  graph       %d node(s), %d edge(s), %d assertion(s)%s" % (s["nodes"], s["edges"], s["assertions"], candidate))
     build = "not built" if not s["built"] else ("STALE, inputs changed since" if s["stale"] else "up to date")
     print("  build       %s" % build)
-    if s["backend"] == "neo4j":
-        print("  serve       %s" % _serve_line(s["neo4j"]))
+    if s["backend"] in ("neo4j", "bigquery"):
+        print("  serve       %s" % _serve_line(s))
     else:
-        print("  serve       sqlite, the local build (set serve.backend to neo4j for a shared live server)")
+        print("  serve       sqlite, the local build (set serve.backend to neo4j or bigquery for a shared live server)")
     print("  bench       %s" % ("gold set present" if s["gold_set"] else "no gold set"))
     print()
     print("next: %s" % s["next"])

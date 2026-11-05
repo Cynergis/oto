@@ -132,6 +132,7 @@ write, and never derives a path from its own location or carries a default vocab
 | 5 | [targets/sqlite.py](../oto/targets/sqlite.py), through [connectors/sqlite.py](../oto/connectors/sqlite.py) | `knowledge-graph.json`, `derived.json`, the indexed directories ([targets/rows.py](../oto/targets/rows.py)), `lexicon.json`, the ledger, the vocabulary and its rationale (a `terms` table, so `kg_define` and every card answer without the project beside the store) | `<slug>.db` with FTS5 tables, built as `.db.new` and renamed into place |
 | 7, when targeted | [targets/site.py](../oto/targets/site.py) | the SQLite store, a view directory | `build/site/`: `data.json`, the graph payload `/api/graph` serves (`serve/payload.py`), and the app's files copied beside it, for hosting anywhere static; `oto publish --site` carries it into the query repository |
 | 6, when configured | [targets/neo4j.py](../oto/targets/neo4j.py), through [connectors/neo4j.py](../oto/connectors/neo4j.py) | the same inputs as stage 5 | the graph in a self-hosted Neo4j: entities labelled by class with typed attributes, relations, evidence and source nodes, derived facts marked, findings, and everything serving reads besides (passages with a full-text index, lexicon rows, the ledger, the schema version); the previous load retired once the new one is in; `--verify` reads it back |
+| 6, when configured | [targets/bigquery.py](../oto/targets/bigquery.py), through [connectors/bigquery.py](../oto/connectors/bigquery.py) | what stage 5 writes | the built store's tables in a BigQuery dataset, one finished build at a time, with a view under each plain name ([ADR-0015](adr/0015-bigquery-holds-the-graph.md)) |
 
 The stages are deterministic: the same inputs produce the same bytes, and a test asserts that a
 clean-then-build round trip reproduces the database exactly.
@@ -321,17 +322,33 @@ is retired in Neo4j. `oto build --target neo4j --verify` forces the load and com
 with the build. The driver is the `neo4j` extra; the base install never imports it. Cypher, the
 full-text indexes and the Graph Data Science library are then available to any other tool.
 
+## BigQuery, a graph's store on Google Cloud
+
+BigQuery can hold a graph as well as being read as an overlay ([ADR-0015](adr/0015-bigquery-holds-the-graph.md)). `oto build --target bigquery`
+mirrors the built store's tables into a dataset of its own, as `<table>__b<n>`, in one load job each, and one row appended to `oto_builds` commits
+the build, so a load that stops midway changes nothing a reader sees. A view under each plain name lets people query the graph in SQL, and the two
+newest builds are kept. `--verify` compares the load with the build, row by row.
+
+`BigQueryStore` lists the newest committed build's tables into an in-memory SQLite and serves it with `SqliteStore`'s reads, so it
+answers exactly as the build does, search included. Listing a table runs no query job, so reading bills nothing and needs only
+`roles/bigquery.dataViewer`. The engine looks for a newer load at most every `OTO_BIGQUERY_REFRESH` seconds, and what it serves stays served
+when it can't. As with Neo4j, an unreadable dataset is an honest error, never a silent fallback to a local copy.
+
+A project chooses it with `"serve": {"backend": "bigquery"}`, or a server with `OTO_STORE=bigquery`, which leaves a working copy
+serving its own build. The dataset is named by `bigquery.project` and `bigquery.dataset`, or `OTO_BIGQUERY_PROJECT` and `OTO_BIGQUERY_DATASET`.
+Credentials come from Application Default Credentials, and the client is the `bigquery` extra.
+
 ## Connectors: one interface between the build and a store
 
 OTO's model is store-neutral; a connector ([connectors/](../oto/connectors/__init__.py)) translates it
-into one store, and the build stages for SQLite and Neo4j run through theirs, so nothing else of OTO
+into one store, and the build stages for SQLite, Neo4j and BigQuery run through theirs, so nothing else of OTO
 issues a statement to a store. The interface is small: `settings` (what the project config says),
 `connect`/`close` (a session: a path, a driver), `apply_schema` (the vocabulary compiled to the store's
 constraints and indexes, `IF NOT EXISTS` throughout, so applying it again changes nothing),
 `plan` (everything one build writes, as rows), `publish` (idempotent, keyed by the stable id every IRI
 derives from), `read_back` (what differs between store and plan), `snapshot` (the store in one canonical
 shape) and `drop` (a plan without one node). Each connector carries a manifest: name, version, `modes`
-(`materialize`: OTO writes a store it owns; `overlay`: OTO reads a store that exists, in place, through `introspect`, `query_log` and `native_read`, never copying a row; SQLite is both and the reference overlay, Postgres (`postgres` extra, pg8000) and BigQuery (`bigquery` extra) are overlays whose catalog comes from information_schema, whose log comes from pg_stat_statements or INFORMATION_SCHEMA.JOBS, and whose native read runs in a read-only transaction or after a dry run that says SELECT; both are tested against recorded catalogs, Postgres live in CI),
+(`materialize`: OTO writes a store it owns; `overlay`: OTO reads a store that exists, in place, through `introspect`, `query_log` and `native_read`, never copying a row; SQLite is both and the reference overlay; BigQuery is both too; Postgres (`postgres` extra, pg8000) and BigQuery (`bigquery` extra) have overlays whose catalog comes from information_schema, whose log comes from pg_stat_statements or INFORMATION_SCHEMA.JOBS, and whose native read runs in a read-only transaction or after a dry run that says SELECT; both are tested against recorded catalogs, Postgres live in CI),
 `query_language`, `capabilities` (named graphs, schema constraints, transactions, vector index, full
 text), `auth`, and the conformance kit it passed.
 
@@ -1007,8 +1024,10 @@ None are needed for ordinary use.
 | `OTO_DB` | Serve a database from an explicit path instead of the project layout. `oto query` sets it. |
 | `OTO_PROJECT_CONFIG` | Point the engine at a project config, so a database alone is enough to query. |
 | `<SLUG>_DB` | The per-project form of `OTO_DB`, for an installed server. |
-| `OTO_STORE` | `sqlite` or `neo4j`: which store the engine serves, over the project's `serve.backend`. `oto serve --backend` sets it. |
+| `OTO_STORE` | `sqlite`, `neo4j` or `bigquery`: which store the engine serves, over the project's `serve.backend`. `oto serve --backend` sets it. |
 | `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` (or `NEO4J_AUTH=user/password`) | Where the Neo4j load goes and what serves from it. The uri may also live in the project config; the credentials never do. |
+| `OTO_BIGQUERY_PROJECT`, `OTO_BIGQUERY_DATASET` | Where the BigQuery load goes and what serves from it, over the project config's `bigquery` section. Credentials come from Application Default Credentials. |
+| `OTO_BIGQUERY_REFRESH` | How many seconds a server waits between looks for a newer load in BigQuery. Default 60. |
 | `OTO_DENY_TERMS` | Terms the publishability gate refuses. See [GATES.md](GATES.md). |
 | `OTO_ONTOLOGIES`, `OTO_PACKS`, `OTO_REGISTRIES` | Where user and fetched ontologies and packs live, and the registries file. |
 | `CLAUDE_CONFIG_DIR` | Claude Code's own: where its list of installed plugins is, so the ontologies an installed pack embeds resolve by name. Default `~/.claude`. |

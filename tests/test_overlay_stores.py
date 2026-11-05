@@ -143,11 +143,11 @@ class FakeBigQuery:
 
 # ---- the manifests ----
 
-def test_both_are_listed_as_overlay_only_and_import_nothing_until_connected():
+def test_both_are_listed_as_overlays_and_import_nothing_until_connected():
     assert connectors.available() == ["bigquery", "neo4j", "postgres", "sqlite"]
-    for name, language in (("postgres", "sql"), ("bigquery", "sql")):
+    for name, modes in (("postgres", ["overlay"]), ("bigquery", ["materialize", "overlay"])):
         c = connectors.get(name)
-        assert c.MANIFEST["modes"] == ["overlay"] and c.MANIFEST["query_language"] == language, name
+        assert c.MANIFEST["modes"] == modes and c.MANIFEST["query_language"] == "sql", name
         assert connectors.manifest_problems(c.MANIFEST) == [] and connectors.interface_problems(c) == [], name
     code, out = _cli("connectors", "list")
     assert code == 0 and "postgres" in out and "bigquery" in out and "overlay" in out
@@ -282,10 +282,7 @@ def test_the_kit_runs_its_overlay_half_against_the_session_the_caller_opens(tmp_
     result = conformance.run(pg, Project.standard(root), lambda name: pg.connect({"connection": fake, "schema": "public"}))
     assert [c["name"] for c in result["checks"]] == ["manifest", "interface", "overlay introspect", "overlay read-only", "overlay log"]
     assert result["passed"], conformance.report(result)
-    bq = connectors.get("bigquery")
-    fake_bq = FakeBigQuery(_fixture("bigquery-ledger.json"))
-    result = conformance.run(bq, Project.standard(root), lambda name: bq.connect({"client": fake_bq, "project": "acme", "dataset": "ledger"}))
-    assert result["passed"], conformance.report(result)
+    # BigQuery materializes too, so its kit runs both halves: tests/test_bigquery_store.py
 
 
 # ---- kg_read: the passthrough, off unless the deploy config allows it ----

@@ -517,6 +517,14 @@ def test_a_container_holding_only_the_config_answers_from_bigquery_behind_the_pr
         assert code == 200, body + log.read_text()
         assert json.loads(body)["result"]["content"][0]["text"].strip(), body
         assert "serving BigQuery p.kg" in log.read_text(), log.read_text()
+        # the guide's first check, in a browser (docs/E2E-GCP.md): signed in, the status says the store and the build, before any sandbox is involved
+        unsigned = urllib.request.Request(url + "/api/status")
+        with pytest.raises(urllib.error.HTTPError) as refused:
+            urllib.request.urlopen(unsigned, timeout=10)
+        assert refused.value.code == 401
+        with urllib.request.urlopen(urllib.request.Request(url + "/api/status", headers=_as(key)), timeout=10) as answer:
+            status = json.loads(answer.read().decode())
+        assert status["backend"] == "bigquery" and status["serving"] is True and status["build_seq"] is not None, status
         reads = [json.loads(line) for line in log.read_text().splitlines() if line.startswith("{") and "oto.read" in line]
         assert reads and reads[-1]["principal"] == "dana@example.org", "the read is logged under the person's name"
     finally:
@@ -525,6 +533,19 @@ def test_a_container_holding_only_the_config_answers_from_bigquery_behind_the_pr
 
 
 # ---- reaching it from a sandbox ----
+
+def test_a_graph_read_through_a_server_is_not_called_neo4j(fake, tmp_path, capsys):  # noqa: F811
+    """The server may read BigQuery, and the person reading this is deciding what to trust: only a graph with a Neo4j address says Neo4j."""
+    folder = str(tmp_path / "project")
+    assert main(["graphs", "add", "fleet", "--server", "https://fleet-kg-abc.a.run.app/mcp", "--project", folder]) == 0
+    capsys.readouterr()
+    assert main(["graphs", "list", "--project", folder]) == 0
+    assert "Neo4j" not in capsys.readouterr().out
+    assert main(["status", "--project", folder]) == 0
+    assert "Neo4j" not in capsys.readouterr().out
+    steps = sandbox.next_steps({"name": "s", "project": folder, "graphs": connections.listed(folder)})
+    assert "Neo4j" not in " ".join(steps)
+
 
 def test_a_connection_to_a_server_holds_no_login(tmp_path):
     folder = str(tmp_path / "project")

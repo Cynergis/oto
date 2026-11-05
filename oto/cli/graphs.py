@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """`oto graph`: this graph's descriptor, and the graphs it depends on (roadmap A1, A2). `oto graphs`: the graphs
-a folder reads live from Neo4j (oto/connections.py)."""
+a folder reads live (oto/connections.py)."""
 import json
 import sys
 
@@ -69,7 +69,7 @@ def cmd_graph(args):
 
 
 def cmd_graphs(args):
-    """`oto graphs`: the graphs this folder reads live from Neo4j, one connection each."""
+    """`oto graphs`: the graphs this folder reads live, one connection each."""
     import os
 
     from .. import connections as _connections
@@ -126,7 +126,7 @@ def cmd_graphs(args):
     if not found:
         print("no graph here: oto graphs add <name> --uri neo4j+s://<id>.databases.neo4j.io")
         return 0
-    print("%d graph(s) read live from Neo4j:" % len(found))
+    print("%d graph(s) read live:" % len(found))
     for graph in found:
         print(connection_line(graph))
     return 0
@@ -141,7 +141,7 @@ def connection_line(graph):
 
 
 def register(sub):
-    graphs = sub.add_parser("graphs", help="the graphs this folder reads live from Neo4j: add, list, rm")
+    graphs = sub.add_parser("graphs", help="the graphs this folder reads live: add, list, rm")
     graphs.add_argument("action", nargs="?", default="list", choices=["add", "list", "rm"],
                         help="add <name> --uri ADDRESS: a connection, and a server of its own; list (the default): what is here, and whose "
                              "login is set; rm <name>: take one out")

@@ -19,7 +19,8 @@ uv tool install --force "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/
 
 The engine alone, with no pack installed, has a test of its own: [E2E-CORE.md](E2E-CORE.md) creates a
 vocabulary by hand, deploys and queries its graph and makes a pack of it, in eight steps with a script
-beside it (`tools/e2e_core.sh`) that the suite runs. Start there; this document is the rest.
+beside it (`tools/e2e_core.sh`) that the suite runs. Start there; this document is the rest. [E2E-GCP.md](E2E-GCP.md) takes one stack from start to
+finish: a new pack, a graph in BigQuery, a server on Cloud Run, and an agent reading it from a sandbox.
 
 The sections follow the order the features were built, and [ADR-0006](adr/0006-the-core-and-the-packs.md)
 draws one line through them. The **core**, the knowledge graph with its tools and its deploy, is
@@ -52,6 +53,7 @@ composes it, or fetched by `oto init --ontology <name>` itself on a machine that
 | A Neo4j reachable from GitHub Actions (a public endpoint, or a self-hosted runner beside it) | 11 | repository variable `NEO4J_URI`, secret `NEO4J_PASSWORD` in the environment `oto-main` |
 | A token that can write to the query repository | 11, 13 | secret `OTO_QUERY_REPO_TOKEN` in the environment `oto-main` |
 | A Google Cloud project with Cloud Run, IAP and Secret Manager, and two Google accounts | 42 | the workflow's variables `OTO_GCP_PROJECT`, `OTO_GCP_REGION`, `OTO_GCP_WORKLOAD_IDENTITY_PROVIDER`, `OTO_GCP_SERVICE_ACCOUNT` |
+| A Google Cloud project with billing on, for the graph in BigQuery | [E2E-GCP.md](E2E-GCP.md) | the repository variables that guide lists |
 | A second GitHub account, with read access to a test repository | 38, 39, 40 | it approves a pull request and is not counted |
 | Your deny terms for the publishability gate | 16 | `OTO_DENY_TERMS` in your shell, and as a secret on the engine repository |
 
@@ -1794,7 +1796,7 @@ needs no address; and a retired graph is archived, not deleted, and gone from th
 
 ## 42. The server on Cloud Run: signed in as a person, removed, and logged
 
-[docs/plans/people-and-graphs.md](plans/people-and-graphs.md), phase 5. Exercises: the container and its workflow, `oto serve --iap`, the MCP endpoint, the read log, `oto graphs add --server` and `kg_call`
+[E2E-GCP.md](E2E-GCP.md) walks through the setup this section assumes, with the graph in BigQuery. [docs/plans/people-and-graphs.md](plans/people-and-graphs.md), phase 5. Exercises: the container and its workflow, `oto serve --iap`, the MCP endpoint, the read log, `oto graphs add --server` and `kg_call`
 with a credential. `tests/test_server.py` runs a real server process behind signed requests, with a key of its own; this runs what only Google Cloud can show.
 
 ```bash
@@ -1805,7 +1807,7 @@ gh variable set OTO_GCP_WORKLOAD_IDENTITY_PROVIDER --body <provider>; gh variabl
 gh workflow run oto-server.yml                                                         # builds the container, and deploys <slug>-kg behind the proxy
 
 # access, one person at a time
-gcloud beta iap web add-iam-policy-binding --resource-type=cloud-run --service=<slug>-kg --region=<region> --member=user:<first> --role=roles/iap.httpsResourceAccessor
+gcloud iap web add-iam-policy-binding --resource-type=cloud-run --service=<slug>-kg --region=<region> --member=user:<first> --role=roles/iap.httpsResourceAccessor
 curl -s -o /dev/null -w '%{http_code}\n' https://<service>.run.app/mcp                   # refused, or sent to Google's sign-in: no way in unsigned
 
 # from a sandbox: no login inside it
@@ -1820,7 +1822,7 @@ sbx exec graphs-try -- sh -c 'env | grep -c NEO4J'                              
 gcloud logging read 'jsonPayload.event="oto.read"' --limit 5                            # the question, under the person's email
 
 # removing them
-gcloud beta iap web remove-iam-policy-binding --resource-type=cloud-run --service=<slug>-kg --region=<region> --member=user:<first> --role=roles/iap.httpsResourceAccessor
+gcloud iap web remove-iam-policy-binding --resource-type=cloud-run --service=<slug>-kg --region=<region> --member=user:<first> --role=roles/iap.httpsResourceAccessor
 #   their next question is refused, and nobody else is affected
 ```
 

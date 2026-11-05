@@ -599,7 +599,7 @@ Each phase ends with a real test, recorded in `docs/E2E-TESTING.md`.
 | **40, phase 3** | a commit GitHub makes shows as verified, and a contributor's confirmed fact on one merges with no approval; a contributor's approval doesn't count, and once a steward's approval makes them a reviewer it does; the access file applied, checked and turned into code owners; an invitation; drift names the organisation's base permission; removing a person, confirmed by the drift check, and their next push refused; a promotion with a recorded approver; the promote workflow refuses an empty approver | a second person on a private store, which needs a seat; a promotion approved by a second person; `oto-access.yml` applying the file by itself (it needs `OTO_ACCESS_TOKEN`, so it ran from a computer) |
 | **41, phase 4** | the directory, the fleet view and the catalog; a new pack release opens one pull request on the reviewed route, and a second run moves nothing; retiring archives the repository and drops it from the directory | the update workflow running in Actions, since the organisation doesn't let Actions open pull requests, so its steps ran from a computer; `oto repo retire --neo4j` on real data |
 
-Section 42 (phase 5, Google Cloud) has not run.
+Section 42 (phase 5, Google Cloud) has not run. [E2E-GCP.md](../E2E-GCP.md) is the guide for running it from start to finish, with a new pack and the graph in BigQuery.
 
 **Retested on released 0.21.2, the same day,** on the public scratch repository, with the second account:
 

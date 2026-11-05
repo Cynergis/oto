@@ -284,7 +284,7 @@ def _connections_status(root, args):
     if args.json or args.snapshot:
         print(json.dumps({"kind": "connections", "root": root, "graphs": found}, indent=2, sort_keys=True))
         return 0
-    print("A folder of %d graph connection(s), each read live from Neo4j through a server of its own:" % len(found))
+    print("A folder of %d graph connection(s), each read live through a server of its own:" % len(found))
     for graph in found:
         print(connection_line(graph))
     print()

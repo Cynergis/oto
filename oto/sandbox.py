@@ -1080,7 +1080,7 @@ def next_steps(report):
              "  Choose that connection, then the folder %s." % (report["project"] or "you work in"),
              "Or in a terminal: sbx run --name %s" % name]
     if report.get("graphs"):
-        lines += ["In the sandbox each graph has a server of its own: %s. Ask in the project folder, and each answer comes from Neo4j at that moment."
+        lines += ["In the sandbox each graph has a server of its own: %s. Ask in the project folder: it holds no copy, and each answer comes from the graph's own store."
                   % ", ".join(g["server"] for g in report["graphs"]),
                   "  A login is set when the sandbox is made: after adding a graph with a new one, oto sandbox up --recreate (its folders stay)."]
     for server in report.get("sign_in") or []:

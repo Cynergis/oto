@@ -394,7 +394,7 @@ tools/e2e_core.sh                                # the core end to end on the en
 ```
 
 The compile path is stdlib-only, so a build needs nothing installed beyond OTO itself. CI asserts
-that. See [docs/GATES.md](docs/GATES.md) for the gates and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+that. [docs/E2E-GCP.md](docs/E2E-GCP.md) takes one stack from start to finish by hand: a new pack, a graph in BigQuery, a server on Cloud Run, and an agent in a sandbox. See [docs/GATES.md](docs/GATES.md) for the gates and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 for how the package is laid out and where to add things. The playbooks under [skills/](skills/)
 cover the steps that need judgment: designing a vocabulary, curating, and vetting provenance.
 

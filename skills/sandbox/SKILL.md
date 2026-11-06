@@ -4,7 +4,7 @@ description: >-
   Set up a Docker sandbox with Claude Code and OTO inside, made from OTO's ready-made kit, and
   connect Claude Desktop's Code tab (or a terminal) to it: a sandbox for an ontology to make (a
   workspace, released as a pack), for a graph on one (a knowledge project on the pack), or for reading
-  graphs live from Neo4j. Checks
+  graphs live. Checks
   what the computer has, asks the person for the few answers only they can give, runs the setup and
   says the one step left in Claude Desktop. Use when someone says "set up the sandbox", "run OTO in
   a sandbox", "a sandbox for the ontology", "a sandbox for our graph", "read our graphs from a

@@ -25,7 +25,7 @@ One module per command, in the order a project moves through them:
     status.py      oto status                   where the project is, and the next step
     lock.py        oto lock                     the engine, plugins and ontologies a project is built with
     sandbox.py     oto sandbox                  Claude Code with OTO in a Docker sandbox, for Claude Desktop or a terminal
-    graphs.py      oto graph, oto graphs        a graph's descriptor and dependencies; the graphs a folder reads live from Neo4j
+    graphs.py      oto graph, oto graphs        a graph's descriptor and dependencies; the graphs a folder reads live
     bench.py       oto bench                    measure answer quality
     feedback.py    oto feedback                 a complaint becomes a gold question
     publishable.py oto publishable              no client name or credential in a repository about to be published
@@ -102,7 +102,7 @@ def cmd_version(args):
     return 0
 
 
-def main(argv=None):
+def build_parser():
     found = pack_commands()
     parser = argparse.ArgumentParser(prog="oto", description="OTO: a temporal knowledge graph built from your documents, served to agents, deployed like code.",
                                      epilog=_epilog(found), formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -110,7 +110,11 @@ def main(argv=None):
     for command in CORE_COMMANDS + tuple(_pack_modules(found)):
         command.register(sub)
     sub.add_parser("version", help="print the version").set_defaults(func=cmd_version)
+    return parser
 
+
+def main(argv=None):
+    parser = build_parser()
     args = parser.parse_args(argv)
     if not getattr(args, "func", None):
         parser.print_help()

@@ -5,10 +5,10 @@
 # then run it.
 schemaVersion: "3"
 kind: set
-version: "0.21.2"
+version: "0.22.0"
 displayName: OTO on Google Cloud
 description: >-
-  Claude Code with the OTO engine plugin and the OTO registry as a marketplace (packs turned on per project), the OTO engine 0.21.2, the Google Cloud CLI, LibreOffice
+  Claude Code with the OTO engine plugin and the OTO registry as a marketplace (packs turned on per project), the OTO engine 0.22.0, the Google Cloud CLI, LibreOffice
   and Chromium, for building OTO products that run on Google Cloud.
 sourceUrl: https://github.com/Cynergis/oto/tree/main/kits/oto-gcp
 licenses: [Apache-2.0]
@@ -144,7 +144,7 @@ capabilities:
               for rc in "$HOME/.bashrc" "$HOME/.profile"; do
                 grep -q 'oto/landing.sh' "$rc" 2>/dev/null || printf '\n[ -f "$HOME/.oto/landing.sh" ] && . "$HOME/.oto/landing.sh"\n' >> "$rc"
               done
-              command -v oto >/dev/null || uv tool install "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v0.21.2"
+              command -v oto >/dev/null || uv tool install "oto-kg[intake,neo4j] @ git+https://github.com/Cynergis/oto@v0.22.0"
               [ -d "$HOME/.cache/ms-playwright" ] || uv tool run --from playwright playwright install chromium
             } >>"$log" 2>&1
             if command -v oto >/dev/null; then

@@ -4,6 +4,56 @@ What each engine release changed for the people who write ontologies, run projec
 exports. Ontologies and packs carry their own `release` and changelog in their manifests; this
 file is the engine's.
 
+## 0.22.0 — 2026-11-06
+
+**A graph can live in BigQuery, and Claude in a sandbox can read it through a server on Cloud Run, signed in as you.** Four pull requests (196 to 199) and one fix (195).
+[The new guide](docs/E2E-GCP.md) takes this stack from start to finish, with a new pack.
+
+**None of this has run on Google Cloud.** It's tested against an in-memory BigQuery and the real client's signatures, with a stand-in for `gcloud`, and with a real server process and a test signing key.
+The real sandbox tool accepted the sign-in's registration and Google's first screen opened, but nobody has finished a sign-in. Expect the first real run to need fixes, and don't rely on this for a client
+until it has passed. The guide's "If it fails" section covers the likely causes. If the sign-in from a sandbox doesn't work, the fallback, a small proxy on the computer, isn't built.
+
+```bash
+uv tool install --force "oto-kg[intake,neo4j,bigquery] @ git+https://github.com/Cynergis/oto@v0.22.0"
+```
+
+Make your sandboxes again to get the new kit. A computer needs the `bigquery` extra only to load or query a dataset from there, which includes `oto connectors check bigquery`.
+
+Existing graphs don't move: a graph stays on its store until you name a dataset.
+
+### Added
+
+- **BigQuery can hold a graph** ([ADR-0015](docs/adr/0015-bigquery-holds-the-graph.md)). `oto build --target bigquery` mirrors the built store's tables into a dataset, and one row in `oto_builds` commits the build, so a load that stops midway changes nothing a reader sees. A view under each plain name lets people query the graph in SQL. It uses plain tables, with no property graph and no GQL, so it needs no reservation.
+- **A server answers from a copy in memory.** With `serve.backend: bigquery` or `OTO_STORE=bigquery`, a server reads the newest committed build into memory and answers exactly as the build does, search included. Reading runs no query job and needs only `roles/bigquery.dataViewer`. It looks for a newer load every minute (`OTO_BIGQUERY_REFRESH`) and goes on serving what it has when it can't. A dataset it can't read is an error, never a silent fallback.
+- **A merge can load BigQuery, and the server can read it with no login.** With the repository variable `OTO_BIGQUERY_DATASET` set, `oto-deploy.yml` loads the graph, signing in to Google with workload identity and no stored key, and `oto-server.yml` deploys with no database login. Other variables: `OTO_GCP_LOAD_SERVICE_ACCOUNT`, `OTO_GCP_RUNTIME_SERVICE_ACCOUNT` and `OTO_SERVER_MEMORY`.
+- **A sandbox can sign in to a graph's server through Google.** `oto graphs add <name> --server <url> --client-id <id>` makes `oto sandbox up` register the server with the sandbox tool. You store the client's secret with `sbx secret set` and sign in with `sbx mcp auth`, both on your computer, so no token or secret enters the sandbox or a file. A sign-in lasts about an hour.
+- **The guide**, [docs/E2E-GCP.md](docs/E2E-GCP.md), and a test that holds it to the engine: every `oto` command in it parses, and every setting it names is one the workflows read.
+
+### Fixed
+
+- **The proxy couldn't reach the server.** `oto-server.yml` never granted the proxy's service agent `roles/run.invoker`, which Google's docs say `gcloud` doesn't do. Every request would have been refused, on Neo4j too. It also used the beta track for a command Google documents on the standard one. Neither fix has run on Google Cloud.
+- **The Neo4j load installed the engine from the default branch**, not the one the lock names, so it could differ from the engine that made the build.
+- **The gate's message ended in a colon** when the access file named nobody but the pull request's author. The real run on 0.21.2 found this. It now names people only when there are some.
+- **A graph read through a server was called "read live from Neo4j"** by `oto graphs list`, `oto status` and the sandbox's next steps. They no longer say Neo4j.
+- **Section 42 of the wider guide** used `gcloud beta iap web`. Google's docs use `gcloud iap web`.
+
+### Changes that need a step in a repository that already exists
+
+A release doesn't rewrite a repository's workflows, so generate a fresh set as 0.21.0 describes and copy what you need, by a pull request. Set `HOME` to an empty folder when you generate it, so your own plugins stay out of the lock it writes.
+
+- **A knowledge repository, to use BigQuery or deploy the server:** run `oto lock` and copy `.github/workflows/` and `.github/oto-server/Dockerfile` **in the same pull request**. The guide lists the repository variables and the Google Cloud setup.
+- **A knowledge repository that does neither:** nothing has to change. The Neo4j load goes on installing the engine from the default branch until you copy the workflows.
+- **A pack workspace:** nothing to do.
+
+### Known, not fixed
+
+- `oto sandbox up --repo` makes a store repository a graph in BigQuery doesn't use, and the first deploy run ends red trying to publish to it. The guide removes `OTO_QUERY_REPO`.
+- Nothing turns on auto-merge for a graph's repository, and the session route's `gh pr merge --auto` needs it. The guide turns it on with `gh repo edit --enable-auto-merge`.
+- `oto repo retire` has no BigQuery equivalent, so a retired graph's dataset stays until you remove it.
+- A server starting from zero copies the whole graph first. How long that takes, and how large a graph fits in memory, hasn't been measured.
+- `oto-author` goes red in a repository with no `ANTHROPIC_API_KEY` secret.
+- On a computer with Claude Code plugins, `oto lock` and `oto init --repo` name the ones there that depend on the engine, unless the project's `.claude/settings.json` declares its own. Read the lock before pushing it, above all to a public repository.
+
 ## 0.21.2 — 2026-11-04
 
 **An approved pull request merges.** One pull request (193). Sections 38 to 41 of [the end-to-end guide](docs/E2E-TESTING.md) ran again with a real second person, on public scratch

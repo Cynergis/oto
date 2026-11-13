@@ -129,6 +129,9 @@ the portal, to create repositories). Each organisation approves the change once.
    Code marketplace, is still read with whatever GitHub access the sandbox has.
 4. **Engine:** renewing the sandbox's token.
 5. **Portal:** remove the scan for unmarked repositories.
+   Built: a sync finds a graph by the `oto-graph` topic, or holds it already (made by the portal, or linked by an
+   earlier sync). It opens no other repository looking for one. A graph the scan linked before stays linked. A pack's
+   workspace is still looked for by its manifest.
 
 Each step is run on the real organisation before the next starts.
 

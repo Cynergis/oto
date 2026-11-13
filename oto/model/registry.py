@@ -55,8 +55,31 @@ def _now():
     return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
 
 
-def _token():
-    return os.environ.get(TOKEN_ENV) or None
+_PORTAL_TOKENS = {}                       # repository -> token, for this run: a portal's token lasts an hour
+
+
+def _token(url=None):
+    """The token to read `url` with. `OTO_REGISTRY_TOKEN` wins, for automated jobs. Otherwise, on a
+    computer signed in to a portal (`oto login`), a repository in the tenant's GitHub organisation is
+    read with a one-hour token the portal gives for it alone (docs/plans/portal-sign-in.md); the portal
+    decides, and when it refuses, git falls back on whatever sign-in this computer has."""
+    given = os.environ.get(TOKEN_ENV)
+    if given or not url:
+        return given or None
+    found = re.match(r"^https://github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$", url.strip())
+    if not found:
+        return None
+    from .. import portal as _portal
+    who = _portal.signed_in()
+    if not who or (who.get("organisation") or "").lower() != found.group(1).lower():
+        return None
+    repository = "%s/%s" % (found.group(1), found.group(2))
+    if repository.lower() not in _PORTAL_TOKENS:
+        try:
+            _PORTAL_TOKENS[repository.lower()] = _portal.repository_token(repository, "read")["token"]
+        except _portal.PortalError:
+            _PORTAL_TOKENS[repository.lower()] = None
+    return _PORTAL_TOKENS[repository.lower()]
 
 
 def tag_for(name, release, kind="ontology"):
@@ -213,7 +236,7 @@ def fetch_index(url, ref=None):
     """Clone the registry and return (index, commit). Raises ProjectError with the reason."""
     work = tempfile.mkdtemp(prefix="oto-registry-")
     try:
-        gitx.clone(url, work, ref=ref, token=_token())
+        gitx.clone(url, work, ref=ref, token=_token(url))
         index = read_index(work)
         problems = index_problems(index, work)
         if problems:
@@ -377,12 +400,12 @@ def fetch(name, release=None, force=False, kind="ontology"):
     current = int(entry.get("release") or 1)
     if release is not None and release != current:
         ref = tag_for(name, release, kind)
-        if not gitx.has_ref(url, ref, token=_token()):
+        if not gitx.has_ref(url, ref, token=_token(url)):
             raise ProjectError("the registry %r lists %s at release %d and has no tag %s for release %d"
                                % (record["name"], name, current, ref, release))
     work = tempfile.mkdtemp(prefix="oto-%s-" % kind)
     try:
-        gitx.clone(url, work, ref=ref, token=_token())
+        gitx.clone(url, work, ref=ref, token=_token(url))
         src = os.path.join(work, entry["path"]) if entry.get("path") else work
         manifest = read(src)
         if release is not None and manifest["release"] != release:
@@ -400,7 +423,7 @@ def fetch_url(url, path=None, ref=None, force=False, kind="ontology"):
     read = _kind_tools(kind)[2]
     work = tempfile.mkdtemp(prefix="oto-%s-" % kind)
     try:
-        gitx.clone(url, work, ref=ref, token=_token())
+        gitx.clone(url, work, ref=ref, token=_token(url))
         src = os.path.join(work, path) if path else work
         if not os.path.isdir(src):
             raise ProjectError("%s has no directory %r" % (url, path))
@@ -874,7 +897,7 @@ def diff_project(project):
             roots_new = None
         else:
             work = tempfile.mkdtemp(prefix="oto-diff-")
-            gitx.clone(url, work, ref=ref, token=_token())
+            gitx.clone(url, work, ref=ref, token=_token(url))
             roots_new = [os.path.join(work, path) and work] if path else [work]
             if path and path != name:
                 raise ProjectError("the registry keeps %r under %r; publish keeps them equal" % (name, path))
@@ -884,9 +907,9 @@ def diff_project(project):
         basis, tag, old_vocab, old_rules, old_questions = "lock", None, None, None, None
         if kind not in ("built-in", "pack") and recorded and recorded != current:
             tag = tag_for(name, recorded)
-            if gitx.has_ref(url, tag, token=_token()):
+            if gitx.has_ref(url, tag, token=_token(url)):
                 old_work = tempfile.mkdtemp(prefix="oto-diff-old-")
-                gitx.clone(url, old_work, ref=tag, token=_token())
+                gitx.clone(url, old_work, ref=tag, token=_token(url))
                 old = _ontologies.composed(name, roots=[old_work])
                 old_vocab = vocab.Vocabulary.from_config(old["config"])
                 old_rules = old["rules"]

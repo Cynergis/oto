@@ -122,8 +122,11 @@ the portal, to create repositories). Each organisation approves the change once.
    sign-in when no token variable is named.
    Built: with no `--repo`, the repository is `<the tenant's organisation>/<the sandbox's name>`. Running the same
    `oto sandbox up` again stores a new one-hour token, which is most of step 4. Not built: the portal sets no branch
-   rules, code owner, deploy key or store variable on the repository it makes (point 3 below); the registry is still
-   added with `oto registry add`; a pack's workspace (`--kind ontology`) still takes a token of the person's own.
+   rules, code owner, deploy key or store variable on the repository it makes (point 3 below); a pack's workspace (`--kind ontology`) still takes a token of the person's own.
+   Built after: `oto login` adds the tenant's registry, and a registry or a pack's source in the tenant's organisation
+   is read with a one-hour token from the portal, so `oto registry add` and a GitHub account are not needed to
+   install a pack. `OTO_REGISTRY_TOKEN` still wins. Not built: the sandbox's own copy of the registry, as a Claude
+   Code marketplace, is still read with whatever GitHub access the sandbox has.
 4. **Engine:** renewing the sandbox's token.
 5. **Portal:** remove the scan for unmarked repositories.
 

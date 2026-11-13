@@ -3,6 +3,7 @@
 
 One module per command, in the order a project moves through them:
 
+    login.py       oto login, whoami, logout    this computer signed in to an OTO portal, for teams that use one
     init.py        oto init                     create a project, optionally from an ontology
     ingest.py      oto ingest, oto figures, oto survey   raw documents into the corpus, and a map of it
     ontology.py    oto ontology                 the project's vocabulary, and the catalog (catalog.py)
@@ -40,13 +41,13 @@ import sys
 
 from .. import __version__
 from ..project import ProjectError
-from . import audit, bench, build, capture, clipboard, connectors, curate, decide, deploy, draft, feedback, graphs, ingest, init, lexicon, lock, ontology, pack, preview, publish, publishable, query, registry, repo, route, rules, sandbox, status, tools, vet
+from . import audit, bench, build, capture, clipboard, connectors, curate, decide, deploy, draft, feedback, graphs, ingest, init, lexicon, lock, login, ontology, pack, preview, publish, publishable, query, registry, repo, route, rules, sandbox, status, tools, vet
 
 # The core and the packs (ADR-0006). The core is the knowledge graph's lifecycle with its tools and
 # its deploy; these are its commands. A pack's command comes from the pack's manifest
 # (`provides.commands`, oto/extensions.py), is discovered from every pack the machine has, works only
 # on a project whose vocabulary composes its pack, and says so otherwise. `oto --help` draws the line.
-CORE_COMMANDS = (init, status, lock, sandbox, ingest, capture, clipboard, ontology, lexicon, pack, registry, repo, route, rules, tools, curate, deploy,
+CORE_COMMANDS = (login, init, status, lock, sandbox, ingest, capture, clipboard, ontology, lexicon, pack, registry, repo, route, rules, tools, curate, deploy,
                  connectors, draft, vet, build, preview, query, publish, publishable, bench, feedback, audit, graphs, decide)
 
 
@@ -76,7 +77,7 @@ _FOUND = pack_commands()
 COMMANDS = CORE_COMMANDS + tuple(_pack_modules(_FOUND))
 
 GROUPS = {
-    "core": ("init", "status", "lock", "sandbox", "ingest", "capture", "clipboard", "ontology", "lexicon", "pack", "registry", "repo", "route", "rules", "tools",
+    "core": ("login", "whoami", "logout", "init", "status", "lock", "sandbox", "ingest", "capture", "clipboard", "ontology", "lexicon", "pack", "registry", "repo", "route", "rules", "tools",
              "curate", "decide", "deploy", "connectors", "draft", "vet", "build", "preview", "query", "publish", "publishable", "bench",
              "feedback", "audit", "graph", "graphs", "version"),
     "packs": tuple((c["name"], c["label"]) for c in _FOUND),

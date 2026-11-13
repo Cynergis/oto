@@ -12,7 +12,7 @@ import contextlib
 import io
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CORE_COMMANDS = {"init", "status", "lock", "sandbox", "ingest", "capture", "clipboard", "ontology", "lexicon", "pack", "registry", "repo", "route", "rules", "tools",
+CORE_COMMANDS = {"login", "whoami", "logout", "init", "status", "lock", "sandbox", "ingest", "capture", "clipboard", "ontology", "lexicon", "pack", "registry", "repo", "route", "rules", "tools",
                  "curate", "decide", "deploy", "connectors", "draft", "vet", "build", "preview", "query", "publish", "publishable", "bench",
                  "feedback", "audit", "graph", "graphs", "version"}
 PACK_COMMANDS = {"arch": "architecture"}   # the architecture pack's, from tests/fixtures/packs (ADR-0011); ddd, work, data and policy are the registry's too (ADR-0010)

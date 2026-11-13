@@ -879,3 +879,159 @@ def test_a_sandbox_with_no_graphs_is_made_as_before(fake, tmp_path):
     report = sandbox.up(name="box", directory=str(tmp_path / "box"), approve=True, wait=5)
     assert not fake.read().get("rules") and not report.get("graphs")
     assert not any("server of its own" in line for line in sandbox.next_steps(report))
+
+
+# --- signed in to a portal (docs/plans/portal-sign-in.md, step 3) -------------------------------------------------
+
+PORTAL = "https://portal.example"
+PORTAL_TOKEN = "ghs_a-portal-token-that-never-reaches-a-file"
+
+
+def _signed_in(tmp_path, monkeypatch, answers=None):
+    """This computer signed in to a portal whose tenant is in the organisation Contoso, and what the portal is asked."""
+    from oto import portal
+    home = tmp_path / "oto-home"
+    home.mkdir()
+    monkeypatch.setenv("OTO_HOME", str(home))
+    (home / "profile.json").write_text(json.dumps({"portal": PORTAL, "email": "ana@contoso.test", "organisation": "Contoso",
+                                                   "tenant": {"id": "t", "name": "Contoso Trial"}, "registry": "Contoso/oto-registry"}))
+    (home / "credentials.json").write_text(json.dumps({"portal": PORTAL, "session": "s" * 43}))
+    asked = []
+
+    def http(method, url, body=None, session=None):
+        path = url[len(PORTAL + "/api/terminal/"):]
+        asked.append((path, body))
+        assert session == "s" * 43, "every request carries the session"
+        if answers and path in answers:
+            return answers[path](body)
+        if path == "graphs":
+            return 200, {"repository": "Contoso/%s" % body["name"], "store": "Contoso/%s-store" % body["name"], "organization": body.get("organization"),
+                         "domain": body.get("domain"), "token": PORTAL_TOKEN, "expires_at": "2026-11-13T11:00:00Z", "warnings": []}
+        if path == "github-token":
+            return 200, {"token": PORTAL_TOKEN, "expires_at": "2026-11-13T11:00:00Z", "repository": body["repository"], "access": body["access"]}
+        return 404, {}
+
+    monkeypatch.setattr(portal, "_http", http)
+    return asked
+
+
+def _github_is(monkeypatch, owner_name, bare):
+    """git reaches the bare repository on disk where it would reach github.com."""
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", "url.%s.insteadOf" % bare)
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", "https://github.com/%s.git" % owner_name)
+
+
+def test_signed_in_the_portal_creates_the_graph_with_its_place_and_gives_the_token_for_the_first_push(fake, tmp_path, monkeypatch):
+    import subprocess
+    from oto import sandbox
+    asked = _signed_in(tmp_path, monkeypatch)
+    bare = _bare(tmp_path, "motor-claims.git")
+    _github_is(monkeypatch, "Contoso/motor-claims", bare)
+    report = sandbox.up(name="motor-claims", directory=str(tmp_path / "mc"), kind="knowledge", organization="Finance", domain="Claims", approve=True)
+    assert asked == [("graphs", {"name": "motor-claims", "organization": "Finance", "domain": "Claims"})], "the portal is asked once, before anything is laid out"
+    assert report["repository"] == "https://github.com/Contoso/motor-claims.git" and report["commit"]
+    assert report["store"] == "https://github.com/Contoso/motor-claims-store"
+    author = subprocess.run(["git", "-C", bare, "log", "-1", "--format=%ae", "main"], capture_output=True, text=True).stdout.strip()
+    assert author == "ana@contoso.test", "the first commit names the person, not the App"
+    project = str(tmp_path / "mc" / "project")
+    with open(os.path.join(project, ".github", "oto-access.json"), encoding="utf-8") as f:
+        access = json.load(f)
+    assert access.get("store") == "Contoso/motor-claims-store" and not access.get("stewards"), "the store is named; no GitHub login is"
+    secret = [c for c in fake.calls("secret") if c[:2] == ["secret", "set"]]
+    assert secret and PORTAL_TOKEN in secret[0], "the portal's token is the sandbox's GitHub secret"
+    assert any("Finance / Claims" in d for d in report["done"]) and any("one hour" in d for d in report["done"])
+    assert any("branch rules" in w for w in report["warnings"]), "what the portal does not do yet is said"
+    for root, _dirs, files in os.walk(str(tmp_path)):
+        for name in files:
+            if name == "sbx.json":          # the fake sandbox tool's own record of its calls
+                continue
+            with open(os.path.join(root, name), "rb") as f:
+                assert PORTAL_TOKEN.encode() not in f.read(), "the token is in no file: %s" % os.path.join(root, name)
+
+    # again, later: the folder is already that repository's, so the portal is asked for a new token and nothing else
+    del asked[:]
+    again = sandbox.up(name="motor-claims", directory=str(tmp_path / "mc"), kind="knowledge", approve=True)
+    assert asked == [("github-token", {"repository": "Contoso/motor-claims", "access": "write"})]
+    assert any("new one-hour token" in d for d in again["done"])
+
+
+def test_signed_in_a_refusal_from_the_portal_stops_before_anything_is_laid_out(fake, tmp_path, monkeypatch):
+    from oto import sandbox
+    _signed_in(tmp_path, monkeypatch, {"graphs": lambda body: (403, {"error": "Creating a graph in Finance takes the Graph steward role there."})})
+    with pytest.raises(sandbox.SandboxError) as refused:
+        sandbox.up(name="motor-claims", directory=str(tmp_path / "mc"), kind="knowledge", organization="Finance", approve=True)
+    assert "Graph steward" in str(refused.value)
+    assert not os.path.exists(str(tmp_path / "mc" / "project" / "project.config.json")) and not fake.calls("create")
+
+
+def test_signed_in_check_asks_the_portal_nothing_and_a_token_variable_still_wins(fake, tmp_path, monkeypatch):
+    from oto import sandbox
+    asked = _signed_in(tmp_path, monkeypatch)
+    report = sandbox.up(name="motor-claims", directory=str(tmp_path / "mc"), kind="knowledge", organization="Finance", check=True, approve=True)
+    assert asked == [] and any("would ask the portal" in d and "Contoso/motor-claims" in d and "Finance" in d for d in report["done"])
+    with pytest.raises(sandbox.SandboxError) as refused:       # another repository's name: the portal names it after the sandbox
+        sandbox.up(name="motor-claims", directory=str(tmp_path / "mc"), kind="knowledge", repo="Contoso/other", approve=True)
+    assert "Contoso/motor-claims" in str(refused.value)
+    bare = _bare(tmp_path)
+    monkeypatch.setenv("FAKE_TOKEN", "mine")
+    sandbox.up(name="own", directory=str(tmp_path / "own"), kind="knowledge", repo=bare, token_env="FAKE_TOKEN", approve=True)
+    assert asked == [], "with a token variable named, the portal is not asked"
+
+
+def test_a_place_is_only_for_a_graph_the_portal_makes(fake, tmp_path):
+    from oto import sandbox
+    with pytest.raises(sandbox.SandboxError) as refused:
+        sandbox.up(name="x", directory=str(tmp_path / "x"), kind="knowledge", no_repo=True, organization="Finance")
+    assert "oto login" in refused.value.fix
+
+
+def test_signed_in_a_clone_of_the_tenants_repository_uses_the_portals_token_to_write_or_else_to_read(fake, tmp_path, monkeypatch):
+    import subprocess
+    from oto import sandbox
+    work = tmp_path / "work"
+    subprocess.run(["git", "init", "-q", "-b", "main", str(work)], check=True)
+    (work / "project.config.json").write_text("{}")
+    subprocess.run(["git", "-C", str(work), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(work), "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "one"], check=True)
+    bare = str(tmp_path / "claims.git")
+    subprocess.run(["git", "clone", "-q", "--bare", str(work), bare], check=True)
+    _github_is(monkeypatch, "Contoso/claims", bare)
+
+    def token(body):
+        if body["access"] == "write":
+            return 403, {"error": "Adding to this graph takes the Graph steward or Contributor role on its place."}
+        return 200, {"token": PORTAL_TOKEN, "repository": body["repository"], "access": "read"}
+
+    asked = _signed_in(tmp_path, monkeypatch, {"github-token": token})
+    report = sandbox.up(name="claims", directory=str(tmp_path / "claims"), clone="Contoso/claims", approve=True)
+    assert [body["access"] for _path, body in asked] == ["write", "read"]
+    assert os.path.exists(str(tmp_path / "claims" / "project" / "project.config.json"))
+    assert any("to read Contoso/claims" in d for d in report["done"])
+    assert [c for c in fake.calls("secret") if c[:2] == ["secret", "set"] and PORTAL_TOKEN in c]
+
+    del asked[:]                                    # a repository outside the tenant's organisation: the portal is not asked
+    other = _bare(tmp_path, "other.git")
+    sandbox.up(name="elsewhere", directory=str(tmp_path / "elsewhere"), clone=other, approve=True)
+    assert asked == []
+
+
+def test_signed_in_a_clone_the_portal_refuses_says_why(fake, tmp_path, monkeypatch):
+    from oto import sandbox
+    _signed_in(tmp_path, monkeypatch, {"github-token": lambda body: (403, {"error": "You have no role on this graph's place."})})
+    with pytest.raises(sandbox.SandboxError) as refused:
+        sandbox.up(name="claims", directory=str(tmp_path / "claims"), clone="Contoso/claims", approve=True)
+    assert "no role" in str(refused.value) and not fake.calls("create")
+
+
+def test_the_portal_module_asks_for_a_graph_with_only_what_was_given(tmp_path, monkeypatch):
+    from oto import portal
+    asked = _signed_in(tmp_path, monkeypatch)
+    made = portal.create_graph("loose")
+    assert asked == [("graphs", {"name": "loose"})] and made["repository"] == "Contoso/loose"
+    assert portal.signed_in()["organisation"] == "Contoso"
+    os.remove(str(tmp_path / "oto-home" / "credentials.json"))
+    assert portal.signed_in() is None
+    with pytest.raises(portal.PortalError) as refused:
+        portal.create_graph("loose")
+    assert "oto login" in refused.value.fix

@@ -1,6 +1,7 @@
 # Spec: sign in through the portal, push as the GitHub App
 
-Status: proposed on 2026-11-12. Nothing is built. The engine stays on the person's computer in this spec; "Later: a hosted
+Status: proposed on 2026-11-12. Steps 1 to 3 of the build order are built (2026-11-13) and tested each side alone;
+none has been run on a real organisation yet. The engine stays on the person's computer in this spec; "Later: a hosted
 engine" says what moves when it doesn't.
 
 ## The problem
@@ -119,6 +120,10 @@ the portal, to create repositories). Each organisation approves the change once.
 2. **Engine:** `oto login`, `oto whoami`, `oto logout`, and the profile.
 3. **Engine and portal:** create a graph through the portal, with its place; `oto sandbox up` and `--clone` use the
    sign-in when no token variable is named.
+   Built: with no `--repo`, the repository is `<the tenant's organisation>/<the sandbox's name>`. Running the same
+   `oto sandbox up` again stores a new one-hour token, which is most of step 4. Not built: the portal sets no branch
+   rules, code owner, deploy key or store variable on the repository it makes (point 3 below); the registry is still
+   added with `oto registry add`; a pack's workspace (`--kind ontology`) still takes a token of the person's own.
 4. **Engine:** renewing the sandbox's token.
 5. **Portal:** remove the scan for unmarked repositories.
 

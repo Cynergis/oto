@@ -228,6 +228,22 @@ def logout(home=None, http=None):
     return removed
 
 
+def signed_in(home=None):
+    """The saved profile when this computer holds a session, or None. Nothing is asked of the portal."""
+    try:
+        saved, session = profile(home), _session(home)
+    except PortalError:
+        return None
+    return saved if saved and session and saved.get("portal") else None
+
+
+def _signed(home=None):
+    saved, session = profile(home), _session(home)
+    if not (saved and session and saved.get("portal")):
+        raise PortalError("this computer isn't signed in to a portal", "run `oto login`")
+    return address(saved["portal"]), session
+
+
 def repository_token(repository, access="read", home=None, http=None):
     """A GitHub token for one repository of the tenant, from the portal: {token, expires_at, repository,
     access}. It lasts an hour. The portal decides from the person's roles and says why when it refuses.
@@ -235,10 +251,26 @@ def repository_token(repository, access="read", home=None, http=None):
     http = http or _http
     if access not in ("read", "write"):
         raise PortalError("access is read or write, not %r" % access)
-    saved, session = profile(home), _session(home)
-    if not (saved and session and saved.get("portal")):
-        raise PortalError("this computer isn't signed in to a portal", "run `oto login`")
-    found = _ask(http, "POST", address(saved["portal"]), "github-token", body={"repository": repository, "access": access}, session=session)
+    portal, session = _signed(home)
+    found = _ask(http, "POST", portal, "github-token", body={"repository": repository, "access": access}, session=session)
     if not found.get("token"):
         raise PortalError("the portal gave no token for %s" % repository)
+    return found
+
+
+def create_graph(name, organization=None, domain=None, pack=None, home=None, http=None):
+    """Have the portal make a new graph: its private repository and its store, in the tenant's GitHub
+    organisation, recorded in the tenant with its place (an organization, and a domain inside it; none
+    leaves it not placed) and the pack it starts from. Returns {repository, store, organization, domain,
+    token, expires_at, warnings}: the token writes to the new repository for an hour, for the first
+    push, and is written nowhere. The portal decides who may create a graph where, and says why not."""
+    http = http or _http
+    portal, session = _signed(home)
+    body = {"name": name}
+    for key, value in (("organization", organization), ("domain", domain), ("pack", pack)):
+        if value:
+            body[key] = value
+    found = _ask(http, "POST", portal, "graphs", body=body, session=session)
+    if not (found.get("token") and found.get("repository")):
+        raise PortalError("the portal didn't say where the graph %s is" % name)
     return found

@@ -653,7 +653,7 @@ def _clone_state(project_dir, url):
     if not os.path.isdir(project_dir) or not os.listdir(project_dir):
         return "empty"
     if os.path.isdir(os.path.join(project_dir, ".git")):
-        code, out, _err = _run(["git", "-C", project_dir, "remote", "get-url", "origin"], timeout=60)
+        code, out, _err = _run(["git", "-C", project_dir, "config", "--get", "remote.origin.url"], timeout=60)   # as written, before any insteadOf
         if code == 0 and out.strip().rstrip("/") in (url.rstrip("/"), url.rstrip("/")[:-4] if url.rstrip("/").endswith(".git") else url.rstrip("/") + ".git"):
             return "same"
     return "other"
@@ -692,13 +692,30 @@ def _name_the_creator(project_dir, owner_name, login, store_url):
     return changed
 
 
-def first_push(project_dir, url, token=None, kind="knowledge"):
+def _portal_token(owner_name):
+    """A one-hour token for one of the tenant's repositories, from the portal this computer is signed in to:
+    to write when the person's roles allow it, else to read."""
+    from . import portal as _portal
+    try:
+        try:
+            return _portal.repository_token(owner_name, "write")["token"], "write"
+        except _portal.PortalError as refused:
+            if "isn't signed in" in str(refused):
+                raise
+            return _portal.repository_token(owner_name, "read")["token"], "read"
+    except _portal.PortalError as exc:
+        raise SandboxError("the portal gave no token for %s: %s" % (owner_name, exc),
+                           exc.fix or "ask for a role on the graph's place in the portal, or name a token of your own with --github-token-env <VAR>")
+
+
+def first_push(project_dir, url, token=None, kind="knowledge", author=None):
     """Put the laid-out folder under git, with `origin` at the repository, and push its first commit.
-    The token, when there is one, goes in the push's own header, never in the remote URL or a file."""
+    The token, when there is one, goes in the push's own header, never in the remote URL or a file.
+    `author` is the person's email when they are signed in to a portal: the commit names them."""
     if not os.path.isdir(os.path.join(project_dir, ".git")):
         _git(project_dir, "init", "-q", "-b", "main")
     _git(project_dir, "add", "-A")
-    identity = ["-c", "user.name=oto sandbox", "-c", "user.email=oto-sandbox@localhost"]
+    identity = ["-c", "user.name=%s" % (author or "oto sandbox"), "-c", "user.email=%s" % (author or "oto-sandbox@localhost")]
     code, out, err = _run(["git", "-C", project_dir] + identity + ["commit", "-q", "-m", "The %s, laid out by oto sandbox up" % ("ontology workspace" if kind == "ontology" else "knowledge project")], timeout=120)
     remotes = _run(["git", "-C", project_dir, "remote"], timeout=60)[1].split()
     if "origin" not in remotes:
@@ -749,7 +766,7 @@ def _allow_graph_hosts(sbx, name, rules, report):
 
 def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=False, init_policy=None,
        recreate=False, check=False, wait=600, say=None, allow_outside=False, publish=None,
-       kind=None, repo=None, no_repo=False, token_env=None, pack=None, clone=None):
+       kind=None, repo=None, no_repo=False, token_env=None, pack=None, clone=None, organization=None, domain=None):
     """Make the sandbox ready. Returns a report: what was found, what was done, what is next.
     Raises SandboxError, with what the person does about it, when a step cannot go on.
 
@@ -760,8 +777,26 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
     secret, so the agent inside pushes without the token ever entering the sandbox. `no_repo` says
     the project is local to the folders. `clone` (owner/name, a URL or a path) starts from a repository
     that exists, for the second person on: it clones into an empty project folder and stores the token
-    the same way, and it never commits, pushes or touches branch rules or deploy keys."""
+    the same way, and it never commits, pushes or touches branch rules or deploy keys.
+
+    On a computer signed in to a portal (`oto login`), and with no `token_env`, a knowledge project needs
+    no `repo`: the portal makes the repository <the tenant's organisation>/<name> and its store, records
+    the graph in `organization` and `domain`, and gives a one-hour token for the first push; `clone` of
+    one of the tenant's repositories asks the portal for its token too (docs/plans/portal-sign-in.md)."""
     say = say or (lambda line: None)
+    from . import portal as _portal
+    who = None if token_env else _portal.signed_in()
+    through_portal = False                  # the portal makes the repository and gives the token
+    if who and who.get("organisation") and kind == "knowledge" and not no_repo and not clone:
+        wanted = "%s/%s" % (who["organisation"], name)
+        if not repo or _github_url(repo).lower() == (GITHUB + wanted + ".git").lower():
+            through_portal, repo = True, wanted
+        elif _github_url(repo).startswith(GITHUB):
+            raise SandboxError("signed in to %s, a graph's repository is %s: it carries the sandbox's name" % (who["portal"], wanted),
+                               "leave --repo out, or name a token of your own with --github-token-env <VAR> to create %s yourself" % repo)
+    if (organization or domain) and not through_portal:
+        raise SandboxError("--organization and --domain place a graph the portal makes",
+                           "sign in first (oto login), and pass --kind knowledge with no --repo and no --github-token-env")
     if clone and (kind or repo or no_repo):
         raise SandboxError("--clone starts from a repository that exists, so it takes no --kind, --repo or --no-repo", "")
     if kind is not None and kind not in KINDS:
@@ -774,7 +809,7 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
     token = os.environ.get(token_env) if token_env else None
     if token_env and not token and clone and not check:
         raise SandboxError("the variable %s is empty" % token_env, "put a token with the repo scope in it, or leave --github-token-env out for a public repository")
-    if repo and _github_url(repo).startswith(GITHUB) and not token and not check:
+    if repo and _github_url(repo).startswith(GITHUB) and not token and not check and not through_portal:
         raise SandboxError("creating and pushing to %s needs a GitHub token, and %s" % (repo, ("the variable %s is empty" % token_env) if token_env else "no variable was named"),
                            "put a token with the repo scope in an environment variable and name it with --github-token-env <VAR>; the value is never written anywhere")
     kit = kit or kit_ref()
@@ -846,6 +881,12 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         if state == "other":
             raise SandboxError("%s already holds something else, so nothing was cloned into it" % (report["project"] or project_dir),
                                "choose another --name or --dir, or move what is there")
+        mine = who and report["repository"].startswith(GITHUB) and report["repository"][len(GITHUB):].split("/")[0].lower() == (who.get("organisation") or "").lower()
+        if mine and check:
+            report["done"].append("would ask the portal at %s for a one-hour token for %s" % (who["portal"], report["repository"]))
+        elif mine:
+            token, access = _portal_token(_repo._owner_name(report["repository"]))
+            report["done"].append("the portal at %s gave a one-hour token to %s %s" % (who["portal"], access, _repo._owner_name(report["repository"])))
         if state == "empty" and not check:
             say("cloning %s" % report["repository"])
             _clone(report["project"] or project_dir, report["repository"], token)
@@ -876,10 +917,16 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         if repo:
             url = _github_url(repo)
             creating = ""
-            if url.startswith(GITHUB):
+            if through_portal:
+                report["done"].append("would ask the portal at %s to create the private repository %s and its store, recorded %s, "
+                                      "would push the first commit as %s and store the portal's one-hour token as the sandbox's GitHub secret"
+                                      % (who["portal"], repo, ("in %s" % " / ".join(p for p in (organization, domain) if p)) if organization else "with no place",
+                                         who.get("email") or "you"))
+            elif url.startswith(GITHUB):
                 creating = "would create the private repository %s on GitHub with the token in %s, " % (url[len(GITHUB):-len(".git")], token_env or "(no variable named)")
-            report["done"].append(creating + "would push the first commit to %s and store the token as the sandbox's GitHub secret" % url)
-            if url.startswith(GITHUB) and (kind or "knowledge") == "knowledge":
+            if not through_portal:
+                report["done"].append(creating + "would push the first commit to %s and store the token as the sandbox's GitHub secret" % url)
+            if url.startswith(GITHUB) and (kind or "knowledge") == "knowledge" and not through_portal:
                 report["done"].append("would create the private store repository %s-store beside it, and name you the graph's steward" % url[len(GITHUB):-len(".git")])
                 report["done"].append("would set the branch rules on main from %s: pull requests required, the checks oto checks and oto route, "
                                       "no approvals at the branch level but a code owner's for what the gate runs on; "
@@ -896,12 +943,41 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         report["plugins"] = wanted
         report["ssh"] = _ssh_ready(name)
         return report
+    made = None
+    if through_portal and _clone_state(project_dir, _github_url(repo)) == "same":
+        # made here before: the portal has it, so only a new token is asked for
+        token, _access = _portal_token(repo)
+        report["done"].append("the portal at %s gave a new one-hour token for %s" % (who["portal"], repo))
+    elif through_portal:
+        say("asking the portal to create the graph %s" % repo)
+        try:
+            made = _portal.create_graph(name, organization, domain, pack)
+        except _portal.PortalError as exc:
+            raise SandboxError("the portal didn't create the graph %s: %s" % (name, exc), exc.fix)
+        token, repo = made["token"], made["repository"]
+        report["done"].append("the portal at %s created (or found) the private repository %s and recorded the graph %s"
+                              % (who["portal"], repo, ("in %s" % " / ".join(p for p in (made.get("organization"), made.get("domain")) if p))
+                                 if made.get("organization") else "with no place: place it in the portal"))
+        report["warnings"] += [str(w) for w in made.get("warnings") or []]
     if kind:
         os.makedirs(project_dir, exist_ok=True)
         laid = layout(kind, project_dir, name, pack=pack, repo=bool(repo))
         if laid:
             report["done"].append(laid)
-    if repo:
+    if repo and through_portal:
+        url = _github_url(repo)
+        if made and made.get("store"):
+            report["store"] = GITHUB + made["store"]
+            if _name_the_creator(project_dir, repo, None, report["store"]):
+                report["done"].append("the portal created (or found) the private store repository %s, named in .github/oto-access.json" % made["store"])
+        commit = first_push(project_dir, url, token=token, kind="knowledge", author=who.get("email"))
+        report["repository"] = url
+        report["commit"] = commit
+        report["done"].append("pushed the first commit (%s) to %s as %s; origin is set in %s" % (commit, url, who.get("email") or "you", project_dir))
+        if made:
+            report["warnings"].append("no branch rules, code owner or deploy key were set on %s, and the store's repository variable and token are not set: "
+                                      "the portal does not do these yet, and `oto repo rules --apply` needs a token of your own" % repo)
+    elif repo:
         say("the repository %s" % repo)
         url = github_repository(repo, token)
         if url.startswith(GITHUB):
@@ -993,6 +1069,8 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
             report["warnings"].append("the GitHub token could not be stored for the sandbox: %s; pushes from inside will ask for it" % (err or out).strip()[-200:])
         else:
             report["done"].append("stored the token as the sandbox's own GitHub secret: the agent inside pushes to %s, and the token never enters the sandbox" % _github_url(repo or clone))
+            if who and (through_portal or clone) and not token_env:
+                report["done"].append("the portal's token lasts one hour: run this same command again to store a new one")
     say("waiting for OTO to be ready inside it")
     line = _oto_line(sbx, name, wait=wait)
     report["oto"] = line

@@ -199,7 +199,7 @@ def _jobs(text):
     return re.split(r"\n(?=  [a-z][a-z0-9-]*:\n)", "\n" + body)
 
 
-DEPLOY_SECRETS = ("secrets.NEO4J_PASSWORD", "secrets.OTO_QUERY_REPO_TOKEN")
+DEPLOY_SECRETS = ("secrets.NEO4J_PASSWORD", "secrets.OTO_QUERY_REPO_TOKEN", "secrets.OTO_QUERY_REPO_KEY")
 
 
 def test_every_job_that_reads_a_deploy_secret_runs_in_an_environment():
@@ -221,6 +221,7 @@ def test_the_build_on_main_publishes_from_the_environment_only_main_deploys_from
 def test_a_preview_holds_no_token_and_keeps_the_store_as_an_artifact():
     text = repo.files("acme", "Acme")[os.path.join(".github", "workflows", "oto-preview.yml")]
     assert "OTO_QUERY_REPO_TOKEN" not in text.split("\non:", 1)[1], "it runs from any branch, so a store token here reaches every contributor"
+    assert "OTO_QUERY_REPO_KEY" not in text, "nor the store's deploy key"
     assert "oto publish" not in text and "--delete" not in text and "closed" not in text
     assert "upload-artifact" in text and "build/acme.db" in text and "retention-days" in text
     assert "gh run download" in text, "the comment says how to read it"

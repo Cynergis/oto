@@ -346,3 +346,20 @@ def test_a_registry_that_cannot_be_added_does_not_undo_the_sign_in(home, monkeyp
     assert code == 0 and "Signed in" in out
     assert "wasn't added" in out and "oto registry add https://github.com/acme/oto-registry" in out
     assert portal.signed_in() is not None
+
+
+def test_prepare_graph_asks_the_portal_and_returns_no_key(tmp_path):
+    home = str(tmp_path)
+    with open(os.path.join(home, "profile.json"), "w", encoding="utf-8") as f:
+        json.dump({"portal": "https://portal.test", "email": "ana@contoso.test"}, f)
+    with open(os.path.join(home, "credentials.json"), "w", encoding="utf-8") as f:
+        json.dump({"portal": "https://portal.test", "session": "s" * 43}, f)
+    asked = []
+
+    def http(method, url, body=None, session=None):
+        asked.append((method, url, body, session))
+        return 200, {"repository": "Contoso/claims", "store": "Contoso/claims-store", "done": ["main's deploy key is set"], "warnings": [], "token": "never"}
+
+    found = portal.prepare_graph("claims", home=home, http=http)
+    assert asked == [("POST", "https://portal.test/api/terminal/graph-setup", {"name": "claims"}, "s" * 43)]
+    assert found == {"repository": "Contoso/claims", "store": "Contoso/claims-store", "done": ["main's deploy key is set"], "warnings": []}

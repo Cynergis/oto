@@ -159,3 +159,47 @@ def test_the_deploy_workflow_publishes_when_the_repository_is_configured():
     assert "if: vars.OTO_QUERY_REPO != ''" in deploy
     assert "oto publish --project . --repo \"${{ vars.OTO_QUERY_REPO }}\"" in deploy
     assert "OTO_QUERY_REPO_TOKEN: ${{ secrets.OTO_QUERY_REPO_TOKEN }}" in deploy
+    assert "OTO_QUERY_REPO_KEY: ${{ secrets.OTO_QUERY_REPO_KEY }}" in deploy, "a portal sets a deploy key of the store, not a token"
+
+
+def test_a_deploy_key_reaches_the_repository_over_ssh_from_a_private_file_that_is_removed():
+    from oto import gitx
+    assert gitx.ssh_url("https://github.com/Contoso/claims-store") == "git@github.com:Contoso/claims-store.git"
+    assert gitx.ssh_url("https://github.com/Contoso/claims-store.git") == "git@github.com:Contoso/claims-store.git"
+    assert gitx.ssh_url("/tmp/query.git") == "/tmp/query.git"
+    key = "-----BEGIN OPENSSH PRIVATE KEY-----\r\nabc\r\n-----END OPENSSH PRIVATE KEY-----"
+    with gitx.reaching("https://github.com/Contoso/claims-store", None, key) as (url, env):
+        assert url == "git@github.com:Contoso/claims-store.git"
+        command = env["GIT_SSH_COMMAND"].split()
+        path, hosts = command[command.index("-i") + 1], [o for o in command if o.startswith("UserKnownHostsFile=")][0].split("=", 1)[1]
+        assert os.stat(path).st_mode & 0o777 == 0o600 and os.stat(os.path.dirname(path)).st_mode & 0o777 == 0o700
+        assert open(path, encoding="utf-8").read() == "-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n"
+        assert open(hosts, encoding="utf-8").read().startswith("github.com ssh-ed25519 "), "only GitHub's own host key is trusted"
+        assert "IdentitiesOnly=yes" in command and "StrictHostKeyChecking=yes" in command and "abc" not in env["GIT_SSH_COMMAND"]
+    assert not os.path.exists(path), "the key is gone once the call is over"
+    with gitx.reaching("https://git.example.test/a/b", None, key) as (url, env):
+        assert url == "git@git.example.test:a/b.git" and "StrictHostKeyChecking=accept-new" in env["GIT_SSH_COMMAND"]
+    with gitx.reaching("https://github.com/a/b", "tok", key) as (url, env):
+        assert url == "https://x-access-token:tok@github.com/a/b" and env is None, "a token wins over a key"
+    with gitx.reaching("/tmp/query.git", None, key) as (url, env):
+        assert url == "/tmp/query.git" and env is None, "a path needs no key"
+
+
+def test_publish_uses_the_store_key_when_there_is_no_token(monkeypatch):
+    seen = []
+
+    def git(args, cwd=None, env=None, remote=None):
+        seen.append((args[0], [a for a in args if a.startswith("git@")], dict(env or {})))
+        raise ProjectError("stop here")
+
+    monkeypatch.setattr(pub, "_git", git)
+    monkeypatch.delenv("OTO_QUERY_REPO_TOKEN", raising=False)
+    monkeypatch.setenv("OTO_QUERY_REPO_KEY", "-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n")
+    with tempfile.TemporaryDirectory() as root:
+        project = _project(os.path.join(root, "p"))
+        with pytest.raises(ProjectError, match="stop here"):
+            pub.publish(project, "https://github.com/Contoso/claims-store")
+    kind, urls, env = seen[0]
+    assert kind == "ls-remote" and urls == ["git@github.com:Contoso/claims-store.git"] and "GIT_SSH_COMMAND" in env
+    key_file = env["GIT_SSH_COMMAND"].split()[2]
+    assert not os.path.exists(key_file), "the key's file is removed even when the push fails"

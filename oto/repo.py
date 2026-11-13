@@ -342,7 +342,7 @@ DEPLOY = """name: oto deploy
 # the self-hosted Neo4j and verified: that is the production store. With OTO_BIGQUERY_DATASET set instead (and
 # OTO_GCP_PROJECT, and OTO_GCP_WORKLOAD_IDENTITY_PROVIDER with OTO_GCP_LOAD_SERVICE_ACCOUNT, or OTO_GCP_SERVICE_ACCOUNT, an identity with
 # roles/bigquery.dataEditor on the dataset and roles/bigquery.jobUser), it is loaded into BigQuery the same way, and no key is stored. With OTO_QUERY_REPO set (and
-# OTO_QUERY_REPO_TOKEN, a token that can write to it, as a secret), the SQLite store is also
+# OTO_QUERY_REPO_TOKEN, a token that can write to it, as a secret, or OTO_QUERY_REPO_KEY, a write deploy key of it, which is what a portal sets), the SQLite store is also
 # published to that separate, read-only query repository, so readers need access to the store and
 # not to the documents; `oto sync --repo <it>` brings it to a machine, and `oto serve` serves the
 # checkout. With OTO_SITE_VIEW also set (a view's name, e.g. `explorer`), the static site
@@ -461,6 +461,7 @@ jobs:
         if: vars.OTO_QUERY_REPO != ''
         env:
           OTO_QUERY_REPO_TOKEN: ${{{{ secrets.OTO_QUERY_REPO_TOKEN }}}}
+          OTO_QUERY_REPO_KEY: ${{{{ secrets.OTO_QUERY_REPO_KEY }}}}
         run: oto publish --project . --repo "${{{{ vars.OTO_QUERY_REPO }}}}" --source "${{{{ github.repository }}}}@${{{{ github.sha }}}}" --engine "${{ENGINE}}" ${{{{ vars.OTO_SITE_VIEW != '' && '--site' || '' }}}}
       - name: Publish the build to the first environment, when the project has a deploy config
         if: steps.has-config.outputs.deploy == 'true'

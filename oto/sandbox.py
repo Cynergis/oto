@@ -974,9 +974,17 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         report["repository"] = url
         report["commit"] = commit
         report["done"].append("pushed the first commit (%s) to %s as %s; origin is set in %s" % (commit, url, who.get("email") or "you", project_dir))
+        try:
+            # as its GitHub App, once main exists: asking again changes nothing that is already set
+            setup = _portal.prepare_graph(name)
+            report["done"] += ["the portal set up the repository's deploys: %s" % said for said in setup["done"]]
+            report["warnings"] += setup["warnings"]
+        except _portal.PortalError as exc:
+            report["warnings"].append("the portal didn't set up the deploys of %s (main's deploy key, the store's key and address), so its workflows can't push yet: %s. "
+                                      "Run the same command again once it can" % (repo, exc))
         if made:
-            report["warnings"].append("no branch rules, code owner or deploy key were set on %s, and the store's repository variable and token are not set: "
-                                      "the portal does not do these yet, and `oto repo rules --apply` needs a token of your own" % repo)
+            report["warnings"].append("no branch rules or code owner were set on %s: the portal does not do these yet, "
+                                      "and `oto repo rules --apply` needs a token of your own" % repo)
     elif repo:
         say("the repository %s" % repo)
         url = github_repository(repo, token)

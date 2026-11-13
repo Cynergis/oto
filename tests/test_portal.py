@@ -264,12 +264,17 @@ def test_the_three_commands_from_the_command_line(home, monkeypatch):
     code, out, err = _cli("login", "--no-browser")
     assert code == 1 and "which portal" in err and "--portal" in err
 
+    from oto.model import registry
+    added = []
+    monkeypatch.setattr(registry, "add_registry", lambda url: added.append(url) or {"name": "acme", "index": {"packs": [{}, {}], "ontologies": [{}]}})
     fake = Portal()
     monkeypatch.setattr(portal, "_http", fake)
     monkeypatch.setattr(portal.time, "sleep", lambda s: None)
     code, out, err = _cli("login", "--portal", PORTAL, "--no-browser")
     assert code == 0, err
     assert "ABCD-2345" in out and "Signed in: ana@acme.example, in Acme" in out and "acme/oto-registry" in out
+    assert added == ["https://github.com/acme/oto-registry"], "signing in adds the tenant's registry, so nobody runs oto registry add"
+    assert "Added the registry acme: 2 pack(s), 1 ontology(ies)" in out
     assert SESSION not in out + err
 
     code, out, err = _cli("whoami", "--json")
@@ -278,3 +283,66 @@ def test_the_three_commands_from_the_command_line(home, monkeypatch):
     assert code == 0 and "Signed out" in out
     code, out, err = _cli("logout")
     assert code == 0 and "wasn't signed in" in out
+
+
+# --- the tenant's registry, read with the portal's token ------------------------------------------------------------
+
+@pytest.fixture
+def signed_in(home, monkeypatch):
+    from oto.model import registry
+    fake = Portal()
+    monkeypatch.setattr(portal, "_http", fake)
+    _login(fake)
+    del fake.calls[:]
+    monkeypatch.delenv(registry.TOKEN_ENV, raising=False)
+    monkeypatch.setattr(registry, "_PORTAL_TOKENS", {})
+    return fake
+
+
+def test_a_repository_of_the_tenant_is_read_with_a_token_the_portal_gives_for_it_alone(signed_in):
+    from oto.model import registry
+    assert registry._token("https://github.com/acme/oto-registry") == "ghs_one_repository"
+    assert registry._token("https://github.com/Acme/oto-registry.git") == "ghs_one_repository", "the same repository, however it is spelled"
+    asked = [(path, body) for _m, path, body, _s in signed_in.calls]
+    assert asked == [("github-token", {"repository": "acme/oto-registry", "access": "read"})], "asked once in a run, to read, never to write"
+
+
+def test_the_portal_is_not_asked_about_a_repository_that_is_not_the_tenants(signed_in):
+    from oto.model import registry
+    for url in ("https://github.com/someone-else/registry", "https://gitlab.com/acme/oto-registry", "/a/folder/on/disk",
+                "git@github.com:acme/oto-registry.git", "https://github.com/acme/oto-registry/tree/main"):
+        assert registry._token(url) is None, url
+    assert registry._token() is None, "a write names no repository, and the portal gives no token to write a registry"
+    assert signed_in.calls == []
+
+
+def test_the_registry_token_variable_wins_and_a_refusal_leaves_git_to_its_own_sign_in(signed_in, monkeypatch):
+    from oto.model import registry
+    signed_in.signed_out = True                      # the portal now answers 401 to everything
+    assert registry._token("https://github.com/acme/oto-registry") is None
+    monkeypatch.setenv(registry.TOKEN_ENV, "from-the-variable")
+    assert registry._token("https://github.com/acme/oto-registry") == "from-the-variable"
+    assert registry._token() == "from-the-variable"
+
+
+def test_a_computer_that_is_not_signed_in_reads_registries_as_before(home, monkeypatch):
+    from oto.model import registry
+    monkeypatch.delenv(registry.TOKEN_ENV, raising=False)
+    monkeypatch.setattr(portal, "_http", lambda *a, **k: pytest.fail("the portal is not asked"))
+    assert registry._token("https://github.com/acme/oto-registry") is None
+
+
+def test_a_registry_that_cannot_be_added_does_not_undo_the_sign_in(home, monkeypatch):
+    from oto.model import registry
+    from oto.project import ProjectError
+
+    def refuse(url):
+        raise ProjectError("could not clone %s" % url)
+
+    monkeypatch.setattr(registry, "add_registry", refuse)
+    monkeypatch.setattr(portal, "_http", Portal())
+    monkeypatch.setattr(portal.time, "sleep", lambda s: None)
+    code, out, err = _cli("login", "--portal", PORTAL, "--no-browser")
+    assert code == 0 and "Signed in" in out
+    assert "wasn't added" in out and "oto registry add https://github.com/acme/oto-registry" in out
+    assert portal.signed_in() is not None

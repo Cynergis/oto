@@ -39,7 +39,29 @@ def cmd_login(args):
         print("\noto: stopped; this computer isn't signed in", file=sys.stderr)
         return 1
     print("Signed in: " + "\n".join(_lines(who)))
+    for line in _add_registry(who):
+        print(line)
     return 0
+
+
+def _add_registry(who):
+    """The tenant's registry, added for this computer as `oto registry add` would, read with the portal's
+    token: its packs and ontologies resolve from now on. A failure is said and is not the sign-in's."""
+    if not who.get("registry"):
+        return []
+    from ..model import registry
+    from ..project import ProjectError
+    url = "https://github.com/%s" % who["registry"]
+    try:
+        record = registry.add_registry(url)
+    except (ProjectError, OSError, ValueError) as exc:
+        return ["  The registry %s wasn't added: %s" % (who["registry"], str(exc).splitlines()[0][:200]),
+                "  Later: oto registry add %s" % url]
+    index = record.get("index") or {}
+    packs, ontologies = len(index.get("packs") or []), len(index.get("ontologies") or [])
+    if not packs and not ontologies:
+        return ["  Added the registry %s: it lists no pack and no ontology yet" % record["name"]]
+    return ["  Added the registry %s: %d pack(s), %d ontology(ies). Install one with: oto pack add <name>" % (record["name"], packs, ontologies)]
 
 
 def cmd_whoami(args):

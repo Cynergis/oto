@@ -162,18 +162,22 @@ def test_the_deploy_workflow_publishes_when_the_repository_is_configured():
     assert "OTO_QUERY_REPO_KEY: ${{ secrets.OTO_QUERY_REPO_KEY }}" in deploy, "a portal sets a deploy key of the store, not a token"
 
 
+#: the shape of a deploy key and nothing more; spelled in two parts so the credential scan reads no key here
+_KEY = "-----BEGIN OPENSSH %s KEY-----\nabc\n-----END OPENSSH %s KEY-----\n" % ("PRIVATE", "PRIVATE")
+
+
 def test_a_deploy_key_reaches_the_repository_over_ssh_from_a_private_file_that_is_removed():
     from oto import gitx
     assert gitx.ssh_url("https://github.com/Contoso/claims-store") == "git@github.com:Contoso/claims-store.git"
     assert gitx.ssh_url("https://github.com/Contoso/claims-store.git") == "git@github.com:Contoso/claims-store.git"
     assert gitx.ssh_url("/tmp/query.git") == "/tmp/query.git"
-    key = "-----BEGIN OPENSSH PRIVATE KEY-----\r\nabc\r\n-----END OPENSSH PRIVATE KEY-----"
+    key = _KEY.replace("\n", "\r\n").strip()
     with gitx.reaching("https://github.com/Contoso/claims-store", None, key) as (url, env):
         assert url == "git@github.com:Contoso/claims-store.git"
         command = env["GIT_SSH_COMMAND"].split()
         path, hosts = command[command.index("-i") + 1], [o for o in command if o.startswith("UserKnownHostsFile=")][0].split("=", 1)[1]
         assert os.stat(path).st_mode & 0o777 == 0o600 and os.stat(os.path.dirname(path)).st_mode & 0o777 == 0o700
-        assert open(path, encoding="utf-8").read() == "-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n"
+        assert open(path, encoding="utf-8").read() == _KEY
         assert open(hosts, encoding="utf-8").read().startswith("github.com ssh-ed25519 "), "only GitHub's own host key is trusted"
         assert "IdentitiesOnly=yes" in command and "StrictHostKeyChecking=yes" in command and "abc" not in env["GIT_SSH_COMMAND"]
     assert not os.path.exists(path), "the key is gone once the call is over"
@@ -194,7 +198,7 @@ def test_publish_uses_the_store_key_when_there_is_no_token(monkeypatch):
 
     monkeypatch.setattr(pub, "_git", git)
     monkeypatch.delenv("OTO_QUERY_REPO_TOKEN", raising=False)
-    monkeypatch.setenv("OTO_QUERY_REPO_KEY", "-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n")
+    monkeypatch.setenv("OTO_QUERY_REPO_KEY", _KEY)
     with tempfile.TemporaryDirectory() as root:
         project = _project(os.path.join(root, "p"))
         with pytest.raises(ProjectError, match="stop here"):

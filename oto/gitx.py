@@ -7,8 +7,11 @@ environment and is put into an https URL for the length of one call; it is never
 or printed, and a path or ssh URL is left alone. A call that reaches a remote sends no header the
 configuration it runs under would add, so the token in the URL is the credential that arrives.
 """
+import contextlib
 import os
+import shutil
 import subprocess
+import tempfile
 
 from .project import ProjectError
 
@@ -32,6 +35,47 @@ def with_token(url, token):
     if token and url.startswith("https://") and "@" not in url.split("//", 1)[1].split("/", 1)[0]:
         return "https://x-access-token:%s@%s" % (token, url[len("https://"):])
     return url
+
+
+#: github.com's host key (https://api.github.com/meta, ssh_keys), so a push with a deploy key trusts no other host
+GITHUB_HOST_KEY = "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
+
+
+def ssh_url(url):
+    """`git@host:owner/name.git` for an https URL; anything else (a path, an ssh URL) is unchanged."""
+    if not url.startswith("https://"):
+        return url
+    host, _, path = url[len("https://"):].partition("/")
+    path = path.rstrip("/")
+    return "git@%s:%s%s" % (host.rsplit("@", 1)[-1], path, "" if path.endswith(".git") else ".git")
+
+
+@contextlib.contextmanager
+def reaching(url, token=None, key=None):
+    """How to reach `url` for the length of a `with`: (the URL to give git, the environment to run it in).
+    With a token, the https URL carries it (with_token). With `key`, a private SSH key (a deploy key) and
+    no token, the URL becomes its ssh form and git uses that key alone: it is written to a private
+    temporary folder, mode 0600, which is removed on the way out, and for github.com only GitHub's own
+    host key is trusted. With neither, the URL as it is."""
+    if token or not key or not url.startswith("https://"):
+        yield with_token(url, token), None
+        return
+    folder = tempfile.mkdtemp(prefix="oto-key-")
+    try:
+        path = os.path.join(folder, "key")
+        with open(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w", encoding="utf-8", newline="\n") as f:
+            f.write(key.replace("\r\n", "\n").strip() + "\n")
+        options = ["-i", path, "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes"]
+        if url[len("https://"):].partition("/")[0].rsplit("@", 1)[-1] == "github.com":
+            hosts = os.path.join(folder, "known_hosts")
+            with open(hosts, "w", encoding="utf-8") as f:
+                f.write(GITHUB_HOST_KEY + "\n")
+            options += ["-o", "UserKnownHostsFile=%s" % hosts, "-o", "StrictHostKeyChecking=yes"]
+        else:
+            options += ["-o", "StrictHostKeyChecking=accept-new"]
+        yield ssh_url(url), {"GIT_SSH_COMMAND": " ".join(["ssh"] + ['"%s"' % o if " " in o else o for o in options])}
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
 
 
 def no_inherited_headers(url):

@@ -258,6 +258,19 @@ def repository_token(repository, access="read", home=None, http=None):
     return found
 
 
+def prepare_graph(name, home=None, http=None):
+    """Have the portal set on a graph it made what the graph's workflows need to push without anyone's
+    token: the environment only main deploys from, main's deploy key in it, the store's deploy key and
+    the store's address. Asked once the first commit is pushed; asking again changes nothing already
+    set. Returns {repository, store, done, warnings}. No key or token comes back: the portal makes the
+    keys and gives them to GitHub itself."""
+    http = http or _http
+    portal, session = _signed(home)
+    found = _ask(http, "POST", portal, "graph-setup", body={"name": name}, session=session)
+    return {"repository": found.get("repository"), "store": found.get("store"),
+            "done": [str(x) for x in found.get("done") or []], "warnings": [str(x) for x in found.get("warnings") or []]}
+
+
 def create_graph(name, organization=None, domain=None, pack=None, home=None, http=None):
     """Have the portal make a new graph: its private repository and its store, in the tenant's GitHub
     organisation, recorded in the tenant with its place (an organization, and a domain inside it; none

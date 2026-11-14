@@ -907,6 +907,9 @@ def _signed_in(tmp_path, monkeypatch, answers=None):
         if path == "graphs":
             return 200, {"repository": "Contoso/%s" % body["name"], "store": "Contoso/%s-store" % body["name"], "organization": body.get("organization"),
                          "domain": body.get("domain"), "token": PORTAL_TOKEN, "expires_at": "2026-11-13T11:00:00Z", "warnings": []}
+        if path == "graph-setup":
+            return 200, {"repository": "Contoso/%s" % body["name"], "store": "Contoso/%s-store" % body["name"],
+                         "done": ["main's deploy key is in the environment oto-main"], "warnings": []}
         if path == "github-token":
             return 200, {"token": PORTAL_TOKEN, "expires_at": "2026-11-13T11:00:00Z", "repository": body["repository"], "access": body["access"]}
         return 404, {}
@@ -929,7 +932,10 @@ def test_signed_in_the_portal_creates_the_graph_with_its_place_and_gives_the_tok
     bare = _bare(tmp_path, "motor-claims.git")
     _github_is(monkeypatch, "Contoso/motor-claims", bare)
     report = sandbox.up(name="motor-claims", directory=str(tmp_path / "mc"), kind="knowledge", organization="Finance", domain="Claims", approve=True)
-    assert asked == [("graphs", {"name": "motor-claims", "organization": "Finance", "domain": "Claims"})], "the portal is asked once, before anything is laid out"
+    assert asked == [("graphs", {"name": "motor-claims", "organization": "Finance", "domain": "Claims"}),
+                     ("graph-setup", {"name": "motor-claims"})], "the portal makes the graph before anything is laid out, and sets up its deploys once main is pushed"
+    assert any("set up the repository's deploys: main's deploy key" in d for d in report["done"])
+    assert not any("deploy key" in w for w in report["warnings"]), "what the portal did is not said to be missing"
     assert report["repository"] == "https://github.com/Contoso/motor-claims.git" and report["commit"]
     assert report["store"] == "https://github.com/Contoso/motor-claims-store"
     author = subprocess.run(["git", "-C", bare, "log", "-1", "--format=%ae", "main"], capture_output=True, text=True).stdout.strip()
@@ -952,8 +958,18 @@ def test_signed_in_the_portal_creates_the_graph_with_its_place_and_gives_the_tok
     # again, later: the folder is already that repository's, so the portal is asked for a new token and nothing else
     del asked[:]
     again = sandbox.up(name="motor-claims", directory=str(tmp_path / "mc"), kind="knowledge", approve=True)
-    assert asked == [("github-token", {"repository": "Contoso/motor-claims", "access": "write"})]
+    assert asked == [("github-token", {"repository": "Contoso/motor-claims", "access": "write"}), ("graph-setup", {"name": "motor-claims"})]
     assert any("new one-hour token" in d for d in again["done"])
+
+
+def test_signed_in_a_portal_that_cannot_set_up_the_deploys_is_a_warning_and_the_graph_is_still_made(fake, tmp_path, monkeypatch):
+    from oto import sandbox
+    _signed_in(tmp_path, monkeypatch, {"graph-setup": lambda body: (502, {"error": "the App needs the repository permissions Administration and Environments"})})
+    _github_is(monkeypatch, "Contoso/motor-claims", _bare(tmp_path, "motor-claims.git"))
+    report = sandbox.up(name="motor-claims", directory=str(tmp_path / "mc"), kind="knowledge", approve=True)
+    assert report["commit"], "the first commit is pushed all the same"
+    said = [w for w in report["warnings"] if "didn't set up the deploys" in w]
+    assert said and "Environments" in said[0] and "again" in said[0]
 
 
 def test_signed_in_a_refusal_from_the_portal_stops_before_anything_is_laid_out(fake, tmp_path, monkeypatch):

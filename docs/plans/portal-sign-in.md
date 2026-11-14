@@ -107,7 +107,17 @@ the portal, to create repositories). Each organisation approves the change once.
 2. **`.github/oto-access.json`.** It lists GitHub logins. For a portal tenant, either the portal writes it from its
    roles, or the file is left empty and the portal's roles are the only rule. Not decided.
 3. **Branch rules and deploy keys.** `oto repo` applies them and needs administration rights. With the App, the
-   portal has to do this at creation. Not traced in full.
+   portal has to do this at creation. Traced on 2026-11-13, in two stages.
+   Stage 1, built: once the first commit is pushed, the engine asks the portal (`POST /api/terminal/graph-setup`)
+   and the portal, as its App, sets the environment `oto-main` that only main deploys from, main's deploy key in
+   it (`OTO_MAIN_DEPLOY_KEY`), a write deploy key of the store (`OTO_QUERY_REPO_KEY`, which `oto publish` uses over
+   SSH when there is no token: an App's token lasts an hour, so none can be stored), and the store's address
+   (`OTO_QUERY_REPO`, as a variable of that environment). The App needs Environments, read and write, beside
+   Administration. The portal makes each key pair, seals the private half for GitHub and keeps nothing.
+   Stage 2, not built: the branch rules and the code owner. A code owner is a GitHub login or team, and a person
+   who signed in through the portal has neither; and once the rules are on, nobody pushes to main, so a person
+   with only the portal's token needs a way to open a pull request (the App has no Pull requests permission) and
+   to have it reviewed (decision 1 above). `oto publish --promote` still takes a token only.
 4. **The portal's sign-in for a terminal.** The portal uses Supabase for sign-in. That it can issue and renew a
    session for a terminal as described is assumed, not tested.
 5. **Graphs made without the portal.** They keep the `oto-graph` topic and the registry's graph directory. The

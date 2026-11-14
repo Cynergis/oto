@@ -278,7 +278,8 @@ The deploy workflow has two targets, and its secrets live in the environment `ot
 `main` deploys from, since a repository secret reaches a workflow on any branch. The self-hosted Neo4j is
 the production store (below). The
 query repository, when the repository variable `OTO_QUERY_REPO` names one and the secret
-`OTO_QUERY_REPO_TOKEN` can write to it (and the static site beside it when `OTO_SITE_VIEW` names
+`OTO_QUERY_REPO_TOKEN` can write to it, or the secret `OTO_QUERY_REPO_KEY` holds a write deploy key of it,
+which is what a portal sets (and the static site beside it when `OTO_SITE_VIEW` names
 a view), receives the built SQLite store on every merge through
 `oto publish` ([publish.py](../oto/publish.py)): the database, the project's identity marked
 `store_only`, a manifest with the build sequence, hash and source commit, and a README. Readers
@@ -1033,6 +1034,7 @@ None are needed for ordinary use.
 | `OTO_ONTOLOGIES`, `OTO_PACKS`, `OTO_REGISTRIES` | Where user and fetched ontologies and packs live, and the registries file. |
 | `CLAUDE_CONFIG_DIR` | Claude Code's own: where its list of installed plugins is, so the ontologies an installed pack embeds resolve by name. Default `~/.claude`. |
 | `OTO_REGISTRY_TOKEN`, `OTO_QUERY_REPO_TOKEN`, `OTO_ENGINE_TOKEN` | Tokens for private ontology registries, the query repository, and the engine repository in workflows. |
+| `OTO_QUERY_REPO_KEY` | A write deploy key of the query repository, used by `oto publish` over SSH when there is no `OTO_QUERY_REPO_TOKEN`. A portal sets it, since its GitHub App has no lasting token to give. |
 | `OTO_TRACE`, `OTEL_EXPORTER_OTLP_ENDPOINT` | Tracing (`oto-kg[otel]`): `console` prints spans to stderr; `1` with an OTLP endpoint sends them to a collector over OTLP/HTTP, the SDK reading the `OTEL_*` variables itself. Unset: no span. |
 | `OTO_SERVE_TOKEN` | The bearer token `oto serve --http` requires from every caller when it is set, and demands before binding beyond localhost (not inside an OTO sandbox, where a bind to all interfaces reaches only the computer). |
 | `OTO_SANDBOX` | Set by the kit: the engine runs inside an OTO sandbox, so `oto serve` binds all interfaces by default and needs no token. |

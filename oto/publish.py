@@ -6,7 +6,8 @@ all of that. Many readers only need answers. `oto publish` pushes the built SQLi
 project's identity and a manifest, to a second, read-only repository; `oto sync` pulls that
 repository to a reader's machine; `oto serve` and `oto query` recognise such a checkout and serve
 it. The deploy workflow publishes on every merge when the repository variable `OTO_QUERY_REPO`
-names the target and the secret `OTO_QUERY_REPO_TOKEN` can write to it.
+names the target and the secret `OTO_QUERY_REPO_TOKEN` can write to it, or the secret
+`OTO_QUERY_REPO_KEY` holds a write deploy key of it (what a portal sets, which has no lasting token to give).
 
 With Neo4j as the production store this is the offline and fallback path: a reader with no route
 to the database, or a machine that must answer with the network down, serves the synced store.
@@ -14,9 +15,11 @@ The two stores answer alike, so nothing changes for the reader but the freshness
 
 Git does the transport, through the `git` on the PATH: no library, no second protocol. A token is
 taken from the environment and put in the clone URL for the duration of the call; it is never
-written to disk or printed. A header the git config of the folder would send instead, as the one
+written to disk or printed. A deploy key is used over SSH from a private temporary file, removed
+after the call (gitx.reaching). A header the git config of the folder would send instead, as the one
 actions/checkout leaves in a workflow's workspace, is dropped for the query repository (gitx).
 """
+import contextlib
 import datetime
 import hashlib
 import json
@@ -29,6 +32,7 @@ from .project import ProjectError
 CONFIG_NAME = "project.config.json"
 MANIFEST_NAME = "MANIFEST.json"
 TOKEN_ENV = "OTO_QUERY_REPO_TOKEN"
+KEY_ENV = "OTO_QUERY_REPO_KEY"                    # a write deploy key of the query repository, when there is no token
 IDENTITY_KEYS = ("slug", "name", "server_name", "db_name", "cache_dir")
 
 README = """# {name}: the query store
@@ -123,9 +127,11 @@ def publish(project, repo=None, source=None, branch="main", token=None, engine=N
     engine = engine or "https://github.com/Cynergis/oto"
 
     work = tempfile.mkdtemp(prefix="oto-publish-")
+    reach = contextlib.ExitStack()
     try:
-        _git(["clone", "--quiet", "--depth", "1", "--branch", branch, _with_token(repo, token), work], remote=repo) \
-            if _remote_has_branch(repo, token, branch) else _init_empty(work, repo, token, branch)
+        url, env = reach.enter_context(_gitx.reaching(repo, token, None if token else os.environ.get(KEY_ENV)))
+        _git(["clone", "--quiet", "--depth", "1", "--branch", branch, url, work], env=env, remote=repo) \
+            if _remote_has_branch(repo, url, branch, env) else _init_empty(work, repo, token, branch)
         shutil.copyfile(database, os.path.join(work, identity["db_name"]))
         if site:
             if not os.path.isdir(project.layout.site):
@@ -183,7 +189,7 @@ def publish(project, repo=None, source=None, branch="main", token=None, engine=N
         _git(["-c", "user.name=oto publish", "-c", "user.email=oto-publish@localhost", "commit", "--quiet",
               "-m", "store build_seq %d%s%s" % (manifest["build_seq"], (" from " + source) if source else "",
                                                 (" to " + environment) if environment else "")], cwd=work)
-        _git(["push", "--quiet", _with_token(repo, token), "HEAD:%s" % branch], cwd=work, remote=repo)
+        _git(["push", "--quiet", url, "HEAD:%s" % branch], cwd=work, env=env, remote=repo)
         manifest["changed"] = True
         from . import assertion as _assertion, audit as _audit
         _audit.append(project, "publish", _assertion.identity(project), [], "published",
@@ -191,11 +197,12 @@ def publish(project, repo=None, source=None, branch="main", token=None, engine=N
                                                             (" from " + source) if source else ""))
         return manifest
     finally:
+        reach.close()
         shutil.rmtree(work, ignore_errors=True)
 
 
-def _remote_has_branch(repo, token, branch):
-    out = _git(["ls-remote", "--heads", _with_token(repo, token), branch], remote=repo)
+def _remote_has_branch(repo, url, branch, env=None):
+    out = _git(["ls-remote", "--heads", url, branch], env=env, remote=repo)
     return bool(out.strip())
 
 

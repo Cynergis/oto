@@ -114,10 +114,21 @@ the portal, to create repositories). Each organisation approves the change once.
    SSH when there is no token: an App's token lasts an hour, so none can be stored), and the store's address
    (`OTO_QUERY_REPO`, as a variable of that environment). The App needs Environments, read and write, beside
    Administration. The portal makes each key pair, seals the private half for GitHub and keeps nothing.
-   Stage 2, not built: the branch rules and the code owner. A code owner is a GitHub login or team, and a person
-   who signed in through the portal has neither; and once the rules are on, nobody pushes to main, so a person
-   with only the portal's token needs a way to open a pull request (the App has no Pull requests permission) and
-   to have it reviewed (decision 1 above). `oto publish --promote` still takes a token only.
+   Run against GitHub on 2026-11-14: the keys, secrets and address were set, a second request changed nothing,
+   and the deploy workflow published the store with the portal's key.
+   Stage 2, built 2026-11-14, not yet run against GitHub: the same request then puts the branch rules on main,
+   read from the repository's own `.github/oto-rules.json`. The code owner is a team, since a person who signed
+   in through the portal has no GitHub login: by convention the team `oto-owners` of the organisation
+   (`repo.OWNERS_TEAM`), which `oto sandbox up` names in `.github/CODEOWNERS` in the first commit. The portal
+   gives that team write access and asks for its approval only when the file names it and the team exists;
+   otherwise the rules go on without a code owner and a warning says what is missing, and a later request adds
+   it. Rules that are there are never loosened. Once the rules are on nobody pushes to main, so the portal's
+   one-hour token also carries Pull requests, write: a person with no GitHub account can open and merge a pull
+   request, authored by the App. The App needs Pull requests, read and write, and the organisation permission
+   Members, read.
+   Not built: approving without a GitHub account (decision 1 above). The App can't approve a pull request it
+   opened, so an approval given in the portal has to be recorded another way. `oto publish --promote` still
+   takes a token only.
 4. **The portal's sign-in for a terminal.** The portal uses Supabase for sign-in. That it can issue and renew a
    session for a terminal as described is assumed, not tested.
 5. **Graphs made without the portal.** They keep the `oto-graph` topic and the registry's graph directory. The

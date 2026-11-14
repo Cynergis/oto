@@ -261,7 +261,9 @@ def repository_token(repository, access="read", home=None, http=None):
 def prepare_graph(name, home=None, http=None):
     """Have the portal set on a graph it made what the graph's workflows need to push without anyone's
     token: the environment only main deploys from, main's deploy key in it, the store's deploy key and
-    the store's address. Asked once the first commit is pushed; asking again changes nothing already
+    the store's address; then the branch rules on main, from the repository's own .github/oto-rules.json,
+    with a code owner's approval when .github/CODEOWNERS names the organisation's team (repo.OWNERS_TEAM)
+    and the team exists. Asked once the first commit is pushed; asking again changes nothing already
     set. Returns {repository, store, done, warnings}. No key or token comes back: the portal makes the
     keys and gives them to GitHub itself."""
     http = http or _http

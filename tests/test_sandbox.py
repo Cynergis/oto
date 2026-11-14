@@ -934,7 +934,7 @@ def test_signed_in_the_portal_creates_the_graph_with_its_place_and_gives_the_tok
     report = sandbox.up(name="motor-claims", directory=str(tmp_path / "mc"), kind="knowledge", organization="Finance", domain="Claims", approve=True)
     assert asked == [("graphs", {"name": "motor-claims", "organization": "Finance", "domain": "Claims"}),
                      ("graph-setup", {"name": "motor-claims"})], "the portal makes the graph before anything is laid out, and sets up its deploys once main is pushed"
-    assert any("set up the repository's deploys: main's deploy key" in d for d in report["done"])
+    assert any("set up the repository: main's deploy key" in d for d in report["done"])
     assert not any("deploy key" in w for w in report["warnings"]), "what the portal did is not said to be missing"
     assert report["repository"] == "https://github.com/Contoso/motor-claims.git" and report["commit"]
     assert report["store"] == "https://github.com/Contoso/motor-claims-store"
@@ -947,7 +947,10 @@ def test_signed_in_the_portal_creates_the_graph_with_its_place_and_gives_the_tok
     secret = [c for c in fake.calls("secret") if c[:2] == ["secret", "set"]]
     assert secret and PORTAL_TOKEN in secret[0], "the portal's token is the sandbox's GitHub secret"
     assert any("Finance / Claims" in d for d in report["done"]) and any("one hour" in d for d in report["done"])
-    assert any("branch rules" in w for w in report["warnings"]), "what the portal does not do yet is said"
+    assert not any("branch rules" in w for w in report["warnings"]), "the rules are the portal's to set and to report"
+    owners = subprocess.run(["git", "-C", bare, "show", "main:.github/CODEOWNERS"], capture_output=True, text=True).stdout
+    assert "@Contoso/oto-owners" in owners and "/.github/" in owners, "the first commit names the organisation's team code owner, so the rules can ask for it"
+    assert any("@Contoso/oto-owners" in d for d in report["done"])
     for root, _dirs, files in os.walk(str(tmp_path)):
         for name in files:
             if name == "sbx.json":          # the fake sandbox tool's own record of its calls
@@ -969,7 +972,7 @@ def test_signed_in_a_portal_that_cannot_set_up_the_deploys_is_a_warning_and_the_
     report = sandbox.up(name="motor-claims", directory=str(tmp_path / "mc"), kind="knowledge", approve=True)
     assert report["commit"], "the first commit is pushed all the same"
     said = [w for w in report["warnings"] if "didn't set up the deploys" in w]
-    assert said and "Environments" in said[0] and "again" in said[0]
+    assert said and "Environments" in said[0] and "again" in said[0] and "branch rules" in said[0]
 
 
 def test_signed_in_a_refusal_from_the_portal_stops_before_anything_is_laid_out(fake, tmp_path, monkeypatch):

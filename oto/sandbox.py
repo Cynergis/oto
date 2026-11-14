@@ -970,6 +970,11 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
             report["store"] = GITHUB + made["store"]
             if _name_the_creator(project_dir, repo, None, report["store"]):
                 report["done"].append("the portal created (or found) the private store repository %s, named in .github/oto-access.json" % made["store"])
+        if made and not _repo.code_owner_of(project_dir):
+            # in the first commit, so the owners are on main before the portal's rules ask for them; the owner is a
+            # team, since a person signed in through the portal has no GitHub login to name
+            team = "%s/%s" % (repo.split("/")[0], _repo.OWNERS_TEAM)
+            report["done"].append("named the team %s code owner of what the gate runs on (%s)" % (_repo.write_code_owners(project_dir, team), _repo.CODEOWNERS_FILE))
         commit = first_push(project_dir, url, token=token, kind="knowledge", author=who.get("email"))
         report["repository"] = url
         report["commit"] = commit
@@ -977,14 +982,11 @@ def up(name=DEFAULT_NAME, directory=None, project_id=None, kit=None, approve=Fal
         try:
             # as its GitHub App, once main exists: asking again changes nothing that is already set
             setup = _portal.prepare_graph(name)
-            report["done"] += ["the portal set up the repository's deploys: %s" % said for said in setup["done"]]
+            report["done"] += ["the portal set up the repository: %s" % said for said in setup["done"]]
             report["warnings"] += setup["warnings"]
         except _portal.PortalError as exc:
-            report["warnings"].append("the portal didn't set up the deploys of %s (main's deploy key, the store's key and address), so its workflows can't push yet: %s. "
-                                      "Run the same command again once it can" % (repo, exc))
-        if made:
-            report["warnings"].append("no branch rules or code owner were set on %s: the portal does not do these yet, "
-                                      "and `oto repo rules --apply` needs a token of your own" % repo)
+            report["warnings"].append("the portal didn't set up the deploys of %s (main's deploy key, the store's key and address) or its branch rules, "
+                                      "so its workflows can't push yet and main is open: %s. Run the same command again once it can" % (repo, exc))
     elif repo:
         say("the repository %s" % repo)
         url = github_repository(repo, token)

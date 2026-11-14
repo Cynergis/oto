@@ -1391,6 +1391,7 @@ TAG_RULES_FILE = os.path.join(".github", "oto-tag-rules.json")
 RELEASE_ENVIRONMENT = "oto-release"               # deploys from release tags alone; holds the registry's token
 MAIN_ENVIRONMENT = "oto-main"                     # deploys from the default branch alone; holds main's key
 DEPLOY_KEY_SECRET = "OTO_MAIN_DEPLOY_KEY"
+OWNERS_TEAM = "oto-owners"                        # the team a portal names code owner, one per organisation: a portal's person has no GitHub login
 DEPLOY_KEY_TITLE = "oto main pushes"
 CODEOWNERS_FILE = os.path.join(".github", "CODEOWNERS")
 OWNED = ("/.github/", "/oto.lock.json", "/oto.promote.json")     # what the gate runs on: its workflows, rules and access file, the engine's pin; and what promotes a build
